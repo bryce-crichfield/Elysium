@@ -17,7 +17,6 @@ file(GLOB_RECURSE SOURCE_FILES
 
 # Add vendor libraries
 add_subdirectory(Vendor/raylib)
-add_subdirectory(Vendor/rlImGui)
 add_subdirectory(Vendor/tinyxml2)
 
 # ImGui sources (since ImGui doesn't have CMakeLists.txt by default)
@@ -37,6 +36,17 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
 )
+
+# rlImGui library (build directly instead of using submodule CMakeLists.txt)
+set(RLIMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/rlImGui)
+add_library(rlimgui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
+target_include_directories(rlimgui PUBLIC
+    ${RLIMGUI_DIR}
+    ${CMAKE_SOURCE_DIR}/Vendor/raylib/src
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+)
+target_link_libraries(rlimgui PUBLIC raylib imgui)
 
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
