@@ -47,7 +47,7 @@ namespace Elysium
         InitWindow(config_.windowWidth, config_.windowHeight, config_.windowTitle.c_str());
 
         rlImGuiSetup(true);
-        SetTargetFPS(config_.targetFPS);
+        // SetTargetFPS(config_.targetFPS);
 
         frontBuffer_ = LoadRenderTexture(config_.windowWidth, config_.windowHeight);
         backBuffer_ = LoadRenderTexture(config_.windowWidth, config_.windowHeight);

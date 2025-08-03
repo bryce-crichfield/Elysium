@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Scene.h"
+#include "Services/MemoryTracker.h"
 #include "raylib.h"
 #include <vector>
 
@@ -29,7 +30,8 @@ private:
     void AddBall();
     void ClearBalls();
     
-    std::vector<Ball> balls_;
+    // Use tracked allocator for demonstrating memory tracking
+    std::vector<Ball, Elysium::Services::TrackedAllocator<Ball>> balls_;
     float gravity_;
     bool paused_;
     int ballCount_;
