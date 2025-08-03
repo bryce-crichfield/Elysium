@@ -1,0 +1,33 @@
+#pragma once
+
+#include "Scene.h"
+#include "raylib.h"
+#include <vector>
+
+struct Ball {
+    Vector2 position;
+    Vector2 velocity;
+    float radius;
+    Color color;
+};
+
+class GameScene : public Scene {
+public:
+    GameScene();
+    virtual ~GameScene() = default;
+    
+    void OnUpdate(float deltaTime) override;
+    void OnDraw() override;
+    void OnInput(const InputEvent& event) override;
+    void OnEnter() override;
+    void OnExit() override;
+
+private:
+    void AddBall();
+    void ClearBalls();
+    
+    std::vector<Ball> balls_;
+    float gravity_;
+    bool paused_;
+    int ballCount_;
+};
