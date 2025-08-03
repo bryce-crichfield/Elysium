@@ -1,9 +1,11 @@
-#include "GameScene.h"
+#include "Scenes/GameScene.h"
 #include "Application.h"
-#include "MenuScene.h"
+#include "Scenes/MenuScene.h"
 #include "imgui.h"
 #include <memory>
 #include <random>
+
+namespace Elysium::Scenes {
 
 GameScene::GameScene() : Scene("GameScene") {
     gravity_ = 500.0f;
@@ -74,7 +76,7 @@ void GameScene::OnDraw() {
     
     if (ImGui::Button("Switch to Menu Scene", ImVec2(200, 30))) {
         auto menuScene = std::make_unique<MenuScene>();
-        Application::GetInstance().QueueSceneTransition(std::move(menuScene));
+        Elysium::Application::GetInstance().QueueSceneTransition(std::move(menuScene));
     }
     
     ImGui::Separator();
@@ -118,7 +120,7 @@ void GameScene::OnInput(const InputEvent& event) {
         if (event.key == KEY_M) {
             // Switch to menu scene
             auto menuScene = std::make_unique<MenuScene>();
-            Application::GetInstance().QueueSceneTransition(std::move(menuScene));
+            Elysium::Application::GetInstance().QueueSceneTransition(std::move(menuScene));
         } else if (event.key == KEY_SPACE) {
             paused_ = !paused_;
         }
@@ -164,3 +166,5 @@ void GameScene::AddBall() {
 void GameScene::ClearBalls() {
     balls_.clear();
 }
+
+} // namespace Elysium::Scenes

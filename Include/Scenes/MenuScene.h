@@ -1,7 +1,9 @@
 #pragma once
 
-#include "Scene.h"
+#include "../Scene.h"
 #include "raylib.h"
+
+namespace Elysium::Scenes {
 
 class MenuScene : public Scene {
 public:
@@ -18,3 +20,5 @@ private:
     float rotation_;
     Color backgroundColor_;
 };
+
+} // namespace Elysium::Scenes

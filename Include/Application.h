@@ -1,80 +1,17 @@
 #pragma once
 
-#include "IScene.h"
-#include "MetricsService.h"
-#include "LogService.h"
+#include "Scene.h"
+#include "Services/MetricsService.h"
+#include "Services/LogService.h"
+#include "Services/EventService.h"
+#include "Services/AssetService.h"
+#include "Services/NetworkService.h"
+#include "GameConfig.h"
 #include "raylib.h"
 #include <memory>
 #include <string>
-#include <queue>
-#include <vector>
 
-struct GameConfig {
-    int windowWidth = 1280;
-    int windowHeight = 720;
-    std::string windowTitle = "Elysium - 2D Game Engine";
-    bool fullscreen = false;
-    bool vsync = true;
-    int targetFPS = 60;
-    
-    Color backgroundColor = DARKBLUE;
-    bool showFPS = true;
-    
-    float gravity = 9.81f;
-    float defaultBallRadius = 20.0f;
-    Vector2 defaultBallSpeed = { 5.0f, 4.0f };
-    
-    bool showDemoWindow = true;
-    bool showMetrics = false;
-    std::string logLevel = "INFO";
-};
-
-class EventManager {
-public:
-    void QueueInputEvent(const InputEvent& event);
-    void QueueNetworkEvent(const NetworkEvent& event);
-    
-    bool HasInputEvents() const;
-    bool HasNetworkEvents() const;
-    
-    InputEvent GetNextInputEvent();
-    NetworkEvent GetNextNetworkEvent();
-    
-    void Clear();
-
-private:
-    std::queue<InputEvent> inputEvents_;
-    std::queue<NetworkEvent> networkEvents_;
-};
-
-class AssetManager {
-public:
-    void Initialize();
-    void Shutdown();
-    
-    Texture2D LoadTexture(const std::string& path);
-    Sound LoadSound(const std::string& path);
-    void UnloadTexture(const std::string& path);
-    void UnloadSound(const std::string& path);
-};
-
-class NetworkManager {
-public:
-    void Initialize();
-    void Shutdown();
-    void Update();
-    
-    bool StartServer(int port);
-    bool ConnectToServer(const std::string& address, int port);
-    void Disconnect();
-    
-    void SendData(const void* data, size_t size);
-    bool IsConnected() const;
-
-private:
-    bool isServer_ = false;
-    bool isConnected_ = false;
-};
+namespace Elysium {
 
 class Application {
 public:
@@ -84,14 +21,14 @@ public:
     void Run();
     void Shutdown();
     
-    void SetScene(std::unique_ptr<IScene> scene);
-    void QueueSceneTransition(std::unique_ptr<IScene> scene);
+    void SetScene(std::unique_ptr<Scene> scene);
+    void QueueSceneTransition(std::unique_ptr<Scene> scene);
     
-    EventManager& GetEventManager() { return eventManager_; }
-    AssetManager& GetAssetManager() { return assetManager_; }
-    NetworkManager& GetNetworkManager() { return networkManager_; }
-    MetricsService& GetMetricsService() { return metricsService_; }
-    LogService& GetLogService() { return LogService::GetInstance(); }
+    Services::EventService& GetEventService() { return eventService_; }
+    Services::AssetService& GetAssetService() { return assetService_; }
+    Services::NetworkService& GetNetworkService() { return networkService_; }
+    Services::MetricsService& GetMetricsService() { return metricsService_; }
+    Services::LogService& GetLogService() { return Services::LogService::GetInstance(); }
     const GameConfig& GetConfig() const { return config_; }
     
     bool ShouldClose() const;
@@ -111,15 +48,15 @@ private:
     void ProcessInput();
     
     GameConfig config_;
-    std::unique_ptr<IScene> currentScene_;
-    std::unique_ptr<IScene> pendingScene_;
+    std::unique_ptr<Scene> currentScene_;
+    std::unique_ptr<Scene> pendingScene_;
     bool sceneTransitionPending_ = false;
     bool sceneTransitionLocked_ = false;
     
-    EventManager eventManager_;
-    AssetManager assetManager_;
-    NetworkManager networkManager_;
-    MetricsService metricsService_;
+    Services::EventService eventService_;
+    Services::AssetService assetService_;
+    Services::NetworkService networkService_;
+    Services::MetricsService metricsService_;
     
     RenderTexture2D frontBuffer_;
     RenderTexture2D backBuffer_;
@@ -127,3 +64,5 @@ private:
     bool initialized_ = false;
     bool shouldClose_ = false;
 };
+
+} // namespace Elysium

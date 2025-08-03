@@ -1,145 +1,14 @@
 #include "Application.h"
-#include "MetricsService.h"
-#include "LogService.h"
 #include "rlImGui.h"
 #include "imgui.h"
 #include "tinyxml2.h"
 #include <cstdio>
 #include <cstdarg>
-#include <unordered_map>
 #include <chrono>
 
 using namespace tinyxml2;
 
-void EventManager::QueueInputEvent(const InputEvent& event) {
-    inputEvents_.push(event);
-}
-
-void EventManager::QueueNetworkEvent(const NetworkEvent& event) {
-    networkEvents_.push(event);
-}
-
-bool EventManager::HasInputEvents() const {
-    return !inputEvents_.empty();
-}
-
-bool EventManager::HasNetworkEvents() const {
-    return !networkEvents_.empty();
-}
-
-InputEvent EventManager::GetNextInputEvent() {
-    if (inputEvents_.empty()) {
-        return {};
-    }
-    InputEvent event = inputEvents_.front();
-    inputEvents_.pop();
-    return event;
-}
-
-NetworkEvent EventManager::GetNextNetworkEvent() {
-    if (networkEvents_.empty()) {
-        return {};
-    }
-    NetworkEvent event = networkEvents_.front();
-    networkEvents_.pop();
-    return event;
-}
-
-void EventManager::Clear() {
-    while (!inputEvents_.empty()) inputEvents_.pop();
-    while (!networkEvents_.empty()) networkEvents_.pop();
-}
-
-static std::unordered_map<std::string, Texture2D> textureCache;
-static std::unordered_map<std::string, Sound> soundCache;
-
-void AssetManager::Initialize() {
-    textureCache.clear();
-    soundCache.clear();
-}
-
-void AssetManager::Shutdown() {
-    for (auto& pair : textureCache) {
-        ::UnloadTexture(pair.second);
-    }
-    for (auto& pair : soundCache) {
-        ::UnloadSound(pair.second);
-    }
-    textureCache.clear();
-    soundCache.clear();
-}
-
-Texture2D AssetManager::LoadTexture(const std::string& path) {
-    auto it = textureCache.find(path);
-    if (it != textureCache.end()) {
-        return it->second;
-    }
-    
-    Texture2D texture = ::LoadTexture(path.c_str());
-    textureCache[path] = texture;
-    return texture;
-}
-
-Sound AssetManager::LoadSound(const std::string& path) {
-    auto it = soundCache.find(path);
-    if (it != soundCache.end()) {
-        return it->second;
-    }
-    
-    Sound sound = ::LoadSound(path.c_str());
-    soundCache[path] = sound;
-    return sound;
-}
-
-void AssetManager::UnloadTexture(const std::string& path) {
-    auto it = textureCache.find(path);
-    if (it != textureCache.end()) {
-        ::UnloadTexture(it->second);
-        textureCache.erase(it);
-    }
-}
-
-void AssetManager::UnloadSound(const std::string& path) {
-    auto it = soundCache.find(path);
-    if (it != soundCache.end()) {
-        ::UnloadSound(it->second);
-        soundCache.erase(it);
-    }
-}
-
-void NetworkManager::Initialize() {
-    isServer_ = false;
-    isConnected_ = false;
-}
-
-void NetworkManager::Shutdown() {
-    if (isConnected_) {
-        Disconnect();
-    }
-}
-
-void NetworkManager::Update() {
-}
-
-bool NetworkManager::StartServer(int port) {
-    return false;
-}
-
-bool NetworkManager::ConnectToServer(const std::string& address, int port) {
-    return false;
-}
-
-void NetworkManager::Disconnect() {
-    isConnected_ = false;
-    isServer_ = false;
-}
-
-void NetworkManager::SendData(const void* data, size_t size) {
-}
-
-bool NetworkManager::IsConnected() const {
-    return isConnected_;
-}
+namespace Elysium {
 
 Application& Application::GetInstance() {
     static Application instance;
@@ -147,7 +16,7 @@ Application& Application::GetInstance() {
 }
 
 void CustomTraceLogCallback(int logLevel, const char *text, va_list args) {
-    LogService::GetInstance().LogMessage(logLevel, text, args);
+    Services::LogService::GetInstance().LogMessage(logLevel, text, args);
 }
 
 bool Application::Initialize(const std::string& configPath) {
@@ -171,9 +40,9 @@ bool Application::Initialize(const std::string& configPath) {
     frontBuffer_ = LoadRenderTexture(config_.windowWidth, config_.windowHeight);
     backBuffer_ = LoadRenderTexture(config_.windowWidth, config_.windowHeight);
     
-    assetManager_.Initialize();
-    networkManager_.Initialize();
-    LogService::GetInstance().Initialize();
+    assetService_.Initialize();
+    networkService_.Initialize();
+    Services::LogService::GetInstance().Initialize();
     
     initialized_ = true;
     return true;
@@ -208,9 +77,9 @@ void Application::Shutdown() {
     UnloadRenderTexture(frontBuffer_);
     UnloadRenderTexture(backBuffer_);
     
-    assetManager_.Shutdown();
-    networkManager_.Shutdown();
-    LogService::GetInstance().Shutdown();
+    assetService_.Shutdown();
+    networkService_.Shutdown();
+    Services::LogService::GetInstance().Shutdown();
     
     rlImGuiShutdown();
     CloseWindow();
@@ -218,7 +87,7 @@ void Application::Shutdown() {
     initialized_ = false;
 }
 
-void Application::SetScene(std::unique_ptr<IScene> scene) {
+void Application::SetScene(std::unique_ptr<Scene> scene) {
     if (currentScene_) {
         currentScene_->OnExit();
     }
@@ -228,7 +97,7 @@ void Application::SetScene(std::unique_ptr<IScene> scene) {
     }
 }
 
-void Application::QueueSceneTransition(std::unique_ptr<IScene> scene) {
+void Application::QueueSceneTransition(std::unique_ptr<Scene> scene) {
     if (!sceneTransitionLocked_) {
         pendingScene_ = std::move(scene);
         sceneTransitionPending_ = true;
@@ -242,13 +111,13 @@ bool Application::ShouldClose() const {
 void Application::Update(float deltaTime) {
     metricsService_.RecordFrameTime(deltaTime);
     metricsService_.Update(deltaTime);
-    LogService::GetInstance().Update(deltaTime);
+    Services::LogService::GetInstance().Update(deltaTime);
     
     if (currentScene_) {
         currentScene_->OnUpdate(deltaTime);
     }
     
-    networkManager_.Update();
+    networkService_.Update();
 }
 
 void Application::Draw() {
@@ -264,7 +133,7 @@ void Application::Draw() {
     }
     
     metricsService_.Draw();
-    LogService::GetInstance().Draw();
+    Services::LogService::GetInstance().Draw();
     
     rlImGuiEnd();
     
@@ -276,15 +145,15 @@ void Application::Draw() {
 }
 
 void Application::ProcessEvents() {
-    while (eventManager_.HasInputEvents()) {
-        InputEvent event = eventManager_.GetNextInputEvent();
+    while (eventService_.HasInputEvents()) {
+        InputEvent event = eventService_.GetNextInputEvent();
         if (currentScene_) {
             currentScene_->OnInput(event);
         }
     }
     
-    while (eventManager_.HasNetworkEvents()) {
-        NetworkEvent event = eventManager_.GetNextNetworkEvent();
+    while (eventService_.HasNetworkEvents()) {
+        NetworkEvent event = eventService_.GetNextNetworkEvent();
         if (currentScene_) {
             currentScene_->OnNetwork(event);
         }
@@ -305,7 +174,7 @@ void Application::ProcessInput() {
         InputEvent event;
         event.type = InputEvent::KEY_PRESS;
         event.key = KEY_ESCAPE;
-        eventManager_.QueueInputEvent(event);
+        eventService_.QueueInputEvent(event);
     }
     
     if (IsKeyPressed(KEY_F2)) {
@@ -313,7 +182,7 @@ void Application::ProcessInput() {
     }
     
     if (IsKeyPressed(KEY_F3)) {
-        LogService::GetInstance().ToggleVisibility();
+        Services::LogService::GetInstance().ToggleVisibility();
     }
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -323,7 +192,7 @@ void Application::ProcessInput() {
         Vector2 mousePos = GetMousePosition();
         event.x = mousePos.x;
         event.y = mousePos.y;
-        eventManager_.QueueInputEvent(event);
+        eventService_.QueueInputEvent(event);
     }
 }
 
@@ -393,3 +262,5 @@ GameConfig Application::LoadGameConfig(const std::string& configPath) {
     TraceLog(LOG_INFO, "Loaded game config from: %s", configPath.c_str());
     return config;
 }
+
+} // namespace Elysium

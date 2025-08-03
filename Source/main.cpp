@@ -1,15 +1,15 @@
 #include "Application.h"
-#include "MenuScene.h"
+#include "Scenes/MenuScene.h"
 #include <memory>
 
 int main() {
-    Application& app = Application::GetInstance();
+    Elysium::Application& app = Elysium::Application::GetInstance();
     
     if (!app.Initialize()) {
         return -1;
     }
     
-    auto menuScene = std::make_unique<MenuScene>();
+    auto menuScene = std::make_unique<Elysium::Scenes::MenuScene>();
     app.SetScene(std::move(menuScene));
     
     app.Run();

@@ -1,8 +1,10 @@
-#include "MenuScene.h"
+#include "Scenes/MenuScene.h"
 #include "Application.h"
-#include "GameScene.h"
+#include "Scenes/GameScene.h"
 #include "imgui.h"
 #include <memory>
+
+namespace Elysium::Scenes {
 
 MenuScene::MenuScene() : Scene("MenuScene") {
     rotation_ = 0.0f;
@@ -54,7 +56,7 @@ void MenuScene::OnDraw() {
     
     if (ImGui::Button("Switch to Game Scene", ImVec2(200, 30))) {
         auto gameScene = std::make_unique<GameScene>();
-        Application::GetInstance().QueueSceneTransition(std::move(gameScene));
+        Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
     }
     
     ImGui::Separator();
@@ -86,9 +88,11 @@ void MenuScene::OnInput(const InputEvent& event) {
         if (event.key == KEY_G) {
             // Switch to game scene with G key
             auto gameScene = std::make_unique<GameScene>();
-            Application::GetInstance().QueueSceneTransition(std::move(gameScene));
+            Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
         } else if (event.key == KEY_R) {
             rotation_ = 0.0f;
         }
     }
 }
+
+} // namespace Elysium::Scenes

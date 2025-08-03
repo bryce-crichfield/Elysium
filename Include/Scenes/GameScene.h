@@ -1,8 +1,10 @@
 #pragma once
 
-#include "Scene.h"
+#include "../Scene.h"
 #include "raylib.h"
 #include <vector>
+
+namespace Elysium::Scenes {
 
 struct Ball {
     Vector2 position;
@@ -31,3 +33,5 @@ private:
     bool paused_;
     int ballCount_;
 };
+
+} // namespace Elysium::Scenes

@@ -4,6 +4,8 @@
 #include <vector>
 #include <chrono>
 
+namespace Elysium::Services {
+
 class MetricsService {
 public:
     MetricsService();
@@ -36,3 +38,5 @@ private:
     void UpdateAverages();
     void DrawGraph(const char* label, const std::vector<float>& data, float maxValue, float graphHeight);
 };
+
+} // namespace Elysium::Services

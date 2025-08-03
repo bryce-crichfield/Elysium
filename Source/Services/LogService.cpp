@@ -1,10 +1,12 @@
-#include "LogService.h"
+#include "Services/LogService.h"
 #include "imgui.h"
 #include <cstdio>
 #include <cstdarg>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
+
+namespace Elysium::Services {
 
 LogService::LogService() 
     : isVisible_(false), initialized_(false), shouldStop_(false) {
@@ -200,3 +202,5 @@ std::string LogService::FormatTimestamp(const std::chrono::system_clock::time_po
     
     return ss.str();
 }
+
+} // namespace Elysium::Services

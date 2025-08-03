@@ -1,7 +1,9 @@
-#include "MetricsService.h"
+#include "Services/MetricsService.h"
 #include "imgui.h"
 #include <algorithm>
 #include <numeric>
+
+namespace Elysium::Services {
 
 MetricsService::MetricsService() 
     : isVisible_(false), maxFrameTime_(0.0f), maxRenderTime_(0.0f), avgFrameTime_(0.0f), avgRenderTime_(0.0f) {
@@ -81,3 +83,5 @@ void MetricsService::DrawGraph(const char* label, const std::vector<float>& data
     
     ImGui::PlotLines(label, displayData.data(), displayData.size(), 0, nullptr, 0.0f, maxValue, ImVec2(0, graphHeight));
 }
+
+} // namespace Elysium::Services

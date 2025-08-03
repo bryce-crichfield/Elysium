@@ -5,17 +5,39 @@ A C++ game engine built for 2D style game.
 
 ```
 Elysium/
-├── Source/          # Main source files
-├── Assets/          # Game assets (copied to Binary/Assets)
-├── Binary/          # Compiled executables and runtime assets
-├── Build/           # CMake build files
-├── Vendor/          # Third-party libraries
-│   ├── raylib/      # Graphics and game framework
-│   ├── imgui/       # Immediate mode GUI
-│   ├── rlImGui/     # Raylib ImGui integration
-│   └── tinyxml2/    # XML parsing
-└── CMakeLists.txt   # CMake configuration
+├── Include/             # Header files
+│   ├── Services/        # Service interfaces (EventService, AssetService, etc.)
+│   ├── Scenes/          # Scene implementations
+│   ├── Application.h    # Core application singleton
+│   └── Scene.h          # Base scene class
+├── Source/              # Implementation files
+│   ├── Services/        # Service implementations
+│   ├── Scenes/          # Scene logic (GameScene, MenuScene)
+│   ├── Application.cpp  # Main application loop
+│   └── main.cpp         # Entry point
+├── Assets/              # Game assets (copied to Binary/Assets)
+├── Binary/              # Compiled executables and runtime assets
+├── Build/               # CMake build files
+├── Vendor/              # Third-party libraries
+│   ├── raylib/          # Graphics and game framework
+│   ├── imgui/           # Immediate mode GUI
+│   ├── rlImGui/         # Raylib ImGui integration
+│   └── tinyxml2/        # XML parsing
+└── CMakeLists.txt       # CMake configuration
 ```
+
+### Core Architecture
+
+**Namespace: `Elysium`**
+- **Application** - Singleton managing window, services, and scene transitions
+- **Scene** - Base class for game states (menu, gameplay, etc.)
+
+**Namespace: `Elysium::Services`**
+- **EventService** - Input and network event handling
+- **AssetService** - Resource loading with caching
+- **NetworkService** - Multiplayer connectivity (placeholder)
+- **MetricsService** - Performance monitoring (F2 to toggle)
+- **LogService** - Logging with file output and overlay (F3 to toggle)
 
 ## Build System
 

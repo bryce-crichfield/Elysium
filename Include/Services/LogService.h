@@ -10,6 +10,8 @@
 #include <queue>
 #include <chrono>
 
+namespace Elysium::Services {
+
 struct LogEntry {
     int level;
     std::string message;
@@ -68,3 +70,5 @@ private:
     
     std::string FormatTimestamp(const std::chrono::system_clock::time_point& timestamp) const;
 };
+
+} // namespace Elysium::Services
