@@ -12,6 +12,7 @@ public:
     
     void OnUpdate(float deltaTime) override;
     void OnDraw() override;
+    void OnDebugDraw() override;
     void OnInput(const InputEvent& event) override;
     void OnEnter() override;
     void OnExit() override;

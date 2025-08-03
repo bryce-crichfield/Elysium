@@ -64,8 +64,11 @@ void GameScene::OnDraw() {
         int centerX = GetScreenWidth() / 2;
         int centerY = GetScreenHeight() / 2;
         DrawText("PAUSED", centerX - 60, centerY, 30, RED);
-    }
-    
+    } 
+}
+
+void GameScene::OnDebugDraw()
+{
     // ImGui Controls
     ImGui::Begin("Scene Manager");
     
