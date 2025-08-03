@@ -53,7 +53,7 @@ Uses CMake with the following setup:
 
 ```bash
 # Source the build script
-. ./elysium.sh
+source ./elysium.sh
 
 # Clean, build, and run
 Elysium_Clean
