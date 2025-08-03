@@ -82,10 +82,10 @@ namespace Elysium
             }
 
             ProcessInput();
-            ProcessEvents();
             HandleSceneTransition();
             Update(deltaTime);
             Draw();
+            ProcessEvents();
         }
         
         Shutdown();
@@ -263,10 +263,25 @@ namespace Elysium
     {
         if (!inTransition_)
         {
+            ImGuiIO& io = ImGui::GetIO();
+            
             while (eventService_.HasInputEvents())
             {
                 InputEvent event = eventService_.GetNextInputEvent();
-                if (currentScene_)
+                
+                // Check if ImGui wants to consume this input
+                bool shouldConsumeEvent = false;
+                if (event.type == InputEvent::MOUSE_PRESS || event.type == InputEvent::MOUSE_RELEASE || event.type == InputEvent::MOUSE_MOVE)
+                {
+                    shouldConsumeEvent = io.WantCaptureMouse;
+                }
+                else if (event.type == InputEvent::KEY_PRESS || event.type == InputEvent::KEY_RELEASE)
+                {
+                    shouldConsumeEvent = io.WantCaptureKeyboard;
+                }
+                
+                // Only pass to scene if ImGui doesn't want it
+                if (!shouldConsumeEvent && currentScene_)
                 {
                     currentScene_->OnInput(event);
                 }
