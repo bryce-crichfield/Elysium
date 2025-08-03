@@ -7,10 +7,70 @@
 
 namespace Elysium::Scenes {
 
+void PhysicsSystem::Update(float deltaTime) {
+    const float screenWidth = (float)GetScreenWidth();
+    const float screenHeight = (float)GetScreenHeight();
+    
+    // Use iterator-based approach to avoid temporary vector allocation
+    world->ForEachEntityWith<PositionComponent, VelocityComponent, PhysicsComponent>([&](Entity entity) {
+        auto& pos = world->GetComponent<PositionComponent>(entity);
+        auto& vel = world->GetComponent<VelocityComponent>(entity);
+        auto& physics = world->GetComponent<PhysicsComponent>(entity);
+        
+        // Apply gravity
+        if (physics.affectedByGravity) {
+            vel.y += gravity_ * deltaTime;
+        }
+        
+        // Update position
+        pos.x += vel.x * deltaTime;
+        pos.y += vel.y * deltaTime;
+        
+        // Get radius for collision detection if it has a circle render component
+        float radius = 10.0f; // default
+        if (world->HasComponent<CircleRenderComponent>(entity)) {
+            radius = world->GetComponent<CircleRenderComponent>(entity).radius;
+        }
+        
+        // Bounce off walls
+        if (pos.x <= radius || pos.x >= screenWidth - radius) {
+            vel.x *= -physics.restitution;
+            pos.x = (pos.x <= radius) ? radius : screenWidth - radius;
+        }
+        
+        if (pos.y <= radius || pos.y >= screenHeight - radius) {
+            vel.y *= -physics.restitution;
+            pos.y = (pos.y <= radius) ? radius : screenHeight - radius;
+        }
+    });
+}
+
+void RenderSystem::Render() {
+    // Render circles using iterator-based approach
+    world->ForEachEntityWith<PositionComponent, CircleRenderComponent>([&](Entity entity) {
+        auto& pos = world->GetComponent<PositionComponent>(entity);
+        auto& circle = world->GetComponent<CircleRenderComponent>(entity);
+        
+        DrawCircleV({pos.x, pos.y}, circle.radius, circle.color);
+        if (circle.drawOutline) {
+            DrawCircleLinesV({pos.x, pos.y}, circle.radius, circle.outlineColor);
+        }
+    });
+    
+    // Render text using iterator-based approach
+    world->ForEachEntityWith<PositionComponent, TextComponent>([&](Entity entity) {
+        auto& pos = world->GetComponent<PositionComponent>(entity);
+        auto& text = world->GetComponent<TextComponent>(entity);
+        
+        DrawText(text.content.c_str(), (int)pos.x, (int)pos.y, text.fontSize, text.color);
+    });
+}
+
 GameScene::GameScene(const GameConfig& config) : Scene("GameScene", config) {
-    gravity_ = 500.0f;
+    world_ = std::make_unique<EntityWorld>();
+    physicsSystem_ = std::make_unique<PhysicsSystem>(world_.get());
+    renderSystem_ = std::make_unique<RenderSystem>(world_.get());
     paused_ = false;
-    ballCount_ = 0;
     
     // Add a few initial balls
     for (int i = 0; i < 3; i++) {
@@ -27,38 +87,13 @@ void GameScene::OnExit() {
 }
 
 void GameScene::OnUpdate(float deltaTime) {
-    if (paused_) return;
-    
-    float screenWidth = (float)config_.GetFramebufferWidth();
-    float screenHeight = (float)config_.GetFramebufferHeight();
-    
-    for (auto& ball : balls_) {
-        // Apply gravity
-        ball.velocity.y += gravity_ * deltaTime;
-        
-        // Update position
-        ball.position.x += ball.velocity.x * deltaTime;
-        ball.position.y += ball.velocity.y * deltaTime;
-        
-        // Bounce off walls
-        if (ball.position.x <= ball.radius || ball.position.x >= screenWidth - ball.radius) {
-            ball.velocity.x *= -0.8f; // Add some damping
-            ball.position.x = (ball.position.x <= ball.radius) ? ball.radius : screenWidth - ball.radius;
-        }
-        
-        if (ball.position.y <= ball.radius || ball.position.y >= screenHeight - ball.radius) {
-            ball.velocity.y *= -0.8f; // Add some damping
-            ball.position.y = (ball.position.y <= ball.radius) ? ball.radius : screenHeight - ball.radius;
-        }
+    if (!paused_) {
+        physicsSystem_->Update(deltaTime);
     }
 }
 
 void GameScene::OnDraw() {
-    // Draw balls
-    for (const auto& ball : balls_) {
-        DrawCircleV(ball.position, ball.radius, ball.color);
-        DrawCircleLinesV(ball.position, ball.radius, BLACK);
-    }
+    renderSystem_->Render();
     
     DrawText("GAME SCENE", 10, 10, 30, RAYWHITE);
     DrawText("Physics Simulation", 10, 50, 20, LIGHTGRAY);
@@ -89,9 +124,12 @@ void GameScene::OnDebugDraw()
     
     ImGui::Text("Game Controls:");
     ImGui::Checkbox("Paused", &paused_);
-    ImGui::SliderFloat("Gravity", &gravity_, 0.0f, 1000.0f);
+    float gravity = physicsSystem_->GetGravity();
+    if (ImGui::SliderFloat("Gravity", &gravity, 0.0f, 1000.0f)) {
+        physicsSystem_->SetGravity(gravity);
+    }
     
-    ImGui::Text("Balls: %d", (int)balls_.size());
+    ImGui::Text("Balls: %d", (int)world_->GetEntityCount());
     
     if (ImGui::Button("Add Ball")) {
         AddBall();
@@ -131,46 +169,44 @@ void GameScene::OnInput(const InputEvent& event) {
             paused_ = !paused_;
         }
     } else if (event.type == InputEvent::MOUSE_PRESS) {
-        // Add ball at mouse position
-        Ball ball;
-        ball.position = { event.x, event.y };
-        ball.velocity = { 
-            (float)(GetRandomValue(-200, 200)), 
-            (float)(GetRandomValue(-100, 50)) 
-        };
-        ball.radius = (float)GetRandomValue(10, 30);
-        ball.color = {
-            (unsigned char)GetRandomValue(100, 255),
-            (unsigned char)GetRandomValue(100, 255),
-            (unsigned char)GetRandomValue(100, 255),
-            255
-        };
-        balls_.push_back(ball);
+        AddBallAtPosition(event.x, event.y);
     }
 }
 
 void GameScene::AddBall() {
-    Ball ball;
-    ball.position = { 
-        (float)GetRandomValue(50, config_.GetFramebufferWidth() - 50), 
-        (float)GetRandomValue(50, 200) 
-    };
-    ball.velocity = { 
-        (float)GetRandomValue(-200, 200), 
-        (float)GetRandomValue(-100, 50) 
-    };
-    ball.radius = (float)GetRandomValue(10, 30);
-    ball.color = {
+    float x = (float)GetRandomValue(50, config_.GetFramebufferWidth() - 50);
+    float y = (float)GetRandomValue(50, 200);
+    AddBallAtPosition(x, y);
+}
+
+void GameScene::AddBallAtPosition(float x, float y) {
+    Entity ball = world_->CreateEntity();
+    
+    world_->AddComponent(ball, PositionComponent(x, y));
+    world_->AddComponent(ball, VelocityComponent(
+        (float)GetRandomValue(-200, 200),
+        (float)GetRandomValue(-100, 50)
+    ));
+    
+    float radius = (float)GetRandomValue(10, 30);
+    Color color = {
         (unsigned char)GetRandomValue(100, 255),
         (unsigned char)GetRandomValue(100, 255),
         (unsigned char)GetRandomValue(100, 255),
         255
     };
-    balls_.push_back(ball);
+    
+    world_->AddComponent(ball, CircleRenderComponent(radius, color));
+    world_->AddComponent(ball, PhysicsComponent());
 }
 
 void GameScene::ClearBalls() {
-    balls_.clear();
+    // Use the vector-based approach here since we need to collect entities before destroying them
+    // (can't destroy entities while iterating over them)
+    auto& entities = world_->GetEntitiesWithComponents<PositionComponent, VelocityComponent, CircleRenderComponent>();
+    for (Entity entity : entities) {
+        world_->DestroyEntity(entity);
+    }
 }
 
 } // namespace Elysium::Scenes

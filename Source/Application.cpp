@@ -82,10 +82,10 @@ namespace Elysium
             }
 
             ProcessInput();
+            ProcessEvents();
             HandleSceneTransition();
             Update(deltaTime);
             Draw();
-            ProcessEvents();
         }
         
         Shutdown();
@@ -263,25 +263,10 @@ namespace Elysium
     {
         if (!inTransition_)
         {
-            ImGuiIO& io = ImGui::GetIO();
-            
             while (eventService_.HasInputEvents())
             {
                 InputEvent event = eventService_.GetNextInputEvent();
-                
-                // Check if ImGui wants to consume this input
-                bool shouldConsumeEvent = false;
-                if (event.type == InputEvent::MOUSE_PRESS || event.type == InputEvent::MOUSE_RELEASE || event.type == InputEvent::MOUSE_MOVE)
-                {
-                    shouldConsumeEvent = io.WantCaptureMouse;
-                }
-                else if (event.type == InputEvent::KEY_PRESS || event.type == InputEvent::KEY_RELEASE)
-                {
-                    shouldConsumeEvent = io.WantCaptureKeyboard;
-                }
-                
-                // Only pass to scene if ImGui doesn't want it
-                if (!shouldConsumeEvent && currentScene_)
+                if (currentScene_)
                 {
                     currentScene_->OnInput(event);
                 }
@@ -320,7 +305,9 @@ namespace Elysium
 
     void Application::ProcessInput()
     {
-        if (IsKeyPressed(KEY_ESCAPE))
+        ImGuiIO& io = ImGui::GetIO();
+        
+        if (IsKeyPressed(KEY_ESCAPE) && !io.WantCaptureKeyboard)
         {
             InputEvent event;
             event.type = InputEvent::KEY_PRESS;
@@ -338,7 +325,8 @@ namespace Elysium
             logService_.ToggleVisibility();
         }
 
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        // Only process mouse input if ImGui doesn't want to capture it
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !io.WantCaptureMouse)
         {
             InputEvent event;
             event.type = InputEvent::MOUSE_PRESS;

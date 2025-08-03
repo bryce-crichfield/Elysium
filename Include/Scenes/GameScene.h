@@ -2,16 +2,31 @@
 
 #include "../Scene.h"
 #include "Services/MemoryTracker.h"
+#include "Entity.h"
 #include "raylib.h"
 #include <vector>
+#include <memory>
 
 namespace Elysium::Scenes {
 
-struct Ball {
-    Vector2 position;
-    Vector2 velocity;
-    float radius;
-    Color color;
+class PhysicsSystem : public System {
+public:
+    PhysicsSystem(EntityWorld* world, float gravity = 500.0f) : System(world), gravity_(gravity) {}
+    
+    void Update(float deltaTime) override;
+    void SetGravity(float gravity) { gravity_ = gravity; }
+    float GetGravity() const { return gravity_; }
+    
+private:
+    float gravity_;
+};
+
+class RenderSystem : public System {
+public:
+    RenderSystem(EntityWorld* world) : System(world) {}
+    
+    void Update(float deltaTime) override {}
+    void Render() override;
 };
 
 class GameScene : public Scene {
@@ -28,13 +43,14 @@ public:
 
 private:
     void AddBall();
+    void AddBallAtPosition(float x, float y);
     void ClearBalls();
     
-    // Use tracked allocator for demonstrating memory tracking
-    std::vector<Ball, Elysium::Services::TrackedAllocator<Ball>> balls_;
-    float gravity_;
+    std::unique_ptr<EntityWorld> world_;
+    std::unique_ptr<PhysicsSystem> physicsSystem_;
+    std::unique_ptr<RenderSystem> renderSystem_;
+    
     bool paused_;
-    int ballCount_;
 };
 
 } // namespace Elysium::Scenes

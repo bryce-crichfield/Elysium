@@ -1,3 +1,6 @@
+# Environmental
+.envrc
+
 # Build directories
 Build/
 build/
