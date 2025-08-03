@@ -1,0 +1,12 @@
+[submodule "Vendor/raylib"]
+	path = Vendor/raylib
+	url = https://github.com/raysan5/raylib.git
+[submodule "Vendor/rlImGui"]
+	path = Vendor/rlImGui
+	url = https://github.com/raylib-extras/rlImGui.git
+[submodule "Vendor/imgui"]
+	path = Vendor/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "Vendor/tinyxml2"]
+	path = Vendor/tinyxml2
+	url = https://github.com/leethomason/tinyxml2.git

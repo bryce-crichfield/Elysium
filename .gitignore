@@ -1,0 +1,94 @@
+# Build directories
+Build/
+build/
+
+# Binary output
+Binary/
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# IDE files
+.vscode/
+.vs/
+*.vcxproj*
+*.sln
+*.user
+*.suo
+*.ncb
+*.aps
+*.plg
+*.opt
+*.clw
+*.pdb
+*.ilk
+*.exp
+*.idb
+*.pch
+*.res
+*.sbr
+*.bsc
+*.map
+
+# Code::Blocks
+*.cbp
+*.depend
+*.layout
+*.workspace
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+
+# Object files
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*~
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Package managers
+node_modules/
+.npm
+.yarn/
+
+# Backup files
+*.bak
+*.backup
+*.old

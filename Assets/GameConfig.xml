@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GameConfig>
+    <Window>
+        <Width>666</Width>
+        <Height>666</Height>
+        <Title>Elysium - 2D Game Engine</Title>
+        <Fullscreen>false</Fullscreen>
+        <VSync>true</VSync>
+        <TargetFPS>60</TargetFPS>
+    </Window>
+    
+    <Graphics>
+        <BackgroundColor>
+            <R>47</R>
+            <G>79</G>
+            <B>79</B>
+            <A>255</A>
+        </BackgroundColor>
+        <ShowFPS>true</ShowFPS>
+    </Graphics>
+    
+    <Physics>
+        <Gravity>9.81</Gravity>
+        <DefaultBallRadius>20.0</DefaultBallRadius>
+        <DefaultBallSpeed>
+            <X>5.0</X>
+            <Y>4.0</Y>
+        </DefaultBallSpeed>
+    </Physics>
+    
+    <Debug>
+        <ShowDemoWindow>true</ShowDemoWindow>
+        <ShowMetrics>false</ShowMetrics>
+        <LogLevel>INFO</LogLevel>
+    </Debug>
+</GameConfig>
