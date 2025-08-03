@@ -7,17 +7,16 @@
         <Fullscreen>false</Fullscreen>
         <VSync>true</VSync>
         <TargetFPS>60</TargetFPS>
-    </Window>
-    
-    <Graphics>
         <BackgroundColor>
-            <R>47</R>
-            <G>79</G>
-            <B>79</B>
-            <A>255</A>
+            <r>21</r>
+            <g>21</g>
+            <b>21</b>
         </BackgroundColor>
-        <ShowFPS>true</ShowFPS>
-    </Graphics>
+        <Framebuffer>
+            <Width>640</Width>
+            <Height>480</Height>
+        </Framebuffer>
+    </Window>
     
     <Physics>
         <Gravity>9.81</Gravity>
@@ -32,5 +31,5 @@
         <ShowDemoWindow>true</ShowDemoWindow>
         <ShowMetrics>false</ShowMetrics>
         <LogLevel>INFO</LogLevel>
-    </Debug>
+    </Debug>~
 </GameConfig>

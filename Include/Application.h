@@ -46,6 +46,8 @@ private:
     
     GameConfig LoadGameConfig(const std::string& configPath);
     void ProcessInput();
+    void CalculateLetterboxing();
+    Vector2 MapScreenToFramebuffer(Vector2 screenPos) const;
     
     GameConfig config_;
     std::unique_ptr<Scene> currentScene_;
@@ -60,6 +62,11 @@ private:
     
     RenderTexture2D frontBuffer_;
     RenderTexture2D backBuffer_;
+    RenderTexture2D sceneFramebuffer_;
+    
+    Rectangle letterboxRect_;
+    float scaleX_, scaleY_;
+    Vector2 offset_;
     
     bool initialized_ = false;
     bool shouldClose_ = false;

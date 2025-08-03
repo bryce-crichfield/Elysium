@@ -12,9 +12,10 @@ struct GameConfig {
     bool fullscreen = false;
     bool vsync = true;
     int targetFPS = 60;
+    Color backgroundColor;
     
-    Color backgroundColor = DARKBLUE;
-    bool showFPS = true;
+    int framebufferWidth = 640;
+    int framebufferHeight = 480;
     
     float gravity = 9.81f;
     float defaultBallRadius = 20.0f;

@@ -42,6 +42,7 @@ public:
     
     virtual void OnUpdate(float deltaTime) {}
     virtual void OnDraw() {}
+    virtual void OnDebugDraw() {}
     virtual void OnNetwork(const NetworkEvent& event) {}
     virtual void OnInput(const InputEvent& event) {}
     

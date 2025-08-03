@@ -45,7 +45,9 @@ void MenuScene::OnDraw() {
     
     DrawText("MENU SCENE", centerX - 120, centerY - 200, 40, RAYWHITE);
     DrawText("Use the Scene Manager window to switch scenes", centerX - 200, centerY + 150, 20, LIGHTGRAY);
-    
+}
+
+void MenuScene::OnDebugDraw() {
     // ImGui Scene Manager Window
     ImGui::Begin("Scene Manager");
     
