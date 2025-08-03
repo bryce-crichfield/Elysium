@@ -1,6 +1,8 @@
 #pragma once
 
 #include "IScene.h"
+#include "MetricsService.h"
+#include "LogService.h"
 #include "raylib.h"
 #include <memory>
 #include <string>
@@ -88,6 +90,8 @@ public:
     EventManager& GetEventManager() { return eventManager_; }
     AssetManager& GetAssetManager() { return assetManager_; }
     NetworkManager& GetNetworkManager() { return networkManager_; }
+    MetricsService& GetMetricsService() { return metricsService_; }
+    LogService& GetLogService() { return LogService::GetInstance(); }
     const GameConfig& GetConfig() const { return config_; }
     
     bool ShouldClose() const;
@@ -115,6 +119,7 @@ private:
     EventManager eventManager_;
     AssetManager assetManager_;
     NetworkManager networkManager_;
+    MetricsService metricsService_;
     
     RenderTexture2D frontBuffer_;
     RenderTexture2D backBuffer_;

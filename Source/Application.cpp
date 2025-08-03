@@ -1,10 +1,13 @@
 #include "Application.h"
+#include "MetricsService.h"
+#include "LogService.h"
 #include "rlImGui.h"
 #include "imgui.h"
 #include "tinyxml2.h"
 #include <cstdio>
 #include <cstdarg>
 #include <unordered_map>
+#include <chrono>
 
 using namespace tinyxml2;
 
@@ -144,22 +147,7 @@ Application& Application::GetInstance() {
 }
 
 void CustomTraceLogCallback(int logLevel, const char *text, va_list args) {
-    const char* levelColors[] = {
-        "\033[37m", "\033[37m", "\033[37m", "\033[37m",
-        "\033[93m", "\033[91m", "\033[95m", "\033[90m"
-    };
-    
-    const char* levelNames[] = {
-        "ALL", "TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "FATAL", "NONE"
-    };
-    
-    const char* resetColor = "\033[0m";
-    
-    int safeLevel = (logLevel >= 0 && logLevel < 8) ? logLevel : 3;
-    
-    printf("%s[%s] ", levelColors[safeLevel], levelNames[safeLevel]);
-    vprintf(text, args);
-    printf("%s\n", resetColor);
+    LogService::GetInstance().LogMessage(logLevel, text, args);
 }
 
 bool Application::Initialize(const std::string& configPath) {
@@ -185,6 +173,7 @@ bool Application::Initialize(const std::string& configPath) {
     
     assetManager_.Initialize();
     networkManager_.Initialize();
+    LogService::GetInstance().Initialize();
     
     initialized_ = true;
     return true;
@@ -221,6 +210,7 @@ void Application::Shutdown() {
     
     assetManager_.Shutdown();
     networkManager_.Shutdown();
+    LogService::GetInstance().Shutdown();
     
     rlImGuiShutdown();
     CloseWindow();
@@ -250,6 +240,10 @@ bool Application::ShouldClose() const {
 }
 
 void Application::Update(float deltaTime) {
+    metricsService_.RecordFrameTime(deltaTime);
+    metricsService_.Update(deltaTime);
+    LogService::GetInstance().Update(deltaTime);
+    
     if (currentScene_) {
         currentScene_->OnUpdate(deltaTime);
     }
@@ -258,6 +252,8 @@ void Application::Update(float deltaTime) {
 }
 
 void Application::Draw() {
+    auto renderStart = std::chrono::high_resolution_clock::now();
+    
     BeginDrawing();
     ClearBackground(config_.backgroundColor);
     
@@ -267,13 +263,16 @@ void Application::Draw() {
         currentScene_->OnDraw();
     }
     
+    metricsService_.Draw();
+    LogService::GetInstance().Draw();
+    
     rlImGuiEnd();
     
-    if (config_.showFPS) {
-        DrawFPS(GetScreenWidth() - 95, 10);
-    }
-    
     EndDrawing();
+    
+    auto renderEnd = std::chrono::high_resolution_clock::now();
+    float renderTime = std::chrono::duration<float>(renderEnd - renderStart).count();
+    metricsService_.RecordRenderTime(renderTime);
 }
 
 void Application::ProcessEvents() {
@@ -307,6 +306,14 @@ void Application::ProcessInput() {
         event.type = InputEvent::KEY_PRESS;
         event.key = KEY_ESCAPE;
         eventManager_.QueueInputEvent(event);
+    }
+    
+    if (IsKeyPressed(KEY_F2)) {
+        metricsService_.ToggleVisibility();
+    }
+    
+    if (IsKeyPressed(KEY_F3)) {
+        LogService::GetInstance().ToggleVisibility();
     }
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {

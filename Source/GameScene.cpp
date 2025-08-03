@@ -91,9 +91,19 @@ void GameScene::OnDraw() {
     
     ImGui::SameLine();
     
+    if (ImGui::Button("Add Ball x100")) {
+        for (int i = 0; i < 100; i++) {
+            AddBall();
+        }
+    }
+
+    ImGui::SameLine();
+
     if (ImGui::Button("Clear Balls")) {
         ClearBalls();
     }
+
+    
     
     ImGui::Text("Controls:");
     ImGui::BulletText("M - Return to Menu");
