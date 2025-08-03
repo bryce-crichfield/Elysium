@@ -7,7 +7,7 @@
 
 namespace Elysium::Scenes {
 
-GameScene::GameScene() : Scene("GameScene") {
+GameScene::GameScene(const GameConfig& config) : Scene("GameScene", config) {
     gravity_ = 500.0f;
     paused_ = false;
     ballCount_ = 0;
@@ -29,6 +29,9 @@ void GameScene::OnExit() {
 void GameScene::OnUpdate(float deltaTime) {
     if (paused_) return;
     
+    float screenWidth = (float)config_.GetFramebufferWidth();
+    float screenHeight = (float)config_.GetFramebufferHeight();
+    
     for (auto& ball : balls_) {
         // Apply gravity
         ball.velocity.y += gravity_ * deltaTime;
@@ -38,14 +41,14 @@ void GameScene::OnUpdate(float deltaTime) {
         ball.position.y += ball.velocity.y * deltaTime;
         
         // Bounce off walls
-        if (ball.position.x <= ball.radius || ball.position.x >= GetScreenWidth() - ball.radius) {
+        if (ball.position.x <= ball.radius || ball.position.x >= screenWidth - ball.radius) {
             ball.velocity.x *= -0.8f; // Add some damping
-            ball.position.x = (ball.position.x <= ball.radius) ? ball.radius : GetScreenWidth() - ball.radius;
+            ball.position.x = (ball.position.x <= ball.radius) ? ball.radius : screenWidth - ball.radius;
         }
         
-        if (ball.position.y <= ball.radius || ball.position.y >= GetScreenHeight() - ball.radius) {
+        if (ball.position.y <= ball.radius || ball.position.y >= screenHeight - ball.radius) {
             ball.velocity.y *= -0.8f; // Add some damping
-            ball.position.y = (ball.position.y <= ball.radius) ? ball.radius : GetScreenHeight() - ball.radius;
+            ball.position.y = (ball.position.y <= ball.radius) ? ball.radius : screenHeight - ball.radius;
         }
     }
 }
@@ -61,8 +64,8 @@ void GameScene::OnDraw() {
     DrawText("Physics Simulation", 10, 50, 20, LIGHTGRAY);
     
     if (paused_) {
-        int centerX = GetScreenWidth() / 2;
-        int centerY = GetScreenHeight() / 2;
+        int centerX = config_.GetFramebufferCenterX();
+        int centerY = config_.GetFramebufferCenterY();
         DrawText("PAUSED", centerX - 60, centerY, 30, RED);
     } 
 }
@@ -78,7 +81,7 @@ void GameScene::OnDebugDraw()
     ImGui::Text("Available Scenes:");
     
     if (ImGui::Button("Switch to Menu Scene", ImVec2(200, 30))) {
-        auto menuScene = std::make_unique<MenuScene>();
+        auto menuScene = std::make_unique<MenuScene>(Elysium::Application::GetInstance().GetConfig());
         Elysium::Application::GetInstance().QueueSceneTransition(std::move(menuScene));
     }
     
@@ -122,7 +125,7 @@ void GameScene::OnInput(const InputEvent& event) {
     if (event.type == InputEvent::KEY_PRESS) {
         if (event.key == KEY_M) {
             // Switch to menu scene
-            auto menuScene = std::make_unique<MenuScene>();
+            auto menuScene = std::make_unique<MenuScene>(Elysium::Application::GetInstance().GetConfig());
             Elysium::Application::GetInstance().QueueSceneTransition(std::move(menuScene));
         } else if (event.key == KEY_SPACE) {
             paused_ = !paused_;
@@ -149,7 +152,7 @@ void GameScene::OnInput(const InputEvent& event) {
 void GameScene::AddBall() {
     Ball ball;
     ball.position = { 
-        (float)GetRandomValue(50, GetScreenWidth() - 50), 
+        (float)GetRandomValue(50, config_.GetFramebufferWidth() - 50), 
         (float)GetRandomValue(50, 200) 
     };
     ball.velocity = { 

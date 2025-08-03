@@ -5,6 +5,8 @@
 
 namespace Elysium {
 
+struct GameConfig;
+
 struct InputEvent {
     enum Type {
         KEY_PRESS,
@@ -35,7 +37,7 @@ struct NetworkEvent {
 
 class Scene {
 public:
-    Scene(const std::string& name);
+    Scene(const std::string& name, const GameConfig& config);
     virtual ~Scene() = default;
     
     const std::string& GetName() const { return name_; }
@@ -51,6 +53,7 @@ public:
 
 protected:
     std::string name_;
+    const GameConfig& config_;
 };
 
 } // namespace Elysium

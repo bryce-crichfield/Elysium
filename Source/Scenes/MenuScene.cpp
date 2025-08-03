@@ -6,7 +6,7 @@
 
 namespace Elysium::Scenes {
 
-MenuScene::MenuScene() : Scene("MenuScene") {
+MenuScene::MenuScene(const GameConfig& config) : Scene("MenuScene", config) {
     rotation_ = 0.0f;
     backgroundColor_ = DARKBLUE;
 }
@@ -26,8 +26,8 @@ void MenuScene::OnUpdate(float deltaTime) {
 
 void MenuScene::OnDraw() {
     // Draw some rotating rectangles as background
-    int centerX = GetScreenWidth() / 2;
-    int centerY = GetScreenHeight() / 2;
+    int centerX = config_.GetFramebufferCenterX();
+    int centerY = config_.GetFramebufferCenterY();
     
     for (int i = 0; i < 5; i++) {
         float size = 50.0f + i * 20.0f;
@@ -57,7 +57,7 @@ void MenuScene::OnDebugDraw() {
     ImGui::Text("Available Scenes:");
     
     if (ImGui::Button("Switch to Game Scene", ImVec2(200, 30))) {
-        auto gameScene = std::make_unique<GameScene>();
+        auto gameScene = std::make_unique<GameScene>(config_);
         Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
     }
     
@@ -79,7 +79,7 @@ void MenuScene::OnInput(const InputEvent& event) {
     if (event.type == InputEvent::KEY_PRESS) {
         if (event.key == KEY_G) {
             // Switch to game scene with G key
-            auto gameScene = std::make_unique<GameScene>();
+            auto gameScene = std::make_unique<GameScene>(config_);
             Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
         } else if (event.key == KEY_R) {
             rotation_ = 0.0f;

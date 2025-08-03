@@ -9,7 +9,7 @@ int main() {
         return -1;
     }
     
-    auto menuScene = std::make_unique<Elysium::Scenes::MenuScene>();
+    auto menuScene = std::make_unique<Elysium::Scenes::MenuScene>(app.GetConfig());
     app.SetScene(std::move(menuScene));
     
     app.Run();

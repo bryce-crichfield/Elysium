@@ -24,6 +24,12 @@ struct GameConfig {
     bool showDemoWindow = true;
     bool showMetrics = false;
     std::string logLevel = "INFO";
+    
+    // Helper methods for scenes to get render dimensions
+    int GetFramebufferWidth() const { return framebufferWidth; }
+    int GetFramebufferHeight() const { return framebufferHeight; }
+    int GetFramebufferCenterX() const { return framebufferWidth / 2; }
+    int GetFramebufferCenterY() const { return framebufferHeight / 2; }
 };
 
 } // namespace Elysium

@@ -422,6 +422,7 @@ namespace Elysium
         int windowWidth = GetScreenWidth();
         int windowHeight = GetScreenHeight();
 
+
         float screenAspect = (float)windowWidth / windowHeight;
         float framebufferAspect = (float)config_.framebufferWidth / config_.framebufferHeight;
 

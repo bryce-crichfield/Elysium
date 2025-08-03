@@ -7,7 +7,7 @@ namespace Elysium::Scenes {
 
 class MenuScene : public Scene {
 public:
-    MenuScene();
+    MenuScene(const GameConfig& config);
     virtual ~MenuScene() = default;
     
     void OnUpdate(float deltaTime) override;

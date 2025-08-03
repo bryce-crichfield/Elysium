@@ -15,7 +15,7 @@ struct Ball {
 
 class GameScene : public Scene {
 public:
-    GameScene();
+    GameScene(const GameConfig& config);
     virtual ~GameScene() = default;
     
     void OnUpdate(float deltaTime) override;
