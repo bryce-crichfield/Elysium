@@ -17,6 +17,8 @@ public:
     NetworkEvent GetNextNetworkEvent();
     
     void Clear();
+    void ClearInputEvents();
+    void ClearNetworkEvents();
 
 private:
     std::queue<InputEvent> inputEvents_;

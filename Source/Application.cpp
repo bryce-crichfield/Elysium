@@ -17,9 +17,15 @@ namespace Elysium
         return instance;
     }
 
+    static Application* g_appInstance = nullptr;
+    
     void CustomTraceLogCallback(int logLevel, const char *text, va_list args)
     {
-        Services::LogService::GetInstance().LogMessage(logLevel, text, args);
+        if (g_appInstance) {
+            char buffer[1024];
+            vsnprintf(buffer, sizeof(buffer), text, args);
+            g_appInstance->GetLogService().LogMessage(logLevel, std::string(buffer));
+        }
     }
 
     bool Application::Initialize(const std::string &configPath)
@@ -29,6 +35,7 @@ namespace Elysium
             return true;
         }
 
+        g_appInstance = this;
         SetTraceLogCallback(CustomTraceLogCallback);
         SetTraceLogLevel(LOG_INFO);
 
@@ -45,12 +52,13 @@ namespace Elysium
         frontBuffer_ = LoadRenderTexture(config_.windowWidth, config_.windowHeight);
         backBuffer_ = LoadRenderTexture(config_.windowWidth, config_.windowHeight);
         sceneFramebuffer_ = LoadRenderTexture(config_.framebufferWidth, config_.framebufferHeight);
+        transitionBuffer_ = LoadRenderTexture(config_.framebufferWidth, config_.framebufferHeight);
 
         CalculateLetterboxing();
 
         assetService_.Initialize();
         networkService_.Initialize();
-        Services::LogService::GetInstance().Initialize();
+        logService_.Initialize();
 
         initialized_ = true;
         return true;
@@ -79,6 +87,8 @@ namespace Elysium
             Update(deltaTime);
             Draw();
         }
+        
+        Shutdown();
     }
 
     void Application::Shutdown()
@@ -88,6 +98,9 @@ namespace Elysium
             return;
         }
 
+        logService_.Shutdown();
+        g_appInstance = nullptr;
+
         if (currentScene_)
         {
             currentScene_->OnExit();
@@ -96,10 +109,10 @@ namespace Elysium
         UnloadRenderTexture(frontBuffer_);
         UnloadRenderTexture(backBuffer_);
         UnloadRenderTexture(sceneFramebuffer_);
+        UnloadRenderTexture(transitionBuffer_);
 
         assetService_.Shutdown();
         networkService_.Shutdown();
-        Services::LogService::GetInstance().Shutdown();
 
         rlImGuiShutdown();
         CloseWindow();
@@ -138,9 +151,21 @@ namespace Elysium
     {
         metricsService_.RecordFrameTime(deltaTime);
         metricsService_.Update(deltaTime);
-        Services::LogService::GetInstance().Update(deltaTime);
+        logService_.Update(deltaTime);
 
-        if (currentScene_)
+        if (inTransition_)
+        {
+            transitionTimer_ += deltaTime;
+            if (transitionTimer_ >= transitionDuration_)
+            {
+                inTransition_ = false;
+                transitionTimer_ = 0.0f;
+                SetScene(std::move(pendingScene_));
+                sceneTransitionPending_ = false;
+                sceneTransitionLocked_ = false;
+            }
+        }
+        else if (currentScene_)
         {
             currentScene_->OnUpdate(deltaTime);
         }
@@ -152,24 +177,68 @@ namespace Elysium
     {
         auto renderStart = std::chrono::high_resolution_clock::now();
 
-        BeginTextureMode(sceneFramebuffer_);
-        ClearBackground(config_.backgroundColor);
-        if (currentScene_)
+        if (inTransition_)
         {
-            currentScene_->OnDraw();
+            BeginTextureMode(sceneFramebuffer_);
+            ClearBackground(config_.backgroundColor);
+            if (currentScene_)
+            {
+                currentScene_->OnDraw();
+            }
+            EndTextureMode();
+
+            BeginTextureMode(transitionBuffer_);
+            ClearBackground(config_.backgroundColor);
+            if (pendingScene_)
+            {
+                pendingScene_->OnDraw();
+            }
+            EndTextureMode();
+
+            BeginDrawing();
+            ClearBackground(BLACK);
+
+            float alpha = transitionTimer_ / transitionDuration_;
+            Color currentTint = {255, 255, 255, (unsigned char)(255 * (1.0f - alpha))};
+            Color pendingTint = {255, 255, 255, (unsigned char)(255 * alpha)};
+
+            DrawTexturePro(
+                sceneFramebuffer_.texture,
+                Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
+                letterboxRect_,
+                Vector2{0, 0},
+                0.0f,
+                currentTint);
+
+            DrawTexturePro(
+                transitionBuffer_.texture,
+                Rectangle{0, 0, (float)transitionBuffer_.texture.width, -(float)transitionBuffer_.texture.height},
+                letterboxRect_,
+                Vector2{0, 0},
+                0.0f,
+                pendingTint);
         }
-        EndTextureMode();
+        else
+        {
+            BeginTextureMode(sceneFramebuffer_);
+            ClearBackground(config_.backgroundColor);
+            if (currentScene_)
+            {
+                currentScene_->OnDraw();
+            }
+            EndTextureMode();
 
-        BeginDrawing();
-        ClearBackground(BLACK);
+            BeginDrawing();
+            ClearBackground(BLACK);
 
-        DrawTexturePro(
-            sceneFramebuffer_.texture,
-            Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
-            letterboxRect_,
-            Vector2{0, 0},
-            0.0f,
-            WHITE);
+            DrawTexturePro(
+                sceneFramebuffer_.texture,
+                Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
+                letterboxRect_,
+                Vector2{0, 0},
+                0.0f,
+                WHITE);
+        }
 
         rlImGuiBegin();
 
@@ -179,7 +248,7 @@ namespace Elysium
         }
 
         metricsService_.Draw();
-        Services::LogService::GetInstance().Draw();
+        logService_.Draw();
 
         rlImGuiEnd();
 
@@ -192,33 +261,45 @@ namespace Elysium
 
     void Application::ProcessEvents()
     {
-        while (eventService_.HasInputEvents())
+        if (!inTransition_)
         {
-            InputEvent event = eventService_.GetNextInputEvent();
-            if (currentScene_)
+            while (eventService_.HasInputEvents())
             {
-                currentScene_->OnInput(event);
+                InputEvent event = eventService_.GetNextInputEvent();
+                if (currentScene_)
+                {
+                    currentScene_->OnInput(event);
+                }
+            }
+
+            while (eventService_.HasNetworkEvents())
+            {
+                NetworkEvent event = eventService_.GetNextNetworkEvent();
+                if (currentScene_)
+                {
+                    currentScene_->OnNetwork(event);
+                }
             }
         }
-
-        while (eventService_.HasNetworkEvents())
+        else
         {
-            NetworkEvent event = eventService_.GetNextNetworkEvent();
-            if (currentScene_)
-            {
-                currentScene_->OnNetwork(event);
-            }
+            eventService_.ClearInputEvents();
+            eventService_.ClearNetworkEvents();
         }
     }
 
     void Application::HandleSceneTransition()
     {
-        if (sceneTransitionPending_ && !sceneTransitionLocked_)
+        if (sceneTransitionPending_ && !sceneTransitionLocked_ && !inTransition_)
         {
             sceneTransitionLocked_ = true;
-            SetScene(std::move(pendingScene_));
-            sceneTransitionPending_ = false;
-            sceneTransitionLocked_ = false;
+            inTransition_ = true;
+            transitionTimer_ = 0.0f;
+            
+            if (pendingScene_)
+            {
+                pendingScene_->OnEnter();
+            }
         }
     }
 
@@ -239,7 +320,7 @@ namespace Elysium
 
         if (IsKeyPressed(KEY_F3))
         {
-            Services::LogService::GetInstance().ToggleVisibility();
+            logService_.ToggleVisibility();
         }
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))

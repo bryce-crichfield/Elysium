@@ -100,11 +100,8 @@ void LogService::Draw() {
     ImGui::End();
 }
 
-void LogService::LogMessage(int logLevel, const char* text, va_list args) {
-    char buffer[1024];
-    vsnprintf(buffer, sizeof(buffer), text, args);
-    
-    LogEntry entry(logLevel, std::string(buffer));
+void LogService::LogMessage(int logLevel, const std::string& message) {
+    LogEntry entry(logLevel, message);
     
     WriteLogToStdout(entry);
     

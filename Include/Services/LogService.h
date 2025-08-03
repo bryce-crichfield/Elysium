@@ -36,12 +36,7 @@ public:
     bool IsVisible() const { return isVisible_; }
     void ToggleVisibility() { isVisible_ = !isVisible_; }
     
-    void LogMessage(int logLevel, const char* text, va_list args);
-    
-    static LogService& GetInstance() { 
-        static LogService instance; 
-        return instance; 
-    }
+    void LogMessage(int logLevel, const std::string& message);
 
 private:
     bool isVisible_;

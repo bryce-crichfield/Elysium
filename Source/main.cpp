@@ -13,7 +13,6 @@ int main() {
     app.SetScene(std::move(menuScene));
     
     app.Run();
-    app.Shutdown();
     
     return 0;
 }

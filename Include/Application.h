@@ -28,7 +28,7 @@ public:
     Services::AssetService& GetAssetService() { return assetService_; }
     Services::NetworkService& GetNetworkService() { return networkService_; }
     Services::MetricsService& GetMetricsService() { return metricsService_; }
-    Services::LogService& GetLogService() { return Services::LogService::GetInstance(); }
+    Services::LogService& GetLogService() { return logService_; }
     const GameConfig& GetConfig() const { return config_; }
     
     bool ShouldClose() const;
@@ -55,14 +55,20 @@ private:
     bool sceneTransitionPending_ = false;
     bool sceneTransitionLocked_ = false;
     
+    bool inTransition_ = false;
+    float transitionTimer_ = 0.0f;
+    float transitionDuration_ = 1.0f;
+    
     Services::EventService eventService_;
     Services::AssetService assetService_;
     Services::NetworkService networkService_;
     Services::MetricsService metricsService_;
+    Services::LogService logService_;
     
     RenderTexture2D frontBuffer_;
     RenderTexture2D backBuffer_;
     RenderTexture2D sceneFramebuffer_;
+    RenderTexture2D transitionBuffer_;
     
     Rectangle letterboxRect_;
     float scaleX_, scaleY_;

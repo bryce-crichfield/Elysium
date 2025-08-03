@@ -73,16 +73,6 @@ void MenuScene::OnDebugDraw() {
     ImGui::Text("Rotation: %.1f degrees", rotation_);
     
     ImGui::End();
-    
-    // Demo window toggle
-    static bool showDemo = false;
-    ImGui::Begin("Debug");
-    ImGui::Checkbox("Show ImGui Demo", &showDemo);
-    ImGui::End();
-    
-    if (showDemo) {
-        ImGui::ShowDemoWindow(&showDemo);
-    }
 }
 
 void MenuScene::OnInput(const InputEvent& event) {

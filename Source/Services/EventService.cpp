@@ -41,4 +41,12 @@ void EventService::Clear() {
     while (!networkEvents_.empty()) networkEvents_.pop();
 }
 
+void EventService::ClearInputEvents() {
+    while (!inputEvents_.empty()) inputEvents_.pop();
+}
+
+void EventService::ClearNetworkEvents() {
+    while (!networkEvents_.empty()) networkEvents_.pop();
+}
+
 } // namespace Elysium::Services
