@@ -1,6 +1,7 @@
 #include "Scenes/MenuScene.h"
 #include "Application.h"
 #include "Scenes/GameScene.h"
+#include "Scenes/BattleScene.h"
 #include "imgui.h"
 #include <memory>
 
@@ -59,6 +60,11 @@ void MenuScene::OnDebugDraw() {
     if (ImGui::Button("Switch to Game Scene", ImVec2(200, 30))) {
         auto gameScene = std::make_unique<GameScene>(config_);
         Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
+    }
+
+    if (ImGui::Button("Switch to Battle Scene", ImVec2(200, 30))) {
+        auto battleScene = std::make_unique<BattleScene>(config_);
+        Elysium::Application::GetInstance().QueueSceneTransition(std::move(battleScene));
     }
     
     ImGui::Separator();
