@@ -141,6 +141,51 @@ namespace Elysium
             sceneTransitionPending_ = true;
         }
     }
+    
+    void Application::DefineScene(const std::string& typeName, SceneFactory factory)
+    {
+        sceneFactories_[typeName] = factory;
+        TraceLog(LOG_INFO, "Registered scene type: %s", typeName.c_str());
+    }
+    
+    void Application::QueueScene(const std::string& xmlPath)
+    {
+        // Read the XML file to determine the scene type
+        XMLDocument doc;
+        if (doc.LoadFile(xmlPath.c_str()) != XML_SUCCESS) {
+            TraceLog(LOG_ERROR, "Failed to load scene file: %s. Error: %s", xmlPath.c_str(), doc.ErrorStr());
+            return;
+        }
+        
+        XMLElement *root = doc.FirstChildElement("Scene");
+        if (!root) {
+            TraceLog(LOG_ERROR, "Invalid scene file format in: %s", xmlPath.c_str());
+            return;
+        }
+        
+        const char* sceneType = root->Attribute("type");
+        if (!sceneType) {
+            TraceLog(LOG_ERROR, "Scene type not specified in: %s", xmlPath.c_str());
+            return;
+        }
+        
+        // Find the scene factory
+        auto factoryIt = sceneFactories_.find(sceneType);
+        if (factoryIt == sceneFactories_.end()) {
+            TraceLog(LOG_ERROR, "Unknown scene type '%s' in file: %s", sceneType, xmlPath.c_str());
+            return;
+        }
+        
+        // Create the scene using the factory
+        std::unique_ptr<Scene> scene = factoryIt->second(config_);
+        
+        // Load the scene data from XML
+        scene->LoadFromXML(xmlPath);
+        
+        // Queue the scene transition
+        QueueSceneTransition(std::move(scene));
+        TraceLog(LOG_INFO, "Queued scene from XML: %s (type: %s)", xmlPath.c_str(), sceneType);
+    }
 
     bool Application::ShouldClose() const
     {

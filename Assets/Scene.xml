@@ -1,9 +1,6 @@
-<Scene>
-    <Camera />
-    <Layers />
-
+<Scene type="BattleScene">
     <Systems>
-        <System type="PhysicsSystem" gravity="0.0" />
+        <System type="PhysicsSystem" gravity="500.0" />
         <System type="RenderSystem" />
     </Systems>
 

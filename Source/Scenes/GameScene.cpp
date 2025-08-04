@@ -1,6 +1,8 @@
 #include "Scenes/GameScene.h"
 #include "Application.h"
 #include "Scenes/MenuScene.h"
+#include "Systems/PhysicsSystem.h"
+#include "Systems/RenderSystem.h"
 #include "imgui.h"
 #include <memory>
 #include <random>
@@ -9,14 +11,36 @@ namespace Elysium::Scenes {
 
 
 GameScene::GameScene(const GameConfig& config) : Scene("GameScene", config) {
-    world_ = std::make_unique<EntityWorld>();
-    physicsSystem_ = std::make_unique<Elysium::Systems::PhysicsSystem>(world_.get());
-    renderSystem_ = std::make_unique<Elysium::Systems::RenderSystem>(world_.get());
     paused_ = false;
+    
+    // Create the systems for this scene
+    CreateCustomSystems();
     
     // Add a few initial balls
     for (int i = 0; i < 3; i++) {
         AddBall();
+    }
+}
+
+void GameScene::CreateCustomSystems() {
+    // Add physics and render systems if not already loaded from XML
+    bool hasPhysics = false;
+    bool hasRender = false;
+    
+    for (const auto& system : systems_) {
+        if (dynamic_cast<Elysium::Systems::PhysicsSystem*>(system.get())) {
+            hasPhysics = true;
+        }
+        if (dynamic_cast<Elysium::Systems::RenderSystem*>(system.get())) {
+            hasRender = true;
+        }
+    }
+    
+    if (!hasPhysics) {
+        systems_.push_back(std::make_unique<Elysium::Systems::PhysicsSystem>(world_.get()));
+    }
+    if (!hasRender) {
+        systems_.push_back(std::make_unique<Elysium::Systems::RenderSystem>(world_.get()));
     }
 }
 
@@ -30,12 +54,14 @@ void GameScene::OnExit() {
 
 void GameScene::OnUpdate(float deltaTime) {
     if (!paused_) {
-        physicsSystem_->Update(deltaTime);
+        // Call the base class update which runs all systems
+        Scene::OnUpdate(deltaTime);
     }
 }
 
 void GameScene::OnDraw() {
-    renderSystem_->Render();
+    // Call the base class draw which renders all systems
+    Scene::OnDraw();
     
     DrawText("GAME SCENE", 10, 10, 30, RAYWHITE);
     DrawText("Physics Simulation", 10, 50, 20, LIGHTGRAY);
@@ -66,9 +92,22 @@ void GameScene::OnDebugDraw()
     
     ImGui::Text("Game Controls:");
     ImGui::Checkbox("Paused", &paused_);
-    float gravity = physicsSystem_->GetGravity();
-    if (ImGui::SliderFloat("Gravity", &gravity, 0.0f, 1000.0f)) {
-        physicsSystem_->SetGravity(gravity);
+    
+    // Find physics system for gravity controls
+    auto* physicsSystem = dynamic_cast<Elysium::Systems::PhysicsSystem*>(
+        systems_.empty() ? nullptr : systems_[0].get());
+    for (const auto& system : systems_) {
+        if (auto* ps = dynamic_cast<Elysium::Systems::PhysicsSystem*>(system.get())) {
+            physicsSystem = ps;
+            break;
+        }
+    }
+    
+    if (physicsSystem) {
+        float gravity = physicsSystem->GetGravity();
+        if (ImGui::SliderFloat("Gravity", &gravity, 0.0f, 1000.0f)) {
+            physicsSystem->SetGravity(gravity);
+        }
     }
     
     ImGui::Text("Balls: %d", (int)world_->GetEntityCount());

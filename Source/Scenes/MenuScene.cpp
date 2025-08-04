@@ -63,8 +63,8 @@ void MenuScene::OnDebugDraw() {
     }
 
     if (ImGui::Button("Switch to Battle Scene", ImVec2(200, 30))) {
-        auto battleScene = std::make_unique<BattleScene>(config_);
-        Elysium::Application::GetInstance().QueueSceneTransition(std::move(battleScene));
+        // Use the new XML loading system
+        Elysium::Application::GetInstance().QueueScene("./Assets/Scene.xml");
     }
     
     ImGui::Separator();

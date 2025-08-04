@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Scene.h"
+#include <unordered_map>
 #include "Services/MetricsService.h"
 #include "Services/LogService.h"
 #include "Services/EventService.h"
@@ -23,6 +24,10 @@ public:
     
     void SetScene(std::unique_ptr<Scene> scene);
     void QueueSceneTransition(std::unique_ptr<Scene> scene);
+    
+    // Scene factory registration and XML loading
+    void DefineScene(const std::string& typeName, SceneFactory factory);
+    void QueueScene(const std::string& xmlPath);
     
     Services::EventService& GetEventService() { return eventService_; }
     Services::AssetService& GetAssetService() { return assetService_; }
@@ -54,6 +59,9 @@ private:
     std::unique_ptr<Scene> pendingScene_;
     bool sceneTransitionPending_ = false;
     bool sceneTransitionLocked_ = false;
+    
+    // Scene factory registry
+    std::unordered_map<std::string, SceneFactory> sceneFactories_;
     
     bool inTransition_ = false;
     float transitionTimer_ = 0.0f;

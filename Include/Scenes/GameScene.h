@@ -2,12 +2,7 @@
 
 #include "../Scene.h"
 #include "Services/MemoryTracker.h"
-#include "Entity.h"
-#include "Systems/PhysicsSystem.h"
-#include "Systems/RenderSystem.h"
 #include "raylib.h"
-#include <vector>
-#include <memory>
 
 namespace Elysium::Scenes {
 
@@ -23,14 +18,13 @@ public:
     void OnEnter() override;
     void OnExit() override;
 
+protected:
+    void CreateCustomSystems() override;
+    
 private:
     void AddBall();
     void AddBallAtPosition(float x, float y);
     void ClearBalls();
-    
-    std::unique_ptr<EntityWorld> world_;
-    std::unique_ptr<Elysium::Systems::PhysicsSystem> physicsSystem_;
-    std::unique_ptr<Elysium::Systems::RenderSystem> renderSystem_;
     
     bool paused_;
 };
