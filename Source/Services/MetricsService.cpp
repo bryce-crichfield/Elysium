@@ -5,9 +5,12 @@
 #include <numeric>
 #include <fstream>
 #include <sstream>
-#include <unistd.h>
-#include <sys/resource.h>
-#include <sys/sysinfo.h>
+
+#ifndef _WIN32
+    #include <unistd.h>
+    #include <sys/resource.h>
+    #include <sys/sysinfo.h>
+#endif
 
 namespace Elysium::Services {
 
@@ -123,7 +126,11 @@ void MetricsService::DrawGraph(const char* label, const std::vector<float>& data
 }
 
 void MetricsService::UpdateSystemMetrics() {
+#ifdef _WIN32
+    GatherWindowsSystemInfo();
+#else
     GatherLinuxSystemInfo();
+#endif
     
     // Record memory usage for history graph
     float memoryUsageMB = static_cast<float>(systemMetrics_.physicalMemorySize) / (1024.0f * 1024.0f);
@@ -187,6 +194,17 @@ void MetricsService::DrawSystemInfo() {
     }
 }
 
+#ifdef _WIN32
+void MetricsService::GatherWindowsSystemInfo() {
+    // Simplified Windows implementation - just set basic values
+    systemMetrics_.physicalMemorySize = 1024 * 1024 * 64; // 64MB placeholder
+    systemMetrics_.peakWorkingSet = systemMetrics_.physicalMemorySize;
+    systemMetrics_.threadCount = 1;
+    systemMetrics_.totalSystemMemory = 1024 * 1024 * 1024 * 8ULL; // 8GB placeholder
+    systemMetrics_.availableSystemMemory = systemMetrics_.totalSystemMemory / 2;
+    systemMetrics_.cpuUsagePercent = 0.0;
+}
+#else
 void MetricsService::GatherLinuxSystemInfo() {
     // Get process memory info from /proc/self/status
     std::ifstream statusFile("/proc/self/status");
@@ -257,6 +275,7 @@ void MetricsService::GatherLinuxSystemInfo() {
         systemMetrics_.availableSystemMemory = si.freeram * si.mem_unit;
     }
 }
+#endif
 
 void MetricsService::DrawHeapInfo() {
     const MemoryTracker& tracker = MemoryTracker::GetInstance();

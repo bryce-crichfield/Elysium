@@ -89,4 +89,11 @@ if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         OUTPUT_NAME "Elysium.exe"
     )
+    
+    # Use Visual Studio on Windows if available, otherwise MinGW
+    if(MSVC)
+        # Visual Studio specific settings
+        target_compile_definitions(${PROJECT_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)
+        set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+    endif()
 endif()

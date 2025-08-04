@@ -21,9 +21,13 @@ function Elysium_Build {
         New-Item -ItemType Directory -Force -Path "$ELYSIUM_ROOT\Binary" | Out-Null
         
         Set-Location "$ELYSIUM_ROOT\Build"
-        cmake .. 
+        
+        # Use Ninja generator with MinGW and override shell
+        $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
+        $env:ComSpec = "C:\Windows\System32\cmd.exe"
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja .. 
         if ($LASTEXITCODE -eq 0) {
-            make
+            cmake --build . --config Release
         }
     }
     finally {

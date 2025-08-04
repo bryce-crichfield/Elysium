@@ -75,7 +75,11 @@ private:
     void DrawHeapInfo();
     
     // Platform-specific system info gathering
+#ifdef _WIN32
+    void GatherWindowsSystemInfo();
+#else
     void GatherLinuxSystemInfo();
+#endif
     std::string FormatBytes(size_t bytes);
 };
 
