@@ -3,31 +3,13 @@
 #include "../Scene.h"
 #include "Services/MemoryTracker.h"
 #include "Entity.h"
+#include "Systems/PhysicsSystem.h"
+#include "Systems/RenderSystem.h"
 #include "raylib.h"
 #include <vector>
 #include <memory>
 
 namespace Elysium::Scenes {
-
-class PhysicsSystem : public System {
-public:
-    PhysicsSystem(EntityWorld* world, float gravity = 500.0f) : System(world), gravity_(gravity) {}
-    
-    void Update(float deltaTime) override;
-    void SetGravity(float gravity) { gravity_ = gravity; }
-    float GetGravity() const { return gravity_; }
-    
-private:
-    float gravity_;
-};
-
-class RenderSystem : public System {
-public:
-    RenderSystem(EntityWorld* world) : System(world) {}
-    
-    void Update(float deltaTime) override {}
-    void Render() override;
-};
 
 class GameScene : public Scene {
 public:
@@ -47,8 +29,8 @@ private:
     void ClearBalls();
     
     std::unique_ptr<EntityWorld> world_;
-    std::unique_ptr<PhysicsSystem> physicsSystem_;
-    std::unique_ptr<RenderSystem> renderSystem_;
+    std::unique_ptr<Elysium::Systems::PhysicsSystem> physicsSystem_;
+    std::unique_ptr<Elysium::Systems::RenderSystem> renderSystem_;
     
     bool paused_;
 };

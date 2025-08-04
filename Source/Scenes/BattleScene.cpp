@@ -148,11 +148,11 @@ void LoadBattleScene(std::string xmlPath, EntityWorld* world, std::vector<std::u
             
             if (systemName == "PhysicsSystem") {
                 float gravity = xmlSystem->FloatAttribute("gravity", 500.0f);
-                systems->push_back(std::make_unique<PhysicsSystem>(world, gravity));
+                systems->push_back(std::make_unique<Elysium::Systems::PhysicsSystem>(world, gravity));
                 TraceLog(LOG_INFO, "Loaded PhysicsSystem with gravity: %.2f", gravity);
             }
             else if (systemName == "RenderSystem") {
-                systems->push_back(std::make_unique<RenderSystem>(world));
+                systems->push_back(std::make_unique<Elysium::Systems::RenderSystem>(world));
                 TraceLog(LOG_INFO, "Loaded RenderSystem");
             }
             else {

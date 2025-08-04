@@ -7,69 +7,11 @@
 
 namespace Elysium::Scenes {
 
-void PhysicsSystem::Update(float deltaTime) {
-    const float screenWidth = (float)GetScreenWidth();
-    const float screenHeight = (float)GetScreenHeight();
-    
-    // Use iterator-based approach to avoid temporary vector allocation
-    world->ForEachEntityWith<PositionComponent, VelocityComponent, PhysicsComponent>([&](Entity entity) {
-        auto& pos = world->GetComponent<PositionComponent>(entity);
-        auto& vel = world->GetComponent<VelocityComponent>(entity);
-        auto& physics = world->GetComponent<PhysicsComponent>(entity);
-        
-        // Apply gravity
-        if (physics.affectedByGravity) {
-            vel.y += gravity_ * deltaTime;
-        }
-        
-        // Update position
-        pos.x += vel.x * deltaTime;
-        pos.y += vel.y * deltaTime;
-        
-        // Get radius for collision detection if it has a circle render component
-        float radius = 10.0f; // default
-        if (world->HasComponent<CircleRenderComponent>(entity)) {
-            radius = world->GetComponent<CircleRenderComponent>(entity).radius;
-        }
-        
-        // Bounce off walls
-        if (pos.x <= radius || pos.x >= screenWidth - radius) {
-            vel.x *= -physics.restitution;
-            pos.x = (pos.x <= radius) ? radius : screenWidth - radius;
-        }
-        
-        if (pos.y <= radius || pos.y >= screenHeight - radius) {
-            vel.y *= -physics.restitution;
-            pos.y = (pos.y <= radius) ? radius : screenHeight - radius;
-        }
-    });
-}
-
-void RenderSystem::Render() {
-    // Render circles using iterator-based approach
-    world->ForEachEntityWith<PositionComponent, CircleRenderComponent>([&](Entity entity) {
-        auto& pos = world->GetComponent<PositionComponent>(entity);
-        auto& circle = world->GetComponent<CircleRenderComponent>(entity);
-        
-        DrawCircleV({pos.x, pos.y}, circle.radius, circle.color);
-        if (circle.drawOutline) {
-            DrawCircleLinesV({pos.x, pos.y}, circle.radius, circle.outlineColor);
-        }
-    });
-    
-    // Render text using iterator-based approach
-    world->ForEachEntityWith<PositionComponent, TextComponent>([&](Entity entity) {
-        auto& pos = world->GetComponent<PositionComponent>(entity);
-        auto& text = world->GetComponent<TextComponent>(entity);
-        
-        DrawText(text.content.c_str(), (int)pos.x, (int)pos.y, text.fontSize, text.color);
-    });
-}
 
 GameScene::GameScene(const GameConfig& config) : Scene("GameScene", config) {
     world_ = std::make_unique<EntityWorld>();
-    physicsSystem_ = std::make_unique<PhysicsSystem>(world_.get());
-    renderSystem_ = std::make_unique<RenderSystem>(world_.get());
+    physicsSystem_ = std::make_unique<Elysium::Systems::PhysicsSystem>(world_.get());
+    renderSystem_ = std::make_unique<Elysium::Systems::RenderSystem>(world_.get());
     paused_ = false;
     
     // Add a few initial balls
