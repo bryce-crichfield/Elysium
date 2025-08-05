@@ -43,6 +43,16 @@ struct LoadingConfig {
         float cycleTime = 2.0f;
         std::string musicPath;
     } background;
+    
+    // Tooltips
+    struct {
+        std::vector<std::string> messages;
+        float cycleTime = 3.0f;
+        int fontSize = 20;
+        Color color = {180, 180, 180, 255};
+        int x = -1; // -1 means center
+        int y = 400;
+    } tooltips;
 };
 
 namespace Elysium::Services {
@@ -70,6 +80,7 @@ private:
     void DrawProgressBar(int screenWidth, int screenHeight);
     void DrawLoadingText(int screenWidth, int screenHeight);
     void DrawBackground(int screenWidth, int screenHeight);
+    void DrawTooltips(int screenWidth, int screenHeight);
     std::string FormatStatusText(const std::string& template_str, int loaded, int total);
     
     std::vector<Asset> assetQueue_;
@@ -89,6 +100,9 @@ private:
     float backgroundTimer_{0.0f};
     int currentBackgroundIndex_{0};
     bool musicLoaded_{false};
+    
+    float tooltipTimer_{0.0f};
+    int currentTooltipIndex_{0};
 };
 
 } // namespace Elysium::Services

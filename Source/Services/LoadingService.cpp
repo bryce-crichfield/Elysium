@@ -126,19 +126,31 @@ void LoadingService::LoadingThreadFunction()
 
 void LoadingService::LoadConfig(const std::string& configPath)
 {
+    TraceLog(LOG_INFO, "Attempting to load LoadingConfig from: %s", configPath.c_str());
+    
     XMLDocument doc;
-    if (doc.LoadFile(configPath.c_str()) != XML_SUCCESS) {
-        TraceLog(LOG_WARNING, "Failed to load LoadingConfig.xml, using defaults");
+    XMLError result = doc.LoadFile(configPath.c_str());
+    if (result != XML_SUCCESS) {
+        TraceLog(LOG_WARNING, "Failed to load LoadingConfig.xml, error code: %d", result);
+        TraceLog(LOG_WARNING, "XML Error: %s", doc.ErrorStr());
+        if (doc.ErrorStr()) {
+            TraceLog(LOG_WARNING, "XML Error details: %s", doc.ErrorStr());
+        }
         return;
     }
+    
+    TraceLog(LOG_INFO, "LoadingConfig.xml loaded successfully, parsing...");
     
     XMLElement* root = doc.FirstChildElement("LoadingConfig");
     if (!root) {
-        TraceLog(LOG_WARNING, "Invalid LoadingConfig.xml format");
+        TraceLog(LOG_WARNING, "Invalid LoadingConfig.xml format - no LoadingConfig root element");
         return;
     }
     
+    TraceLog(LOG_INFO, "Found LoadingConfig root element");
+    
     // Load Progress Bar config
+    TraceLog(LOG_INFO, "Parsing ProgressBar config...");
     if (XMLElement* progressBar = root->FirstChildElement("ProgressBar")) {
         if (XMLElement* width = progressBar->FirstChildElement("Width"))
             config_.progressBar.width = width->IntText(400);
@@ -226,6 +238,42 @@ void LoadingService::LoadConfig(const std::string& configPath)
             config_.background.musicPath = music->GetText() ? music->GetText() : "";
     }
     
+    // Load Tooltips config
+    TraceLog(LOG_INFO, "Parsing Tooltips config...");  
+    if (XMLElement* tooltips = root->FirstChildElement("Tooltips")) {
+        TraceLog(LOG_INFO, "Found Tooltips element");
+        if (XMLElement* messages = tooltips->FirstChildElement("Messages")) {
+            for (XMLElement* message = messages->FirstChildElement("Message"); message != nullptr; message = message->NextSiblingElement("Message")) {
+                if (message->GetText()) {
+                    config_.tooltips.messages.push_back(message->GetText());
+                }
+            }
+        }
+        
+        if (XMLElement* cycleTime = tooltips->FirstChildElement("CycleTime"))
+            config_.tooltips.cycleTime = cycleTime->FloatText(3.0f);
+        if (XMLElement* fontSize = tooltips->FirstChildElement("FontSize"))
+            config_.tooltips.fontSize = fontSize->IntText(20);
+        if (XMLElement* x = tooltips->FirstChildElement("X"))
+            config_.tooltips.x = x->IntText(-1);
+        if (XMLElement* y = tooltips->FirstChildElement("Y"))
+            config_.tooltips.y = y->IntText(400);
+            
+        if (XMLElement* color = tooltips->FirstChildElement("Color")) {
+            if (XMLElement* r = color->FirstChildElement("r"))
+                config_.tooltips.color.r = r->IntText(180);
+            if (XMLElement* g = color->FirstChildElement("g"))
+                config_.tooltips.color.g = g->IntText(180);
+            if (XMLElement* b = color->FirstChildElement("b"))
+                config_.tooltips.color.b = b->IntText(180);
+            if (XMLElement* a = color->FirstChildElement("a"))
+                config_.tooltips.color.a = a->IntText(255);
+        }
+        TraceLog(LOG_INFO, "Tooltips config parsed, found %d messages", (int)config_.tooltips.messages.size());
+    } else {
+        TraceLog(LOG_INFO, "No Tooltips element found in config");
+    }
+    
     // Load background textures
     for (const auto& imagePath : config_.background.imagePaths) {
         Texture2D texture = LoadTexture(imagePath.c_str());
@@ -248,7 +296,7 @@ void LoadingService::LoadConfig(const std::string& configPath)
         }
     }
     
-    TraceLog(LOG_INFO, "LoadingConfig.xml loaded successfully");
+    TraceLog(LOG_INFO, "LoadingConfig.xml loaded and parsed successfully");
 }
 
 void LoadingService::Draw(int screenWidth, int screenHeight)
@@ -260,9 +308,17 @@ void LoadingService::Draw(int screenWidth, int screenHeight)
         currentBackgroundIndex_ = (currentBackgroundIndex_ + 1) % backgroundTextures_.size();
     }
     
+    // Update tooltip timer
+    tooltipTimer_ += GetFrameTime();
+    if (tooltipTimer_ >= config_.tooltips.cycleTime && !config_.tooltips.messages.empty()) {
+        tooltipTimer_ = 0.0f;
+        currentTooltipIndex_ = (currentTooltipIndex_ + 1) % config_.tooltips.messages.size();
+    }
+    
     DrawBackground(screenWidth, screenHeight);
     DrawLoadingText(screenWidth, screenHeight);
     DrawProgressBar(screenWidth, screenHeight);
+    DrawTooltips(screenWidth, screenHeight);
 }
 
 void LoadingService::DrawBackground(int screenWidth, int screenHeight)
@@ -354,6 +410,17 @@ std::string LoadingService::FormatStatusText(const std::string& template_str, in
     }
     
     return result;
+}
+
+void LoadingService::DrawTooltips(int screenWidth, int screenHeight)
+{
+    // Draw tooltip if we have messages
+    if (!config_.tooltips.messages.empty() && currentTooltipIndex_ < config_.tooltips.messages.size()) {
+        const char* tooltipText = config_.tooltips.messages[currentTooltipIndex_].c_str();
+        int textWidth = MeasureText(tooltipText, config_.tooltips.fontSize);
+        int textX = config_.tooltips.x == -1 ? (screenWidth - textWidth) / 2 : config_.tooltips.x;
+        ::DrawText(tooltipText, textX, config_.tooltips.y, config_.tooltips.fontSize, config_.tooltips.color);
+    }
 }
 
 } // namespace Elysium::Services

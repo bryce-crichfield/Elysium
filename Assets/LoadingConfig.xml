@@ -1,34 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <LoadingConfig>
     <ProgressBar>
-        <Width>400</Width>
-        <Height>25</Height>
+        <Width>480</Width>
+        <Height>20</Height>
         <X>-1</X> <!-- -1 means center horizontally -->
-        <Y>300</Y> <!-- from top of screen -->
+        <Y>280</Y> <!-- positioned in lower third for 640x480 -->
         <BackgroundColor>
-            <r>64</r>
-            <g>64</g>
-            <b>64</b>
-            <a>255</a>
+            <r>32</r>
+            <g>32</g>
+            <b>48</b>
+            <a>200</a>
         </BackgroundColor>
         <BorderColor>
-            <r>128</r>
-            <g>128</g>
-            <b>128</b>
+            <r>100</r>
+            <g>150</g>
+            <b>255</b>
             <a>255</a>
         </BorderColor>
         <BorderThickness>2</BorderThickness>
         <FillColor>
-            <r>128</r>
-            <g>128</g>
-            <b>0</b>
+            <r>64</r>
+            <g>200</g>
+            <b>255</b>
             <a>255</a>
         </FillColor>
     </ProgressBar>
     
     <Text>
-        <LoadingText>Loading...</LoadingText>
-        <FontSize>48</FontSize>
+        <LoadingText>ELYSIUM</LoadingText>
+        <FontSize>56</FontSize>
         <Color>
             <r>255</r>
             <g>255</g>
@@ -36,18 +36,18 @@
             <a>255</a>
         </Color>
         <X>-1</X> <!-- -1 means center horizontally -->
-        <Y>200</Y> <!-- from top of screen -->
+        <Y>120</Y> <!-- positioned in upper third for 640x480 -->
         
-        <StatusText>Assets loaded: {loaded} / {total}</StatusText>
-        <StatusFontSize>24</StatusFontSize>
+        <StatusText>Loading assets... {loaded} / {total}</StatusText>
+        <StatusFontSize>18</StatusFontSize>
         <StatusColor>
-            <r>200</r>
+            <r>180</r>
             <g>200</g>
-            <b>200</b>
+            <b>255</b>
             <a>255</a>
         </StatusColor>
         <StatusX>-1</StatusX> <!-- -1 means center horizontally -->
-        <StatusY>350</StatusY> <!-- from top of screen -->
+        <StatusY>310</StatusY> <!-- just below progress bar -->
     </Text>
     
     <Background>
@@ -57,6 +57,28 @@
             <Image>./Assets/loading/background3.png</Image>
         </Images>
         <CycleTime>2.0</CycleTime> <!-- seconds between image changes -->
-        <Music>./Assets/loading/loading_music.ogg</Music>
+        <Music>./Assets/song1/music.mp3</Music>
     </Background>
+    
+    <Tooltips>
+        <Messages>
+            <Message>Use WASD keys to move your character</Message>
+            <Message>Press ESC to access the pause menu</Message>
+            <Message>Collect power-ups to enhance your abilities</Message>
+            <Message>Watch out for environmental hazards</Message>
+            <Message>Check your minimap for navigation</Message>
+            <Message>Master the controls for better gameplay</Message>
+            <Message>Customize settings in the options menu</Message>
+        </Messages>
+        <CycleTime>4.0</CycleTime> <!-- seconds between tooltip changes -->
+        <FontSize>16</FontSize>
+        <Color>
+            <r>220</r>
+            <g>220</g>
+            <b>140</b>
+            <a>255</a>
+        </Color>
+        <X>-1</X> <!-- -1 means center horizontally -->
+        <Y>380</Y> <!-- positioned near bottom for 640x480 -->
+    </Tooltips>
 </LoadingConfig>

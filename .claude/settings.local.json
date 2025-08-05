@@ -4,7 +4,11 @@
       "Bash(powershell:*)",
       "Bash(findstr:*)",
       "Bash(mkdir:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(grep:*)",
+      "Bash(xmllint:*)",
+      "Bash(ninja:*)",
+      "Bash(ninja)"
     ],
     "deny": []
   }
