@@ -6,6 +6,8 @@
 
 namespace Elysium {
 
+using AssetName = std::string;
+
 enum class AssetType {
     TEXTURE,
     SOUND,
@@ -18,12 +20,15 @@ enum class AssetType {
 class Asset {
 public:
     Asset() = default;
-    Asset(AssetType type, const std::string& path);
+    Asset(AssetType type, const AssetName& name, const std::string& path);
     ~Asset() = default;
 
     AssetType GetType() const { return type_; }
+    const AssetName& GetName() const { return name_; }
     const std::string& GetPath() const { return path_; }
     bool IsLoaded() const { return loaded_; }
+    bool HasImageData() const { return hasImageData_; }
+    bool HasWaveData() const { return hasWaveData_; }
     
     Texture2D GetTexture() const;
     Sound GetSound() const;
@@ -31,6 +36,8 @@ public:
     Font GetFont() const;
     Model GetModel() const;
     Shader GetShader() const;
+    Image GetImageData() const { return imageData_; }
+    Wave GetWaveData() const { return waveData_; }
     
     void SetTexture(const Texture2D& texture);
     void SetSound(const Sound& sound);
@@ -38,15 +45,22 @@ public:
     void SetFont(const Font& font);
     void SetModel(const Model& model);
     void SetShader(const Shader& shader);
+    void SetImageData(const Image& image);
+    void SetWaveData(const Wave& wave);
     
     void Unload();
 
 private:
     AssetType type_;
+    std::string name_;
     std::string path_;
     bool loaded_ = false;
+    bool hasImageData_ = false;
+    bool hasWaveData_ = false;
     
     std::variant<Texture2D, Sound, Music, Font, Model, Shader> data_;
+    Image imageData_{};
+    Wave waveData_{};
 };
 
 } // namespace Elysium

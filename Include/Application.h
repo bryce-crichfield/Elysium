@@ -7,6 +7,8 @@
 #include "Services/EventService.h"
 #include "Services/AssetService.h"
 #include "Services/NetworkService.h"
+#include "Services/LoadingService.h"
+#include "Services/JukeboxService.h"
 #include "GameConfig.h"
 #include "raylib.h"
 #include <memory>
@@ -34,6 +36,7 @@ public:
     Services::NetworkService& GetNetworkService() { return networkService_; }
     Services::MetricsService& GetMetricsService() { return metricsService_; }
     Services::LogService& GetLogService() { return logService_; }
+    Services::JukeboxService& GetJukeboxService() { return jukeboxService_; }
     const GameConfig& GetConfig() const { return config_; }
     
     bool ShouldClose() const;
@@ -48,6 +51,8 @@ private:
     void Draw();
     void ProcessEvents();
     void HandleSceneTransition();
+    void DrawLoadingScreen();
+    void CheckAssetLoadingStatus();
     
     GameConfig LoadGameConfig(const std::string& configPath);
     void ProcessInput();
@@ -63,15 +68,25 @@ private:
     // Scene factory registry
     std::unordered_map<std::string, SceneFactory> sceneFactories_;
     
-    bool inTransition_ = false;
+    enum class TransitionState {
+        NONE,
+        FADE_OUT,
+        LOADING,
+        FADE_IN
+    };
+    
+    TransitionState transitionState_ = TransitionState::NONE;
     float transitionTimer_ = 0.0f;
     float transitionDuration_ = 1.0f;
+    std::vector<Asset> pendingAssets_;
     
+    Services::LoadingService loadingService_;
     Services::EventService eventService_;
     Services::AssetService assetService_;
     Services::NetworkService networkService_;
     Services::MetricsService metricsService_;
     Services::LogService logService_;
+    Services::JukeboxService jukeboxService_;
     
     RenderTexture2D frontBuffer_;
     RenderTexture2D backBuffer_;

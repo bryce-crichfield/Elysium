@@ -77,6 +77,14 @@ void MenuScene::OnDebugDraw() {
     }
     
     ImGui::Text("Rotation: %.1f degrees", rotation_);
+
+    ImGui::Separator();
+
+    auto& jukebox = Application::GetInstance().GetJukeboxService();
+
+    ImGui::Text("JukeBox: %s", jukebox.IsPlaying() ? "true" : "false");
+    ImGui::Text("Current Song ID: %s", jukebox.GetCurrentSongId());
+
     
     ImGui::End();
 }

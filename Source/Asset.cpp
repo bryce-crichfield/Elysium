@@ -3,7 +3,7 @@
 
 namespace Elysium {
 
-Asset::Asset(AssetType type, const std::string& path) : type_(type), path_(path), loaded_(false) {
+Asset::Asset(AssetType type, const AssetName& name, const std::string& path) : type_(type), name_(name), path_(path), loaded_(false) {
 }
 
 Texture2D Asset::GetTexture() const {
@@ -90,31 +90,51 @@ void Asset::SetShader(const Shader& shader) {
     }
 }
 
+void Asset::SetImageData(const Image& image) {
+    imageData_ = image;
+    hasImageData_ = true;
+}
+
+void Asset::SetWaveData(const Wave& wave) {
+    waveData_ = wave;
+    hasWaveData_ = true;
+}
+
 void Asset::Unload() {
-    if (!loaded_) return;
-    
-    switch (type_) {
-        case AssetType::TEXTURE:
-            UnloadTexture(std::get<Texture2D>(data_));
-            break;
-        case AssetType::SOUND:
-            UnloadSound(std::get<Sound>(data_));
-            break;
-        case AssetType::MUSIC:
-            UnloadMusicStream(std::get<Music>(data_));
-            break;
-        case AssetType::FONT:
-            UnloadFont(std::get<Font>(data_));
-            break;
-        case AssetType::MODEL:
-            UnloadModel(std::get<Model>(data_));
-            break;
-        case AssetType::SHADER:
-            UnloadShader(std::get<Shader>(data_));
-            break;
+    if (loaded_) {
+        switch (type_) {
+            case AssetType::TEXTURE:
+                UnloadTexture(std::get<Texture2D>(data_));
+                break;
+            case AssetType::SOUND:
+                UnloadSound(std::get<Sound>(data_));
+                break;
+            case AssetType::MUSIC:
+                UnloadMusicStream(std::get<Music>(data_));
+                break;
+            case AssetType::FONT:
+                UnloadFont(std::get<Font>(data_));
+                break;
+            case AssetType::MODEL:
+                UnloadModel(std::get<Model>(data_));
+                break;
+            case AssetType::SHADER:
+                UnloadShader(std::get<Shader>(data_));
+                break;
+        }
+        loaded_ = false;
     }
     
-    loaded_ = false;
+    // Unload raw data
+    if (hasImageData_) {
+        ::UnloadImage(imageData_);
+        hasImageData_ = false;
+    }
+    
+    if (hasWaveData_) {
+        ::UnloadWave(waveData_);
+        hasWaveData_ = false;
+    }
 }
 
 } // namespace Elysium

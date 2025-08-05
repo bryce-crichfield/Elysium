@@ -15,5 +15,21 @@ public:
     void OnInput(const InputEvent& event) override;
     void OnEnter() override;
     void OnExit() override;
+    
+    std::vector<Asset> GetAssets() override;
+    
+private:
+    void LoadAssets();
+    
+    // Asset storage
+    Texture2D warriorTexture_;
+    Texture2D swordTexture_;
+    Texture2D shieldTexture_;
+    Texture2D battlegroundTexture_;
+    Sound battleMusic_;
+    Sound swordClash_;
+    Sound victoryFanfare_;
+    
+    bool assetsLoaded_{false};
 };
 };

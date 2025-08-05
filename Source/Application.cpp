@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <chrono>
+#include "Services/JukeboxService.h"
 
 using namespace tinyxml2;
 
@@ -46,6 +47,8 @@ namespace Elysium
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
         InitWindow(config_.windowWidth, config_.windowHeight, config_.windowTitle.c_str());
 
+        InitAudioDevice();
+
         rlImGuiSetup(true);
         // SetTargetFPS(config_.targetFPS);
 
@@ -59,7 +62,15 @@ namespace Elysium
         assetService_.Initialize();
         networkService_.Initialize();
         logService_.Initialize();
-
+        loadingService_.Initialize();
+        if (jukeboxService_.LoadSong("./Assets/song1/song.xml"))
+        {
+jukeboxService_.SetGlobalEnergy(0.7f);
+        jukeboxService_.Play();
+        } else {
+            TraceLog(LOG_ERROR, "Failed to load jukebox with default song");
+        }
+        
         initialized_ = true;
         return true;
     }
@@ -87,7 +98,6 @@ namespace Elysium
             Update(deltaTime);
             Draw();
         }
-        
         Shutdown();
     }
 
@@ -111,10 +121,13 @@ namespace Elysium
         UnloadRenderTexture(sceneFramebuffer_);
         UnloadRenderTexture(transitionBuffer_);
 
+        loadingService_.Shutdown();
         assetService_.Shutdown();
         networkService_.Shutdown();
+        jukeboxService_.Stop();
 
         rlImGuiShutdown();
+        CloseAudioDevice();
         CloseWindow();
 
         initialized_ = false;
@@ -139,6 +152,12 @@ namespace Elysium
         {
             pendingScene_ = std::move(scene);
             sceneTransitionPending_ = true;
+            
+            // Get assets from the scene but don't start loading yet
+            // Loading will start after fade out completes
+            if (pendingScene_) {
+                pendingAssets_ = pendingScene_->GetAssets();
+            }
         }
     }
     
@@ -198,12 +217,33 @@ namespace Elysium
         metricsService_.Update(deltaTime);
         logService_.Update(deltaTime);
 
-        if (inTransition_)
+        jukeboxService_.Update();
+
+        if (transitionState_ == TransitionState::FADE_OUT)
         {
             transitionTimer_ += deltaTime;
-            if (transitionTimer_ >= transitionDuration_)
+            if (transitionTimer_ >= transitionDuration_) // Full fade out duration
             {
-                inTransition_ = false;
+                // Fade out complete, now start loading
+                transitionState_ = TransitionState::LOADING;
+                transitionTimer_ = 0.0f;
+                
+                // Start loading assets now
+                if (!pendingAssets_.empty()) {
+                    loadingService_.LoadAssets(pendingAssets_, assetService_);
+                }
+            }
+        }
+        else if (transitionState_ == TransitionState::LOADING)
+        {
+            CheckAssetLoadingStatus();
+        }
+        else if (transitionState_ == TransitionState::FADE_IN)
+        {
+            transitionTimer_ += deltaTime;
+            if (transitionTimer_ >= transitionDuration_) // Full fade in duration
+            {
+                transitionState_ = TransitionState::NONE;
                 transitionTimer_ = 0.0f;
                 SetScene(std::move(pendingScene_));
                 sceneTransitionPending_ = false;
@@ -222,46 +262,60 @@ namespace Elysium
     {
         auto renderStart = std::chrono::high_resolution_clock::now();
 
-        if (inTransition_)
+        if (transitionState_ != TransitionState::NONE)
         {
-            BeginTextureMode(sceneFramebuffer_);
-            ClearBackground(config_.backgroundColor);
-            if (currentScene_)
+            if (transitionState_ == TransitionState::LOADING)
             {
-                currentScene_->OnDraw();
+                BeginDrawing();
+                ClearBackground(BLACK);
+                DrawLoadingScreen();
             }
-            EndTextureMode();
-
-            BeginTextureMode(transitionBuffer_);
-            ClearBackground(config_.backgroundColor);
-            if (pendingScene_)
+            else
             {
-                pendingScene_->OnDraw();
+                BeginTextureMode(sceneFramebuffer_);
+                ClearBackground(config_.backgroundColor);
+                if (currentScene_)
+                {
+                    currentScene_->OnDraw();
+                }
+                EndTextureMode();
+
+                BeginTextureMode(transitionBuffer_);
+                ClearBackground(config_.backgroundColor);
+                if (pendingScene_)
+                {
+                    pendingScene_->OnDraw();
+                }
+                EndTextureMode();
+
+                BeginDrawing();
+                ClearBackground(BLACK);
+
+                float alpha = transitionTimer_ / transitionDuration_;
+                
+                if (transitionState_ == TransitionState::FADE_OUT)
+                {
+                    Color currentTint = {255, 255, 255, (unsigned char)(255 * (1.0f - alpha))};
+                    DrawTexturePro(
+                        sceneFramebuffer_.texture,
+                        Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
+                        letterboxRect_,
+                        Vector2{0, 0},
+                        0.0f,
+                        currentTint);
+                }
+                else if (transitionState_ == TransitionState::FADE_IN)
+                {
+                    Color pendingTint = {255, 255, 255, (unsigned char)(255 * alpha)};
+                    DrawTexturePro(
+                        transitionBuffer_.texture,
+                        Rectangle{0, 0, (float)transitionBuffer_.texture.width, -(float)transitionBuffer_.texture.height},
+                        letterboxRect_,
+                        Vector2{0, 0},
+                        0.0f,
+                        pendingTint);
+                }
             }
-            EndTextureMode();
-
-            BeginDrawing();
-            ClearBackground(BLACK);
-
-            float alpha = transitionTimer_ / transitionDuration_;
-            Color currentTint = {255, 255, 255, (unsigned char)(255 * (1.0f - alpha))};
-            Color pendingTint = {255, 255, 255, (unsigned char)(255 * alpha)};
-
-            DrawTexturePro(
-                sceneFramebuffer_.texture,
-                Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
-                letterboxRect_,
-                Vector2{0, 0},
-                0.0f,
-                currentTint);
-
-            DrawTexturePro(
-                transitionBuffer_.texture,
-                Rectangle{0, 0, (float)transitionBuffer_.texture.width, -(float)transitionBuffer_.texture.height},
-                letterboxRect_,
-                Vector2{0, 0},
-                0.0f,
-                pendingTint);
         }
         else
         {
@@ -294,6 +348,8 @@ namespace Elysium
 
         metricsService_.Draw();
         logService_.Draw();
+        jukeboxService_.OnDebugDraw();
+
 
         rlImGuiEnd();
 
@@ -306,7 +362,7 @@ namespace Elysium
 
     void Application::ProcessEvents()
     {
-        if (!inTransition_)
+        if (transitionState_ == TransitionState::NONE)
         {
             while (eventService_.HasInputEvents())
             {
@@ -335,16 +391,13 @@ namespace Elysium
 
     void Application::HandleSceneTransition()
     {
-        if (sceneTransitionPending_ && !sceneTransitionLocked_ && !inTransition_)
+        if (sceneTransitionPending_ && !sceneTransitionLocked_ && transitionState_ == TransitionState::NONE)
         {
             sceneTransitionLocked_ = true;
-            inTransition_ = true;
+            transitionState_ = TransitionState::FADE_OUT;
             transitionTimer_ = 0.0f;
             
-            if (pendingScene_)
-            {
-                pendingScene_->OnEnter();
-            }
+            // Don't call OnEnter() yet - wait until loading completes
         }
     }
 
@@ -498,6 +551,34 @@ namespace Elysium
         framebufferPos.x = (screenPos.x - offset_.x) / scaleX_;
         framebufferPos.y = (screenPos.y - offset_.y) / scaleY_;
         return framebufferPos;
+    }
+
+    void Application::DrawLoadingScreen()
+    {
+        int screenWidth = GetScreenWidth();
+        int screenHeight = GetScreenHeight();
+        
+        // Delegate drawing to LoadingService
+        loadingService_.Draw(screenWidth, screenHeight);
+    }
+    
+    void Application::CheckAssetLoadingStatus()
+    {
+        if (!loadingService_.IsLoading())
+        {
+            // Loading complete, finalize GPU resources on main thread
+            assetService_.FinalizeAssets();
+            
+            // Now we can call OnEnter() for the scene
+            if (pendingScene_)
+            {
+                pendingScene_->OnEnter();
+            }
+            
+            // Transition to fade in
+            transitionState_ = TransitionState::FADE_IN;
+            transitionTimer_ = 0.0f;
+        }
     }
 
 } // namespace Elysium

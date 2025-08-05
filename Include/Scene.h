@@ -6,6 +6,7 @@
 #include <vector>
 #include <functional>
 #include "Entity.h"
+#include "Asset.h"
 
 namespace Elysium {
 
@@ -49,13 +50,20 @@ public:
     // Load scene from XML file
     virtual void LoadFromXML(const std::string& xmlPath);
     
+    // Called during loading, returns Asset objects with name, path, and type
+    // application then passes these to loading service
+    // application waits until loading service is done
+    // loading service calls into asset service to perform the loading
+    // application shows loading screen while processing assets
+    virtual std::vector<Asset> GetAssets() { return {}; }
+
     // Hook methods - can be overridden by subclasses
     virtual void OnUpdate(float deltaTime);
     virtual void OnDraw();
     virtual void OnDebugDraw() {}
     virtual void OnNetwork(const NetworkEvent& event) {}
     virtual void OnInput(const InputEvent& event) {}
-    
+
     virtual void OnEnter() {}
     virtual void OnExit() {}
     

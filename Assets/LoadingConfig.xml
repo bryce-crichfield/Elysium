@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LoadingConfig>
+    <ProgressBar>
+        <Width>400</Width>
+        <Height>25</Height>
+        <X>-1</X> <!-- -1 means center horizontally -->
+        <Y>300</Y> <!-- from top of screen -->
+        <BackgroundColor>
+            <r>64</r>
+            <g>64</g>
+            <b>64</b>
+            <a>255</a>
+        </BackgroundColor>
+        <BorderColor>
+            <r>128</r>
+            <g>128</g>
+            <b>128</b>
+            <a>255</a>
+        </BorderColor>
+        <BorderThickness>2</BorderThickness>
+        <FillColor>
+            <r>128</r>
+            <g>128</g>
+            <b>0</b>
+            <a>255</a>
+        </FillColor>
+    </ProgressBar>
+    
+    <Text>
+        <LoadingText>Loading...</LoadingText>
+        <FontSize>48</FontSize>
+        <Color>
+            <r>255</r>
+            <g>255</g>
+            <b>255</b>
+            <a>255</a>
+        </Color>
+        <X>-1</X> <!-- -1 means center horizontally -->
+        <Y>200</Y> <!-- from top of screen -->
+        
+        <StatusText>Assets loaded: {loaded} / {total}</StatusText>
+        <StatusFontSize>24</StatusFontSize>
+        <StatusColor>
+            <r>200</r>
+            <g>200</g>
+            <b>200</b>
+            <a>255</a>
+        </StatusColor>
+        <StatusX>-1</StatusX> <!-- -1 means center horizontally -->
+        <StatusY>350</StatusY> <!-- from top of screen -->
+    </Text>
+    
+    <Background>
+        <Images>
+            <Image>./Assets/loading/background1.png</Image>
+            <Image>./Assets/loading/background2.png</Image>
+            <Image>./Assets/loading/background3.png</Image>
+        </Images>
+        <CycleTime>2.0</CycleTime> <!-- seconds between image changes -->
+        <Music>./Assets/loading/loading_music.ogg</Music>
+    </Background>
+</LoadingConfig>
