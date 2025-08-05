@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <LoadingConfig>
+    <DelayTime>180</DelayTime>
+
     <ProgressBar>
         <Width>480</Width>
         <Height>20</Height>

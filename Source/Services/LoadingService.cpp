@@ -115,8 +115,8 @@ void LoadingService::LoadingThreadFunction()
             assetService_->LoadAsset(asset);
             loadedAssets_.fetch_add(1);
             
-            // Add delay to make loading visible for testing
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            int delayTime = config_.delayTime;  // notice, prob not thread safe eggggaddd
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayTime));
         }
     }
     
@@ -139,18 +139,18 @@ void LoadingService::LoadConfig(const std::string& configPath)
         return;
     }
     
-    TraceLog(LOG_INFO, "LoadingConfig.xml loaded successfully, parsing...");
     
     XMLElement* root = doc.FirstChildElement("LoadingConfig");
     if (!root) {
         TraceLog(LOG_WARNING, "Invalid LoadingConfig.xml format - no LoadingConfig root element");
         return;
     }
-    
-    TraceLog(LOG_INFO, "Found LoadingConfig root element");
-    
+
+    if (XMLElement* delayTime = root->FirstChildElement("DelayTime")) {
+        config_.delayTime = delayTime->IntText(100);
+    }
+
     // Load Progress Bar config
-    TraceLog(LOG_INFO, "Parsing ProgressBar config...");
     if (XMLElement* progressBar = root->FirstChildElement("ProgressBar")) {
         if (XMLElement* width = progressBar->FirstChildElement("Width"))
             config_.progressBar.width = width->IntText(400);
@@ -269,7 +269,6 @@ void LoadingService::LoadConfig(const std::string& configPath)
             if (XMLElement* a = color->FirstChildElement("a"))
                 config_.tooltips.color.a = a->IntText(255);
         }
-        TraceLog(LOG_INFO, "Tooltips config parsed, found %d messages", (int)config_.tooltips.messages.size());
     } else {
         TraceLog(LOG_INFO, "No Tooltips element found in config");
     }
@@ -279,7 +278,6 @@ void LoadingService::LoadConfig(const std::string& configPath)
         Texture2D texture = LoadTexture(imagePath.c_str());
         if (texture.id != 0) {
             backgroundTextures_.push_back(texture);
-            TraceLog(LOG_INFO, "Loaded loading background: %s", imagePath.c_str());
         } else {
             TraceLog(LOG_WARNING, "Failed to load loading background: %s", imagePath.c_str());
         }
@@ -290,7 +288,6 @@ void LoadingService::LoadConfig(const std::string& configPath)
         backgroundMusic_ = LoadSound(config_.background.musicPath.c_str());
         if (backgroundMusic_.frameCount > 0) {
             musicLoaded_ = true;
-            TraceLog(LOG_INFO, "Loaded loading music: %s", config_.background.musicPath.c_str());
         } else {
             TraceLog(LOG_WARNING, "Failed to load loading music: %s", config_.background.musicPath.c_str());
         }

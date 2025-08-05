@@ -10,6 +10,7 @@
 #include <mutex>
 
 struct LoadingConfig {
+    int delayTime = 150;
     // Progress Bar
     struct {
         int width = 400;
