@@ -10,7 +10,7 @@
 
 namespace Elysium {
 
-struct GameConfig;
+struct Application;
 
 struct InputEvent {
     enum Type {
@@ -42,7 +42,7 @@ struct NetworkEvent {
 
 class Scene {
 public:
-    Scene(const std::string& name, const GameConfig& config);
+    Scene(const std::string& name);
     virtual ~Scene() = default;
     
     const std::string& GetName() const { return name_; }
@@ -59,7 +59,7 @@ public:
 
     // Hook methods - can be overridden by subclasses
     virtual void OnUpdate(float deltaTime);
-    virtual void OnDraw();
+    virtual void OnDraw(Rectangle screen);
     virtual void OnDebugDraw() {}
     virtual void OnNetwork(const NetworkEvent& event) {}
     virtual void OnInput(const InputEvent& event) {}
@@ -76,7 +76,6 @@ protected:
     virtual void CreateCustomSystems() {}
     
     std::string name_;
-    const GameConfig& config_;
     
     // Core scene components
     std::unique_ptr<EntityWorld> world_;
@@ -84,6 +83,6 @@ protected:
 };
 
 // Scene factory function type - declared after Scene class is defined
-using SceneFactory = std::function<std::unique_ptr<Scene>(const GameConfig&)>;
+using SceneFactory = std::function<std::unique_ptr<Scene>()>;
 
 } // namespace Elysium

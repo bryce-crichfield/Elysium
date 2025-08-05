@@ -9,18 +9,41 @@
 #include "Services/NetworkService.h"
 #include "Services/LoadingService.h"
 #include "Services/JukeboxService.h"
-#include "GameConfig.h"
 #include "raylib.h"
 #include <memory>
 #include <string>
 
 namespace Elysium {
 
+struct ApplicationConfig {
+    int windowWidth = 1280;
+    int windowHeight = 720;
+    std::string windowTitle = "Elysium - 2D Game Engine";
+    bool fullscreen = false;
+    bool vsync = true;
+    int targetFPS = 60;
+    Color backgroundColor;
+    
+    int framebufferWidth = 640;
+    int framebufferHeight = 480;
+    
+    float gravity = 9.81f;
+    float defaultBallRadius = 20.0f;
+    Vector2 defaultBallSpeed = { 5.0f, 4.0f };
+    
+    bool showDemoWindow = true;
+    bool showMetrics = false;
+    std::string logLevel = "INFO";
+    
+    static bool FromXML(const std::string& path, ApplicationConfig& out);
+};
+
+
 class Application {
 public:
     static Application& GetInstance();
     
-    bool Initialize(const std::string& configPath = "./Assets/GameConfig.xml");
+    bool Initialize(const std::string& configPath = "./Assets/Config/ApplicationConfig.xml");
     void Run();
     void Shutdown();
     
@@ -37,7 +60,7 @@ public:
     Services::MetricsService& GetMetricsService() { return metricsService_; }
     Services::LogService& GetLogService() { return logService_; }
     Services::JukeboxService& GetJukeboxService() { return jukeboxService_; }
-    const GameConfig& GetConfig() const { return config_; }
+    const ApplicationConfig& GetConfig() const { return config_; }
     
     bool ShouldClose() const;
 
@@ -54,12 +77,11 @@ private:
     void DrawLoadingScreen();
     void CheckAssetLoadingStatus();
     
-    GameConfig LoadGameConfig(const std::string& configPath);
     void ProcessInput();
     void CalculateLetterboxing();
     Vector2 MapScreenToFramebuffer(Vector2 screenPos) const;
     
-    GameConfig config_;
+    ApplicationConfig config_;
     std::unique_ptr<Scene> currentScene_;
     std::unique_ptr<Scene> pendingScene_;
     bool sceneTransitionPending_ = false;

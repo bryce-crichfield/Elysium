@@ -14,18 +14,12 @@ namespace Elysium::Scenes {
 
 
 
-BattleScene::BattleScene(const GameConfig& config) : Scene("BattleScene", config) {
+BattleScene::BattleScene() : Scene("BattleScene") {
     // Base class constructor already creates world_ and systems_
 }
 
 void BattleScene::OnEnter() {
     TraceLog(LOG_INFO, "Entering Battle Scene");
-    // XML loading is now handled by the Application when using QueueScene
-    // or can be called manually with LoadFromXML if needed
-    
-    // Assets should already be loaded by the loading system at this point
-    // Just try to retrieve them
-    LoadAssets();
 }
 
 void BattleScene::OnExit() {
@@ -37,14 +31,20 @@ void BattleScene::OnInput(const InputEvent& event) {
 }
 
 void BattleScene::OnUpdate(float deltaTime) {
-    // Call base class update which handles all systems
     Scene::OnUpdate(deltaTime);
 }
 
-void BattleScene::OnDraw() {
-    // Call base class draw which renders all systems
-    Scene::OnDraw();
+void BattleScene::OnDraw(Rectangle screen) {
+    Scene::OnDraw(screen);
     
+    auto& assetService = Elysium::Application::GetInstance().GetAssetService();
+    
+    // Load textures by name
+    warriorTexture_ = assetService.GetTexture("warrior");
+    swordTexture_ = assetService.GetTexture("sword");
+    shieldTexture_ = assetService.GetTexture("shield");
+    battlegroundTexture_ = assetService.GetTexture("battleground");
+
     // Draw battleground background
     if (battlegroundTexture_.id != 0) {
         DrawTexture(battlegroundTexture_, 0, 0, WHITE);
@@ -52,15 +52,15 @@ void BattleScene::OnDraw() {
     
     // Draw warrior at center-left
     if (warriorTexture_.id != 0) {
-        DrawTexture(warriorTexture_, config_.framebufferWidth / 4, config_.framebufferHeight / 2 - 50, WHITE);
+        DrawTexture(warriorTexture_, screen.width / 4, screen.height / 2 - 50, WHITE);
     }
     
     // Draw sword and shield near warrior
     if (swordTexture_.id != 0) {
-        DrawTexture(swordTexture_, config_.framebufferWidth / 4 + 50, config_.framebufferHeight / 2 - 30, WHITE);
+        DrawTexture(swordTexture_, screen.width / 4 + 50, screen.height / 2 - 30, WHITE);
     }
     if (shieldTexture_.id != 0) {
-        DrawTexture(shieldTexture_, config_.framebufferWidth / 4 - 30, config_.framebufferHeight / 2 - 20, WHITE);
+        DrawTexture(shieldTexture_, screen.width / 4 - 30, screen.height / 2 - 20, WHITE);
     }
 
 }
@@ -75,7 +75,7 @@ void BattleScene::OnDebugDraw() {
     ImGui::Text("Available Scenes:");
     
     if (ImGui::Button("Switch to Game Scene", ImVec2(200, 30))) {
-        auto gameScene = std::make_unique<GameScene>(config_);
+        auto gameScene = std::make_unique<GameScene>();
         Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
     }
 
@@ -98,28 +98,4 @@ std::vector<Asset> BattleScene::GetAssets() {
         Asset(AssetType::MUSIC, "music", "./Assets/sounds/music.mp3")
     };
 }
-
-
-void BattleScene::LoadAssets() {
-    TraceLog(LOG_ERROR, "BattleScene::LoadAsset()");
-    if (assetsLoaded_) {
-        return; // Already loaded
-    }
-    
-    auto& assetService = Elysium::Application::GetInstance().GetAssetService();
-    
-    // Load textures by name
-    warriorTexture_ = assetService.GetTexture("warrior");
-    swordTexture_ = assetService.GetTexture("sword");
-    shieldTexture_ = assetService.GetTexture("shield");
-    battlegroundTexture_ = assetService.GetTexture("battleground");
-    
-    // Load sounds by name
-    // battleMusic_ = assetService.GetSound("music");
-
-    // PlaySound(battleMusic_);
-
-    TraceLog(LOG_INFO, "Playing battle music");
-}
-
 } // namespace Elysium::Scenes

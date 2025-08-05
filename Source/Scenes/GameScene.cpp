@@ -10,7 +10,7 @@
 namespace Elysium::Scenes {
 
 
-GameScene::GameScene(const GameConfig& config) : Scene("GameScene", config) {
+GameScene::GameScene() : Scene("GameScene") {
     paused_ = false;
     
     // Create the systems for this scene
@@ -59,16 +59,16 @@ void GameScene::OnUpdate(float deltaTime) {
     }
 }
 
-void GameScene::OnDraw() {
+void GameScene::OnDraw(Rectangle screen) {
     // Call the base class draw which renders all systems
-    Scene::OnDraw();
+    Scene::OnDraw(screen);
     
     DrawText("GAME SCENE", 10, 10, 30, RAYWHITE);
     DrawText("Physics Simulation", 10, 50, 20, LIGHTGRAY);
     
     if (paused_) {
-        int centerX = config_.GetFramebufferCenterX();
-        int centerY = config_.GetFramebufferCenterY();
+        int centerX = screen.width / 2;
+        int centerY = screen.height / 2;
         DrawText("PAUSED", centerX - 60, centerY, 30, RED);
     } 
 }
@@ -84,7 +84,7 @@ void GameScene::OnDebugDraw()
     ImGui::Text("Available Scenes:");
     
     if (ImGui::Button("Switch to Menu Scene", ImVec2(200, 30))) {
-        auto menuScene = std::make_unique<MenuScene>(Elysium::Application::GetInstance().GetConfig());
+        auto menuScene = std::make_unique<MenuScene>();
         Elysium::Application::GetInstance().QueueSceneTransition(std::move(menuScene));
     }
     
@@ -144,7 +144,7 @@ void GameScene::OnInput(const InputEvent& event) {
     if (event.type == InputEvent::KEY_PRESS) {
         if (event.key == KEY_M) {
             // Switch to menu scene
-            auto menuScene = std::make_unique<MenuScene>(Elysium::Application::GetInstance().GetConfig());
+            auto menuScene = std::make_unique<MenuScene>();
             Elysium::Application::GetInstance().QueueSceneTransition(std::move(menuScene));
         } else if (event.key == KEY_SPACE) {
             paused_ = !paused_;
@@ -155,7 +155,7 @@ void GameScene::OnInput(const InputEvent& event) {
 }
 
 void GameScene::AddBall() {
-    float x = (float)GetRandomValue(50, config_.GetFramebufferWidth() - 50);
+    float x = (float)GetRandomValue(50, 200);
     float y = (float)GetRandomValue(50, 200);
     AddBallAtPosition(x, y);
 }

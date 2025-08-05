@@ -40,7 +40,10 @@ namespace Elysium
         SetTraceLogCallback(CustomTraceLogCallback);
         SetTraceLogLevel(LOG_INFO);
 
-        config_ = LoadGameConfig(configPath);
+        if (!ApplicationConfig::FromXML(configPath, config_)) {
+            TraceLog(LOG_ERROR, "Failed to load ApplicationConfig.xml");
+            return false;
+        }
 
         TraceLog(LOG_INFO, "Elysium Engine initializing...");
 
@@ -196,7 +199,7 @@ jukeboxService_.SetGlobalEnergy(0.7f);
         }
         
         // Create the scene using the factory
-        std::unique_ptr<Scene> scene = factoryIt->second(config_);
+        std::unique_ptr<Scene> scene = factoryIt->second();
         
         // Load the scene data from XML
         scene->LoadFromXML(xmlPath);
@@ -261,7 +264,7 @@ jukeboxService_.SetGlobalEnergy(0.7f);
     void Application::Draw()
     {
         auto renderStart = std::chrono::high_resolution_clock::now();
-
+        auto screenRect = Rectangle { 0, 0, config_.framebufferWidth, config_.framebufferHeight};
         if (transitionState_ != TransitionState::NONE)
         {
             if (transitionState_ == TransitionState::LOADING)
@@ -276,7 +279,7 @@ jukeboxService_.SetGlobalEnergy(0.7f);
                 ClearBackground(config_.backgroundColor);
                 if (currentScene_)
                 {
-                    currentScene_->OnDraw();
+                    currentScene_->OnDraw(screenRect);
                 }
                 EndTextureMode();
 
@@ -284,7 +287,7 @@ jukeboxService_.SetGlobalEnergy(0.7f);
                 ClearBackground(config_.backgroundColor);
                 if (pendingScene_)
                 {
-                    pendingScene_->OnDraw();
+                    pendingScene_->OnDraw(screenRect);
                 }
                 EndTextureMode();
 
@@ -323,7 +326,7 @@ jukeboxService_.SetGlobalEnergy(0.7f);
             ClearBackground(config_.backgroundColor);
             if (currentScene_)
             {
-                currentScene_->OnDraw();
+                currentScene_->OnDraw(screenRect);
             }
             EndTextureMode();
 
@@ -437,22 +440,22 @@ jukeboxService_.SetGlobalEnergy(0.7f);
         }
     }
 
-    GameConfig Application::LoadGameConfig(const std::string &configPath)
+    bool ApplicationConfig::FromXML(const std::string &configPath, ApplicationConfig& out)
     {
-        GameConfig config;
+        ApplicationConfig& config = out;
         XMLDocument doc;
 
         if (doc.LoadFile(configPath.c_str()) != XML_SUCCESS)
         {
             TraceLog(LOG_ERROR, "Failed to load config file: %s. Using defaults.", configPath.c_str());
-            return config;
+            return false;
         }
 
         XMLElement *root = doc.FirstChildElement("GameConfig");
         if (!root)
         {
             TraceLog(LOG_ERROR, "Invalid config file format. Using defaults.");
-            return config;
+            return false;
         }
 
         if (XMLElement *window = root->FirstChildElement("Window"))
@@ -490,20 +493,6 @@ jukeboxService_.SetGlobalEnergy(0.7f);
             }
         }
 
-        if (XMLElement *physics = root->FirstChildElement("Physics"))
-        {
-            if (XMLElement *gravity = physics->FirstChildElement("Gravity"))
-                config.gravity = gravity->FloatText(9.81f);
-            if (XMLElement *ballRadius = physics->FirstChildElement("DefaultBallRadius"))
-                config.defaultBallRadius = ballRadius->FloatText(20.0f);
-            if (XMLElement *ballSpeed = physics->FirstChildElement("DefaultBallSpeed"))
-            {
-                float x = ballSpeed->FirstChildElement("X") ? ballSpeed->FirstChildElement("X")->FloatText(5.0f) : 5.0f;
-                float y = ballSpeed->FirstChildElement("Y") ? ballSpeed->FirstChildElement("Y")->FloatText(4.0f) : 4.0f;
-                config.defaultBallSpeed = (Vector2){x, y};
-            }
-        }
-
         if (XMLElement *debug = root->FirstChildElement("Debug"))
         {
             if (XMLElement *showDemo = debug->FirstChildElement("ShowDemoWindow"))
@@ -515,7 +504,8 @@ jukeboxService_.SetGlobalEnergy(0.7f);
         }
 
         TraceLog(LOG_INFO, "Loaded game config from: %s", configPath.c_str());
-        return config;
+
+        return true;
     }
 
     void Application::CalculateLetterboxing()

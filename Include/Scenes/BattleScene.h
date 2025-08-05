@@ -7,10 +7,10 @@ namespace Elysium::Scenes {
 
 class BattleScene : public Scene {
 public:
-    BattleScene(const GameConfig& config);
+    BattleScene();
     virtual ~BattleScene() = default;
     void OnUpdate(float deltaTime) override;
-    void OnDraw() override;
+    void OnDraw(Rectangle screen) override;
     void OnDebugDraw() override;
     void OnInput(const InputEvent& event) override;
     void OnEnter() override;
@@ -19,8 +19,6 @@ public:
     std::vector<Asset> GetAssets() override;
     
 private:
-    void LoadAssets();
-    
     // Asset storage
     Texture2D warriorTexture_;
     Texture2D swordTexture_;

@@ -1,5 +1,4 @@
 #include "Scene.h"
-#include "GameConfig.h"
 #include "Systems/PhysicsSystem.h"
 #include "Systems/RenderSystem.h"
 #include "tinyxml2.h"
@@ -11,7 +10,7 @@ using namespace tinyxml2;
 
 namespace Elysium {
 
-Scene::Scene(const std::string& name, const GameConfig& config) : name_(name), config_(config) {
+Scene::Scene(const std::string& name) : name_(name) {
     world_ = std::make_unique<EntityWorld>();
 }
 
@@ -151,7 +150,7 @@ void Scene::OnUpdate(float deltaTime) {
     }
 }
 
-void Scene::OnDraw() {
+void Scene::OnDraw(Rectangle screen) {
     for (auto& system : systems_) {
         system->Render();
     }

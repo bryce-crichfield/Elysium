@@ -8,11 +8,11 @@ namespace Elysium::Scenes {
 
 class GameScene : public Scene {
 public:
-    GameScene(const GameConfig& config);
+    GameScene();
     virtual ~GameScene() = default;
     
     void OnUpdate(float deltaTime) override;
-    void OnDraw() override;
+    void OnDraw(Rectangle screen) override;
     void OnDebugDraw() override;
     void OnInput(const InputEvent& event) override;
     void OnEnter() override;
