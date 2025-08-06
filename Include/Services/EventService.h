@@ -7,8 +7,8 @@ namespace Elysium::Services {
 
 class EventService {
 public:
-    void QueueInputEvent(const InputEvent& event);
-    void QueueNetworkEvent(const NetworkEvent& event);
+    void Queue(const InputEvent& event);
+    void Queue(const NetworkEvent& event);
     
     bool HasInputEvents() const;
     bool HasNetworkEvents() const;

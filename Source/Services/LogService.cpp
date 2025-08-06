@@ -200,4 +200,27 @@ std::string LogService::FormatTimestamp(const std::chrono::system_clock::time_po
     return ss.str();
 }
 
+// Static standardized logging methods
+void LogService::LogInfo(const std::string& service, const std::string& message) {
+    TraceLog(LOG_INFO, "INFO: [%s] - %s", service.c_str(), message.c_str());
+}
+
+void LogService::LogWarning(const std::string& service, const std::string& message) {
+    TraceLog(LOG_WARNING, "WARNING: [%s] - %s", service.c_str(), message.c_str());
+}
+
+void LogService::LogError(const std::string& service, const std::string& message) {
+    TraceLog(LOG_ERROR, "ERROR: [%s] - %s", service.c_str(), message.c_str());
+}
+
+void LogService::LogSectionStart(const std::string& section) {
+    TraceLog(LOG_INFO, "");
+    TraceLog(LOG_INFO, "=== %s START ===", section.c_str());
+}
+
+void LogService::LogSectionEnd(const std::string& section) {
+    TraceLog(LOG_INFO, "=== %s END ===", section.c_str());
+    TraceLog(LOG_INFO, "");
+}
+
 } // namespace Elysium::Services

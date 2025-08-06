@@ -76,7 +76,7 @@ void BattleScene::OnDebugDraw() {
     
     if (ImGui::Button("Switch to Game Scene", ImVec2(200, 30))) {
         auto gameScene = std::make_unique<GameScene>();
-        Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
+        Elysium::Application::GetInstance().QueueScene(std::move(gameScene));
     }
 
     if (ImGui::Button("Switch to Battle Scene", ImVec2(200, 30))) {

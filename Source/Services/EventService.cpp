@@ -2,11 +2,11 @@
 
 namespace Elysium::Services {
 
-void EventService::QueueInputEvent(const InputEvent& event) {
+void EventService::Queue(const InputEvent& event) {
     inputEvents_.push(event);
 }
 
-void EventService::QueueNetworkEvent(const NetworkEvent& event) {
+void EventService::Queue(const NetworkEvent& event) {
     networkEvents_.push(event);
 }
 

@@ -85,7 +85,7 @@ void GameScene::OnDebugDraw()
     
     if (ImGui::Button("Switch to Menu Scene", ImVec2(200, 30))) {
         auto menuScene = std::make_unique<MenuScene>();
-        Elysium::Application::GetInstance().QueueSceneTransition(std::move(menuScene));
+        Elysium::Application::GetInstance().QueueScene(std::move(menuScene));
     }
     
     ImGui::Separator();
@@ -145,7 +145,7 @@ void GameScene::OnInput(const InputEvent& event) {
         if (event.key == KEY_M) {
             // Switch to menu scene
             auto menuScene = std::make_unique<MenuScene>();
-            Elysium::Application::GetInstance().QueueSceneTransition(std::move(menuScene));
+            Elysium::Application::GetInstance().QueueScene(std::move(menuScene));
         } else if (event.key == KEY_SPACE) {
             paused_ = !paused_;
         }

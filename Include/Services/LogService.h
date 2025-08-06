@@ -29,6 +29,37 @@ public:
     void Initialize(const std::string& logFilePath = "logs/engine.log");
     void Shutdown();
     
+    // Standardized service logging methods
+    static void LogInfo(const std::string& service, const std::string& message);
+    static void LogWarning(const std::string& service, const std::string& message);
+    static void LogError(const std::string& service, const std::string& message);
+    
+    // Section headers for major operations
+    static void LogSectionStart(const std::string& section);
+    static void LogSectionEnd(const std::string& section);
+    
+    // Formatted logging with printf-style arguments
+    template<typename... Args>
+    static void LogInfoF(const std::string& service, const char* format, Args... args) {
+        char buffer[1024];
+        snprintf(buffer, sizeof(buffer), format, args...);
+        LogInfo(service, std::string(buffer));
+    }
+    
+    template<typename... Args>
+    static void LogWarningF(const std::string& service, const char* format, Args... args) {
+        char buffer[1024];
+        snprintf(buffer, sizeof(buffer), format, args...);
+        LogWarning(service, std::string(buffer));
+    }
+    
+    template<typename... Args>
+    static void LogErrorF(const std::string& service, const char* format, Args... args) {
+        char buffer[1024];
+        snprintf(buffer, sizeof(buffer), format, args...);
+        LogError(service, std::string(buffer));
+    }
+    
     void Update(float deltaTime);
     void Draw();
     
@@ -67,3 +98,15 @@ private:
 };
 
 } // namespace Elysium::Services
+
+// Convenience macros for consistent logging
+#define LOG_SERVICE_INFO(service, message) Elysium::Services::LogService::LogInfo(service, message)
+#define LOG_SERVICE_WARNING(service, message) Elysium::Services::LogService::LogWarning(service, message)
+#define LOG_SERVICE_ERROR(service, message) Elysium::Services::LogService::LogError(service, message)
+
+#define LOG_SERVICE_INFOF(service, format, ...) Elysium::Services::LogService::LogInfoF(service, format, __VA_ARGS__)
+#define LOG_SERVICE_WARNINGF(service, format, ...) Elysium::Services::LogService::LogWarningF(service, format, __VA_ARGS__)
+#define LOG_SERVICE_ERRORF(service, format, ...) Elysium::Services::LogService::LogErrorF(service, format, __VA_ARGS__)
+
+#define LOG_SECTION_START(section) Elysium::Services::LogService::LogSectionStart(section)
+#define LOG_SECTION_END(section) Elysium::Services::LogService::LogSectionEnd(section)

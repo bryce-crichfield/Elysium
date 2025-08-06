@@ -8,7 +8,10 @@
       "Bash(grep:*)",
       "Bash(xmllint:*)",
       "Bash(ninja:*)",
-      "Bash(ninja)"
+      "Bash(ninja)",
+      "Bash(cmake:*)",
+      "Bash(make:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

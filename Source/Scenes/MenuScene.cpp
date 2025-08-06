@@ -59,7 +59,7 @@ void MenuScene::OnDebugDraw() {
     
     if (ImGui::Button("Switch to Game Scene", ImVec2(200, 30))) {
         auto gameScene = std::make_unique<GameScene>();
-        Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
+        Elysium::Application::GetInstance().QueueScene(std::move(gameScene));
     }
 
     if (ImGui::Button("Switch to Battle Scene", ImVec2(200, 30))) {
@@ -94,7 +94,7 @@ void MenuScene::OnInput(const InputEvent& event) {
         if (event.key == KEY_G) {
             // Switch to game scene with G key
             auto gameScene = std::make_unique<GameScene>();
-            Elysium::Application::GetInstance().QueueSceneTransition(std::move(gameScene));
+            Elysium::Application::GetInstance().QueueScene(std::move(gameScene));
         } else if (event.key == KEY_R) {
             rotation_ = 0.0f;
         }

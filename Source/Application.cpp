@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "Services/LogService.h"
 #include "rlImGui.h"
 #include "imgui.h"
 #include "tinyxml2.h"
@@ -36,11 +37,12 @@ bool Application::Initialize(const std::string& configPath) {
         SetTraceLogLevel(LOG_INFO);
 
         if (!ApplicationConfig::FromXML(configPath, config_)) {
-            TraceLog(LOG_ERROR, "Failed to load ApplicationConfig.xml");
+            LOG_SERVICE_ERROR("Application", "Failed to load ApplicationConfig.xml");
             return false;
         }
 
-        TraceLog(LOG_INFO, "Elysium Engine initializing...");
+        LOG_SECTION_START("ENGINE INITIALIZATION");
+        LOG_SERVICE_INFO("Application", "Elysium Engine initializing");
 
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
         InitWindow(config_.windowWidth, config_.windowHeight, config_.windowTitle.c_str());
@@ -69,6 +71,8 @@ bool Application::Initialize(const std::string& configPath) {
     }
         
         initialized_ = true;
+        LOG_SERVICE_INFO("Application", "Engine initialization complete");
+        LOG_SECTION_END("ENGINE INITIALIZATION");
         return true;
     }
 
@@ -87,7 +91,6 @@ void Application::Run() {
 
             ProcessInput();
             ProcessEvents();
-            HandleSceneTransition();
             Update(deltaTime);
             Draw();
         }
@@ -104,10 +107,7 @@ void Application::Run() {
         logService_.Shutdown();
         g_appInstance = nullptr;
 
-        if (currentScene_)
-        {
-            currentScene_->OnExit();
-        }
+        sceneService_.Shutdown();
 
         UnloadRenderTexture(frontBuffer_);
         UnloadRenderTexture(backBuffer_);
@@ -128,75 +128,22 @@ void Application::Run() {
 
     void Application::SetScene(std::unique_ptr<Scene> scene)
     {
-        if (currentScene_)
-        {
-            currentScene_->OnExit();
-        }
-        currentScene_ = std::move(scene);
-        if (currentScene_)
-        {
-            currentScene_->OnEnter();
-        }
+        sceneService_.SetScene(std::move(scene));
     }
 
-    void Application::QueueSceneTransition(std::unique_ptr<Scene> scene)
+    void Application::QueueScene(std::unique_ptr<Scene> scene)
     {
-        if (!sceneTransitionLocked_)
-        {
-            pendingScene_ = std::move(scene);
-            sceneTransitionPending_ = true;
-            
-            // Get assets from the scene but don't start loading yet
-            // Loading will start after fade out completes
-            if (pendingScene_) {
-                pendingAssets_ = pendingScene_->GetAssets();
-            }
-        }
+        sceneService_.QueueScene(std::move(scene));
     }
     
     void Application::DefineScene(const std::string& typeName, SceneFactory factory)
     {
-        sceneFactories_[typeName] = factory;
-        TraceLog(LOG_INFO, "Registered scene type: %s", typeName.c_str());
+        sceneService_.RegisterScene(typeName, factory);
     }
     
     void Application::QueueScene(const std::string& xmlPath)
     {
-        // Read the XML file to determine the scene type
-        XMLDocument doc;
-        if (doc.LoadFile(xmlPath.c_str()) != XML_SUCCESS) {
-            TraceLog(LOG_ERROR, "Failed to load scene file: %s. Error: %s", xmlPath.c_str(), doc.ErrorStr());
-            return;
-        }
-        
-        XMLElement *root = doc.FirstChildElement("Scene");
-        if (!root) {
-            TraceLog(LOG_ERROR, "Invalid scene file format in: %s", xmlPath.c_str());
-            return;
-        }
-        
-        const char* sceneType = root->Attribute("type");
-        if (!sceneType) {
-            TraceLog(LOG_ERROR, "Scene type not specified in: %s", xmlPath.c_str());
-            return;
-        }
-        
-        // Find the scene factory
-        auto factoryIt = sceneFactories_.find(sceneType);
-        if (factoryIt == sceneFactories_.end()) {
-            TraceLog(LOG_ERROR, "Unknown scene type '%s' in file: %s", sceneType, xmlPath.c_str());
-            return;
-        }
-        
-        // Create the scene using the factory
-        std::unique_ptr<Scene> scene = factoryIt->second();
-        
-        // Load the scene data from XML
-        scene->LoadFromXML(xmlPath);
-        
-        // Queue the scene transition
-        QueueSceneTransition(std::move(scene));
-        TraceLog(LOG_INFO, "Queued scene from XML: %s (type: %s)", xmlPath.c_str(), sceneType);
+        sceneService_.QueueScene(xmlPath);
     }
 
     bool Application::ShouldClose() const
@@ -211,41 +158,34 @@ void Application::Run() {
         logService_.Update(deltaTime);
 
         jukeboxService_.Update();
-
-        if (transitionState_ == TransitionState::FADE_OUT)
-        {
-            transitionTimer_ += deltaTime;
-            if (transitionTimer_ >= transitionDuration_) // Full fade out duration
+        
+        // Update scene service (handles transitions and current scene updates)
+        sceneService_.Update(deltaTime);
+        
+        // Handle asset loading during transitions
+        static bool loadingStarted = false;
+        
+        if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::LOADING && !loadingStarted) {
+            // Start loading assets when we enter LOADING state
+            const auto& pendingAssets = sceneService_.GetPendingAssets();
+            if (!pendingAssets.empty()) {
+                loadingService_.LoadAssets(pendingAssets, assetService_);
+            }
+            loadingStarted = true;
+        }
+        else if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::LOADING) {
+            // Check if we're done loading
+            if (!loadingService_.IsLoading())
             {
-                // Fade out complete, now start loading
-                transitionState_ = TransitionState::LOADING;
-                transitionTimer_ = 0.0f;
+                // Loading complete, finalize GPU resources on main thread
+                assetService_.FinalizeAssets();
                 
-                // Start loading assets now
-                if (!pendingAssets_.empty()) {
-                    loadingService_.LoadAssets(pendingAssets_, assetService_);
-                }
+                // Signal scene service that loading is complete
+                sceneService_.OnAssetsLoaded();
             }
         }
-        else if (transitionState_ == TransitionState::LOADING)
-        {
-            CheckAssetLoadingStatus();
-        }
-        else if (transitionState_ == TransitionState::FADE_IN)
-        {
-            transitionTimer_ += deltaTime;
-            if (transitionTimer_ >= transitionDuration_) // Full fade in duration
-            {
-                transitionState_ = TransitionState::NONE;
-                transitionTimer_ = 0.0f;
-                SetScene(std::move(pendingScene_));
-                sceneTransitionPending_ = false;
-                sceneTransitionLocked_ = false;
-            }
-        }
-        else if (currentScene_)
-        {
-            currentScene_->OnUpdate(deltaTime);
+        else if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::NONE) {
+            loadingStarted = false;
         }
 
         networkService_.Update();
@@ -255,38 +195,37 @@ void Application::Run() {
     {
         auto renderStart = std::chrono::high_resolution_clock::now();
         auto screenRect = Rectangle { 0, 0, config_.framebufferWidth, config_.framebufferHeight};
-        if (transitionState_ != TransitionState::NONE)
+        Scene* currentScene = sceneService_.GetScene();
+        
+        if (sceneService_.IsTransitioning())
         {
-            if (transitionState_ == TransitionState::LOADING)
+            if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::LOADING)
             {
                 BeginDrawing();
                 ClearBackground(BLACK);
-                DrawLoadingScreen();
+                int screenWidth = GetScreenWidth();
+                int screenHeight = GetScreenHeight();
+        
+                // Delegate drawing to LoadingService
+                loadingService_.Draw(screenWidth, screenHeight);
             }
             else
             {
+                // Render current scene to framebuffer
                 BeginTextureMode(sceneFramebuffer_);
                 ClearBackground(config_.backgroundColor);
-                if (currentScene_)
+                if (currentScene)
                 {
-                    currentScene_->OnDraw(screenRect);
-                }
-                EndTextureMode();
-
-                BeginTextureMode(transitionBuffer_);
-                ClearBackground(config_.backgroundColor);
-                if (pendingScene_)
-                {
-                    pendingScene_->OnDraw(screenRect);
+                    currentScene->OnDraw(screenRect);
                 }
                 EndTextureMode();
 
                 BeginDrawing();
                 ClearBackground(BLACK);
 
-                float alpha = transitionTimer_ / transitionDuration_;
+                float alpha = sceneService_.GetTransitionProgress();
                 
-                if (transitionState_ == TransitionState::FADE_OUT)
+                if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::FADE_OUT)
                 {
                     Color currentTint = {255, 255, 255, (unsigned char)(255 * (1.0f - alpha))};
                     DrawTexturePro(
@@ -297,12 +236,12 @@ void Application::Run() {
                         0.0f,
                         currentTint);
                 }
-                else if (transitionState_ == TransitionState::FADE_IN)
+                else if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::FADE_IN)
                 {
                     Color pendingTint = {255, 255, 255, (unsigned char)(255 * alpha)};
                     DrawTexturePro(
-                        transitionBuffer_.texture,
-                        Rectangle{0, 0, (float)transitionBuffer_.texture.width, -(float)transitionBuffer_.texture.height},
+                        sceneFramebuffer_.texture,
+                        Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
                         letterboxRect_,
                         Vector2{0, 0},
                         0.0f,
@@ -314,9 +253,9 @@ void Application::Run() {
         {
             BeginTextureMode(sceneFramebuffer_);
             ClearBackground(config_.backgroundColor);
-            if (currentScene_)
+            if (currentScene)
             {
-                currentScene_->OnDraw(screenRect);
+                currentScene->OnDraw(screenRect);
             }
             EndTextureMode();
 
@@ -334,9 +273,9 @@ void Application::Run() {
 
         rlImGuiBegin();
 
-        if (currentScene_)
+        if (currentScene)
         {
-            currentScene_->OnDebugDraw();
+            currentScene->OnDebugDraw();
         }
 
         metricsService_.Draw();
@@ -355,23 +294,24 @@ void Application::Run() {
 
     void Application::ProcessEvents()
     {
-        if (transitionState_ == TransitionState::NONE)
+        if (!sceneService_.IsTransitioning())
         {
+            Scene* currentScene = sceneService_.GetScene();
             while (eventService_.HasInputEvents())
             {
                 InputEvent event = eventService_.GetNextInputEvent();
-                if (currentScene_)
+                if (currentScene)
                 {
-                    currentScene_->OnInput(event);
+                    currentScene->OnInput(event);
                 }
             }
 
             while (eventService_.HasNetworkEvents())
             {
                 NetworkEvent event = eventService_.GetNextNetworkEvent();
-                if (currentScene_)
+                if (currentScene)
                 {
-                    currentScene_->OnNetwork(event);
+                    currentScene->OnNetwork(event);
                 }
             }
         }
@@ -382,17 +322,6 @@ void Application::Run() {
         }
     }
 
-    void Application::HandleSceneTransition()
-    {
-        if (sceneTransitionPending_ && !sceneTransitionLocked_ && transitionState_ == TransitionState::NONE)
-        {
-            sceneTransitionLocked_ = true;
-            transitionState_ = TransitionState::FADE_OUT;
-            transitionTimer_ = 0.0f;
-            
-            // Don't call OnEnter() yet - wait until loading completes
-        }
-    }
 
     void Application::ProcessInput()
     {
@@ -403,7 +332,7 @@ void Application::Run() {
             InputEvent event;
             event.type = InputEvent::KEY_PRESS;
             event.key = KEY_ESCAPE;
-            eventService_.QueueInputEvent(event);
+            eventService_.Queue(event);
         }
 
         if (IsKeyPressed(KEY_F2))
@@ -426,7 +355,7 @@ void Application::Run() {
             Vector2 framebufferPos = MapScreenToFramebuffer(mousePos);
             event.x = framebufferPos.x;
             event.y = framebufferPos.y;
-            eventService_.QueueInputEvent(event);
+            eventService_.Queue(event);
         }
     }
 
@@ -532,33 +461,4 @@ void Application::Run() {
         framebufferPos.y = (screenPos.y - offset_.y) / scaleY_;
         return framebufferPos;
     }
-
-    void Application::DrawLoadingScreen()
-    {
-        int screenWidth = GetScreenWidth();
-        int screenHeight = GetScreenHeight();
-        
-        // Delegate drawing to LoadingService
-        loadingService_.Draw(screenWidth, screenHeight);
-    }
-    
-    void Application::CheckAssetLoadingStatus()
-    {
-        if (!loadingService_.IsLoading())
-        {
-            // Loading complete, finalize GPU resources on main thread
-            assetService_.FinalizeAssets();
-            
-            // Now we can call OnEnter() for the scene
-            if (pendingScene_)
-            {
-                pendingScene_->OnEnter();
-            }
-            
-            // Transition to fade in
-            transitionState_ = TransitionState::FADE_IN;
-            transitionTimer_ = 0.0f;
-        }
-    }
-
 } // namespace Elysium

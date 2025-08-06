@@ -1,4 +1,5 @@
 #include "Services/AssetService.h"
+#include "Services/LogService.h"
 #include "raylib.h"
 
 namespace Elysium::Services {
@@ -6,7 +7,7 @@ namespace Elysium::Services {
 void AssetService::Initialize() {
     assetsByName_.clear();
     pathToName_.clear();
-    TraceLog(LOG_INFO, "AssetService initialized");
+    LOG_SERVICE_INFO("ASSET_SERVICE", "Initialized");
 }
 
 void AssetService::Shutdown() {
@@ -16,13 +17,13 @@ void AssetService::Shutdown() {
         if (asset.IsLoaded()) {
             asset.Unload();
             // Note: We can't track exact deallocation size for raylib assets
-            TraceLog(LOG_INFO, "Unloaded asset: %s", asset.GetName().c_str());
+            LOG_SERVICE_INFOF("ASSET_SERVICE", "Unloaded asset: %s", asset.GetName().c_str());
         }
     }
     
     assetsByName_.clear();
     pathToName_.clear();
-    TraceLog(LOG_INFO, "AssetService shutdown complete");
+    LOG_SERVICE_INFO("ASSET_SERVICE", "Shutdown complete");
 }
 
 void AssetService::LoadAsset(const Asset& assetTemplate) {
@@ -31,14 +32,14 @@ void AssetService::LoadAsset(const Asset& assetTemplate) {
     
     // Check if already loaded by name
     if (IsAssetLoaded(name)) {
-        TraceLog(LOG_INFO, "Asset already loaded: %s", name.c_str());
+        LOG_SERVICE_INFOF("ASSET_SERVICE", "Asset already loaded: %s", name.c_str());
         return;
     }
     
     // Check path deduplication - if this path is already loaded under another name
     auto pathIt = pathToName_.find(path);
     if (pathIt != pathToName_.end()) {
-        TraceLog(LOG_INFO, "Path %s already loaded as %s, skipping duplicate", path.c_str(), pathIt->second.c_str());
+        LOG_SERVICE_INFOF("ASSET_SERVICE", "Path %s already loaded as %s, skipping duplicate", path.c_str(), pathIt->second.c_str());
         return;
     }
     
@@ -55,12 +56,12 @@ void AssetService::LoadAsset(const Asset& assetTemplate) {
         MemoryTracker::GetInstance().RecordAllocation(1); // Record that an allocation occurred
         
         if (asset.IsLoaded()) {
-            TraceLog(LOG_INFO, "Successfully loaded asset: %s -> %s", name.c_str(), path.c_str());
+            LOG_SERVICE_INFOF("ASSET_SERVICE", "Successfully loaded asset: %s -> %s", name.c_str(), path.c_str());
         } else {
-            TraceLog(LOG_INFO, "Raw data loaded for asset: %s -> %s (will finalize on main thread)", name.c_str(), path.c_str());
+            LOG_SERVICE_INFOF("ASSET_SERVICE", "Raw data loaded for asset: %s -> %s (will finalize on main thread)", name.c_str(), path.c_str());
         }
     } else {
-        TraceLog(LOG_WARNING, "Failed to load asset: %s -> %s", name.c_str(), path.c_str());
+        LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Failed to load asset: %s -> %s", name.c_str(), path.c_str());
     }
 }
 
@@ -83,7 +84,7 @@ Texture2D AssetService::GetTexture(const AssetName& name) {
         return asset->GetTexture();
     }
     
-    TraceLog(LOG_WARNING, "Texture not found: %s", name.c_str());
+    LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Texture not found: %s", name.c_str());
     return Texture2D{0, 0, 0, 0, 0};
 }
 
@@ -93,7 +94,7 @@ Sound AssetService::GetSound(const AssetName& name) {
         return asset->GetSound();
     }
     
-    TraceLog(LOG_WARNING, "Sound not found: %s", name.c_str());
+    LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Sound not found: %s", name.c_str());
     return Sound{nullptr, 0, 0, 0, 0};
 }
 
@@ -103,7 +104,7 @@ Music AssetService::GetMusic(const AssetName& name) {
         return asset->GetMusic();
     }
     
-    TraceLog(LOG_WARNING, "Music not found: %s", name.c_str());
+    LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Music not found: %s", name.c_str());
     return Music{nullptr, 0, 0, 0, 0};
 }
 
@@ -113,7 +114,7 @@ Font AssetService::GetFont(const AssetName& name) {
         return asset->GetFont();
     }
     
-    TraceLog(LOG_WARNING, "Font not found: %s", name.c_str());
+    LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Font not found: %s", name.c_str());
     return Font{};
 }
 
@@ -123,7 +124,7 @@ Model AssetService::GetModel(const AssetName& name) {
         return asset->GetModel();
     }
     
-    TraceLog(LOG_WARNING, "Model not found: %s", name.c_str());
+    LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Model not found: %s", name.c_str());
     return Model{};
 }
 
@@ -133,7 +134,7 @@ Shader AssetService::GetShader(const AssetName& name) {
         return asset->GetShader();
     }
     
-    TraceLog(LOG_WARNING, "Shader not found: %s", name.c_str());
+    LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Shader not found: %s", name.c_str());
     return Shader{};
 }
 
@@ -142,57 +143,56 @@ void AssetService::LoadAssetByType(Asset& asset) {
     
     switch (asset.GetType()) {
         case AssetType::TEXTURE: {
-            TraceLog(LOG_INFO, "Loading asset: %s -> %s", asset.GetName().c_str(), path.c_str());
+            LOG_SERVICE_INFOF("ASSET_SERVICE", "Loading texture: %s -> %s", asset.GetName().c_str(), path.c_str());
             
             // Load image data only (thread-safe)
             Image image = ::LoadImage(path.c_str());
             if (image.data != nullptr) {
-                TraceLog(LOG_INFO, "Image data loaded successfully: %dx%d, format: %d, mipmaps: %d", 
+                LOG_SERVICE_INFOF("ASSET_SERVICE", "Image data loaded: %dx%d, format: %d, mipmaps: %d", 
                     image.width, image.height, image.format, image.mipmaps);
                 
                 // Store image data for later texture creation on main thread
                 asset.SetImageData(image);
-                TraceLog(LOG_INFO, "Image data stored for: %s", path.c_str());
             } else {
-                TraceLog(LOG_ERROR, "Failed to load image data: %s", path.c_str());
+                LOG_SERVICE_ERRORF("ASSET_SERVICE", "Failed to load image data: %s", path.c_str());
             }
             break;
         }
         
         case AssetType::SOUND: {
-            TraceLog(LOG_INFO, "Loading sound directly (skipping wave separation): %s -> %s", asset.GetName().c_str(), path.c_str());
+            LOG_SERVICE_INFOF("ASSET_SERVICE", "Loading sound: %s -> %s", asset.GetName().c_str(), path.c_str());
             
             // Try loading sound directly (not thread-safe but for testing)
             Sound sound = ::LoadSound(path.c_str());
             if (sound.frameCount > 0) {
                 asset.SetSound(sound);
-                TraceLog(LOG_INFO, "Direct sound load succeeded: %s (%d frames)", path.c_str(), sound.frameCount);
+                LOG_SERVICE_INFOF("ASSET_SERVICE", "Sound loaded: %d frames", sound.frameCount);
             } else {
-                TraceLog(LOG_WARNING, "Direct sound load failed, falling back to wave method: %s", path.c_str());
+                LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Direct sound load failed, trying wave method: %s", path.c_str());
                 
                 // Fallback to wave data approach
                 Wave wave = ::LoadWave(path.c_str());
                 if (wave.frameCount > 0) {
-                    TraceLog(LOG_INFO, "Wave data loaded successfully: %d frames, %d Hz, %d channels", 
+                    LOG_SERVICE_INFOF("ASSET_SERVICE", "Wave data loaded: %d frames, %d Hz, %d channels", 
                              wave.frameCount, wave.sampleRate, wave.channels);
                     
                     // Store wave data for later sound creation on main thread
                     asset.SetWaveData(wave);
-                    TraceLog(LOG_INFO, "Wave data stored for: %s", path.c_str());
                 } else {
-                    TraceLog(LOG_ERROR, "Both direct sound and wave data loading failed: %s", path.c_str());
+                    LOG_SERVICE_ERRORF("ASSET_SERVICE", "Failed to load sound or wave data: %s", path.c_str());
                 }
             }
             break;
         }
         
         case AssetType::MUSIC: {
+            LOG_SERVICE_INFOF("ASSET_SERVICE", "Loading music: %s -> %s", asset.GetName().c_str(), path.c_str());
             Music music = ::LoadMusicStream(path.c_str());
             if (music.frameCount > 0) {
                 asset.SetMusic(music);
-                TraceLog(LOG_INFO, "Loaded music: %s (%d frames)", path.c_str(), music.frameCount);
+                LOG_SERVICE_INFOF("ASSET_SERVICE", "Music loaded: %d frames", music.frameCount);
             } else {
-                TraceLog(LOG_WARNING, "Failed to load music: %s", path.c_str());
+                LOG_SERVICE_ERRORF("ASSET_SERVICE", "Failed to load music: %s", path.c_str());
             }
             break;
         }
@@ -201,9 +201,9 @@ void AssetService::LoadAssetByType(Asset& asset) {
             Font font = ::LoadFont(path.c_str());
             if (font.texture.id != 0) {
                 asset.SetFont(font);
-                TraceLog(LOG_INFO, "Loaded font: %s", path.c_str());
+                LOG_SERVICE_INFO("ASSET_SERVICE", "Font loaded successfully");
             } else {
-                TraceLog(LOG_WARNING, "Failed to load font: %s", path.c_str());
+                LOG_SERVICE_ERRORF("ASSET_SERVICE", "Failed to load font: %s", path.c_str());
             }
             break;
         }
@@ -212,9 +212,9 @@ void AssetService::LoadAssetByType(Asset& asset) {
             Model model = ::LoadModel(path.c_str());
             if (model.meshCount > 0) {
                 asset.SetModel(model);
-                TraceLog(LOG_INFO, "Loaded model: %s (%d meshes)", path.c_str(), model.meshCount);
+                LOG_SERVICE_INFOF("ASSET_SERVICE", "Model loaded: %d meshes", model.meshCount);
             } else {
-                TraceLog(LOG_WARNING, "Failed to load model: %s", path.c_str());
+                LOG_SERVICE_ERRORF("ASSET_SERVICE", "Failed to load model: %s", path.c_str());
             }
             break;
         }
@@ -225,21 +225,22 @@ void AssetService::LoadAssetByType(Asset& asset) {
             Shader shader = ::LoadShader(nullptr, path.c_str());
             if (shader.id != 0) {
                 asset.SetShader(shader);
-                TraceLog(LOG_INFO, "Loaded shader: %s (ID: %d)", path.c_str(), shader.id);
+                LOG_SERVICE_INFOF("ASSET_SERVICE", "Shader loaded: ID %d", shader.id);
             } else {
-                TraceLog(LOG_WARNING, "Failed to load shader: %s", path.c_str());
+                LOG_SERVICE_ERRORF("ASSET_SERVICE", "Failed to load shader: %s", path.c_str());
             }
             break;
         }
         
         default:
-            TraceLog(LOG_WARNING, "Unknown asset type for: %s", path.c_str());
+            LOG_SERVICE_WARNINGF("ASSET_SERVICE", "Unknown asset type for: %s", path.c_str());
             break;
     }
 }
 
 void AssetService::FinalizeAssets() {
-    TraceLog(LOG_INFO, "Finalizing assets on main thread...");
+    LOG_SECTION_START("ASSET FINALIZATION");
+    LOG_SERVICE_INFO("ASSET_SERVICE", "Finalizing assets on main thread");
     
     for (auto& pair : assetsByName_) {
         Asset& asset = pair.second;
@@ -251,10 +252,10 @@ void AssetService::FinalizeAssets() {
             
             if (texture.id != 0) {
                 asset.SetTexture(texture);
-                TraceLog(LOG_INFO, "Finalized texture: %s (ID: %d, %dx%d)", 
+                LOG_SERVICE_INFOF("ASSET_SERVICE", "Finalized texture: %s (ID: %d, %dx%d)", 
                          asset.GetName().c_str(), texture.id, texture.width, texture.height);
             } else {
-                TraceLog(LOG_ERROR, "Failed to finalize texture: %s", asset.GetName().c_str());
+                LOG_SERVICE_ERRORF("ASSET_SERVICE", "Failed to finalize texture: %s", asset.GetName().c_str());
             }
         }
         
@@ -262,13 +263,13 @@ void AssetService::FinalizeAssets() {
         if (asset.HasWaveData() && !asset.IsLoaded() && asset.GetType() == AssetType::SOUND) {
             Wave waveData = asset.GetWaveData();
             
-            TraceLog(LOG_INFO, "Attempting to create sound from wave: %s (%d frames, %d Hz, %d channels, %d sampleSize)", 
-                     asset.GetName().c_str(), waveData.frameCount, waveData.sampleRate, waveData.channels, waveData.sampleSize);
+            LOG_SERVICE_INFOF("ASSET_SERVICE", "Creating sound from wave: %s (%d frames, %d Hz, %d channels)", 
+                     asset.GetName().c_str(), waveData.frameCount, waveData.sampleRate, waveData.channels);
             
             // Try converting to mono if stereo
             Wave processedWave = waveData;
             if (waveData.channels == 2) {
-                TraceLog(LOG_INFO, "Converting stereo to mono for: %s", asset.GetName().c_str());
+                LOG_SERVICE_INFOF("ASSET_SERVICE", "Converting stereo to mono for: %s", asset.GetName().c_str());
                 ::WaveFormat(&processedWave, 44100, 16, 1);
             }
             
@@ -276,18 +277,18 @@ void AssetService::FinalizeAssets() {
             
             if (sound.frameCount > 0) {
                 asset.SetSound(sound);
-                TraceLog(LOG_INFO, "Finalized sound: %s (%d frames)", 
+                LOG_SERVICE_INFOF("ASSET_SERVICE", "Finalized sound: %s (%d frames)", 
                          asset.GetName().c_str(), sound.frameCount);
             } else {
-                TraceLog(LOG_ERROR, "Failed to finalize sound: %s (tried mono conversion)", asset.GetName().c_str());
+                LOG_SERVICE_ERRORF("ASSET_SERVICE", "Failed to finalize sound: %s (tried mono conversion)", asset.GetName().c_str());
                 
                 // Try the original wave as fallback
                 sound = ::LoadSoundFromWave(waveData);
                 if (sound.frameCount > 0) {
                     asset.SetSound(sound);
-                    TraceLog(LOG_INFO, "Fallback sound creation succeeded: %s", asset.GetName().c_str());
+                    LOG_SERVICE_INFOF("ASSET_SERVICE", "Fallback sound creation succeeded: %s", asset.GetName().c_str());
                 } else {
-                    TraceLog(LOG_ERROR, "Both mono and stereo sound creation failed: %s", asset.GetName().c_str());
+                    LOG_SERVICE_ERRORF("ASSET_SERVICE", "Both mono and stereo sound creation failed: %s", asset.GetName().c_str());
                 }
             }
             
@@ -298,7 +299,8 @@ void AssetService::FinalizeAssets() {
         }
     }
     
-    TraceLog(LOG_INFO, "Asset finalization complete");
+    LOG_SERVICE_INFO("ASSET_SERVICE", "Asset finalization complete");
+    LOG_SECTION_END("ASSET FINALIZATION");
 }
 
 } // namespace Elysium::Services

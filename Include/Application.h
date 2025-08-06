@@ -9,6 +9,7 @@
 #include "Services/NetworkService.h"
 #include "Services/LoadingService.h"
 #include "Services/JukeboxService.h"
+#include "Services/SceneService.h"
 #include "raylib.h"
 #include <memory>
 #include <string>
@@ -48,19 +49,18 @@ public:
     void Shutdown();
     
     void SetScene(std::unique_ptr<Scene> scene);
-    void QueueSceneTransition(std::unique_ptr<Scene> scene);
-    
-    // Scene factory registration and XML loading
-    void DefineScene(const std::string& typeName, SceneFactory factory);
     void QueueScene(const std::string& xmlPath);
-    
+    void DefineScene(const std::string& typeName, SceneFactory factory);
+    void QueueScene(std::unique_ptr<Scene> scene);
+    // Scene factory registration and XML loading
+    const ApplicationConfig& GetConfig() const { return config_; }
+    Services::SceneService& GetSceneService() { return sceneService_; }
     Services::EventService& GetEventService() { return eventService_; }
     Services::AssetService& GetAssetService() { return assetService_; }
     Services::NetworkService& GetNetworkService() { return networkService_; }
     Services::MetricsService& GetMetricsService() { return metricsService_; }
     Services::LogService& GetLogService() { return logService_; }
     Services::JukeboxService& GetJukeboxService() { return jukeboxService_; }
-    const ApplicationConfig& GetConfig() const { return config_; }
     
     bool ShouldClose() const;
 
@@ -73,35 +73,14 @@ private:
     void Update(float deltaTime);
     void Draw();
     void ProcessEvents();
-    void HandleSceneTransition();
-    void DrawLoadingScreen();
-    void CheckAssetLoadingStatus();
     
     void ProcessInput();
     void CalculateLetterboxing();
     Vector2 MapScreenToFramebuffer(Vector2 screenPos) const;
     
     ApplicationConfig config_;
-    std::unique_ptr<Scene> currentScene_;
-    std::unique_ptr<Scene> pendingScene_;
-    bool sceneTransitionPending_ = false;
-    bool sceneTransitionLocked_ = false;
     
-    // Scene factory registry
-    std::unordered_map<std::string, SceneFactory> sceneFactories_;
-    
-    enum class TransitionState {
-        NONE,
-        FADE_OUT,
-        LOADING,
-        FADE_IN
-    };
-    
-    TransitionState transitionState_ = TransitionState::NONE;
-    float transitionTimer_ = 0.0f;
-    float transitionDuration_ = 1.0f;
-    std::vector<Asset> pendingAssets_;
-    
+    Services::SceneService sceneService_;
     Services::LoadingService loadingService_;
     Services::EventService eventService_;
     Services::AssetService assetService_;
