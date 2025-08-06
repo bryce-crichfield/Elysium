@@ -9,14 +9,31 @@
 #include <typeinfo>
 #include <bitset>
 #include <algorithm>
+#include <stdexcept>
 #include "raylib.h"
 #include "Services/MemoryTracker.h"
 
 using Entity = size_t;
 constexpr size_t MAX_ENTITIES = 10000;
 constexpr size_t MAX_COMPONENTS = 32;
+constexpr Entity INVALID_ENTITY = MAX_ENTITIES;
 
 using ComponentMask = std::bitset<MAX_COMPONENTS>;
+
+// Type aliases for cleaner template declarations
+template<typename T>
+using TrackedVector = std::vector<T, Elysium::Services::TrackedAllocator<T>>;
+
+template<typename Key, typename Value>
+using TrackedUnorderedMap = std::unordered_map<
+    Key, Value, 
+    std::hash<Key>, 
+    std::equal_to<Key>, 
+    Elysium::Services::TrackedAllocator<std::pair<const Key, Value>>
+>;
+
+template<typename T>
+using TrackedDeque = std::deque<T, Elysium::Services::TrackedAllocator<T>>;
 
 struct PositionComponent {
     float x, y;
@@ -77,9 +94,9 @@ public:
 template<typename T>
 class TypedComponentArray : public ComponentArray {
 private:
-    std::vector<T, Elysium::Services::TrackedAllocator<T>> componentArray;
-    std::unordered_map<Entity, size_t, std::hash<Entity>, std::equal_to<Entity>, Elysium::Services::TrackedAllocator<std::pair<const Entity, size_t>>> entityToIndex;
-    std::unordered_map<size_t, Entity, std::hash<size_t>, std::equal_to<size_t>, Elysium::Services::TrackedAllocator<std::pair<const size_t, Entity>>> indexToEntity;
+    TrackedVector<T> componentArray;
+    TrackedUnorderedMap<Entity, size_t> entityToIndex;
+    TrackedUnorderedMap<size_t, Entity> indexToEntity;
     size_t size = 0;
 
 public:
@@ -118,7 +135,11 @@ public:
     }
     
     T& GetData(Entity entity) {
-        return componentArray[entityToIndex[entity]];
+        auto it = entityToIndex.find(entity);
+        if (it == entityToIndex.end()) {
+            throw std::runtime_error("Entity does not have this component");
+        }
+        return componentArray[it->second];
     }
     
     bool HasData(Entity entity) const {
@@ -131,20 +152,32 @@ public:
         }
     }
     
-    std::vector<T, Elysium::Services::TrackedAllocator<T>>& GetArray() { return componentArray; }
-    std::unordered_map<Entity, size_t, std::hash<Entity>, std::equal_to<Entity>, Elysium::Services::TrackedAllocator<std::pair<const Entity, size_t>>>& GetEntityToIndex() { return entityToIndex; }
+    TrackedVector<T>& GetArray() { return componentArray; }
+    const TrackedVector<T>& GetArray() const { return componentArray; }
+    TrackedUnorderedMap<Entity, size_t>& GetEntityToIndex() { return entityToIndex; }
+    const TrackedUnorderedMap<Entity, size_t>& GetEntityToIndex() const { return entityToIndex; }
 };
 
 class ComponentManager {
 private:
-    std::unordered_map<std::type_index, std::shared_ptr<ComponentArray>, std::hash<std::type_index>, std::equal_to<std::type_index>, Elysium::Services::TrackedAllocator<std::pair<const std::type_index, std::shared_ptr<ComponentArray>>>> componentArrays;
-    std::unordered_map<std::type_index, size_t, std::hash<std::type_index>, std::equal_to<std::type_index>, Elysium::Services::TrackedAllocator<std::pair<const std::type_index, size_t>>> componentTypes;
+    TrackedUnorderedMap<std::type_index, std::shared_ptr<ComponentArray>> componentArrays;
+    TrackedUnorderedMap<std::type_index, size_t> componentTypes;
     size_t nextComponentType = 0;
     
     template<typename T>
     std::shared_ptr<TypedComponentArray<T>> GetComponentArray() {
         std::type_index typeName = std::type_index(typeid(T));
         return std::static_pointer_cast<TypedComponentArray<T>>(componentArrays[typeName]);
+    }
+    
+    template<typename T>
+    std::shared_ptr<const TypedComponentArray<T>> GetComponentArray() const {
+        std::type_index typeName = std::type_index(typeid(T));
+        auto it = componentArrays.find(typeName);
+        if (it == componentArrays.end()) {
+            throw std::runtime_error("Component type not registered");
+        }
+        return std::static_pointer_cast<const TypedComponentArray<T>>(it->second);
     }
     
 public:
@@ -178,7 +211,7 @@ public:
     }
     
     template<typename T>
-    bool HasComponent(Entity entity) {
+    bool HasComponent(Entity entity) const {
         return GetComponentArray<T>()->HasData(entity);
     }
     
@@ -190,21 +223,21 @@ public:
     }
     
     template<typename T>
-    std::vector<T, Elysium::Services::TrackedAllocator<T>>& GetRawComponentArray() {
+    TrackedVector<T>& GetRawComponentArray() {
         return GetComponentArray<T>()->GetArray();
     }
     
     template<typename T>
-    std::unordered_map<Entity, size_t, std::hash<Entity>, std::equal_to<Entity>, Elysium::Services::TrackedAllocator<std::pair<const Entity, size_t>>>& GetEntityToIndexMap() {
+    TrackedUnorderedMap<Entity, size_t>& GetEntityToIndexMap() {
         return GetComponentArray<T>()->GetEntityToIndex();
     }
 };
 
 class EntityManager {
 private:
-    std::queue<Entity, std::deque<Entity, Elysium::Services::TrackedAllocator<Entity>>> availableEntities;
-    std::vector<ComponentMask, Elysium::Services::TrackedAllocator<ComponentMask>> componentMasks;
-    std::vector<Entity, Elysium::Services::TrackedAllocator<Entity>> livingEntities; // Track living entities for fast iteration
+    std::queue<Entity, TrackedDeque<Entity>> availableEntities;
+    TrackedVector<ComponentMask> componentMasks;
+    TrackedVector<Entity> livingEntities; // Track living entities for fast iteration
     size_t livingEntityCount = 0;
     
 public:
@@ -218,7 +251,7 @@ public:
     
     Entity CreateEntity() {
         if (livingEntityCount >= MAX_ENTITIES) {
-            return MAX_ENTITIES; // Invalid entity
+            return INVALID_ENTITY;
         }
         
         Entity id = availableEntities.front();
@@ -229,7 +262,9 @@ public:
     }
     
     void DestroyEntity(Entity entity) {
-        if (entity >= MAX_ENTITIES) return;
+        if (entity >= MAX_ENTITIES || livingEntityCount == 0) {
+            return;
+        }
         
         componentMasks[entity].reset();
         availableEntities.push(entity);
@@ -239,8 +274,8 @@ public:
         if (it != livingEntities.end()) {
             std::swap(*it, livingEntities.back());
             livingEntities.pop_back();
+            --livingEntityCount;
         }
-        --livingEntityCount;
     }
     
     void SetComponentMask(Entity entity, ComponentMask mask) {
@@ -258,7 +293,7 @@ public:
     
     size_t GetLivingEntityCount() const { return livingEntityCount; }
     
-    const std::vector<Entity, Elysium::Services::TrackedAllocator<Entity>>& GetLivingEntities() const {
+    const TrackedVector<Entity>& GetLivingEntities() const {
         return livingEntities;
     }
 };
@@ -269,9 +304,9 @@ private:
     std::unique_ptr<EntityManager> entityManager;
     
     // Pre-allocated vectors for entity queries to avoid frequent allocations
-    mutable std::vector<Entity, Elysium::Services::TrackedAllocator<Entity>> queryBuffer1_;
-    mutable std::vector<Entity, Elysium::Services::TrackedAllocator<Entity>> queryBuffer2_;
-    mutable std::vector<Entity, Elysium::Services::TrackedAllocator<Entity>> queryBuffer3_;
+    mutable TrackedVector<Entity> queryBuffer1_;
+    mutable TrackedVector<Entity> queryBuffer2_;
+    mutable TrackedVector<Entity> queryBuffer3_;
     mutable size_t currentQueryBuffer_ = 0;
     
 public:
@@ -331,7 +366,12 @@ public:
     
     template<typename T>
     const T& GetComponent(Entity entity) const {
-        return const_cast<ComponentManager*>(componentManager.get())->GetComponent<T>(entity);
+        auto componentArray = componentManager->GetComponentArray<T>();
+        auto it = componentArray->GetEntityToIndex().find(entity);
+        if (it == componentArray->GetEntityToIndex().end()) {
+            throw std::runtime_error("Entity does not have this component");
+        }
+        return componentArray->GetArray()[it->second];
     }
     
     template<typename T>
@@ -345,7 +385,7 @@ public:
     }
     
     template<typename... ComponentTypes>
-    const std::vector<Entity, Elysium::Services::TrackedAllocator<Entity>>& GetEntitiesWithComponents() const {
+    const TrackedVector<Entity>& GetEntitiesWithComponents() const {
         ComponentMask mask;
         (mask.set(GetComponentType<ComponentTypes>()), ...);
         

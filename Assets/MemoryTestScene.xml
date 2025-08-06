@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scene type="MemoryTestScene">
+    <Systems>
+        <System type="PhysicsSystem" gravity="500.0" />
+        <System type="RenderSystem" />
+    </Systems>
+    
+    <!-- Initial entities for testing -->
+    <Entities>
+        <Entity name="TestBall1">
+            <PositionComponent x="100" y="100"/>
+            <VelocityComponent x="50" y="25"/>
+            <CircleRenderComponent radius="15" r="255" g="100" b="100"/>
+            <PhysicsComponent mass="1.0" restitution="0.8"/>
+        </Entity>
+        
+        <Entity name="TestBall2">
+            <PositionComponent x="300" y="150"/>
+            <VelocityComponent x="-75" y="0"/>
+            <CircleRenderComponent radius="20" r="100" g="255" b="100"/>
+            <PhysicsComponent mass="1.2" restitution="0.7"/>
+        </Entity>
+        
+        <Entity name="StatusText">
+            <PositionComponent x="10" y="300"/>
+            <TextComponent content="Memory Test Scene Loaded" fontSize="18" r="255" g="255" b="255"/>
+        </Entity>
+    </Entities>
+</Scene>

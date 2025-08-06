@@ -29,15 +29,48 @@ Elysium/
 ### Core Architecture
 
 **Namespace: `Elysium`**
-- **Application** - Singleton managing window, services, and scene transitions
-- **Scene** - Base class for game states (menu, gameplay, etc.)
+- **Application** - Singleton managing window, services, and scene transitions with XML configuration
+- **Scene** - Base class for game states with XML loading and ECS integration
+- **EntityWorld** - Central ECS coordinator managing entities, components, and systems
 
 **Namespace: `Elysium::Services`**
 - **EventService** - Input and network event handling
-- **AssetService** - Resource loading with caching
+- **AssetService** - Resource loading with caching and async loading support
+- **LoadingService** - Asset loading orchestration with progress tracking
+- **JukeboxService** - Audio playback and music management
 - **NetworkService** - Multiplayer connectivity (placeholder)
-- **MetricsService** - Performance monitoring (F2 to toggle)
+- **MetricsService** - Performance and memory monitoring (F2 to toggle)
 - **LogService** - Logging with file output and overlay (F3 to toggle)
+
+### Entity Component System (ECS)
+
+**Core Components:**
+- **Entities** - Lightweight IDs managed by EntityManager (max 10,000)
+- **Components** - Data containers (Position, Velocity, Physics, Rendering, etc.)
+- **Systems** - Logic processors (PhysicsSystem, RenderSystem)
+
+**Key Features:**
+- **XML-Driven** - Scenes, entities, and systems configured via XML
+- **Performance Optimized** - Packed arrays, component masks, efficient queries
+- **Memory Tracked** - Integrated with custom memory monitoring
+- **Scene Integrated** - Each scene owns its EntityWorld instance
+
+### System Patterns
+
+**XML Configuration System:**
+- Application config, scene definitions, and entity blueprints in XML
+- Automatic asset dependency resolution and loading orchestration
+- Scene factory pattern with type registration
+
+**Service Architecture:**
+- Dependency injection via Application singleton
+- Service lifecycle management with proper initialization order
+- Cross-service communication via EventService
+
+**Asset Management:**
+- Asynchronous loading with progress feedback
+- Type-safe asset registration and retrieval
+- Automatic copying from Assets/ to Binary/Assets/ during build
 
 ## Build System
 

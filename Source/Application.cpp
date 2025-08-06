@@ -9,32 +9,27 @@
 
 using namespace tinyxml2;
 
-namespace Elysium
-{
+namespace Elysium {
 
-    Application &Application::GetInstance()
-    {
-        static Application instance;
-        return instance;
+Application& Application::GetInstance() {
+    static Application instance;
+    return instance;
+}
+
+static Application* g_appInstance = nullptr;
+
+void CustomTraceLogCallback(int logLevel, const char* text, va_list args) {
+    if (g_appInstance) {
+        char buffer[1024];
+        vsnprintf(buffer, sizeof(buffer), text, args);
+        g_appInstance->GetLogService().LogMessage(logLevel, std::string(buffer));
     }
+}
 
-    static Application* g_appInstance = nullptr;
-    
-    void CustomTraceLogCallback(int logLevel, const char *text, va_list args)
-    {
-        if (g_appInstance) {
-            char buffer[1024];
-            vsnprintf(buffer, sizeof(buffer), text, args);
-            g_appInstance->GetLogService().LogMessage(logLevel, std::string(buffer));
-        }
+bool Application::Initialize(const std::string& configPath) {
+    if (initialized_) {
+        return true;
     }
-
-    bool Application::Initialize(const std::string &configPath)
-    {
-        if (initialized_)
-        {
-            return true;
-        }
 
         g_appInstance = this;
         SetTraceLogCallback(CustomTraceLogCallback);
@@ -66,34 +61,29 @@ namespace Elysium
         networkService_.Initialize();
         logService_.Initialize();
         loadingService_.Initialize();
-        if (jukeboxService_.LoadSong("./Assets/song1/song.xml"))
-        {
-jukeboxService_.SetGlobalEnergy(0.7f);
+    if (jukeboxService_.LoadSong("./Assets/song1/song.xml")) {
+        jukeboxService_.SetGlobalEnergy(0.7f);
         jukeboxService_.Play();
-        } else {
-            TraceLog(LOG_ERROR, "Failed to load jukebox with default song");
-        }
+    } else {
+        TraceLog(LOG_ERROR, "Failed to load jukebox with default song");
+    }
         
         initialized_ = true;
         return true;
     }
 
-    void Application::Run()
-    {
-        if (!initialized_)
-        {
-            TraceLog(LOG_ERROR, "Application not initialized!");
-            return;
+void Application::Run() {
+    if (!initialized_) {
+        TraceLog(LOG_ERROR, "Application not initialized!");
+        return;
+    }
+
+    while (!WindowShouldClose() && !shouldClose_) {
+        float deltaTime = GetFrameTime();
+
+        if (IsWindowResized()) {
+            CalculateLetterboxing();
         }
-
-        while (!WindowShouldClose() && !shouldClose_)
-        {
-            float deltaTime = GetFrameTime();
-
-            if (IsWindowResized())
-            {
-                CalculateLetterboxing();
-            }
 
             ProcessInput();
             ProcessEvents();
