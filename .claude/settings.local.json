@@ -11,7 +11,8 @@
       "Bash(ninja)",
       "Bash(cmake:*)",
       "Bash(make:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(git restore:*)"
     ],
     "deny": []
   }

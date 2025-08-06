@@ -1,0 +1,75 @@
+<ItemDefinitions>
+  <Item Id="iron_sword" Name="Iron Sword" Category="Weapon">
+    <Properties>
+      <Cost>500</Cost>
+      <Stackable>false</Stackable>
+    </Properties>
+    
+    <Stats>
+      <Damage>12</Damage>
+      <AttackSpeed>10</AttackSpeed>
+    </Stats>
+    
+    <Metadata>
+      <Description>A basic iron sword. +12 Damage, +10 Attack Speed</Description>
+      <IconPath>icons/iron_sword.png</IconPath>
+    </Metadata>
+  </Item>
+
+  <Item Id="boots_of_speed" Name="Boots of Speed" Category="Boots">
+    <Properties>
+      <Cost>400</Cost>
+      <Stackable>false</Stackable>
+    </Properties>
+    
+    <Stats>
+      <MovementSpeed>50</MovementSpeed>
+    </Stats>
+    
+    <Metadata>
+      <Description>Boots that grant +50 Movement Speed</Description>
+      <IconPath>icons/boots_speed.png</IconPath>
+    </Metadata>
+  </Item>
+
+  <Item Id="bracer" Name="Bracer" Category="Accessory">
+    <Properties>
+      <Cost>505</Cost>
+      <Stackable>false</Stackable>
+    </Properties>
+    
+    <Stats>
+      <Strength>6</Strength>
+      <Agility>3</Agility>
+      <Intelligence>3</Intelligence>
+      <Health>80</Health>
+      <Mana>40</Mana>
+      <Damage>3</Damage>
+    </Stats>
+    
+    <Metadata>
+      <Description>+6 Strength, +3 Agility, +3 Intelligence</Description>
+      <IconPath>icons/bracer.png</IconPath>
+    </Metadata>
+  </Item>
+
+  <Item Id="healing_salve" Name="Healing Salve" Category="Consumable">
+    <Properties>
+      <Cost>110</Cost>
+      <Stackable>true</Stackable>
+      <MaxStackSize>10</MaxStackSize>
+    </Properties>
+    
+    <ActiveAbility>
+      <CastTime>0</CastTime>
+      <Cooldown>0</Cooldown>
+      <ConsumeOnUse>true</ConsumeOnUse>
+      <Effect Type="HealthRegeneration" Amount="400" Duration="10" />
+    </ActiveAbility>
+    
+    <Metadata>
+      <Description>Regenerates 400 health over 10 seconds</Description>
+      <IconPath>icons/healing_salve.png</IconPath>
+    </Metadata>
+  </Item>
+</ItemDefinitions>

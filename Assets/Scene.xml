@@ -2,7 +2,32 @@
     <Systems>
         <System type="PhysicsSystem" gravity="500.0" />
         <System type="RenderSystem" />
+        <System type="TileSystem" />
     </Systems>
+
+    <!-- Tilemap gets expanded into individual tile entities -->
+    <Tilemap width="10" height="8" tileSize="32" x="100" y="200">
+        <!-- Define the tilemap data -->
+        <TileData>
+            1,1,1,1,1,1,1,1,1,1,
+            1,0,0,0,0,0,0,0,0,1,
+            1,0,2,0,0,0,0,3,0,1,
+            1,0,0,0,4,4,0,0,0,1,
+            1,0,0,0,4,4,0,0,0,1,
+            1,0,3,0,0,0,0,2,0,1,
+            1,0,0,0,0,0,0,0,0,1,
+            1,1,1,1,1,1,1,1,1,1
+        </TileData>
+        
+        <!-- Define what each tile ID means -->
+        <TileDefinitions>
+            <Tile id="0" name="Floor" sprite="tiles/floor.png" walkable="true" />
+            <Tile id="1" name="Wall" sprite="tiles/wall.png" walkable="false" hasCollision="true" />
+            <Tile id="2" name="Chest" sprite="tiles/chest.png" walkable="false" hasCollision="true" />
+            <Tile id="3" name="Door" sprite="tiles/door.png" walkable="true" />
+            <Tile id="4" name="Water" sprite="tiles/water.png" walkable="true" movementSpeed="0.5" />
+        </TileDefinitions>
+    </Tilemap>
 
     <Entities>
         <!-- Red bouncing ball -->
