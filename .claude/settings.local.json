@@ -12,7 +12,8 @@
       "Bash(cmake:*)",
       "Bash(make:*)",
       "Bash(rm:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(where gdb)"
     ],
     "deny": []
   }

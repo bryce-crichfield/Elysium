@@ -2,12 +2,11 @@
     <Systems>
         <System type="PhysicsSystem" gravity="500.0" />
         <System type="RenderSystem" />
-        <System type="TileSystem" />
+        <System type="AnimationSystem" />
     </Systems>
 
     <!-- Tilemap gets expanded into individual tile entities -->
-    <Tilemap width="10" height="8" tileSize="32" x="100" y="200">
-        <!-- Define the tilemap data -->
+    <!-- <Tilemap width="10" height="8" tileSize="32" x="100" y="200">
         <TileData>
             1,1,1,1,1,1,1,1,1,1,
             1,0,0,0,0,0,0,0,0,1,
@@ -18,8 +17,7 @@
             1,0,0,0,0,0,0,0,0,1,
             1,1,1,1,1,1,1,1,1,1
         </TileData>
-        
-        <!-- Define what each tile ID means -->
+
         <TileDefinitions>
             <Tile id="0" name="Floor" sprite="tiles/floor.png" walkable="true" />
             <Tile id="1" name="Wall" sprite="tiles/wall.png" walkable="false" hasCollision="true" />
@@ -27,53 +25,49 @@
             <Tile id="3" name="Door" sprite="tiles/door.png" walkable="true" />
             <Tile id="4" name="Water" sprite="tiles/water.png" walkable="true" movementSpeed="0.5" />
         </TileDefinitions>
-    </Tilemap>
+    </Tilemap> -->
 
     <Entities>
         <!-- Red bouncing ball -->
         <Entity name="RedBall">
             <PositionComponent x="200" y="100"/>
-            <VelocityComponent x="150" y="50"/>
             <CircleRenderComponent radius="25" r="255" g="50" b="50" a="255" drawOutline="true" outlineR="0" outlineG="0" outlineB="0" outlineA="255"/>
-            <PhysicsComponent mass="1.5" restitution="0.9" friction="0.05" affectedByGravity="true"/>
         </Entity>
 
         <!-- Blue heavy ball -->
         <Entity name="BlueBall">
             <PositionComponent x="400" y="150"/>
-            <VelocityComponent x="-100" y="25"/>
             <CircleRenderComponent radius="35" r="255" g="128" b="0" a="255" drawOutline="true" outlineR="0" outlineG="0" outlineB="0" outlineA="255"/>
-            <PhysicsComponent mass="2.5" restitution="0.7" friction="0.1" affectedByGravity="true"/>
         </Entity>
 
         <!-- Green light ball -->
-        <Entity name="GreenBall">
+        <!-- <Entity name="GreenBall">
             <PositionComponent x="600" y="200"/>
             <VelocityComponent x="-75" y="-100"/>
             <CircleRenderComponent radius="15" r="50" g="255" b="100" a="255" drawOutline="true" outlineR="0" outlineG="0" outlineB="0" outlineA="255"/>
             <PhysicsComponent mass="0.8" restitution="0.95" friction="0.02" affectedByGravity="true"/>
-        </Entity>
+        </Entity> -->
 
         <!-- Purple medium ball -->
-        <Entity name="PurpleBall">
+        <!-- <Entity name="PurpleBall">
             <PositionComponent x="300" y="50"/>
             <VelocityComponent x="75" y="125"/>
             <CircleRenderComponent radius="20" r="200" g="50" b="200" a="255" drawOutline="true" outlineR="0" outlineG="0" outlineB="0" outlineA="255"/>
             <PhysicsComponent mass="1.2" restitution="0.8" friction="0.08" affectedByGravity="true"/>
-        </Entity>
+        </Entity> -->
 
         <!-- Yellow floating ball (no gravity) -->
-        <Entity name="YellowBall">
+        <!-- <Entity name="YellowBall">
             <PositionComponent x="500" y="300"/>
             <VelocityComponent x="50" y="-50"/>
             <CircleRenderComponent radius="30" r="255" g="255" b="50" a="255" drawOutline="true" outlineR="0" outlineG="0" outlineB="0" outlineA="255"/>
             <PhysicsComponent mass="1.0" restitution="1.0" friction="0.0" affectedByGravity="false"/>
-        </Entity>
+        </Entity> -->
 
         <!-- Demo text -->
-        <Entity name="TitleText">
+        <!-- <Entity name="TitleText">
             <PositionComponent x="50" y="50"/>
             <TextComponent content="Battle Scene Demo - Physics Balls" fontSize="32" r="255" g="255" b="255" a="255"/>
-        </Entity>
+        </Entity> -->
     </Entities>
 </Scene>

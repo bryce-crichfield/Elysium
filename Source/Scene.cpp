@@ -1,6 +1,7 @@
 #include "Scene.h"
 #include "Systems/PhysicsSystem.h"
 #include "Systems/RenderSystem.h"
+#include "Systems/AnimationSystem.h"
 #include "tinyxml2.h"
 #include "raylib.h"
 
@@ -33,7 +34,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
     if (XMLElement *entities = root->FirstChildElement("Entities")) {
         FOREACH("Entity", xmlEntity, entities) {
             const char* entityName = xmlEntity->Attribute("name");
-            Entity entity = world_->CreateEntity();
+            Entity entity = world_->CreateEntity(entityName);
 
             for (XMLElement* component = xmlEntity->FirstChildElement(); 
                 component != nullptr; 
@@ -134,6 +135,10 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                 systems_.push_back(std::make_unique<Elysium::Systems::RenderSystem>(world_.get()));
                 TraceLog(LOG_INFO, "Loaded RenderSystem");
             }
+            else if (systemName == "AnimationSystem") {
+                systems_.push_back(std::make_unique<Elysium::AnimationSystem>(world_.get()));
+                TraceLog(LOG_INFO, "Loaded AnimationSystem");
+            }
             else {
                 TraceLog(LOG_WARNING, "Unknown system type: %s", systemName.c_str());
             }
@@ -154,6 +159,9 @@ void Scene::OnDraw(Rectangle screen) {
     for (auto& system : systems_) {
         system->Render();
     }
+}
+
+void Scene::OnDebugDraw() {
 }
 
 } // namespace Elysium
