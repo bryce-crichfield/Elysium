@@ -71,7 +71,7 @@ cd ../Binary
 - **Entities**: Lightweight IDs (size_t), max 10,000
 - **Components**: Plain data structs (Position, Velocity, Physics, Rendering)
 - **Systems**: Logic processors that operate on component combinations
-- **EntityWorld**: Central coordinator managing all ECS operations
+- **World**: Central coordinator managing all ECS operations
 
 Key ECS files:
 - `Include/Entity.h` - Complete ECS implementation
@@ -81,7 +81,7 @@ Key ECS files:
 ### Service Architecture
 All services accessible via `Application::GetInstance()`:
 - **EventService** - Input and network events
-- **AssetService** - Resource loading with caching  
+- **AssetService** - Resource loading with caching
 - **LoadingService** - Asset loading orchestration
 - **JukeboxService** - Audio playback management
 - **NetworkService** - Multiplayer (placeholder)
@@ -92,7 +92,7 @@ All services accessible via `Application::GetInstance()`:
 - **Base Scene class** with ECS integration
 - **XML-driven** scene loading from `Assets/Scene.xml`
 - **Factory pattern** with scene type registration
-- Each scene owns its `EntityWorld` instance
+- Each scene owns its `World` instance
 
 ## XML Configuration
 
@@ -153,8 +153,8 @@ All services accessible via `Application::GetInstance()`:
 4. Optional: Create XML config in `Assets/`
 
 ### Adding New Components
-1. Define struct in `Entity.h` 
-2. Register in `EntityWorld` constructor
+1. Define struct in `Entity.h`
+2. Register in `World` constructor
 3. Update any relevant systems
 4. Update `Documents/ecs.md` documentation
 
@@ -174,7 +174,7 @@ All services accessible via `Application::GetInstance()`:
 - **Type aliases** for complex template types
 
 ### Naming Conventions
-- **Classes**: PascalCase (`EntityWorld`)
+- **Classes**: PascalCase (`World`)
 - **Methods**: PascalCase (`CreateEntity`)
 - **Variables**: camelCase with trailing underscore for members (`world_`)
 - **Constants**: UPPER_SNAKE_CASE (`MAX_ENTITIES`)
@@ -191,7 +191,7 @@ All services accessible via `Application::GetInstance()`:
 
 ### Built-in Tools
 - **F2**: Toggle metrics overlay
-- **F3**: Toggle log overlay  
+- **F3**: Toggle log overlay
 - **ImGui integration** for debug interfaces
 - **Memory tracking** for leak detection
 - **XML validation** for config errors
@@ -199,7 +199,7 @@ All services accessible via `Application::GetInstance()`:
 ### Common Issues
 - **Asset paths**: Must be relative to `Binary/` directory
 - **Scene registration**: Must happen before `SetScene()`
-- **Component registration**: Must happen in `EntityWorld` constructor
+- **Component registration**: Must happen in `World` constructor
 - **Memory tracking**: Use TrackedAllocator types for ECS containers
 
 ## Recent Improvements Made

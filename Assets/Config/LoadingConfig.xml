@@ -27,7 +27,7 @@
             <a>255</a>
         </FillColor>
     </ProgressBar>
-    
+
     <Text>
         <LoadingText>ELYSIUM</LoadingText>
         <FontSize>56</FontSize>
@@ -39,7 +39,7 @@
         </Color>
         <X>-1</X> <!-- -1 means center horizontally -->
         <Y>120</Y> <!-- positioned in upper third for 640x480 -->
-        
+
         <StatusText>Loading assets... {loaded} / {total}</StatusText>
         <StatusFontSize>18</StatusFontSize>
         <StatusColor>
@@ -51,17 +51,17 @@
         <StatusX>-1</StatusX> <!-- -1 means center horizontally -->
         <StatusY>310</StatusY> <!-- just below progress bar -->
     </Text>
-    
+
     <Background>
         <Images>
-            <Image>./Assets/loading/background1.png</Image>
-            <Image>./Assets/loading/background2.png</Image>
-            <Image>./Assets/loading/background3.png</Image>
+            <Image>./Assets/Textures/Loading/background1.png</Image>
+            <Image>./Assets/Textures/Loading/background2.png</Image>
+            <Image>./Assets/Textures/Loading/background3.png</Image>
         </Images>
         <CycleTime>2.0</CycleTime> <!-- seconds between image changes -->
         <Music>./Assets/song1/music.mp3</Music>
     </Background>
-    
+
     <Tooltips>
         <Messages>
             <Message>Use WASD keys to move your character</Message>

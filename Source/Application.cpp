@@ -63,13 +63,7 @@ bool Application::Initialize(const std::string& configPath) {
         networkService_.Initialize();
         logService_.Initialize();
         loadingService_.Initialize();
-    if (jukeboxService_.LoadSong("./Assets/song1/song.xml")) {
-        jukeboxService_.SetGlobalEnergy(0.7f);
-        jukeboxService_.Play();
-    } else {
-        TraceLog(LOG_ERROR, "Failed to load jukebox with default song");
-    }
-        
+
         initialized_ = true;
         LOG_SERVICE_INFO("Application", "Engine initialization complete");
         LOG_SECTION_END("ENGINE INITIALIZATION");
@@ -135,12 +129,12 @@ void Application::Run() {
     {
         sceneService_.QueueScene(std::move(scene));
     }
-    
+
     void Application::DefineScene(const std::string& typeName, SceneFactory factory)
     {
         sceneService_.RegisterScene(typeName, factory);
     }
-    
+
     void Application::QueueScene(const std::string& xmlPath)
     {
         sceneService_.QueueScene(xmlPath);
@@ -158,13 +152,13 @@ void Application::Run() {
         logService_.Update(deltaTime);
 
         jukeboxService_.Update();
-        
+
         // Update scene service (handles transitions and current scene updates)
         sceneService_.Update(deltaTime);
-        
+
         // Handle asset loading during transitions
         static bool loadingStarted = false;
-        
+
         if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::LOADING && !loadingStarted) {
             // Start loading assets when we enter LOADING state
             const auto& pendingAssets = sceneService_.GetPendingAssets();
@@ -179,7 +173,7 @@ void Application::Run() {
             {
                 // Loading complete, finalize GPU resources on main thread
                 assetService_.FinalizeAssets();
-                
+
                 // Signal scene service that loading is complete
                 sceneService_.OnAssetsLoaded();
             }
@@ -196,7 +190,7 @@ void Application::Run() {
         auto renderStart = std::chrono::high_resolution_clock::now();
         auto screenRect = Rectangle { 0, 0, config_.framebufferWidth, config_.framebufferHeight};
         Scene* currentScene = sceneService_.GetScene();
-        
+
         if (sceneService_.IsTransitioning())
         {
             if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::LOADING)
@@ -205,7 +199,7 @@ void Application::Run() {
                 ClearBackground(BLACK);
                 int screenWidth = GetScreenWidth();
                 int screenHeight = GetScreenHeight();
-        
+
                 // Delegate drawing to LoadingService
                 loadingService_.Draw(screenWidth, screenHeight);
             }
@@ -224,7 +218,7 @@ void Application::Run() {
                 ClearBackground(BLACK);
 
                 float alpha = sceneService_.GetTransitionProgress();
-                
+
                 if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::FADE_OUT)
                 {
                     Color currentTint = {255, 255, 255, (unsigned char)(255 * (1.0f - alpha))};
@@ -294,46 +288,46 @@ void Application::Run() {
 
     void Application::ProcessEvents()
     {
-        if (!sceneService_.IsTransitioning())
-        {
-            Scene* currentScene = sceneService_.GetScene();
-            while (eventService_.HasInputEvents())
-            {
-                InputEvent event = eventService_.GetNextInputEvent();
-                if (currentScene)
-                {
-                    currentScene->OnInput(event);
-                }
-            }
+        // if (!sceneService_.IsTransitioning())
+        // {
+        //     Scene* currentScene = sceneService_.GetScene();
+        //     while (eventService_.HasInputEvents())
+        //     {
+        //         InputEvent event = eventService_.GetNextInputEvent();
+        //         if (currentScene)
+        //         {
+        //             currentScene->OnInput(event);
+        //         }
+        //     }
 
-            while (eventService_.HasNetworkEvents())
-            {
-                NetworkEvent event = eventService_.GetNextNetworkEvent();
-                if (currentScene)
-                {
-                    currentScene->OnNetwork(event);
-                }
-            }
-        }
-        else
-        {
-            eventService_.ClearInputEvents();
-            eventService_.ClearNetworkEvents();
-        }
+        //     while (eventService_.HasNetworkEvents())
+        //     {
+        //         NetworkEvent event = eventService_.GetNextNetworkEvent();
+        //         if (currentScene)
+        //         {
+        //             currentScene->OnNetwork(event);
+        //         }
+        //     }
+        // }
+        // else
+        // {
+        //     eventService_.ClearInputEvents();
+        //     eventService_.ClearNetworkEvents();
+        // }
     }
 
 
     void Application::ProcessInput()
     {
         ImGuiIO& io = ImGui::GetIO();
-        
-        if (IsKeyPressed(KEY_ESCAPE) && !io.WantCaptureKeyboard)
-        {
-            InputEvent event;
-            event.type = InputEvent::KEY_PRESS;
-            event.key = KEY_ESCAPE;
-            eventService_.Queue(event);
-        }
+
+        // if (IsKeyPressed(KEY_ESCAPE) && !io.WantCaptureKeyboard)
+        // {
+        //     InputEvent event;
+        //     event.type = InputEvent::KEY_PRESS;
+        //     event.key = KEY_ESCAPE;
+        //     eventService_.Queue(event);
+        // }
 
         if (IsKeyPressed(KEY_F2))
         {
@@ -345,18 +339,18 @@ void Application::Run() {
             logService_.ToggleVisibility();
         }
 
-        // Only process mouse input if ImGui doesn't want to capture it
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !io.WantCaptureMouse)
-        {
-            InputEvent event;
-            event.type = InputEvent::MOUSE_PRESS;
-            event.key = MOUSE_LEFT_BUTTON;
-            Vector2 mousePos = GetMousePosition();
-            Vector2 framebufferPos = MapScreenToFramebuffer(mousePos);
-            event.x = framebufferPos.x;
-            event.y = framebufferPos.y;
-            eventService_.Queue(event);
-        }
+        // // Only process mouse input if ImGui doesn't want to capture it
+        // if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !io.WantCaptureMouse)
+        // {
+        //     InputEvent event;
+        //     event.type = InputEvent::MOUSE_PRESS;
+        //     event.key = MOUSE_LEFT_BUTTON;
+        //     Vector2 mousePos = GetMousePosition();
+        //     Vector2 framebufferPos = MapScreenToFramebuffer(mousePos);
+        //     event.x = framebufferPos.x;
+        //     event.y = framebufferPos.y;
+        //     eventService_.Queue(event);
+        // }
     }
 
     bool ApplicationConfig::FromXML(const std::string &configPath, ApplicationConfig& out)

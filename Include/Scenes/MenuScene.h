@@ -9,11 +9,10 @@ class MenuScene : public Scene {
 public:
     MenuScene();
     virtual ~MenuScene() = default;
-    
+
     void OnUpdate(float deltaTime) override;
     void OnDraw(Rectangle screen) override;
     void OnDebugDraw() override;
-    void OnInput(const InputEvent& event) override;
     void OnEnter() override;
     void OnExit() override;
 

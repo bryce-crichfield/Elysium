@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Entity.h"
+#include "System.h"
 
 namespace Elysium::Systems {
 
 class RenderSystem : public System {
 public:
-    RenderSystem(EntityWorld* world) : System(world) {}
-    
+    RenderSystem(Context context) : System(context) {}
+
     void Update(float deltaTime) override {}
     void Render() override;
 };

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Song>
-    
-    <Track name="action_layer" file="music.mp3" volume="0.8" loop="true" />
-    
-    <!-- Automation examples - fade in action layer over 5 seconds -->
-    <Automation track="action_layer" parameter="volume" startTime="0.0" endTime="5.0" startValue="0.0" endValue="0.8" />
-    
-</Song>

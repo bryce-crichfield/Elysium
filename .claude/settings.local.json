@@ -13,7 +13,11 @@
       "Bash(make:*)",
       "Bash(rm:*)",
       "Bash(git restore:*)",
-      "Bash(where gdb)"
+      "Bash(where gdb)",
+      "Bash(g++:*)",
+      "Bash(ls:*)",
+      "Bash(pacman:*)",
+      "Bash(C:msys64usrbinpacman -S --needed mingw-w64-x86_64-gdb)"
     ],
     "deny": []
   }
