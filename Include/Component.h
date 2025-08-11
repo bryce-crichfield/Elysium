@@ -8,6 +8,7 @@
 namespace Elysium {
 
 // Forward declarations
+using Entity = size_t;
 struct Action;
 
 // Component structs
@@ -48,8 +49,41 @@ struct AnimationComponent
 };
 
 struct LayerComponent {
-    int z;
+    enum class Type {
+        Background,
+        World,
+        Lighting,
+        Overlay
+    };
 
+    enum class Space {
+        World,
+        Screen,
+        Parallax
+    };;
+
+    enum class Blend {
+        Normal,
+        Additive,
+        Multiply,
+        Alpha
+    };
+
+    int zIndex;
+    Type type;
+    Space space;
+    Blend blend;
+
+    float opacity = 1.0f;
+    bool isVisible = true;
+
+    std::string name;
+
+    Vector2 parallaxFactor = {0.0f, 0.0f};      // 0 = no movement, 1 = full camera movement
+
+    std::vector<Entity> allowedCameras;         // which camera entities can see this layer (empty = all)
+
+    RenderTexture2D* framebuffer = nullptr;     // optional framebuffer to draw this layer to
     LayerComponent(int z = 0);
 };
 
@@ -58,8 +92,9 @@ struct RectangleComponent
     float width, height;
     Color background;
     Color border;
+    std::string layerName = "default";
 
-    RectangleComponent(float width = 1, float height = 1, Color background = {}, Color border = {});
+    RectangleComponent(float width = 1, float height = 1, Color background = {}, Color border = {}, const std::string& layer = "default");
 };
 
 struct CircleComponent
@@ -67,15 +102,17 @@ struct CircleComponent
     float radius;
     Color background;
     Color border;
+    std::string layerName = "default";
 
-    CircleComponent(float r = 10.0f, Color background = {}, Color border = {});
+    CircleComponent(float r = 10.0f, Color background = {}, Color border = {}, const std::string& layer = "default");
 };
 
 struct LightComponent {
     Color color;
     float radius;
+    std::string layerName = "default";
 
-    LightComponent(Color c = WHITE, float r = 50.0f) : color(c), radius(r) {}
+    LightComponent(Color c = WHITE, float r = 50.0f, const std::string& layer = "default") : color(c), radius(r), layerName(layer) {}
 };
 
 struct SpriteComponent
@@ -85,8 +122,9 @@ struct SpriteComponent
     Vector2 scale;
     float rotation;
     Color tint;
+    std::string layerName = "default";
 
-    SpriteComponent(const std::string& name = "", const std::string& f = "", Vector2 s = {1.0f, 1.0f}, float rot = 0.0f, Color t = {});
+    SpriteComponent(const std::string& name = "", const std::string& f = "", Vector2 s = {1.0f, 1.0f}, float rot = 0.0f, Color t = {}, const std::string& layer = "default");
 };
 
 struct TextComponent
@@ -94,18 +132,27 @@ struct TextComponent
     std::string content;
     int fontSize;
     Color color;
+    std::string layerName = "default";
 
-    TextComponent(const std::string& text = "", int size = 20, Color c = {});
+    TextComponent(const std::string& text = "", int size = 20, Color c = {}, const std::string& layer = "default");
 };
 
 // Specialized components
 struct CameraComponent
 {
-    std::string target;
-    struct Camera2D camera; // Forward declaration or assume defined in raylib.h
+    Vector2 position;                   // relative to entity's PositionComponent (for lerping)
+    float zoom = 1.0f;
+    Rectangle viewport;
+    std::vector<int> layerMask;         // which layers this camera renders
+    int renderOrder = 0;                // for multi-camera setups
+    bool isVisible = true;
 
     CameraComponent();
-    CameraComponent(const std::string& target);
+};
+
+struct FollowComponent
+{
+    std::string targetEntityName;
 };
 
 struct TileComponent

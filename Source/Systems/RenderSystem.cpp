@@ -1,5 +1,7 @@
 #include "Systems/RenderSystem.h"
 #include "raylib.h"
+#include "raymath.h"
+#include "rlgl.h"
 #include "Application.h"
 #include "Scene.h"
 #include "Entity.h"
@@ -7,150 +9,265 @@
 #include <algorithm>
 #include <stdexcept>
 #include <variant>
-
+#include <optional>
 namespace Elysium::Systems {
 
-struct RectangleData {
-    float width, height;
-    Color background, border;
-};
-
-struct CircleData {
-    float radius;
-    Color background, border;
-};
-
-struct TextData {
-    std::string content;
-    int fontSize;
-    Color color;
-};
-
-struct LightData {
-    Color color;
-    float radius;
-};
-
-struct RenderItem {
-    Entity entity;
-    int zIndex;
-    enum class Type { Rectangle, Circle, Text, Light } type;
-    Vector2 position;
-    std::variant<RectangleData, CircleData, TextData, LightData> data;
-};
 
 void RenderSystem::Render() {
-    std::vector<RenderItem> renderItems; // Changed from unordered_map to vector
-
-    // Collect position components and create render items for each render component
-    world->ForEachEntityWith<PositionComponent>([&](Entity entity) {
-        auto& pos = world->GetComponent<PositionComponent>(entity);
-        int zIndex = world->HasComponent<LayerComponent>(entity)
-            ? world->GetComponent<LayerComponent>(entity).z
-            : 0;
-
-        // Check for RectangleComponent
-        if (world->HasComponent<RectangleComponent>(entity)) {
-            RenderItem item;
-            item.entity = entity;
-            item.position = {pos.x, pos.y};
-            item.zIndex = zIndex;
-            item.type = RenderItem::Type::Rectangle;
-            auto& rect = world->GetComponent<RectangleComponent>(entity);
-            item.data = RectangleData{rect.width, rect.height, rect.background, rect.border};
-            renderItems.push_back(item);
+    // Debug: Check if render system is being called (commented out for clean output)
+    // static int frameCount = 0;
+    // frameCount++;
+    
+    // Final all active cameras (entities with CameraComponent)
+    std::vector<std::pair<Entity, CameraComponent*>> cameras;
+    world->ForEachEntityWith<CameraComponent>([&](Entity entity) {
+        auto& camera = world->GetComponent<CameraComponent>(entity);
+        if (camera.isVisible) {
+            cameras.push_back({entity, &camera});
         }
+    });
+    
+    // if (frameCount % 60 == 0 && !cameras.empty()) {
+    //     TraceLog(LOG_INFO, "Found %d active cameras", (int)cameras.size());
+    // }
 
-        // Check for CircleComponent
-        if (world->HasComponent<CircleComponent>(entity)) {
-            RenderItem item;
-            item.entity = entity;
-            item.position = {pos.x, pos.y};
-            item.zIndex = zIndex;
-            item.type = RenderItem::Type::Circle;
-            auto& circle = world->GetComponent<CircleComponent>(entity);
-            item.data = CircleData{circle.radius, circle.background, circle.border};
-            renderItems.push_back(item);
-        }
+    // Sort cameras by render order
+    std::sort(cameras.begin(), cameras.end(),
+            [](const auto& a, const auto& b) {
+                return a.second->renderOrder < b.second->renderOrder;
+            });
 
-        // Check for TextComponent
-        if (world->HasComponent<TextComponent>(entity)) {
-            RenderItem item;
-            item.entity = entity;
-            item.position = {pos.x, pos.y};
-            item.zIndex = zIndex;
-            item.type = RenderItem::Type::Text;
-            auto& text = world->GetComponent<TextComponent>(entity);
-            item.data = TextData{text.content, text.fontSize, text.color};
-            renderItems.push_back(item);
-        }
-
-        // Check for LightComponent
-        if (world->HasComponent<LightComponent>(entity)) {
-            RenderItem item;
-            item.entity = entity;
-            item.position = {pos.x, pos.y};
-            item.zIndex = zIndex;
-            item.type = RenderItem::Type::Light;
-            auto& light = world->GetComponent<LightComponent>(entity);
-            item.data = LightData{light.color, light.radius};
-            renderItems.push_back(item);
+    // Build layer definition lookup = layerIndex -> <Entity, LayerComponent>
+    Layers layers;
+    world->ForEachEntityWith<LayerComponent>([&](Entity entity) {
+        auto& layer = world->GetComponent<LayerComponent>(entity);
+        if (layer.isVisible) {
+            int layerIndex = world->GetComponent<LayerComponent>(entity).zIndex;
+            layers[layerIndex] = {entity, &layer};
         }
     });
 
-    // Sort by z-index
-    std::stable_sort(renderItems.begin(), renderItems.end(),
-        [](const RenderItem& a, const RenderItem& b) {
-            return a.zIndex < b.zIndex;
-        });
+    // Render each camera's view
+    for (auto& camera : cameras) {
+        RenderCamera(camera.first, *camera.second, layers);
+    }
+}
 
-    // Render sorted items
-    for (const auto& item : renderItems) {
-        if (item.type == RenderItem::Type::Rectangle) {
-            const auto& rect = std::get<RectangleData>(item.data);
-            float topLeftX = item.position.x - rect.width * 0.5f;
-            float topLeftY = item.position.y - rect.height * 0.5f;
-            DrawRectangleV({topLeftX, topLeftY},
-                          {rect.width, rect.height},
-                          rect.background);
-            if (rect.border.a > 0) {
-                DrawRectangleLines(topLeftX, topLeftY,
-                                 rect.width,
-                                 rect.height,
-                                 rect.border);
-            }
-        } else if (item.type == RenderItem::Type::Circle) {
-            const auto& circle = std::get<CircleData>(item.data);
-            DrawCircleV({item.position.x, item.position.y},
-                       circle.radius,
-                       circle.background);
-            if (circle.border.a > 0) {
-                DrawCircleLinesV({item.position.x, item.position.y},
-                               circle.radius,
-                               circle.border);
-            }
-        } else if (item.type == RenderItem::Type::Text) {
-            const auto& text = std::get<TextData>(item.data);
-            int textWidth = MeasureText(text.content.c_str(), text.fontSize);
-            int centeredX = item.position.x - textWidth * 0.5f;
-            int centeredY = item.position.y - text.fontSize * 0.5f;
-            DrawText(text.content.c_str(),
-                    centeredX,
-                    centeredY,
-                    text.fontSize,
-                    text.color);
-        } else if (item.type == RenderItem::Type::Light) {
-            const auto& light = std::get<LightData>(item.data);
-            // Use additive blending to brighten the world
-            BeginBlendMode(BLEND_ADDITIVE);
-            DrawCircleV({item.position.x, item.position.y}, 
-                       light.radius, 
-                       light.color);
-            EndBlendMode();
+void RenderSystem::RenderCamera(Entity entity, const CameraComponent& camera, const Layers& layers) {
+    // Get the camera's world transform
+    Vector2 cameraWorldPosition = {0, 0};
+    if (world->HasComponent<PositionComponent>(entity)) {
+        auto& pos = world->GetComponent<PositionComponent>(entity);
+        cameraWorldPosition = {pos.x + camera.position.x, pos.y + camera.position.y};
+    }
+
+    BeginScissorMode(
+        camera.viewport.x,
+        camera.viewport.y,
+        camera.viewport.width,
+        camera.viewport.height
+    );
+
+    // Collects and group renderable entities by layer;
+    // We should probably be calculating this before we render the camera
+    std::unordered_map<int, std::vector<RenderItem>> layerItems;
+
+    world->ForEachEntityWith<PositionComponent>([&](Entity entity) {
+        // Skip camera and layer definition entities (they don't render as game objects)
+        if (world->HasComponent<CameraComponent>(entity) ||
+            world->HasComponent<LayerComponent>(entity)) {
+            return;
+        }
+
+        auto& pos = world->GetComponent<PositionComponent>(entity);
+        
+        // Get layer index - default to 0 if no LayerComponent
+        int layerIndex = 0;
+        if (world->HasComponent<LayerComponent>(entity)) {
+            layerIndex = world->GetComponent<LayerComponent>(entity).zIndex;
+        }
+
+        std::optional<Renderable> renderable = GetRenderable(entity);
+        if (!renderable.has_value()) {
+            return;
+        }
+
+        std::string layerName = GetLayerName(renderable);
+
+        // Check if this camera can see this layer
+        if (!CanCameraSeeLayer(entity, camera, layerName, layers)) {
+            return;
+        }
+
+        // Create render item and add to layer
+        RenderItem item;
+        item.entity = entity;
+        item.position = {pos.x, pos.y};
+        item.renderable = renderable.value();
+        
+        layerItems[layerIndex].push_back(item);
+    });
+    
+    if (!layerItems.empty()) {
+        // TraceLog(LOG_DEBUG, "Found %d layers with renderable items", (int)layerItems.size());
+    }
+
+    // Render layers in order
+    std::vector<int> sortedLayers;
+    for (const auto& [layerIndex, items]: layerItems) {
+        sortedLayers.push_back(layerIndex);
+    }
+    std::sort(sortedLayers.begin(), sortedLayers.end());
+
+    for (int layerIndex : sortedLayers) {
+        auto layerIt = layers.find(layerIndex);
+        if (layerIt != layers.end()) {
+            RenderLayer(layerIndex, layerItems[layerIndex],
+                cameraWorldPosition, camera, *layerIt->second.second);
         } else {
-            throw std::runtime_error("Unknown render item type");
+            LayerComponent defaultLayer;
+            RenderLayer(layerIndex, layerItems[layerIndex], cameraWorldPosition, camera, defaultLayer);
         }
     }
+
+    EndScissorMode();
+}
+
+bool RenderSystem::CanCameraSeeLayer(Entity entity, const CameraComponent& camera, const std::string& layerName, const Layers& layers) {
+    // For now, we'll assume all cameras can see all layers
+    // TODO: Implement proper layer filtering based on layerName
+    return true;
+}
+
+void RenderSystem::RenderLayer(int index, const std::vector<RenderItem>& items, Vector2 cameraWorldPosition, const CameraComponent& camera, const LayerComponent& layer)
+{
+    ApplyBlendMode(layer.blend);
+
+    Matrix transform = GetLayerTransform(layer, camera);
+
+    rlPushMatrix();
+    rlMultMatrixf(MatrixToFloat(transform));
+
+    for (const auto& item : items) {
+        RenderSingleItem(item, layer);
+    }
+
+    rlPopMatrix();
+}
+
+void RenderSystem::ApplyBlendMode(const LayerComponent::Blend& blend)
+{
+    switch (blend)
+    {
+    case LayerComponent::Blend::Normal:
+        BeginBlendMode(BLEND_ALPHA);
+        break;
+    case LayerComponent::Blend::Additive:
+        BeginBlendMode(BLEND_ADDITIVE);
+        break;
+    case LayerComponent::Blend::Multiply:
+        BeginBlendMode(BLEND_MULTIPLIED);
+        break;
+    case LayerComponent::Blend::Alpha:
+        BeginBlendMode(BLEND_ALPHA);
+        break;
+    default:
+        BeginBlendMode(BLEND_ALPHA);
+        break;
+    }
+}
+
+Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, const CameraComponent& camera)
+{
+    switch (layer.space) {
+        case LayerComponent::Space::Screen: {
+            return MatrixIdentity();
+        }
+        case LayerComponent::Space::World: {
+            Matrix translation = MatrixTranslate(-camera.position.x, -camera.position.y, 0);
+            Matrix scale = MatrixScale(camera.zoom, camera.zoom, 1.0f);
+            return MatrixMultiply(translation, scale);
+        }
+        case LayerComponent::Space::Parallax: {
+            Vector2 parallaxOffset = {
+                -camera.position.x * layer.parallaxFactor.x,
+                -camera.position.y * layer.parallaxFactor.y
+            };
+
+            Matrix translation = MatrixTranslate(parallaxOffset.x, parallaxOffset.y, 0);
+
+            float parallaxZoom = 1.0f + (camera.zoom - 1.0f) * (layer.parallaxFactor.x + layer.parallaxFactor.y) * 0.5f;
+
+            Matrix scale = MatrixScale(parallaxZoom, parallaxZoom, 1.0f);
+
+            return MatrixMultiply(translation, scale);
+        }
+    }
+
+    return MatrixIdentity();
+}
+
+std::optional<Renderable> RenderSystem::GetRenderable(Entity entity) {
+    if (world->HasComponent<RectangleComponent>(entity)) {
+        return world->GetComponent<RectangleComponent>(entity);
+    }
+    if (world->HasComponent<CircleComponent>(entity)) {
+        return world->GetComponent<CircleComponent>(entity);
+    }
+    if (world->HasComponent<TextComponent>(entity)) {
+        return world->GetComponent<TextComponent>(entity);
+    }
+    if (world->HasComponent<SpriteComponent>(entity)) {
+        return world->GetComponent<SpriteComponent>(entity);
+    }
+    if (world->HasComponent<LightComponent>(entity)) {
+        return world->GetComponent<LightComponent>(entity);
+    }
+    return std::nullopt;
+}
+
+std::string RenderSystem::GetLayerName(const std::optional<Renderable>& renderable) {
+    if (!renderable.has_value()) {
+        return "default";
+    }
+    
+    return std::visit([](const auto& component) -> std::string {
+        return component.layerName;
+    }, renderable.value());
+}
+
+void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent& layer) {
+    std::visit([&](const auto& component) {
+        using T = std::decay_t<decltype(component)>;
+        
+        if constexpr (std::is_same_v<T, RectangleComponent>) {
+            float topLeftX = item.position.x - component.width * 0.5f;
+            float topLeftY = item.position.y - component.height * 0.5f;
+            DrawRectangleV({topLeftX, topLeftY}, {component.width, component.height}, component.background);
+            if (component.border.a > 0) {
+                DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
+            }
+        }
+        else if constexpr (std::is_same_v<T, CircleComponent>) {
+            DrawCircleV({item.position.x, item.position.y}, component.radius, component.background);
+            if (component.border.a > 0) {
+                DrawCircleLinesV({item.position.x, item.position.y}, component.radius, component.border);
+            }
+        }
+        else if constexpr (std::is_same_v<T, TextComponent>) {
+            int textWidth = MeasureText(component.content.c_str(), component.fontSize);
+            int centeredX = item.position.x - textWidth * 0.5f;
+            int centeredY = item.position.y - component.fontSize * 0.5f;
+            DrawText(component.content.c_str(), centeredX, centeredY, component.fontSize, component.color);
+        }
+        else if constexpr (std::is_same_v<T, LightComponent>) {
+            DrawCircleV({item.position.x, item.position.y}, component.radius, component.color);
+        }
+        else if constexpr (std::is_same_v<T, SpriteComponent>) {
+            // TODO: Implement sprite rendering
+            DrawRectangleV({item.position.x - 16, item.position.y - 16}, {32, 32}, component.tint);
+        }
+    }, item.renderable);
 }
 
 } // namespace Elysium::Systems

@@ -23,24 +23,24 @@ AnimationComponent::AnimationComponent()
 {
 }
 
-LayerComponent::LayerComponent(int z) : z(z) {}
+LayerComponent::LayerComponent(int z) : zIndex(z) {}
 
-RectangleComponent::RectangleComponent(float width, float height, Color background, Color border)
-    : width(width), height(height), background(background), border(border)
+RectangleComponent::RectangleComponent(float width, float height, Color background, Color border, const std::string& layer)
+    : width(width), height(height), background(background), border(border), layerName(layer)
 {
 }
 
-CircleComponent::CircleComponent(float r, Color background, Color border)
-    : radius(r), background(background), border(border)
+CircleComponent::CircleComponent(float r, Color background, Color border, const std::string& layer)
+    : radius(r), background(background), border(border), layerName(layer)
 {
 }
 
-SpriteComponent::SpriteComponent(const std::string &name, const std::string &f, Vector2 s, float rot, Color t)
-    : textureName(name), frame(f), scale(s), rotation(rot), tint(t)
+SpriteComponent::SpriteComponent(const std::string &name, const std::string &f, Vector2 s, float rot, Color t, const std::string& layer)
+    : textureName(name), frame(f), scale(s), rotation(rot), tint(t), layerName(layer)
 {
 }
 
-TextComponent::TextComponent(const std::string &text, int size, Color c) : content(text), fontSize(size), color(c)
+TextComponent::TextComponent(const std::string &text, int size, Color c, const std::string& layer) : content(text), fontSize(size), color(c), layerName(layer)
 {
 }
 
@@ -52,9 +52,6 @@ TeamComponent::TeamComponent(int teamId) : teamId(teamId)
 }
 
 CameraComponent::CameraComponent()
-{
-}
-CameraComponent::CameraComponent(const std::string &target) : target(target)
 {
 }
 

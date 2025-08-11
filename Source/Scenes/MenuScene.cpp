@@ -2,6 +2,7 @@
 #include "Application.h"
 #include "Scenes/GameScene.h"
 #include "Scenes/BattleScene.h"
+#include "Scenes/RenderTestScene.h"
 #include "imgui.h"
 #include <memory>
 
@@ -65,6 +66,11 @@ void MenuScene::OnDebugDraw() {
     if (ImGui::Button("Switch to Battle Scene", ImVec2(200, 30))) {
         // Use the new XML loading system
         Elysium::Application::GetInstance().QueueScene("./Assets/Scene.xml");
+    }
+
+    if (ImGui::Button("Switch to Render Test Scene", ImVec2(200, 30))) {
+        auto renderTestScene = std::make_unique<RenderTestScene>();
+        Elysium::Application::GetInstance().QueueScene(std::move(renderTestScene));
     }
 
     ImGui::Separator();

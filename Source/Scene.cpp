@@ -259,7 +259,14 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
 
                 else if (componentType == "CameraComponent") {
                     std::string target = component->Attribute("target") ? component->Attribute("target") : "";
-                    world_->AddComponent(entity, CameraComponent(target));
+                    world_->AddComponent(entity, CameraComponent());
+                    
+                    // If there was a target, add a FollowComponent
+                    if (!target.empty()) {
+                        FollowComponent followComp;
+                        followComp.targetEntityName = target;
+                        world_->AddComponent(entity, followComp);
+                    }
                 }
                 else if (componentType == "LightComponent") {
                     float radius = component->FloatAttribute("radius", 50.0f);

@@ -9,52 +9,38 @@
 namespace Elysium::Systems {
 
 void CameraSystem::Update(float deltaTime) {
-    // Reset active camera
-    activeCamera_ = nullptr;
-
-    // Find all entities with CameraComponent
-    world->ForEachEntityWith<CameraComponent, PositionComponent>([&](Entity cameraEntity) {
-        auto& cameraComp = world->GetComponent<CameraComponent>(cameraEntity);
-        auto& cameraPos = world->GetComponent<PositionComponent>(cameraEntity);
+    // Update camera components that have follow behavior
+    world->ForEachEntityWith<CameraComponent, FollowComponent, PositionComponent>([&](Entity entity) {
+        auto& cameraComp = world->GetComponent<CameraComponent>(entity);
+        auto& followComp = world->GetComponent<FollowComponent>(entity);
+        auto& cameraPos = world->GetComponent<PositionComponent>(entity);
 
         // Find the target entity by name
         Entity targetEntity;
-        if (world->GetEntityByName(cameraComp.target, &targetEntity)) {
+        if (world->GetEntityByName(followComp.targetEntityName, &targetEntity)) {
             if (world->HasComponent<PositionComponent>(targetEntity)) {
                 auto& targetPos = world->GetComponent<PositionComponent>(targetEntity);
 
-                // Lerp the camera target directly (no separate position calculation)
-                Vector2 currentTarget = cameraComp.camera.target;
-                Vector2 newTarget = LerpVector2(currentTarget, {targetPos.x, targetPos.y}, lerpSpeed_ * deltaTime);
+                // Lerp the camera position
+                Vector2 currentPos = {cameraPos.x + cameraComp.position.x, cameraPos.y + cameraComp.position.y};
+                Vector2 newPos = LerpVector2(currentPos, {targetPos.x, targetPos.y}, lerpSpeed_ * deltaTime);
 
-                int bufferWidth = application->GetConfig().framebufferWidth;
-                int bufferHeight = application->GetConfig().framebufferHeight;
-
-                // Update the raylib Camera2D
-                cameraComp.camera.target = newTarget;
-                cameraComp.camera.offset = {bufferWidth / 2.0f, bufferHeight / 2.0f}; // Use framebuffer dimensions, not screen
-                cameraComp.camera.rotation = 0.0f;
-                cameraComp.camera.zoom = 2.0f;
-
-                // Set as active camera (use the first one found)
-                if (activeCamera_ == nullptr) {
-                    activeCamera_ = &cameraComp.camera;
-                }
+                // Update camera position relative to entity position
+                cameraComp.position = {newPos.x - cameraPos.x, newPos.y - cameraPos.y};
+                
+                // Update zoom
+                cameraComp.zoom = 2.0f;
             }
         }
     });
 }
 
 void CameraSystem::BeginCameraMode() {
-    if (activeCamera_ != nullptr) {
-        BeginMode2D(*activeCamera_);
-    }
+    // TODO: Implement camera mode for new camera system
 }
 
 void CameraSystem::EndCameraMode() {
-    if (activeCamera_ != nullptr) {
-        EndMode2D();
-    }
+    // TODO: Implement end camera mode for new camera system
 }
 
 Vector2 CameraSystem::LerpVector2(Vector2 start, Vector2 end, float t) {
