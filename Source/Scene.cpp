@@ -261,6 +261,15 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     std::string target = component->Attribute("target") ? component->Attribute("target") : "";
                     world_->AddComponent(entity, CameraComponent(target));
                 }
+                else if (componentType == "LightComponent") {
+                    float radius = component->FloatAttribute("radius", 50.0f);
+                    int r = component->IntAttribute("r", 255);
+                    int g = component->IntAttribute("g", 255);
+                    int b = component->IntAttribute("b", 255);
+                    int a = component->IntAttribute("a", 100);
+                    Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+                    world_->AddComponent(entity, LightComponent(color, radius));
+                }
                 else if (componentType == "TileComponent") {
                     world_->AddComponent(entity, TileComponent());
                 }

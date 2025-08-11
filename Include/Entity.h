@@ -103,6 +103,13 @@ struct CircleComponent
     CircleComponent(float r = 10.0f, Color background = {}, Color border = {});
 };
 
+struct LightComponent {
+    Color color;
+    float radius;
+    
+    LightComponent(Color c = WHITE, float r = 50.0f) : color(c), radius(r) {}
+};
+
 struct SpriteComponent
 {
     std::string textureName;

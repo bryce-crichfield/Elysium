@@ -26,12 +26,17 @@ struct TextData {
     Color color;
 };
 
+struct LightData {
+    Color color;
+    float radius;
+};
+
 struct RenderItem {
     Entity entity;
     int zIndex;
-    enum class Type { Rectangle, Circle, Text } type;
+    enum class Type { Rectangle, Circle, Text, Light } type;
     Vector2 position;
-    std::variant<RectangleData, CircleData, TextData> data;
+    std::variant<RectangleData, CircleData, TextData, LightData> data;
 };
 
 void RenderSystem::Render() {
@@ -79,6 +84,18 @@ void RenderSystem::Render() {
             item.data = TextData{text.content, text.fontSize, text.color};
             renderItems.push_back(item);
         }
+
+        // Check for LightComponent
+        if (world->HasComponent<LightComponent>(entity)) {
+            RenderItem item;
+            item.entity = entity;
+            item.position = {pos.x, pos.y};
+            item.zIndex = zIndex;
+            item.type = RenderItem::Type::Light;
+            auto& light = world->GetComponent<LightComponent>(entity);
+            item.data = LightData{light.color, light.radius};
+            renderItems.push_back(item);
+        }
     });
 
     // Sort by z-index
@@ -122,6 +139,14 @@ void RenderSystem::Render() {
                     centeredY,
                     text.fontSize,
                     text.color);
+        } else if (item.type == RenderItem::Type::Light) {
+            const auto& light = std::get<LightData>(item.data);
+            // Use additive blending to brighten the world
+            BeginBlendMode(BLEND_ADDITIVE);
+            DrawCircleV({item.position.x, item.position.y}, 
+                       light.radius, 
+                       light.color);
+            EndBlendMode();
         } else {
             throw std::runtime_error("Unknown render item type");
         }

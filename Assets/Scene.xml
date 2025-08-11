@@ -10,6 +10,7 @@
         <Layer name="default" z="0" />
         <Layer name="tile" z="1" />
         <Layer name="entity" z="2"/>
+        <Layer name="light" z="3"/>
     </Layers>
 
     <!--
@@ -91,6 +92,12 @@
             <TeamComponent teamId="1" />
             <CircleComponent radius="8" background="#ad0000" />
             <AnimationComponent />
+        </Entity>
+
+        <Entity name="LIGHT_1">
+            <LocationComponent x="3" y="3" />
+            <PositionComponent />
+            <!-- <LightComponent radius="80" r="255" g="200" b="100" a="60" /> -->
         </Entity>
     </Entities>
 </Scene>

@@ -178,6 +178,7 @@ World::World()
     RegisterComponent<PhysicsComponent>();
     RegisterComponent<AnimationComponent>();
     RegisterComponent<LayerComponent>();
+    RegisterComponent<LightComponent>();
     RegisterComponent<RectangleComponent>();
     RegisterComponent<CircleComponent>();
     RegisterComponent<SpriteComponent>();
