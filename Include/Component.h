@@ -121,6 +121,8 @@ struct SpriteComponent
     std::string markerName;
     std::string layerName = "default";
     int frameIndex = 0;  // Current frame within the marker
+    float frameDuration = 0.2f;  // Time per frame in seconds
+    float frameElapsed = 0.0f;   // Time elapsed on current frame
 
     SpriteComponent() = default;
     SpriteComponent(const Sprite& sprite, const std::string& marker, const std::string& layer = "default");

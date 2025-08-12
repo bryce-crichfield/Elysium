@@ -1,5 +1,6 @@
 <Scene type="BattleScene">
     <Systems>
+        <System type="SpriteSystem" />
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
         <System type="RenderSystem" />
@@ -63,7 +64,7 @@
         </Entity>
 
         <Entity name="ENTITY_0">
-            <LocationComponent x="0" y="1" />
+            <LocationComponent x="0" y="0" />
             <PositionComponent />
             <TeamComponent teamId="0" />
             <SpriteComponent

@@ -4,6 +4,7 @@
 #include "Systems/RenderSystem.h"
 #include "Systems/AnimationSystem.h"
 #include "Systems/CameraSystem.h"
+#include "Systems/SpriteSystem.h"
 #include "tinyxml2.h"
 #include "raylib.h"
 #include <sstream>
@@ -444,6 +445,10 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
             else if (systemName == "CameraSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::CameraSystem>(context));
                 TraceLog(LOG_INFO, "Loaded CameraSystem");
+            }
+            else if (systemName == "SpriteSystem") {
+                systems_.push_back(std::make_unique<Elysium::Systems::SpriteSystem>(context));
+                TraceLog(LOG_INFO, "Loaded SpriteSystem");
             }
             else {
                 TraceLog(LOG_WARNING, "Unknown system type: %s", systemName.c_str());

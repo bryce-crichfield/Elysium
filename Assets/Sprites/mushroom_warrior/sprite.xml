@@ -9,9 +9,9 @@
 
     <Sheet name="walk" file="mushroom_warrior_walk" width="256" height="256">
         <Frames rows="4" cols="4" frameWidth="64" frameHeight="64"/>
-        <Marker name="down" from="0" to="3"/>
+        <Marker name="up" from="0" to="3"/>
         <Marker name="left" from="4" to="7"/>
         <Marker name="right" from="8" to="11"/>
-        <Marker name="up" from="12" to="15"/>
+        <Marker name="down" from="12" to="15"/>
     </Sheet>
 </Sprite>

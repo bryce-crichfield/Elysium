@@ -138,7 +138,7 @@ bool AnimationSystem::ProcessAction(World& world, Entity entity, std::shared_ptr
 
                 return progress >= 1.0f;
             }
-            else if constexpr (std::is_same_v<T, PlayMarker>)
+            else if constexpr (std::is_same_v<T, SwitchMarker>)
             {
                 if (!world.HasComponent<SpriteComponent>(entity))
                 {
@@ -146,39 +146,13 @@ bool AnimationSystem::ProcessAction(World& world, Entity entity, std::shared_ptr
                 }
 
                 auto& spriteComponent = world.GetComponent<SpriteComponent>(entity);
-                act.elapsed += dt;
                 
-                // Calculate frame timing
-                int frameCount = spriteComponent.sprite.GetMarkerFrameCount(act.sheetName + "/" + act.markerName);
-                if (frameCount == 0) {
-                    return true; // Invalid marker
-                }
+                // Simply switch the marker and complete immediately
+                std::string fullMarkerName = act.sheetName + "/" + act.markerName;
+                spriteComponent.markerName = fullMarkerName;
+                spriteComponent.frameIndex = 0; // Reset to first frame of new marker
                 
-                float totalDuration = act.frameDuration * frameCount;
-                
-                if (act.loop) {
-                    // Loop the animation
-                    while (act.elapsed >= totalDuration) {
-                        act.elapsed -= totalDuration;
-                    }
-                }
-                
-                // Calculate current frame index
-                int newFrameIndex = static_cast<int>(act.elapsed / act.frameDuration);
-                newFrameIndex = std::min(newFrameIndex, frameCount - 1);
-                
-                // Update sprite component's frame index when frame changes
-                if (newFrameIndex != act.currentFrameIndex) {
-                    act.currentFrameIndex = newFrameIndex;
-                    spriteComponent.frameIndex = newFrameIndex;
-                }
-                
-                // Animation completes when we've gone through all frames and not looping
-                if (!act.loop && act.elapsed >= totalDuration) {
-                    return true;
-                }
-                
-                return false; // Keep running if looping or not finished
+                return true; // Always complete immediately
             }
             else if constexpr (std::is_same_v<T, Wait>)
             {
@@ -278,9 +252,9 @@ std::shared_ptr<Action> AnimationSystem::CopyAction(const std::shared_ptr<Action
             {
                 return std::make_shared<Action>(PlayFrames{act.start, act.end, act.duration});
             }
-            else if constexpr (std::is_same_v<T, PlayMarker>)
+            else if constexpr (std::is_same_v<T, SwitchMarker>)
             {
-                return std::make_shared<Action>(PlayMarker{act.sheetName, act.markerName, act.frameDuration, 0, 0, act.loop});
+                return std::make_shared<Action>(SwitchMarker{act.sheetName, act.markerName});
             }
             else if constexpr (std::is_same_v<T, Wait>)
             {
