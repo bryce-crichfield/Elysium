@@ -6,11 +6,11 @@
     </Systems>
 
     <Layers>
-        <Layer name="background" z="-1"/>
-        <Layer name="default" z="0" />
-        <Layer name="tile" z="1" />
-        <Layer name="entity" z="2"/>
-        <Layer name="light" z="3"/>
+        <Layer name="background" z="-1" type="Background" space="World" blend="Normal" />
+        <Layer name="default" z="0" type="World" space="World" blend="Normal" />
+        <Layer name="tile" z="1" type="World" space="World" blend="Normal" />
+        <Layer name="entity" z="2" type="World" space="World" blend="Normal" />
+        <Layer name="light" z="3" type="Lighting" space="World" blend="Additive" opacity="0.8" />
     </Layers>
 
     <!--
@@ -32,7 +32,7 @@
     In our game we represent tiles using Entities.  Tilemaps are just objects that contains useful functions
     for dealing with all the entities in a single tilemap.
     -->
-    <Tilemap width="8" height="8" z="-1">
+    <Tilemap width="8" height="8">
         <Tilemask>
             0 0 0 0 0 0 0 0
             0 0 0 0 0 0 0 0
@@ -45,7 +45,7 @@
         </Tilemask>
 
         <TileDefinitions>
-            <TileDefinition id="0" background="#00cece91" border="#ffffff"/>
+            <TileDefinition id="0" background="#00cece91" border="#ffffff" layerName="tile" />
         </TileDefinitions>
     </Tilemap>
 
@@ -54,7 +54,7 @@
         <Entity name="CAMERA">
             <PositionComponent />
             <CameraComponent target="ENTITY_0" />
-        </Entity>3
+        </Entity>
 
         <Entity name="CURSOR">
             <LocationComponent x="0" y="0" />
@@ -66,7 +66,7 @@
             <LocationComponent x="0" y="1" />
             <PositionComponent />
             <TeamComponent teamId="0" />
-            <CircleComponent radius="8" background="#00a2be" />
+            <CircleComponent radius="8" background="#00a2be" layerName="entity" />
             <AnimationComponent />
         </Entity>
 
@@ -74,7 +74,7 @@
             <LocationComponent x="1" y="0" />
             <PositionComponent />
             <TeamComponent teamId="0" />
-            <CircleComponent radius="8" background="#00a2be" />
+            <CircleComponent radius="8" background="#00a2be" layerName="entity" />
             <AnimationComponent />
         </Entity>
 
@@ -82,7 +82,7 @@
             <LocationComponent x="5" y="6" />
             <PositionComponent />
             <TeamComponent teamId="1" />
-            <CircleComponent radius="8" background="#ad0000" />
+            <CircleComponent radius="8" background="#ad0000" layerName="entity" />
             <AnimationComponent />
         </Entity>
 
@@ -90,14 +90,14 @@
             <LocationComponent x="6" y="5" />
             <PositionComponent />
             <TeamComponent teamId="1" />
-            <CircleComponent radius="8" background="#ad0000" />
+            <CircleComponent radius="8" background="#ad0000" layerName="entity" />
             <AnimationComponent />
         </Entity>
 
         <Entity name="LIGHT_1">
             <LocationComponent x="3" y="3" />
             <PositionComponent />
-            <!-- <LightComponent radius="80" r="255" g="200" b="100" a="60" /> -->
+            <LightComponent radius="80" r="255" g="200" b="100" a="60" layerName="light" />
         </Entity>
     </Entities>
 </Scene>

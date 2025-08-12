@@ -11,13 +11,7 @@
 #include <variant>
 #include <optional>
 namespace Elysium::Systems {
-
-
 void RenderSystem::Render() {
-    // Debug: Check if render system is being called (commented out for clean output)
-    // static int frameCount = 0;
-    // frameCount++;
-    
     // Final all active cameras (entities with CameraComponent)
     std::vector<std::pair<Entity, CameraComponent*>> cameras;
     world->ForEachEntityWith<CameraComponent>([&](Entity entity) {
@@ -26,10 +20,6 @@ void RenderSystem::Render() {
             cameras.push_back({entity, &camera});
         }
     });
-    
-    // if (frameCount % 60 == 0 && !cameras.empty()) {
-    //     TraceLog(LOG_INFO, "Found %d active cameras", (int)cameras.size());
-    // }
 
     // Sort cameras by render order
     std::sort(cameras.begin(), cameras.end(),
@@ -69,7 +59,6 @@ void RenderSystem::RenderCamera(Entity entity, const CameraComponent& camera, co
     );
 
     // Collects and group renderable entities by layer;
-    // We should probably be calculating this before we render the camera
     std::unordered_map<int, std::vector<RenderItem>> layerItems;
 
     world->ForEachEntityWith<PositionComponent>([&](Entity entity) {
@@ -80,7 +69,7 @@ void RenderSystem::RenderCamera(Entity entity, const CameraComponent& camera, co
         }
 
         auto& pos = world->GetComponent<PositionComponent>(entity);
-        
+
         // Get layer index - default to 0 if no LayerComponent
         int layerIndex = 0;
         if (world->HasComponent<LayerComponent>(entity)) {
@@ -104,13 +93,9 @@ void RenderSystem::RenderCamera(Entity entity, const CameraComponent& camera, co
         item.entity = entity;
         item.position = {pos.x, pos.y};
         item.renderable = renderable.value();
-        
+
         layerItems[layerIndex].push_back(item);
     });
-    
-    if (!layerItems.empty()) {
-        // TraceLog(LOG_DEBUG, "Found %d layers with renderable items", (int)layerItems.size());
-    }
 
     // Render layers in order
     std::vector<int> sortedLayers;
@@ -184,9 +169,18 @@ Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, const Camera
             return MatrixIdentity();
         }
         case LayerComponent::Space::World: {
-            Matrix translation = MatrixTranslate(-camera.position.x, -camera.position.y, 0);
+            // Center the viewport - translate to center of camera viewport
+            Vector2 viewportCenter = {
+                camera.viewport.width * 0.5f,
+                camera.viewport.height * 0.5f
+            };
+
+            Matrix centerTranslation = MatrixTranslate(viewportCenter.x, viewportCenter.y, 0);
             Matrix scale = MatrixScale(camera.zoom, camera.zoom, 1.0f);
-            return MatrixMultiply(translation, scale);
+            Matrix cameraTranslation = MatrixTranslate(-camera.position.x, -camera.position.y, 0);
+
+            // Apply in order: camera translation -> scale -> center in viewport
+            return MatrixMultiply(MatrixMultiply(cameraTranslation, scale), centerTranslation);
         }
         case LayerComponent::Space::Parallax: {
             Vector2 parallaxOffset = {
@@ -230,7 +224,7 @@ std::string RenderSystem::GetLayerName(const std::optional<Renderable>& renderab
     if (!renderable.has_value()) {
         return "default";
     }
-    
+
     return std::visit([](const auto& component) -> std::string {
         return component.layerName;
     }, renderable.value());
@@ -239,7 +233,7 @@ std::string RenderSystem::GetLayerName(const std::optional<Renderable>& renderab
 void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent& layer) {
     std::visit([&](const auto& component) {
         using T = std::decay_t<decltype(component)>;
-        
+
         if constexpr (std::is_same_v<T, RectangleComponent>) {
             float topLeftX = item.position.x - component.width * 0.5f;
             float topLeftY = item.position.y - component.height * 0.5f;
@@ -264,10 +258,9 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
             DrawCircleV({item.position.x, item.position.y}, component.radius, component.color);
         }
         else if constexpr (std::is_same_v<T, SpriteComponent>) {
-            // TODO: Implement sprite rendering
+            // TODO: Implement sprite renderinge
             DrawRectangleV({item.position.x - 16, item.position.y - 16}, {32, 32}, component.tint);
         }
     }, item.renderable);
 }
-
 } // namespace Elysium::Systems

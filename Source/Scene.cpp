@@ -84,6 +84,7 @@ void ProcessIncludes(XMLDocument& doc, const std::string& basePath) {
 }
 
 void Scene::LoadFromXML(const std::string& xmlPath) {
+    TraceLog(LOG_INFO, "Loading scene from XML: %s", xmlPath.c_str());
     XMLDocument doc;
 
     if (doc.LoadFile(xmlPath.c_str()) != XML_SUCCESS) {
@@ -91,6 +92,8 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                 xmlPath.c_str(), doc.ErrorStr());
         return;
     }
+    
+    TraceLog(LOG_INFO, "XML file loaded successfully");
 
     ProcessIncludes(doc, "");
 
@@ -98,6 +101,66 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
     if (!root) {
         TraceLog(LOG_ERROR, "Invalid scene file format. Using defaults.");
         return;
+    }
+
+    // Load layers first - these define the layer structure for rendering
+    if (XMLElement *layersElement = root->FirstChildElement("Layers")) {
+        TraceLog(LOG_INFO, "Processing Layers section");
+        FOREACH("Layer", xmlLayer, layersElement) {
+            const char* name = xmlLayer->Attribute("name");
+            int zIndex = xmlLayer->IntAttribute("z", 0);
+            const char* typeStr = xmlLayer->Attribute("type");
+            const char* spaceStr = xmlLayer->Attribute("space");
+            const char* blendStr = xmlLayer->Attribute("blend");
+            float opacity = xmlLayer->FloatAttribute("opacity", 1.0f);
+            bool isVisible = xmlLayer->BoolAttribute("isVisible", true);
+            
+            Entity layerEntity = world_->CreateEntity(std::string("Layer_") + (name ? name : "default"));
+            
+            LayerComponent layerComp;
+            layerComp.zIndex = zIndex;
+            layerComp.name = name ? name : "default";
+            layerComp.opacity = opacity;
+            layerComp.isVisible = isVisible;
+            
+            // Parse type - default to World for gameplay layers
+            if (typeStr) {
+                std::string type = typeStr;
+                if (type == "Background") layerComp.type = LayerComponent::Type::Background;
+                else if (type == "World") layerComp.type = LayerComponent::Type::World;
+                else if (type == "Lighting") layerComp.type = LayerComponent::Type::Lighting;
+                else if (type == "Overlay") layerComp.type = LayerComponent::Type::Overlay;
+                else layerComp.type = LayerComponent::Type::World;
+            } else {
+                layerComp.type = LayerComponent::Type::World;
+            }
+            
+            // Parse space - default to World for gameplay layers
+            if (spaceStr) {
+                std::string space = spaceStr;
+                if (space == "Screen") layerComp.space = LayerComponent::Space::Screen;
+                else if (space == "World") layerComp.space = LayerComponent::Space::World;
+                else if (space == "Parallax") layerComp.space = LayerComponent::Space::Parallax;
+                else layerComp.space = LayerComponent::Space::World;
+            } else {
+                layerComp.space = LayerComponent::Space::World;
+            }
+            
+            // Parse blend - default to Normal
+            if (blendStr) {
+                std::string blend = blendStr;
+                if (blend == "Normal") layerComp.blend = LayerComponent::Blend::Normal;
+                else if (blend == "Additive") layerComp.blend = LayerComponent::Blend::Additive;
+                else if (blend == "Multiply") layerComp.blend = LayerComponent::Blend::Multiply;
+                else if (blend == "Alpha") layerComp.blend = LayerComponent::Blend::Alpha;
+                else layerComp.blend = LayerComponent::Blend::Normal;
+            } else {
+                layerComp.blend = LayerComponent::Blend::Normal;
+            }
+            
+            world_->AddComponent(layerEntity, layerComp);
+            TraceLog(LOG_INFO, "Created layer '%s' with z-index %d", layerComp.name.c_str(), layerComp.zIndex);
+        }
     }
 
     // Load tilemaps
@@ -136,14 +199,17 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
         }
 
         if (XMLElement *xmlTileDefinitions = tilemap->FirstChildElement("TileDefinitions")) {
+            TraceLog(LOG_INFO, "Processing TileDefinitions");
             FOREACH("TileDefinition", xmlTileDefinition, xmlTileDefinitions) {
                 int id = xmlTileDefinition->IntAttribute("id", 0);
                 std::string backgroundHex = xmlTileDefinition->Attribute("background") ? xmlTileDefinition->Attribute("background") : "";
                 std::string borderHex = xmlTileDefinition->Attribute("border") ? xmlTileDefinition->Attribute("border") : "";
+                const char* layerName = xmlTileDefinition->Attribute("layerName");
                 Color backgroundColor = ParseHexColor(backgroundHex, BLANK);
                 Color borderColor = ParseHexColor(borderHex, BLANK);
 
-                tileDefinitions[id] = RectangleComponent(32, 32, backgroundColor, borderColor);
+                tileDefinitions[id] = RectangleComponent(32, 32, backgroundColor, borderColor, layerName ? layerName : "tile");
+                TraceLog(LOG_INFO, "Created tile definition %d with layer '%s'", id, layerName ? layerName : "tile");
             }
         }
 
@@ -158,18 +224,23 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
     }
 
     // Load entities
+    TraceLog(LOG_INFO, "Starting entity loading");
     int count = 0;
     if (XMLElement *entities = root->FirstChildElement("Entities")) {
+        TraceLog(LOG_INFO, "Processing Entities section");
         FOREACH("Entity", xmlEntity, entities) {
             const char* entityName = xmlEntity->Attribute("name");
             Entity entity = world_->CreateEntity(entityName);
             count++;
 
+            TraceLog(LOG_INFO, "Created entity: %s", entityName ? entityName : "unnamed");
+            
             for (XMLElement* component = xmlEntity->FirstChildElement();
                 component != nullptr;
                 component = component->NextSiblingElement()) {
                 // Parse the components
                 std::string componentType = component->Name();
+                TraceLog(LOG_INFO, "Processing component: %s", componentType.c_str());
 
                 if (componentType == "PositionComponent") {
                     float x = component->FloatAttribute("x", 0.0f);
@@ -190,29 +261,79 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     world_->AddComponent(entity, AnimationComponent());
                 }
                 else if (componentType == "LayerComponent") {
-                    int z = component->IntAttribute("z");
-                    world_->AddComponent(entity, LayerComponent(z));
+                    int zIndex = component->IntAttribute("z", 0);
+                    const char* name = component->Attribute("name");
+                    const char* typeStr = component->Attribute("type");
+                    const char* spaceStr = component->Attribute("space");
+                    const char* blendStr = component->Attribute("blend");
+                    float opacity = component->FloatAttribute("opacity", 1.0f);
+                    bool isVisible = component->BoolAttribute("isVisible", true);
+                    
+                    LayerComponent layerComp;
+                    layerComp.zIndex = zIndex;
+                    layerComp.name = name ? name : "default";
+                    layerComp.opacity = opacity;
+                    layerComp.isVisible = isVisible;
+                    
+                    // Parse type
+                    if (typeStr) {
+                        std::string type = typeStr;
+                        if (type == "Background") layerComp.type = LayerComponent::Type::Background;
+                        else if (type == "World") layerComp.type = LayerComponent::Type::World;
+                        else if (type == "Lighting") layerComp.type = LayerComponent::Type::Lighting;
+                        else if (type == "Overlay") layerComp.type = LayerComponent::Type::Overlay;
+                        else layerComp.type = LayerComponent::Type::World;
+                    } else {
+                        layerComp.type = LayerComponent::Type::World;
+                    }
+                    
+                    // Parse space
+                    if (spaceStr) {
+                        std::string space = spaceStr;
+                        if (space == "Screen") layerComp.space = LayerComponent::Space::Screen;
+                        else if (space == "World") layerComp.space = LayerComponent::Space::World;
+                        else if (space == "Parallax") layerComp.space = LayerComponent::Space::Parallax;
+                        else layerComp.space = LayerComponent::Space::World;
+                    } else {
+                        layerComp.space = LayerComponent::Space::World;
+                    }
+                    
+                    // Parse blend
+                    if (blendStr) {
+                        std::string blend = blendStr;
+                        if (blend == "Normal") layerComp.blend = LayerComponent::Blend::Normal;
+                        else if (blend == "Additive") layerComp.blend = LayerComponent::Blend::Additive;
+                        else if (blend == "Multiply") layerComp.blend = LayerComponent::Blend::Multiply;
+                        else if (blend == "Alpha") layerComp.blend = LayerComponent::Blend::Alpha;
+                        else layerComp.blend = LayerComponent::Blend::Normal;
+                    } else {
+                        layerComp.blend = LayerComponent::Blend::Normal;
+                    }
+                    
+                    world_->AddComponent(entity, layerComp);
                 }
                 else if (componentType == "RectangleComponent") {
                     float width = component->FloatAttribute("width", 100.0f);
                     float height = component->FloatAttribute("height", 100.0f);
                     std::string backgroundHex = component->Attribute("background") ? component->Attribute("background") : "";
                     std::string borderHex = component->Attribute("border") ? component->Attribute("border") : "";
+                    const char* layerName = component->Attribute("layerName");
 
                     Color backgroundColor = ParseHexColor(backgroundHex, BLANK);
                     Color borderColor = ParseHexColor(borderHex, BLANK);
 
-                    world_->AddComponent(entity, RectangleComponent(width, height, backgroundColor, borderColor));
+                    world_->AddComponent(entity, RectangleComponent(width, height, backgroundColor, borderColor, layerName ? layerName : "default"));
                 }
                 else if (componentType == "CircleComponent") {
                     float radius = component->FloatAttribute("radius", 10.0f);
                     std::string backgroundHex = component->Attribute("background") ? component->Attribute("background") : "";
                     std::string borderHex = component->Attribute("border") ? component->Attribute("border") : "";
+                    const char* layerName = component->Attribute("layerName");
 
                     Color backgroundColor = ParseHexColor(backgroundHex, BLANK);
                     Color borderColor = ParseHexColor(borderHex, BLANK);
 
-                    world_->AddComponent(entity, CircleComponent(radius, backgroundColor, borderColor));
+                    world_->AddComponent(entity, CircleComponent(radius, backgroundColor, borderColor, layerName ? layerName : "default"));
                 }
                 else if (componentType == "PhysicsComponent") {
                     float mass = component->FloatAttribute("mass", 1.0f);
@@ -231,6 +352,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     int g = component->IntAttribute("g", 255);
                     int b = component->IntAttribute("b", 255);
                     int a = component->IntAttribute("a", 255);
+                    const char* layerName = component->Attribute("layerName");
                     Color tint = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
 
                     world_->AddComponent(entity, SpriteComponent(
@@ -238,7 +360,8 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                         frame ? frame : "",
                         {scaleX, scaleY},
                         rotation,
-                        tint
+                        tint,
+                        layerName ? layerName : "default"
                     ));
                 }
                 else if (componentType == "TextComponent") {
@@ -248,12 +371,14 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     int g = component->IntAttribute("g", 0);
                     int b = component->IntAttribute("b", 0);
                     int a = component->IntAttribute("a", 255);
+                    const char* layerName = component->Attribute("layerName");
                     Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
 
                     world_->AddComponent(entity, TextComponent(
                         content ? content : "",
                         fontSize,
-                        color
+                        color,
+                        layerName ? layerName : "default"
                     ));
                 }
 
@@ -274,8 +399,9 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     int g = component->IntAttribute("g", 255);
                     int b = component->IntAttribute("b", 255);
                     int a = component->IntAttribute("a", 100);
+                    const char* layerName = component->Attribute("layerName");
                     Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
-                    world_->AddComponent(entity, LightComponent(color, radius));
+                    world_->AddComponent(entity, LightComponent(color, radius, layerName ? layerName : "default"));
                 }
                 else if (componentType == "TileComponent") {
                     world_->AddComponent(entity, TileComponent());
@@ -360,26 +486,10 @@ void Scene::OnUpdate(float deltaTime) {
 }
 
 void Scene::OnDraw(Rectangle screen) {
-    // Find camera system and begin camera mode
-    Elysium::Systems::CameraSystem* cameraSystem = nullptr;
-    for (auto& system : systems_) {
-        cameraSystem = dynamic_cast<Elysium::Systems::CameraSystem*>(system.get());
-        if (cameraSystem) break;
-    }
-
-    // Begin camera mode if we have a camera system with active camera
-    if (cameraSystem && cameraSystem->HasActiveCamera()) {
-        cameraSystem->BeginCameraMode();
-    }
-
-    // Render all systems
+    // RenderSystem now handles all camera rendering internally
+    // Just render all systems - no need for manual camera management
     for (auto& system : systems_) {
         system->Render();
-    }
-
-    // End camera mode if it was started
-    if (cameraSystem && cameraSystem->HasActiveCamera()) {
-        cameraSystem->EndCameraMode();
     }
 }
 

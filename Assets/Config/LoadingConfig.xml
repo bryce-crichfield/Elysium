@@ -59,7 +59,7 @@
             <Image>./Assets/Textures/Loading/background3.png</Image>
         </Images>
         <CycleTime>2.0</CycleTime> <!-- seconds between image changes -->
-        <Music>./Assets/song1/music.mp3</Music>
+        <Music>./Assets/Audio/music.mp3</Music>
     </Background>
 
     <Tooltips>

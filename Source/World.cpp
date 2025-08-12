@@ -23,7 +23,7 @@ AnimationComponent::AnimationComponent()
 {
 }
 
-LayerComponent::LayerComponent(int z) : zIndex(z) {}
+LayerComponent::LayerComponent(int z) : zIndex(z), type(Type::World), space(Space::World), blend(Blend::Normal) {}
 
 RectangleComponent::RectangleComponent(float width, float height, Color background, Color border, const std::string& layer)
     : width(width), height(height), background(background), border(border), layerName(layer)
@@ -52,6 +52,7 @@ TeamComponent::TeamComponent(int teamId) : teamId(teamId)
 }
 
 CameraComponent::CameraComponent()
+    : position({0.0f, 0.0f}), zoom(1.0f), viewport({0, 0, 800, 600}), renderOrder(0), isVisible(true)
 {
 }
 
@@ -181,6 +182,7 @@ World::World()
     RegisterComponent<SpriteComponent>();
     RegisterComponent<TextComponent>();
     RegisterComponent<CameraComponent>();
+    RegisterComponent<FollowComponent>();
     RegisterComponent<TileComponent>();
     RegisterComponent<TeamComponent>();
 }

@@ -62,7 +62,7 @@ bool Application::Initialize(const std::string& configPath) {
         assetService_.Initialize();
         networkService_.Initialize();
         logService_.Initialize();
-        loadingService_.Initialize();
+        // loadingService_.Initialize(); // Temporarily disabled for testing Scene.xml loading
 
         initialized_ = true;
         LOG_SERVICE_INFO("Application", "Engine initialization complete");

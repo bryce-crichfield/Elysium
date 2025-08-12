@@ -10,10 +10,9 @@ namespace Elysium::Systems {
 
 void CameraSystem::Update(float deltaTime) {
     // Update camera components that have follow behavior
-    world->ForEachEntityWith<CameraComponent, FollowComponent, PositionComponent>([&](Entity entity) {
+    world->ForEachEntityWith<CameraComponent, FollowComponent>([&](Entity entity) {
         auto& cameraComp = world->GetComponent<CameraComponent>(entity);
         auto& followComp = world->GetComponent<FollowComponent>(entity);
-        auto& cameraPos = world->GetComponent<PositionComponent>(entity);
 
         // Find the target entity by name
         Entity targetEntity;
@@ -21,26 +20,22 @@ void CameraSystem::Update(float deltaTime) {
             if (world->HasComponent<PositionComponent>(targetEntity)) {
                 auto& targetPos = world->GetComponent<PositionComponent>(targetEntity);
 
-                // Lerp the camera position
-                Vector2 currentPos = {cameraPos.x + cameraComp.position.x, cameraPos.y + cameraComp.position.y};
-                Vector2 newPos = LerpVector2(currentPos, {targetPos.x, targetPos.y}, lerpSpeed_ * deltaTime);
+                // Lerp the camera position to follow the target
+                Vector2 targetCameraPos = {targetPos.x, targetPos.y};
+                Vector2 currentCameraPos = cameraComp.position;
+                Vector2 newCameraPos = LerpVector2(currentCameraPos, targetCameraPos, lerpSpeed_ * deltaTime);
 
-                // Update camera position relative to entity position
-                cameraComp.position = {newPos.x - cameraPos.x, newPos.y - cameraPos.y};
-                
-                // Update zoom
+                // Update camera position directly
+                cameraComp.position = newCameraPos;
+
+                // Set reasonable zoom
                 cameraComp.zoom = 2.0f;
             }
         }
     });
-}
 
-void CameraSystem::BeginCameraMode() {
-    // TODO: Implement camera mode for new camera system
-}
-
-void CameraSystem::EndCameraMode() {
-    // TODO: Implement end camera mode for new camera system
+    // Note: Viewport setup should be handled by the scene/application
+    // We don't modify viewport here since we respect framebuffer rendering
 }
 
 Vector2 CameraSystem::LerpVector2(Vector2 start, Vector2 end, float t) {

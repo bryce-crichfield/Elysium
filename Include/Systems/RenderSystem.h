@@ -23,7 +23,7 @@ class RenderSystem : public System {
 public:
     using Layers = std::unordered_map<int, std::pair<Entity, LayerComponent*>>;
     using CameraEntity = std::pair<Entity, CameraComponent>;
-    
+
     RenderSystem(Context context) : System(context) {}
 
     void Update(float deltaTime) override {}
@@ -37,7 +37,6 @@ private:
     void RenderSingleItem(const RenderItem& item, const LayerComponent& layer);
     void ApplyBlendMode(const LayerComponent::Blend& blend);
     Matrix GetLayerTransform(const LayerComponent& layer, const CameraComponent& camera);
-
 };
 
 } // namespace Elysium::Systems

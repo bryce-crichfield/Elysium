@@ -17,7 +17,8 @@
       "Bash(g++:*)",
       "Bash(ls:*)",
       "Bash(pacman:*)",
-      "Bash(C:msys64usrbinpacman -S --needed mingw-w64-x86_64-gdb)"
+      "Bash(C:msys64usrbinpacman -S --needed mingw-w64-x86_64-gdb)",
+      "Bash(.build.ps1)"
     ],
     "deny": []
   }
