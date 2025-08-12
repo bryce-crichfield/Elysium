@@ -133,9 +133,52 @@ bool AnimationSystem::ProcessAction(World& world, Entity entity, std::shared_ptr
                 float progress = act.elapsed / act.duration;
                 int frameRange = act.end - act.start;
                 act.currentFrame = act.start + static_cast<int>(progress * frameRange);
-                sprite.frame = act.currentFrame;
+                // TODO: Update sprite marker based on currentFrame
+                // For now, we'll skip updating the sprite
 
                 return progress >= 1.0f;
+            }
+            else if constexpr (std::is_same_v<T, PlayMarker>)
+            {
+                if (!world.HasComponent<SpriteComponent>(entity))
+                {
+                    return true;
+                }
+
+                auto& spriteComponent = world.GetComponent<SpriteComponent>(entity);
+                act.elapsed += dt;
+                
+                // Calculate frame timing
+                int frameCount = spriteComponent.sprite.GetMarkerFrameCount(act.sheetName + "/" + act.markerName);
+                if (frameCount == 0) {
+                    return true; // Invalid marker
+                }
+                
+                float totalDuration = act.frameDuration * frameCount;
+                
+                if (act.loop) {
+                    // Loop the animation
+                    while (act.elapsed >= totalDuration) {
+                        act.elapsed -= totalDuration;
+                    }
+                }
+                
+                // Calculate current frame index
+                int newFrameIndex = static_cast<int>(act.elapsed / act.frameDuration);
+                newFrameIndex = std::min(newFrameIndex, frameCount - 1);
+                
+                // Update sprite component's frame index when frame changes
+                if (newFrameIndex != act.currentFrameIndex) {
+                    act.currentFrameIndex = newFrameIndex;
+                    spriteComponent.frameIndex = newFrameIndex;
+                }
+                
+                // Animation completes when we've gone through all frames and not looping
+                if (!act.loop && act.elapsed >= totalDuration) {
+                    return true;
+                }
+                
+                return false; // Keep running if looping or not finished
             }
             else if constexpr (std::is_same_v<T, Wait>)
             {
@@ -234,6 +277,10 @@ std::shared_ptr<Action> AnimationSystem::CopyAction(const std::shared_ptr<Action
             else if constexpr (std::is_same_v<T, PlayFrames>)
             {
                 return std::make_shared<Action>(PlayFrames{act.start, act.end, act.duration});
+            }
+            else if constexpr (std::is_same_v<T, PlayMarker>)
+            {
+                return std::make_shared<Action>(PlayMarker{act.sheetName, act.markerName, act.frameDuration, 0, 0, act.loop});
             }
             else if constexpr (std::is_same_v<T, Wait>)
             {

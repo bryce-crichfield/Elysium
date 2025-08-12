@@ -14,6 +14,9 @@ BattleScene::BattleScene() : Scene("BattleScene") {
 }
 
 void BattleScene::OnEnter() {
+    // Call base class to handle deferred XML loading
+    Scene::OnEnter();
+    
     TraceLog(LOG_INFO, "Entering Battle Scene - Action Composition Demo");
 
     // // Setup Hero (RedBall) with composable action sequences
@@ -55,7 +58,7 @@ void BattleScene::OnEnter() {
         // Get the existing AnimationComponent (loaded from XML) instead of creating new one
         auto& patrolAnimation = world_->GetComponent<AnimationComponent>(patrolEntity);
 
-        // Create a patrol loop that moves ENTITY_0 around the map in a square pattern
+        // Create a parallel action that combines movement and sprite animation
         auto patrolLoop = Fx::Loop(
             []() { return true; }, // Always true = infinite loop
             Fx::Sequence(
@@ -69,8 +72,17 @@ void BattleScene::OnEnter() {
                 Fx::Wait(0.5f)           // Complete the square
             )
         );
-
-        patrolAnimation.actionQueue.push(patrolLoop);
+        
+        // Create a sprite animation that loops the idle animation
+        auto idleAnimation = Fx::Loop(
+            []() { return true; }, // Always true = infinite loop
+            Fx::PlayMarker("idle", "down", 0.3f, true) // Play "idle/down" marker, 0.3s per frame, loop
+        );
+        
+        // Run movement and sprite animation in parallel
+        auto parallelAction = Fx::Parallel(patrolLoop, idleAnimation);
+        
+        patrolAnimation.actionQueue.push(parallelAction);
     }
 }
 
@@ -92,7 +104,11 @@ void BattleScene::OnExit() {
 
 std::vector<Asset> BattleScene::GetAssets() {
     return {
-        Asset(AssetType::MUSIC, "music", "./Assets/sounds/music.mp3")
+        Asset(AssetType::MUSIC, "music", "./Assets/sounds/music.mp3"),
+
+        Asset(AssetType::TEXTURE, "mushroom_warrior_idle", "./Assets/Sprites/mushroom_warrior/mushroom_warrior_idle.png"),
+        Asset(AssetType::TEXTURE, "mushroom_warrior_walk", "./Assets/Sprites/mushroom_warrior/mushroom_warrior_walk.png"),
+        Asset(AssetType::SPRITE, "mushroom_warrior", "./Assets/Sprites/mushroom_warrior/sprite.xml")
     };
 }
 }

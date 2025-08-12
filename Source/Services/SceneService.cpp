@@ -70,8 +70,8 @@ void SceneService::QueueScene(const std::string& xmlPath) {
     // Create the scene using the factory
     std::unique_ptr<Scene> scene = factoryIt->second();
     
-    // Load the scene data from XML
-    scene->LoadFromXML(xmlPath);
+    // Store the XML path for later loading after assets are available
+    scene->SetXmlPath(xmlPath);
     
     // Queue the scene transition
     QueueScene(std::move(scene));

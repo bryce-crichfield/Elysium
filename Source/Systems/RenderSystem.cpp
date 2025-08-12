@@ -12,20 +12,25 @@
 #include <optional>
 namespace Elysium::Systems {
 void RenderSystem::Render() {
-    // Final all active cameras (entities with CameraComponent)
-    std::vector<std::pair<Entity, CameraComponent*>> cameras;
+    // Find the first active camera
+    Entity cameraEntity;
+    CameraComponent* camera = nullptr;
+    bool foundCamera = false;
+
     world->ForEachEntityWith<CameraComponent>([&](Entity entity) {
-        auto& camera = world->GetComponent<CameraComponent>(entity);
-        if (camera.isVisible) {
-            cameras.push_back({entity, &camera});
+        if (!foundCamera) {
+            auto& cameraComp = world->GetComponent<CameraComponent>(entity);
+            if (cameraComp.isVisible) {
+                cameraEntity = entity;
+                camera = &cameraComp;
+                foundCamera = true;
+            }
         }
     });
 
-    // Sort cameras by render order
-    std::sort(cameras.begin(), cameras.end(),
-            [](const auto& a, const auto& b) {
-                return a.second->renderOrder < b.second->renderOrder;
-            });
+    if (!foundCamera || !camera) {
+        throw std::runtime_error("No active camera found. Scene must have at least one visible CameraComponent.");
+    }
 
     // Build layer definition lookup = layerIndex -> <Entity, LayerComponent>
     Layers layers;
@@ -37,10 +42,8 @@ void RenderSystem::Render() {
         }
     });
 
-    // Render each camera's view
-    for (auto& camera : cameras) {
-        RenderCamera(camera.first, *camera.second, layers);
-    }
+    // Render the single camera view
+    RenderCamera(cameraEntity, *camera, layers);
 }
 
 void RenderSystem::RenderCamera(Entity entity, const CameraComponent& camera, const Layers& layers) {
@@ -258,8 +261,31 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
             DrawCircleV({item.position.x, item.position.y}, component.radius, component.color);
         }
         else if constexpr (std::is_same_v<T, SpriteComponent>) {
-            // TODO: Implement sprite renderinge
-            DrawRectangleV({item.position.x - 16, item.position.y - 16}, {32, 32}, component.tint);
+            const Sprite& sprite = component.sprite;
+            const std::string& marker = component.markerName;
+            
+            // Use GetMarkerFrameClip to get the specific frame within the marker
+            Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
+            std::string textureName = sprite.GetMarkerTextureName(marker);
+
+            if (!textureName.empty() && sourceRect.width > 0 && sourceRect.height > 0) {
+                auto& assets = Application::GetInstance().GetAssetService();
+                Texture2D texture = assets.GetTexture(textureName);
+
+                if (texture.id != 0) {
+                    
+                    // For grid alignment, we want sprites to be centered on their tile position
+                    // Since sprites might be larger than tiles, we center them properly
+                    Rectangle destRect = {
+                        item.position.x - sourceRect.width * 0.5f,
+                        item.position.y - sourceRect.height * 0.5f,
+                        sourceRect.width,
+                        sourceRect.height
+                    };
+                    Vector2 origin = {0, 0};
+                    DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
+                }
+            }
         }
     }, item.renderable);
 }

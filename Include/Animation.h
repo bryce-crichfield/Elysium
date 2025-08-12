@@ -38,6 +38,16 @@ struct PlayFrames
     int currentFrame = 0;
 };
 
+struct PlayMarker
+{
+    std::string sheetName;  // e.g., "idle", "walk"
+    std::string markerName; // e.g., "down", "up"
+    float frameDuration;    // Duration per frame in seconds
+    float elapsed = 0;
+    int currentFrameIndex = 0;
+    bool loop = true;
+};
+
 struct Wait
 {
     float duration, elapsed = 0;
@@ -74,7 +84,7 @@ struct Loop
     std::shared_ptr<Action> current = nullptr;
 };
 
-using ActionVariant = std::variant<MoveTo, MoveBy, PlayFrames, Wait, Callback, Sequence, Parallel, Repeat, Loop>;
+using ActionVariant = std::variant<MoveTo, MoveBy, PlayFrames, PlayMarker, Wait, Callback, Sequence, Parallel, Repeat, Loop>;
 
 struct Action
 {
@@ -100,6 +110,10 @@ inline auto MoveBy = [](float x, float y, float duration = 1.0f) {
 
 inline auto PlayFrames = [](int start, int end, float duration = 1.0f) {
     return MakeAction(Elysium::PlayFrames{start, end, duration});
+};
+
+inline auto PlayMarker = [](const std::string& sheetName, const std::string& markerName, float frameDuration = 0.2f, bool loop = true) {
+    return MakeAction(Elysium::PlayMarker{sheetName, markerName, frameDuration, 0, 0, loop});
 };
 
 inline auto Wait = [](float duration) { return MakeAction(Elysium::Wait{duration}); };

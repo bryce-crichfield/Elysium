@@ -1,4 +1,5 @@
 #include "Entity.h"
+#include "Sprite.h"
 
 namespace Elysium
 {
@@ -35,8 +36,8 @@ CircleComponent::CircleComponent(float r, Color background, Color border, const 
 {
 }
 
-SpriteComponent::SpriteComponent(const std::string &name, const std::string &f, Vector2 s, float rot, Color t, const std::string& layer)
-    : textureName(name), frame(f), scale(s), rotation(rot), tint(t), layerName(layer)
+SpriteComponent::SpriteComponent(const Sprite& sprite, const std::string& marker, const std::string& layer)
+    : sprite(sprite), markerName(marker), layerName(layer)
 {
 }
 

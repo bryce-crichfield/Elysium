@@ -48,6 +48,14 @@ Shader Asset::GetShader() const {
     return std::get<Shader>(data_);
 }
 
+Sprite Asset::GetSprite() const {
+    if (type_ != AssetType::SPRITE || !loaded_) {
+        return {};
+    }
+
+    return std::get<Sprite>(data_);
+}
+
 void Asset::SetTexture(const Texture2D& texture) {
     if (type_ == AssetType::TEXTURE) {
         data_ = texture;
@@ -100,6 +108,13 @@ void Asset::SetWaveData(const Wave& wave) {
     hasWaveData_ = true;
 }
 
+void Asset::SetSprite(const Sprite& sprite) {
+    if (type_ == AssetType::SPRITE) {
+        data_ = sprite;
+        loaded_ = true;
+    }
+}
+
 void Asset::Unload() {
     if (loaded_) {
         switch (type_) {
@@ -124,13 +139,13 @@ void Asset::Unload() {
         }
         loaded_ = false;
     }
-    
+
     // Unload raw data
     if (hasImageData_) {
         ::UnloadImage(imageData_);
         hasImageData_ = false;
     }
-    
+
     if (hasWaveData_) {
         ::UnloadWave(waveData_);
         hasWaveData_ = false;

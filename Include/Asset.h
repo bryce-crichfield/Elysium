@@ -3,6 +3,7 @@
 #include "raylib.h"
 #include <string>
 #include <variant>
+#include "Sprite.h"
 
 namespace Elysium {
 
@@ -14,7 +15,8 @@ enum class AssetType {
     MUSIC,
     FONT,
     MODEL,
-    SHADER
+    SHADER,
+    SPRITE
 };
 
 class Asset {
@@ -29,7 +31,7 @@ public:
     bool IsLoaded() const { return loaded_; }
     bool HasImageData() const { return hasImageData_; }
     bool HasWaveData() const { return hasWaveData_; }
-    
+
     Texture2D GetTexture() const;
     Sound GetSound() const;
     Music GetMusic() const;
@@ -38,7 +40,8 @@ public:
     Shader GetShader() const;
     Image GetImageData() const { return imageData_; }
     Wave GetWaveData() const { return waveData_; }
-    
+    Sprite GetSprite() const;
+
     void SetTexture(const Texture2D& texture);
     void SetSound(const Sound& sound);
     void SetMusic(const Music& music);
@@ -47,7 +50,8 @@ public:
     void SetShader(const Shader& shader);
     void SetImageData(const Image& image);
     void SetWaveData(const Wave& wave);
-    
+    void SetSprite(const Sprite& sprite);
+
     void Unload();
 
 private:
@@ -57,8 +61,8 @@ private:
     bool loaded_ = false;
     bool hasImageData_ = false;
     bool hasWaveData_ = false;
-    
-    std::variant<Texture2D, Sound, Music, Font, Model, Shader> data_;
+
+    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite> data_;
     Image imageData_{};
     Wave waveData_{};
 };

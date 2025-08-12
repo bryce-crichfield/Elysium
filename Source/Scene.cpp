@@ -343,26 +343,22 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     world_->AddComponent(entity, PhysicsComponent(mass, restitution, friction, affectedByGravity));
                 }
                 else if (componentType == "SpriteComponent") {
-                    const char* textureName = component->Attribute("textureName");
-                    const char* frame = component->Attribute("frame");
-                    float scaleX = component->FloatAttribute("scaleX", 1.0f);
-                    float scaleY = component->FloatAttribute("scaleY", 1.0f);
-                    float rotation = component->FloatAttribute("rotation", 0.0f);
-                    int r = component->IntAttribute("r", 255);
-                    int g = component->IntAttribute("g", 255);
-                    int b = component->IntAttribute("b", 255);
-                    int a = component->IntAttribute("a", 255);
+                    const char* spriteName = component->Attribute("spriteName");
+                    const char* markerName = component->Attribute("markerName");
                     const char* layerName = component->Attribute("layerName");
-                    Color tint = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
 
-                    world_->AddComponent(entity, SpriteComponent(
-                        textureName ? textureName : "",
-                        frame ? frame : "",
-                        {scaleX, scaleY},
-                        rotation,
-                        tint,
-                        layerName ? layerName : "default"
-                    ));
+                    if (spriteName && markerName) {
+                        auto& assetService = Application::GetInstance().GetAssetService();
+                        Sprite sprite = assetService.GetSprite(spriteName);
+                        
+                        world_->AddComponent(entity, SpriteComponent(
+                            sprite,
+                            markerName,
+                            layerName ? layerName : "default"
+                        ));
+                    } else {
+                        TraceLog(LOG_WARNING, "SpriteComponent missing required attributes: spriteName or markerName");
+                    }
                 }
                 else if (componentType == "TextComponent") {
                     const char* content = component->Attribute("content");

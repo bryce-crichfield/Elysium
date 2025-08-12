@@ -1,10 +1,10 @@
 #pragma once
 
 #include "raylib.h"
+#include "Sprite.h"
 #include <queue>
 #include <memory>
 #include <string>
-
 namespace Elysium {
 
 // Forward declarations
@@ -117,14 +117,13 @@ struct LightComponent {
 
 struct SpriteComponent
 {
-    std::string textureName;
-    std::string frame;
-    Vector2 scale;
-    float rotation;
-    Color tint;
+    Sprite sprite;
+    std::string markerName;
     std::string layerName = "default";
+    int frameIndex = 0;  // Current frame within the marker
 
-    SpriteComponent(const std::string& name = "", const std::string& f = "", Vector2 s = {1.0f, 1.0f}, float rot = 0.0f, Color t = {}, const std::string& layer = "default");
+    SpriteComponent() = default;
+    SpriteComponent(const Sprite& sprite, const std::string& marker, const std::string& layer = "default");
 };
 
 struct TextComponent

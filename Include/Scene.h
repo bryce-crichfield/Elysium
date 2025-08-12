@@ -29,6 +29,9 @@ public:
 
     // Load scene from XML file
     virtual void LoadFromXML(const std::string& xmlPath);
+    
+    // Set XML path for deferred loading
+    void SetXmlPath(const std::string& xmlPath) { xmlPath_ = xmlPath; }
 
     // Called during loading, returns Asset objects with name, path, and type
     // application then passes these to loading service
@@ -46,7 +49,13 @@ public:
     // virtual void OnNetwork(const NetworkEvent& event) {}
     // virtual void OnInput(const InputEvent& event) {}
 
-    virtual void OnEnter() {}
+    virtual void OnEnter() {
+        // Load XML if path was set but not yet loaded
+        if (!xmlPath_.empty()) {
+            LoadFromXML(xmlPath_);
+            xmlPath_.clear(); // Clear to prevent reloading
+        }
+    }
     virtual void OnExit() {}
 
     // Entity and system access
@@ -58,6 +67,7 @@ protected:
     virtual void CreateCustomSystems() {}
 
     std::string name_;
+    std::string xmlPath_;
 
     // Core scene components
     std::unique_ptr<World> world_;
