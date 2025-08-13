@@ -1,7 +1,8 @@
 #include "Scenes/MenuScene.h"
-#include "Application.h"
-#include "Scenes/GameScene.h"
+#include "Scenes/ExploreScene.h"
 #include "Scenes/BattleScene.h"
+#include "Scenes/OverworldScene.h"
+#include "Application.h"
 #include "imgui.h"
 #include <memory>
 
@@ -57,9 +58,14 @@ void MenuScene::OnDebugDraw() {
 
     ImGui::Text("Available Scenes:");
 
-    if (ImGui::Button("Switch to Game Scene", ImVec2(200, 30))) {
-        auto gameScene = std::make_unique<GameScene>();
-        Elysium::Application::GetInstance().QueueScene(std::move(gameScene));
+    if (ImGui::Button("Switch to Overworld Scene", ImVec2(200, 30))) {
+        auto overworldScene = std::make_unique<OverworldScene>();
+        Elysium::Application::GetInstance().QueueScene(std::move(overworldScene));
+    }
+
+    if (ImGui::Button("Switch to Explore Scene", ImVec2(200, 30))) {
+        auto exploreScene = std::make_unique<ExploreScene>();
+        Elysium::Application::GetInstance().QueueScene(std::move(exploreScene));
     }
 
     if (ImGui::Button("Switch to Battle Scene", ImVec2(200, 30))) {

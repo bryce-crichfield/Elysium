@@ -1,6 +1,6 @@
 #include "Scenes/MenuScene.h"
 #include "Application.h"
-#include "Scenes/GameScene.h"
+#include "Scenes/ExploreScene.h"
 #include "Scenes/BattleScene.h"
 #include "Systems/AnimationSystem.h"
 #include "imgui.h"

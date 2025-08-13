@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "Scenes/MenuScene.h"
-#include "Scenes/GameScene.h"
+#include "Scenes/OverworldScene.h"
+#include "Scenes/ExploreScene.h"
 #include "Scenes/BattleScene.h"
 #include <memory>
 
@@ -14,9 +15,10 @@ int main()
     }
 
     app.DefineScene("MenuScene", []() { return std::make_unique<Elysium::Scenes::MenuScene>(); });
-    app.DefineScene("GameScene", []() { return std::make_unique<Elysium::Scenes::GameScene>(); });
+    app.DefineScene("OverworldScene", []() { return std::make_unique<Elysium::Scenes::OverworldScene>(); });
+    app.DefineScene("ExploreScene", []() { return std::make_unique<Elysium::Scenes::ExploreScene>(); });
     app.DefineScene("BattleScene", []() { return std::make_unique<Elysium::Scenes::BattleScene>(); });
-    
+
     // Start with MemoryTestScene to test memory tracking
     auto menuScene = std::make_unique<Elysium::Scenes::MenuScene>();
     app.SetScene(std::move(menuScene));

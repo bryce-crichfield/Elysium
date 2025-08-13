@@ -1,15 +1,14 @@
 #pragma once
 
 #include "../Scene.h"
-#include "Services/MemoryTracker.h"
 #include "raylib.h"
 
 namespace Elysium::Scenes {
 
-class GameScene : public Scene {
+class OverworldScene : public Scene {
 public:
-    GameScene();
-    virtual ~GameScene() = default;
+    OverworldScene();
+    virtual ~OverworldScene() = default;
 
     void OnUpdate(float deltaTime) override;
     void OnDraw(Rectangle screen) override;
