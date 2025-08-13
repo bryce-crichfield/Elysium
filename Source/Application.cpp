@@ -147,8 +147,6 @@ void Application::Run() {
 
     void Application::Update(float deltaTime)
     {
-        metricsService_.RecordFrameTime(deltaTime);
-        metricsService_.Update(deltaTime);
         logService_.Update(deltaTime);
 
         jukeboxService_.Update();
@@ -272,7 +270,6 @@ void Application::Run() {
             currentScene->OnDebugDraw();
         }
 
-        metricsService_.Draw();
         logService_.Draw();
         jukeboxService_.OnDebugDraw();
 
@@ -283,7 +280,6 @@ void Application::Run() {
 
         auto renderEnd = std::chrono::high_resolution_clock::now();
         float renderTime = std::chrono::duration<float>(renderEnd - renderStart).count();
-        metricsService_.RecordRenderTime(renderTime);
     }
 
     void Application::ProcessEvents()
@@ -298,7 +294,6 @@ void Application::Run() {
 
         if (IsKeyPressed(KEY_F2))
         {
-            metricsService_.ToggleVisibility();
         }
 
         if (IsKeyPressed(KEY_F3))

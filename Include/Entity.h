@@ -7,7 +7,6 @@
 #include <queue>
 #include <typeindex>
 #include <bitset>
-#include "Services/MemoryTracker.h"
 #include "raylib.h"
 #include <stdexcept>
 #include <algorithm>
@@ -23,21 +22,6 @@ constexpr Entity INVALID_ENTITY = MAX_ENTITIES;
 
 using ComponentMask = std::bitset<MAX_COMPONENTS>;
 
-// Type aliases for cleaner template declarations
-template<typename T>
-using TrackedVector = std::vector<T, Elysium::Services::TrackedAllocator<T>>;
-
-template<typename Key, typename Value>
-using TrackedUnorderedMap = std::unordered_map<
-    Key, Value,
-    std::hash<Key>,
-    std::equal_to<Key>,
-    Elysium::Services::TrackedAllocator<std::pair<const Key, Value>>
->;
-
-template<typename T>
-using TrackedDeque = std::deque<T, Elysium::Services::TrackedAllocator<T>>;
-
 class ComponentArray
 {
 public:
@@ -49,9 +33,9 @@ template<typename T>
 class TypedComponentArray : public ComponentArray
 {
 private:
-    TrackedVector<T> componentArray;
-    TrackedUnorderedMap<Entity, size_t> entityToIndex;
-    TrackedUnorderedMap<size_t, Entity> indexToEntity;
+    std::vector<T> componentArray;
+    std::unordered_map<Entity, size_t> entityToIndex;
+    std::unordered_map<size_t, Entity> indexToEntity;
     size_t size = 0;
 
 public:
@@ -60,17 +44,17 @@ public:
     T& GetData(Entity entity);
     bool HasData(Entity entity) const;
     void EntityDestroyed(Entity entity) override;
-    TrackedVector<T>& GetArray();
-    const TrackedVector<T>& GetArray() const;
-    TrackedUnorderedMap<Entity, size_t>& GetEntityToIndex();
-    const TrackedUnorderedMap<Entity, size_t>& GetEntityToIndex() const;
+    std::vector<T>& GetArray();
+    const std::vector<T>& GetArray() const;
+    std::unordered_map<Entity, size_t>& GetEntityToIndex();
+    const std::unordered_map<Entity, size_t>& GetEntityToIndex() const;
 };
 
 class ComponentManager
 {
 private:
-    TrackedUnorderedMap<std::type_index, std::shared_ptr<ComponentArray>> componentArrays;
-    TrackedUnorderedMap<std::type_index, size_t> componentTypes;
+    std::unordered_map<std::type_index, std::shared_ptr<ComponentArray>> componentArrays;
+    std::unordered_map<std::type_index, size_t> componentTypes;
     size_t nextComponentType = 0;
 
 public:
@@ -95,10 +79,10 @@ public:
     void EntityDestroyed(Entity entity);
 
     template<typename T>
-    TrackedVector<T>& GetRawComponentArray();
+    std::vector<T>& GetRawComponentArray();
 
     template<typename T>
-    TrackedUnorderedMap<Entity, size_t>& GetEntityToIndexMap();
+    std::unordered_map<Entity, size_t>& GetEntityToIndexMap();
 
 private:
     template<typename T>
@@ -111,10 +95,10 @@ private:
 class EntityManager
 {
 private:
-    std::queue<Entity, TrackedDeque<Entity>> availableEntities;
+    std::queue<Entity, std::deque<Entity>> availableEntities;
     std::unordered_map<Entity, std::string> names;
-    TrackedVector<ComponentMask> componentMasks;
-    TrackedVector<Entity> livingEntities;
+    std::vector<ComponentMask> componentMasks;
+    std::vector<Entity> livingEntities;
     size_t livingEntityCount = 0;
 
 public:
@@ -126,7 +110,7 @@ public:
     void SetComponentMask(Entity entity, ComponentMask mask);
     ComponentMask GetComponentMask(Entity entity);
     size_t GetLivingEntityCount() const;
-    const TrackedVector<Entity>& GetLivingEntities() const;
+    const std::vector<Entity>& GetLivingEntities() const;
 };
 
 class World
@@ -134,10 +118,6 @@ class World
 private:
     std::unique_ptr<ComponentManager> componentManager;
     std::unique_ptr<EntityManager> entityManager;
-    mutable TrackedVector<Entity> queryBuffer1_;
-    mutable TrackedVector<Entity> queryBuffer2_;
-    mutable TrackedVector<Entity> queryBuffer3_;
-    mutable size_t currentQueryBuffer_ = 0;
 
 public:
     World(); // Declaration only
@@ -171,7 +151,7 @@ public:
     size_t GetComponentType() const;
 
     template<typename... ComponentTypes>
-    const TrackedVector<Entity>& GetEntitiesWithComponents() const;
+    const std::vector<Entity>& GetEntitiesWithComponents() const;
 
     template<typename... ComponentTypes, typename Func>
     void ForEachEntityWith(Func&& func) const;
@@ -241,25 +221,25 @@ void TypedComponentArray<T>::EntityDestroyed(Entity entity)
 }
 
 template<typename T>
-TrackedVector<T>& TypedComponentArray<T>::GetArray()
+std::vector<T>& TypedComponentArray<T>::GetArray()
 {
     return componentArray;
 }
 
 template<typename T>
-const TrackedVector<T>& TypedComponentArray<T>::GetArray() const
+const std::vector<T>& TypedComponentArray<T>::GetArray() const
 {
     return componentArray;
 }
 
 template<typename T>
-TrackedUnorderedMap<Entity, size_t>& TypedComponentArray<T>::GetEntityToIndex()
+std::unordered_map<Entity, size_t>& TypedComponentArray<T>::GetEntityToIndex()
 {
     return entityToIndex;
 }
 
 template<typename T>
-const TrackedUnorderedMap<Entity, size_t>& TypedComponentArray<T>::GetEntityToIndex() const
+const std::unordered_map<Entity, size_t>& TypedComponentArray<T>::GetEntityToIndex() const
 {
     return entityToIndex;
 }
@@ -323,13 +303,13 @@ bool ComponentManager::HasComponent(Entity entity) const
 }
 
 template<typename T>
-TrackedVector<T>& ComponentManager::GetRawComponentArray()
+std::vector<T>& ComponentManager::GetRawComponentArray()
 {
     return GetComponentArray<T>()->GetArray();
 }
 
 template<typename T>
-TrackedUnorderedMap<Entity, size_t>& ComponentManager::GetEntityToIndexMap()
+std::unordered_map<Entity, size_t>& ComponentManager::GetEntityToIndexMap()
 {
     return GetComponentArray<T>()->GetEntityToIndex();
 }
@@ -390,18 +370,15 @@ size_t World::GetComponentType() const
 }
 
 template<typename... ComponentTypes>
-const TrackedVector<Entity>& World::GetEntitiesWithComponents() const
+const std::vector<Entity>& World::GetEntitiesWithComponents() const
 {
     ComponentMask mask;
     (mask.set(GetComponentType<ComponentTypes>()), ...);
 
-    // Rotate through buffers to avoid conflicts when multiple systems query simultaneously
-    auto& entities = (currentQueryBuffer_ == 0) ? queryBuffer1_ :
-                    (currentQueryBuffer_ == 1) ? queryBuffer2_ : queryBuffer3_;
-    currentQueryBuffer_ = (currentQueryBuffer_ + 1) % 3;
-
+    // Use a static thread_local buffer to avoid allocation overhead
+    static thread_local std::vector<Entity> entities;
     entities.clear();
-    entities.reserve(entityManager->GetLivingEntityCount()); // Pre-allocate based on living entities
+    entities.reserve(entityManager->GetLivingEntityCount());
 
     // Only iterate through living entities instead of all possible entities
     const auto& livingEntities = entityManager->GetLivingEntities();

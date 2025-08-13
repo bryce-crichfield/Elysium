@@ -85,7 +85,6 @@ All services accessible via `Application::GetInstance()`:
 - **LoadingService** - Asset loading orchestration
 - **JukeboxService** - Audio playback management
 - **NetworkService** - Multiplayer (placeholder)
-- **MetricsService** - Performance monitoring (F2 key)
 - **LogService** - Logging with overlay (F3 key)
 
 ### Scene System

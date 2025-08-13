@@ -54,8 +54,6 @@ void AssetService::LoadAsset(const Asset& unloadedAsset) {
         assetsByName_[name] = asset;
         pathToName_[path] = name;
 
-        // Track memory allocation (we don't know exact size for raylib assets)
-        MemoryTracker::GetInstance().RecordAllocation(1); // Record that an allocation occurred
 
         if (asset.IsLoaded()) {
             LOG_SERVICE_INFOF("ASSET_SERVICE", "Successfully loaded asset: %s -> %s", name.c_str(), path.c_str());
@@ -152,7 +150,7 @@ Sprite AssetService::GetSprite(const AssetName& name) {
 
 void AssetService::LoadAssetByType(Asset& asset) {
     const std::string& path = asset.GetPath();
-    
+
     TraceLog(LOG_DEBUG, "LoadAssetByType: Loading asset type %d from path %s", (int)asset.GetType(), path.c_str());
 
     switch (asset.GetType()) {

@@ -3,52 +3,6 @@
 
 namespace Elysium
 {
-PositionComponent::PositionComponent(float x, float y) : x(x), y(y)
-{
-}
-
-LocationComponent::LocationComponent(int x, int y) : x(x), y(y)
-{
-}
-
-MovementComponent::MovementComponent(const std::vector<Vector2>& waypoints) : waypoints(waypoints) {}
-
-AnimationComponent::AnimationComponent(std::string marker) : marker(marker) {}
-
-LayerComponent::LayerComponent(int z) : zIndex(z), type(Type::World), space(Space::World), blend(Blend::Normal) {}
-
-RectangleComponent::RectangleComponent(float width, float height, Color background, Color border, const std::string& layer)
-    : width(width), height(height), background(background), border(border), layerName(layer)
-{
-}
-
-CircleComponent::CircleComponent(float r, Color background, Color border, const std::string& layer)
-    : radius(r), background(background), border(border), layerName(layer)
-{
-}
-
-SpriteComponent::SpriteComponent(const Sprite& sprite, const std::string& marker, const std::string& layer)
-    : sprite(sprite), markerName(marker), layerName(layer)
-{
-}
-
-TextComponent::TextComponent(const std::string &text, int size, Color c, const std::string& layer) : content(text), fontSize(size), color(c), layerName(layer)
-{
-}
-
-TeamComponent::TeamComponent() : teamId(0)
-{
-}
-TeamComponent::TeamComponent(int teamId) : teamId(teamId)
-{
-}
-
-CameraComponent::CameraComponent()
-    : position({0.0f, 0.0f}), zoom(1.0f), viewport({0, 0, 800, 600}), renderOrder(0), isVisible(true)
-{
-}
-
-// ComponentManager implementations
 void ComponentManager::EntityDestroyed(Entity entity)
 {
     for (auto const &pair : componentArrays)
@@ -149,7 +103,7 @@ size_t EntityManager::GetLivingEntityCount() const
     return livingEntityCount;
 }
 
-const TrackedVector<Entity> &EntityManager::GetLivingEntities() const
+const std::vector<Entity> &EntityManager::GetLivingEntities() const
 {
     return livingEntities;
 }
@@ -159,9 +113,7 @@ World::World()
 {
     componentManager = std::make_unique<ComponentManager>();
     entityManager = std::make_unique<EntityManager>();
-    queryBuffer1_.reserve(1000);
-    queryBuffer2_.reserve(1000);
-    queryBuffer3_.reserve(1000);
+
     RegisterComponent<LocationComponent>();
     RegisterComponent<PositionComponent>();
     RegisterComponent<MovementComponent>();
