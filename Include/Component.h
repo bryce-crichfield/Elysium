@@ -24,20 +24,13 @@ struct LocationComponent
     LocationComponent(int x = 0, int y = 0);
 };
 
-struct VelocityComponent
+struct MovementComponent
 {
-    float x, y;
-    VelocityComponent(float x = 0.0f, float y = 0.0f);
-};
-
-struct PhysicsComponent
-{
-    float mass;
-    float restitution; // bounciness (0-1)
-    float friction;
-    bool affectedByGravity;
-
-    PhysicsComponent(float m = 1.0f, float rest = 0.8f, float fric = 0.1f, bool gravity = true);
+    std::vector<Vector2> waypoints;
+    size_t currentWaypointIndex = 0;
+    float speed = 100.0f;
+    bool isMoving = false;
+    bool loop = false;              // should it loop back to start when done?
 };
 
 struct AnimationComponent

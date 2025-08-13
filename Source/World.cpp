@@ -11,15 +11,6 @@ LocationComponent::LocationComponent(int x, int y) : x(x), y(y)
 {
 }
 
-VelocityComponent::VelocityComponent(float x, float y) : x(x), y(y)
-{
-}
-
-PhysicsComponent::PhysicsComponent(float m, float rest, float fric, bool gravity)
-    : mass(m), restitution(rest), friction(fric), affectedByGravity(gravity)
-{
-}
-
 AnimationComponent::AnimationComponent()
 {
 }
@@ -173,8 +164,6 @@ World::World()
     queryBuffer3_.reserve(1000);
     RegisterComponent<LocationComponent>();
     RegisterComponent<PositionComponent>();
-    RegisterComponent<VelocityComponent>();
-    RegisterComponent<PhysicsComponent>();
     RegisterComponent<AnimationComponent>();
     RegisterComponent<LayerComponent>();
     RegisterComponent<LightComponent>();

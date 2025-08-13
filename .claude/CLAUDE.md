@@ -121,7 +121,6 @@ All services accessible via `Application::GetInstance()`:
     <Entities>
         <Entity name="Player">
             <PositionComponent x="100" y="100"/>
-            <VelocityComponent x="0" y="0"/>
             <!-- ... more components -->
         </Entity>
     </Entities>

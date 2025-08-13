@@ -1,6 +1,5 @@
 #include "Scene.h"
 #include "Entity.h"
-#include "Systems/PhysicsSystem.h"
 #include "Systems/RenderSystem.h"
 #include "Systems/AnimationSystem.h"
 #include "Systems/CameraSystem.h"
@@ -93,7 +92,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                 xmlPath.c_str(), doc.ErrorStr());
         return;
     }
-    
+
     TraceLog(LOG_INFO, "XML file loaded successfully");
 
     ProcessIncludes(doc, "");
@@ -115,15 +114,15 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
             const char* blendStr = xmlLayer->Attribute("blend");
             float opacity = xmlLayer->FloatAttribute("opacity", 1.0f);
             bool isVisible = xmlLayer->BoolAttribute("isVisible", true);
-            
+
             Entity layerEntity = world_->CreateEntity(std::string("Layer_") + (name ? name : "default"));
-            
+
             LayerComponent layerComp;
             layerComp.zIndex = zIndex;
             layerComp.name = name ? name : "default";
             layerComp.opacity = opacity;
             layerComp.isVisible = isVisible;
-            
+
             // Parse type - default to World for gameplay layers
             if (typeStr) {
                 std::string type = typeStr;
@@ -135,7 +134,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
             } else {
                 layerComp.type = LayerComponent::Type::World;
             }
-            
+
             // Parse space - default to World for gameplay layers
             if (spaceStr) {
                 std::string space = spaceStr;
@@ -146,7 +145,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
             } else {
                 layerComp.space = LayerComponent::Space::World;
             }
-            
+
             // Parse blend - default to Normal
             if (blendStr) {
                 std::string blend = blendStr;
@@ -158,7 +157,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
             } else {
                 layerComp.blend = LayerComponent::Blend::Normal;
             }
-            
+
             world_->AddComponent(layerEntity, layerComp);
             TraceLog(LOG_INFO, "Created layer '%s' with z-index %d", layerComp.name.c_str(), layerComp.zIndex);
         }
@@ -235,7 +234,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
             count++;
 
             TraceLog(LOG_INFO, "Created entity: %s", entityName ? entityName : "unnamed");
-            
+
             for (XMLElement* component = xmlEntity->FirstChildElement();
                 component != nullptr;
                 component = component->NextSiblingElement()) {
@@ -253,11 +252,6 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     int y = component->IntAttribute("y", 0);
                     world_->AddComponent(entity, LocationComponent(x, y));
                 }
-                else if (componentType == "VelocityComponent") {
-                    float x = component->FloatAttribute("x", 0.0f);
-                    float y = component->FloatAttribute("y", 0.0f);
-                    world_->AddComponent(entity, VelocityComponent(x, y));
-                }
                 else if (componentType == "AnimationComponent") {
                     world_->AddComponent(entity, AnimationComponent());
                 }
@@ -269,13 +263,13 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     const char* blendStr = component->Attribute("blend");
                     float opacity = component->FloatAttribute("opacity", 1.0f);
                     bool isVisible = component->BoolAttribute("isVisible", true);
-                    
+
                     LayerComponent layerComp;
                     layerComp.zIndex = zIndex;
                     layerComp.name = name ? name : "default";
                     layerComp.opacity = opacity;
                     layerComp.isVisible = isVisible;
-                    
+
                     // Parse type
                     if (typeStr) {
                         std::string type = typeStr;
@@ -287,7 +281,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     } else {
                         layerComp.type = LayerComponent::Type::World;
                     }
-                    
+
                     // Parse space
                     if (spaceStr) {
                         std::string space = spaceStr;
@@ -298,7 +292,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     } else {
                         layerComp.space = LayerComponent::Space::World;
                     }
-                    
+
                     // Parse blend
                     if (blendStr) {
                         std::string blend = blendStr;
@@ -310,7 +304,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     } else {
                         layerComp.blend = LayerComponent::Blend::Normal;
                     }
-                    
+
                     world_->AddComponent(entity, layerComp);
                 }
                 else if (componentType == "RectangleComponent") {
@@ -336,13 +330,6 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
 
                     world_->AddComponent(entity, CircleComponent(radius, backgroundColor, borderColor, layerName ? layerName : "default"));
                 }
-                else if (componentType == "PhysicsComponent") {
-                    float mass = component->FloatAttribute("mass", 1.0f);
-                    float restitution = component->FloatAttribute("restitution", 0.8f);
-                    float friction = component->FloatAttribute("friction", 0.1f);
-                    bool affectedByGravity = component->BoolAttribute("affectedByGravity", true);
-                    world_->AddComponent(entity, PhysicsComponent(mass, restitution, friction, affectedByGravity));
-                }
                 else if (componentType == "SpriteComponent") {
                     const char* spriteName = component->Attribute("spriteName");
                     const char* markerName = component->Attribute("markerName");
@@ -351,7 +338,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     if (spriteName && markerName) {
                         auto& assetService = Application::GetInstance().GetAssetService();
                         Sprite sprite = assetService.GetSprite(spriteName);
-                        
+
                         world_->AddComponent(entity, SpriteComponent(
                             sprite,
                             markerName,
@@ -382,7 +369,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                 else if (componentType == "CameraComponent") {
                     std::string target = component->Attribute("target") ? component->Attribute("target") : "";
                     world_->AddComponent(entity, CameraComponent());
-                    
+
                     // If there was a target, add a FollowComponent
                     if (!target.empty()) {
                         FollowComponent followComp;
@@ -429,12 +416,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                 .world = world_.get()
             };
 
-            if (systemName == "PhysicsSystem") {
-                float gravity = xmlSystem->FloatAttribute("gravity", 500.0f);
-                systems_.push_back(std::make_unique<Elysium::Systems::PhysicsSystem>(context, gravity));
-                TraceLog(LOG_INFO, "Loaded PhysicsSystem with gravity: %.2f", gravity);
-            }
-            else if (systemName == "RenderSystem") {
+            if (systemName == "RenderSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::RenderSystem>(context));
                 TraceLog(LOG_INFO, "Loaded RenderSystem");
             }
