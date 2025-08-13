@@ -165,6 +165,7 @@ World::World()
     RegisterComponent<LocationComponent>();
     RegisterComponent<PositionComponent>();
     RegisterComponent<MovementComponent>();
+    RegisterComponent<DirectionComponent>();
     RegisterComponent<AnimationComponent>();
     RegisterComponent<LayerComponent>();
     RegisterComponent<LightComponent>();

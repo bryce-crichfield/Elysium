@@ -36,12 +36,33 @@ namespace Elysium::Systems {
                 pos.x = target.x;
                 pos.y = target.y;
                 movement.currentWaypointIndex++;
+                
+                // Set direction to NONE when stopped (if DirectionComponent exists)
+                if (world->HasComponent<DirectionComponent>(e)) {
+                    auto& dirComp = world->GetComponent<DirectionComponent>(e);
+                    dirComp.SetDirection(Direction::NONE);
+                }
             } else {
                 // Move toward current waypoint
                 Vector2 velocity = Vector2Scale(Vector2Normalize(direction), movement.speed * deltaTime);
                 Vector2 newPos = Vector2Add({pos.x, pos.y}, velocity);
                 pos.x = newPos.x;
                 pos.y = newPos.y;
+                
+                // Update direction component if it exists
+                if (world->HasComponent<DirectionComponent>(e)) {
+                    auto& dirComp = world->GetComponent<DirectionComponent>(e);
+                    
+                    // Determine direction based on movement vector
+                    Direction newDir = Direction::NONE;
+                    if (abs(direction.x) > abs(direction.y)) {
+                        newDir = (direction.x > 0) ? Direction::RIGHT : Direction::LEFT;
+                    } else {
+                        newDir = (direction.y > 0) ? Direction::DOWN : Direction::UP;
+                    }
+                    
+                    dirComp.SetDirection(newDir);
+                }
             }
         });
     }

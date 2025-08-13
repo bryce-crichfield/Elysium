@@ -46,6 +46,33 @@ struct AnimationComponent {
     AnimationComponent(std::string marker);
 };
 
+enum class Direction {
+    NONE = 0,
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT
+};
+
+struct DirectionComponent {
+    Direction currentDirection = Direction::NONE;
+    Direction previousDirection = Direction::NONE;
+    bool hasChanged = false;
+
+    DirectionComponent() = default;
+    DirectionComponent(Direction dir) : currentDirection(dir), previousDirection(dir) {}
+    
+    void SetDirection(Direction newDir) {
+        if (newDir != currentDirection) {
+            previousDirection = currentDirection;
+            currentDirection = newDir;
+            hasChanged = true;
+        }
+    }
+    
+    void ClearChanged() { hasChanged = false; }
+};
+
 struct LayerComponent {
     enum class Type {
         Background,

@@ -51,6 +51,7 @@
                 </Waypoints>
             </MovementComponent>
             <AnimationComponent />
+            <DirectionComponent />
             <!-- <CircleComponent radius="8" background="#ad0000" layerName="entity" /> -->
 
             <SpriteComponent

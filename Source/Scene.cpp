@@ -267,6 +267,9 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                 else if (componentType == "AnimationComponent") {
                     world_->AddComponent(entity, AnimationComponent());
                 }
+                else if (componentType == "DirectionComponent") {
+                    world_->AddComponent(entity, DirectionComponent());
+                }
                 else if (componentType == "LayerComponent") {
                     int zIndex = component->IntAttribute("z", 0);
                     const char* name = component->Attribute("name");
