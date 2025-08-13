@@ -68,10 +68,9 @@
             <PositionComponent />
             <TeamComponent teamId="0" />
             <SpriteComponent
-            spriteName="mushroom_warrior"
-            markerName="idle/down"
-            layerName="entity" />
-            <!-- <CircleComponent radius="8" background="#00a2be" layerName="entity" /> -->
+                spriteName="mushroom_warrior"
+                markerName="idle/down"
+                layerName="entity" />
             <AnimationComponent />
         </Entity>
 

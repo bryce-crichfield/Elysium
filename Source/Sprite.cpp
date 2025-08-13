@@ -227,4 +227,34 @@ namespace Elysium {
        }
        return Rectangle{0, 0, 0, 0};
    }
+
+   std::pair<int, int> Sprite::GetMarkerFrameRange(const std::string& markerName) const {
+       // Check if markerName contains a sheet specification (e.g., "idle/down")
+       size_t slashPos = markerName.find('/');
+       if (slashPos != std::string::npos) {
+           // Format: "sheetName/markerName"
+           std::string sheetName = markerName.substr(0, slashPos);
+           std::string actualMarkerName = markerName.substr(slashPos + 1);
+           
+           auto sheetIt = sheets.find(sheetName);
+           if (sheetIt != sheets.end()) {
+               const SpriteSheet& sheet = sheetIt->second;
+               auto markerIt = sheet.markers.find(actualMarkerName);
+               if (markerIt != sheet.markers.end()) {
+                   const SpriteMarker& marker = markerIt->second;
+                   return {static_cast<int>(marker.from), static_cast<int>(marker.to)};
+               }
+           }
+       } else {
+           // Fallback: search all sheets for the marker
+           for (const auto& [sheetName, sheet] : sheets) {
+               auto markerIt = sheet.markers.find(markerName);
+               if (markerIt != sheet.markers.end()) {
+                   const SpriteMarker& marker = markerIt->second;
+                   return {static_cast<int>(marker.from), static_cast<int>(marker.to)};
+               }
+           }
+       }
+       return {0, 0};
+   }
 }

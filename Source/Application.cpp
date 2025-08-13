@@ -288,46 +288,13 @@ void Application::Run() {
 
     void Application::ProcessEvents()
     {
-        // if (!sceneService_.IsTransitioning())
-        // {
-        //     Scene* currentScene = sceneService_.GetScene();
-        //     while (eventService_.HasInputEvents())
-        //     {
-        //         InputEvent event = eventService_.GetNextInputEvent();
-        //         if (currentScene)
-        //         {
-        //             currentScene->OnInput(event);
-        //         }
-        //     }
 
-        //     while (eventService_.HasNetworkEvents())
-        //     {
-        //         NetworkEvent event = eventService_.GetNextNetworkEvent();
-        //         if (currentScene)
-        //         {
-        //             currentScene->OnNetwork(event);
-        //         }
-        //     }
-        // }
-        // else
-        // {
-        //     eventService_.ClearInputEvents();
-        //     eventService_.ClearNetworkEvents();
-        // }
     }
 
 
     void Application::ProcessInput()
     {
         ImGuiIO& io = ImGui::GetIO();
-
-        // if (IsKeyPressed(KEY_ESCAPE) && !io.WantCaptureKeyboard)
-        // {
-        //     InputEvent event;
-        //     event.type = InputEvent::KEY_PRESS;
-        //     event.key = KEY_ESCAPE;
-        //     eventService_.Queue(event);
-        // }
 
         if (IsKeyPressed(KEY_F2))
         {
@@ -338,19 +305,6 @@ void Application::Run() {
         {
             logService_.ToggleVisibility();
         }
-
-        // // Only process mouse input if ImGui doesn't want to capture it
-        // if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !io.WantCaptureMouse)
-        // {
-        //     InputEvent event;
-        //     event.type = InputEvent::MOUSE_PRESS;
-        //     event.key = MOUSE_LEFT_BUTTON;
-        //     Vector2 mousePos = GetMousePosition();
-        //     Vector2 framebufferPos = MapScreenToFramebuffer(mousePos);
-        //     event.x = framebufferPos.x;
-        //     event.y = framebufferPos.y;
-        //     eventService_.Queue(event);
-        // }
     }
 
     bool ApplicationConfig::FromXML(const std::string &configPath, ApplicationConfig& out)

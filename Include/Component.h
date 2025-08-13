@@ -9,7 +9,6 @@ namespace Elysium {
 
 // Forward declarations
 using Entity = size_t;
-struct Action;
 
 // Component structs
 struct PositionComponent
@@ -29,16 +28,22 @@ struct MovementComponent
     std::vector<Vector2> waypoints;
     size_t currentWaypointIndex = 0;
     float speed = 100.0f;
-    bool isMoving = false;
-    bool loop = false;              // should it loop back to start when done?
+    bool isMoving = true;
+    bool loop = true;              // should it loop back to start when done?
+
+    MovementComponent() = default;
+    MovementComponent(const std::vector<Vector2>& waypoints);
 };
 
-struct AnimationComponent
-{
-    std::queue<std::shared_ptr<Action>> actionQueue;
-    std::shared_ptr<Action> currentAction = nullptr;
+struct AnimationComponent {
+    std::string marker;
+    int currentFrame = 0;
+    int start, end;
+    float frameDuration, elapsed = 0;
+    bool loop = false;
 
-    AnimationComponent();
+    AnimationComponent() = default;
+    AnimationComponent(std::string marker);
 };
 
 struct LayerComponent {

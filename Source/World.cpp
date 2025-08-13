@@ -11,9 +11,9 @@ LocationComponent::LocationComponent(int x, int y) : x(x), y(y)
 {
 }
 
-AnimationComponent::AnimationComponent()
-{
-}
+MovementComponent::MovementComponent(const std::vector<Vector2>& waypoints) : waypoints(waypoints) {}
+
+AnimationComponent::AnimationComponent(std::string marker) : marker(marker) {}
 
 LayerComponent::LayerComponent(int z) : zIndex(z), type(Type::World), space(Space::World), blend(Blend::Normal) {}
 
@@ -164,6 +164,7 @@ World::World()
     queryBuffer3_.reserve(1000);
     RegisterComponent<LocationComponent>();
     RegisterComponent<PositionComponent>();
+    RegisterComponent<MovementComponent>();
     RegisterComponent<AnimationComponent>();
     RegisterComponent<LayerComponent>();
     RegisterComponent<LightComponent>();

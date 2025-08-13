@@ -1,6 +1,7 @@
 #include "Scene.h"
 #include "Entity.h"
 #include "Systems/RenderSystem.h"
+#include "Systems/MovementSystem.h"
 #include "Systems/AnimationSystem.h"
 #include "Systems/CameraSystem.h"
 #include "Systems/SpriteSystem.h"
@@ -252,6 +253,17 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                     int y = component->IntAttribute("y", 0);
                     world_->AddComponent(entity, LocationComponent(x, y));
                 }
+                else if (componentType == "MovementComponent") {
+                    std::vector<Vector2> waypoints;
+                    if (XMLElement* xmlWaypoints = component->FirstChildElement("Waypoints")) {
+                        FOREACH("Waypoint", xmlWaypoint, xmlWaypoints) {
+                            int x = xmlWaypoint->IntAttribute("x", 0);
+                            int y = xmlWaypoint->IntAttribute("y", 0);
+                            waypoints.push_back({(float)x, (float)y});
+                        }
+                    }
+                    world_->AddComponent(entity, MovementComponent(waypoints));
+                }
                 else if (componentType == "AnimationComponent") {
                     world_->AddComponent(entity, AnimationComponent());
                 }
@@ -419,6 +431,10 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
             if (systemName == "RenderSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::RenderSystem>(context));
                 TraceLog(LOG_INFO, "Loaded RenderSystem");
+            }
+            else if (systemName == "MovementSystem") {
+                systems_.push_back(std::make_unique<Elysium::Systems::MovementSystem>(context));
+                TraceLog(LOG_INFO, "Loaded MovementSystem");
             }
             else if (systemName == "AnimationSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::AnimationSystem>(context));

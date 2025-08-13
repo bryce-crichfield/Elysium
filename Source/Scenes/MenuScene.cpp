@@ -64,8 +64,7 @@ void MenuScene::OnDebugDraw() {
     }
 
     if (ImGui::Button("Switch to Explore Scene", ImVec2(200, 30))) {
-        auto exploreScene = std::make_unique<ExploreScene>();
-        Elysium::Application::GetInstance().QueueScene(std::move(exploreScene));
+        Elysium::Application::GetInstance().QueueScene("./Assets/ExploreScene.xml");
     }
 
     if (ImGui::Button("Switch to Battle Scene", ImVec2(200, 30))) {

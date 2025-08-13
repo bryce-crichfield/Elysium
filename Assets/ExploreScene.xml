@@ -1,0 +1,62 @@
+<Scene type="ExploreScene">
+    <Systems>
+        <System type="MovementSystem" />
+        <System type="SpriteSystem" />
+        <System type="AnimationSystem" />
+        <System type="CameraSystem" />
+        <System type="RenderSystem" />
+    </Systems>
+
+    <Layers>
+        <Layer name="background" z="-1" type="Background" space="World" blend="Normal" />
+        <Layer name="default" z="0" type="World" space="World" blend="Normal" />
+        <Layer name="tile" z="1" type="World" space="World" blend="Normal" />
+        <Layer name="entity" z="2" type="World" space="World" blend="Normal" />
+        <Layer name="light" z="3" type="Lighting" space="World" blend="Additive" opacity="0.8" />
+    </Layers>
+
+    <Tilemap width="8" height="8">
+        <Tilemask>
+            0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0
+        </Tilemask>
+
+        <TileDefinitions>
+            <TileDefinition id="0" background="#00cece91" border="#ffffff" layerName="tile" />
+        </TileDefinitions>
+    </Tilemap>
+
+
+    <Entities >
+        <Entity name="CAMERA">
+            <PositionComponent />
+            <CameraComponent target="ENTITY_0" />
+        </Entity>
+
+        <Entity name="ENTITY_0">
+            <LocationComponent x="0" y="0" />
+            <PositionComponent />
+            <MovementComponent>
+                <Waypoints>
+                    <Waypoint x="0" y="0" />
+                    <Waypoint x="4" y="0" />
+                    <Waypoint x="4" y="4" />
+                    <Waypoint x="0" y="4" />
+                </Waypoints>
+            </MovementComponent>
+            <AnimationComponent />
+            <!-- <CircleComponent radius="8" background="#ad0000" layerName="entity" /> -->
+
+            <SpriteComponent
+                spriteName="mushroom_warrior"
+                markerName="idle/down"
+                layerName="entity" />
+        </Entity>
+    </Entities>
+</Scene>

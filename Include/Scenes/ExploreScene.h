@@ -15,6 +15,8 @@ public:
     void OnDebugDraw() override;
     void OnEnter() override;
     void OnExit() override;
+
+    std::vector<Asset> GetAssets() override;
 };
 
 } // namespace Elysium::Scenes

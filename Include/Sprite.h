@@ -45,5 +45,6 @@ namespace Elysium
         std::string GetMarkerTextureName(const std::string& markerName) const;
         int GetMarkerFrameCount(const std::string& markerName) const;
         Rectangle GetMarkerFrameClip(const std::string& markerName, int frameIndex) const;
+        std::pair<int, int> GetMarkerFrameRange(const std::string& markerName) const;
     };
 };
