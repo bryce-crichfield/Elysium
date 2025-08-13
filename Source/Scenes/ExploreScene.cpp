@@ -15,19 +15,19 @@ void ExploreScene::OnEnter() {
     if (world_->GetEntityByName("ENTITY_0", &patrolEntity)) {
         auto& anim = world_->GetComponent<AnimationComponent>(patrolEntity);
         auto& sprite = world_->GetComponent<SpriteComponent>(patrolEntity);
-        
+
         std::string markerName = "idle/down";
         anim.marker = markerName;
-        
+
         // Get frame range from sprite data
         auto frameRange = sprite.sprite.GetMarkerFrameRange(markerName);
         anim.start = frameRange.first;
         anim.end = frameRange.second;
         anim.currentFrame = anim.start;
-        anim.frameDuration = 0.3f; // 300ms per frame
+        anim.frameDuration = 0.5f; // 300ms per frame
         anim.loop = true;
         anim.elapsed = 0;
-        
+
         // Set initial sprite state
         sprite.markerName = markerName;
         sprite.frameIndex = anim.currentFrame;

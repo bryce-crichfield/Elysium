@@ -36,10 +36,13 @@ namespace Elysium::Systems {
                 pos.y = target.y;
                 movement.currentWaypointIndex++;
 
-                // Set direction to NONE when stopped (if DirectionComponent exists)
+                // Only set direction to NONE if we've truly stopped (no more waypoints or not looping)
                 if (world->HasComponent<DirectionComponent>(e)) {
-                    auto& dirComp = world->GetComponent<DirectionComponent>(e);
-                    dirComp.SetDirection(Direction::NONE);
+                    bool willContinueMoving = movement.currentWaypointIndex < movement.waypoints.size() || movement.loop;
+                    if (!willContinueMoving) {
+                        auto& dirComp = world->GetComponent<DirectionComponent>(e);
+                        dirComp.SetDirection(Direction::NONE);
+                    }
                 }
             } else {
                 // Move toward current waypoint

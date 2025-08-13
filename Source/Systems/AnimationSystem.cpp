@@ -41,10 +41,10 @@ void AnimationSystem::Update(float deltaTime)
                 anim.marker = newMarker;
                 sprite.markerName = newMarker;
                 
-                // Get new frame range
+                // Get new frame range and convert to relative indices
                 auto frameRange = sprite.sprite.GetMarkerFrameRange(newMarker);
-                anim.start = frameRange.first;
-                anim.end = frameRange.second;
+                anim.start = 0;  // Always start at relative frame 0
+                anim.end = frameRange.second - frameRange.first;  // Convert to relative range
                 anim.currentFrame = anim.start;
                 anim.elapsed = 0;
                 sprite.frameIndex = anim.currentFrame;
