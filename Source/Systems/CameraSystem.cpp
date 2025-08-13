@@ -10,9 +10,7 @@ namespace Elysium::Systems {
 
 void CameraSystem::Update(float deltaTime) {
     // Update camera components that have follow behavior
-    world->ForEachEntityWith<CameraComponent, FollowComponent>([&](Entity entity) {
-        auto& cameraComp = world->GetComponent<CameraComponent>(entity);
-        auto& followComp = world->GetComponent<FollowComponent>(entity);
+    world->Query<CameraComponent, FollowComponent>([&](Entity entity, auto& cameraComp, auto& followComp) {
 
         // Find the target entity by name
         Entity targetEntity;

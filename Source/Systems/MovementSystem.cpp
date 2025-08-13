@@ -7,9 +7,8 @@
 namespace Elysium::Systems {
     void MovementSystem::Update(float deltaTime) {
 
-        world->ForEachEntityWith<MovementComponent, PositionComponent>([&](Entity e) {
-            auto& movement = world->GetComponent<MovementComponent>(e);
-            auto& pos = world->GetComponent<PositionComponent>(e);
+        world->Query<MovementComponent, PositionComponent>(
+            [&](Entity e, auto& movement, auto& pos) {
 
             if (!movement.isMoving || movement.waypoints.empty()) return;
 
@@ -36,7 +35,7 @@ namespace Elysium::Systems {
                 pos.x = target.x;
                 pos.y = target.y;
                 movement.currentWaypointIndex++;
-                
+
                 // Set direction to NONE when stopped (if DirectionComponent exists)
                 if (world->HasComponent<DirectionComponent>(e)) {
                     auto& dirComp = world->GetComponent<DirectionComponent>(e);
@@ -48,11 +47,11 @@ namespace Elysium::Systems {
                 Vector2 newPos = Vector2Add({pos.x, pos.y}, velocity);
                 pos.x = newPos.x;
                 pos.y = newPos.y;
-                
+
                 // Update direction component if it exists
                 if (world->HasComponent<DirectionComponent>(e)) {
                     auto& dirComp = world->GetComponent<DirectionComponent>(e);
-                    
+
                     // Determine direction based on movement vector
                     Direction newDir = Direction::NONE;
                     if (abs(direction.x) > abs(direction.y)) {
@@ -60,7 +59,7 @@ namespace Elysium::Systems {
                     } else {
                         newDir = (direction.y > 0) ? Direction::DOWN : Direction::UP;
                     }
-                    
+
                     dirComp.SetDirection(newDir);
                 }
             }

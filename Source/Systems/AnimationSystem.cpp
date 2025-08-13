@@ -4,10 +4,7 @@ namespace Elysium::Systems {
 void AnimationSystem::Update(float deltaTime)
 {
     // Handle entities with directional animation
-    world->ForEachEntityWith<AnimationComponent, SpriteComponent, DirectionComponent>([&](Entity e) {
-        auto& anim = world->GetComponent<AnimationComponent>(e);
-        auto& sprite = world->GetComponent<SpriteComponent>(e);
-        auto& direction = world->GetComponent<DirectionComponent>(e);
+    world->Query<AnimationComponent, SpriteComponent, DirectionComponent>([&](Entity e, auto& anim, auto& sprite, auto& direction) {
 
         // Handle direction-based animation changes
         if (direction.hasChanged) {
@@ -78,12 +75,9 @@ void AnimationSystem::Update(float deltaTime)
     });
 
     // Handle entities with animation but no direction (non-directional animation)
-    world->ForEachEntityWith<AnimationComponent, SpriteComponent>([&](Entity e) {
+    world->Query<AnimationComponent, SpriteComponent>([&](Entity e, auto& anim, auto& sprite) {
         // Skip if entity also has DirectionComponent (handled above)
         if (world->HasComponent<DirectionComponent>(e)) return;
-        
-        auto& anim = world->GetComponent<AnimationComponent>(e);
-        auto& sprite = world->GetComponent<SpriteComponent>(e);
 
         // Standard frame animation for non-directional entities
         if (anim.start <= anim.end && anim.frameDuration > 0) {

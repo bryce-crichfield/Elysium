@@ -459,9 +459,8 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
 
     // We allow the user to define the location and have the position component be implicit
     // Position component represents the CENTER of the tile in world coordinates
-    world_->ForEachEntityWith<LocationComponent>([&](Entity entity) {
+    world_->Query<LocationComponent>([&](Entity entity, auto& loc) {
         if (world_->HasComponent<TileComponent>(entity)) return;
-        auto& loc = world_->GetComponent<LocationComponent>(entity);
 
         // Convert tile coordinates to centered world coordinates
         float worldX = loc.x * TILE_WIDTH + TILE_WIDTH * 0.5f;

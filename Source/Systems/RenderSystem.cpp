@@ -17,9 +17,8 @@ void RenderSystem::Render() {
     CameraComponent* camera = nullptr;
     bool foundCamera = false;
 
-    world->ForEachEntityWith<CameraComponent>([&](Entity entity) {
+    world->Query<CameraComponent>([&](Entity entity, auto& cameraComp) {
         if (!foundCamera) {
-            auto& cameraComp = world->GetComponent<CameraComponent>(entity);
             if (cameraComp.isVisible) {
                 cameraEntity = entity;
                 camera = &cameraComp;
@@ -34,10 +33,9 @@ void RenderSystem::Render() {
 
     // Build layer definition lookup = layerIndex -> <Entity, LayerComponent>
     Layers layers;
-    world->ForEachEntityWith<LayerComponent>([&](Entity entity) {
-        auto& layer = world->GetComponent<LayerComponent>(entity);
+    world->Query<LayerComponent>([&](Entity entity, auto& layer) {
         if (layer.isVisible) {
-            int layerIndex = world->GetComponent<LayerComponent>(entity).zIndex;
+            int layerIndex = layer.zIndex;
             layers[layerIndex] = {entity, &layer};
         }
     });
@@ -64,14 +62,12 @@ void RenderSystem::RenderCamera(Entity entity, const CameraComponent& camera, co
     // Collects and group renderable entities by layer;
     std::unordered_map<int, std::vector<RenderItem>> layerItems;
 
-    world->ForEachEntityWith<PositionComponent>([&](Entity entity) {
+    world->Query<PositionComponent>([&](Entity entity, auto& pos) {
         // Skip camera and layer definition entities (they don't render as game objects)
         if (world->HasComponent<CameraComponent>(entity) ||
             world->HasComponent<LayerComponent>(entity)) {
             return;
         }
-
-        auto& pos = world->GetComponent<PositionComponent>(entity);
 
         // Get layer index - default to 0 if no LayerComponent
         int layerIndex = 0;

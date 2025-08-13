@@ -9,8 +9,7 @@ SpriteSystem::SpriteSystem(Context context) : System(context) {
 
 void SpriteSystem::Update(float deltaTime) {
     // Update all sprite components with frame timing
-    world->ForEachEntityWith<SpriteComponent>([&](Entity entity) {
-        auto& spriteComp = world->GetComponent<SpriteComponent>(entity);
+    world->Query<SpriteComponent>([&](Entity entity, auto& spriteComp) {
         
         // Advance frame timing
         spriteComp.frameElapsed += deltaTime;

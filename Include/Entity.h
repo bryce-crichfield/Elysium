@@ -13,6 +13,19 @@
 #include "raylib.h"
 #include "Component.h"
 
+// Entity-Component-System (ECS) Storage Layout:
+//
+// Entity: Just an ID (size_t). Entities are managed by EntityManager with component masks.
+// 
+// Components: Stored in separate TypedComponentArray<T> for each component type.
+// Each array is dense (no gaps), with entity->index mapping for O(1) access.
+//
+// ComponentManager: Holds heterogeneous component arrays via ComponentArray interface.
+// Uses type erasure to store TypedComponentArray<T> instances in a single map.
+//
+// World: Top-level API that orchestrates EntityManager + ComponentManager.
+// Provides Query<Components...>() for efficient iteration over entities with specific components.
+
 namespace Elysium
 {
 using Entity = size_t;
@@ -154,7 +167,7 @@ public:
     const std::vector<Entity>& GetEntitiesWithComponents() const;
 
     template<typename... ComponentTypes, typename Func>
-    void ForEachEntityWith(Func&& func) const;
+    void Query(Func&& func);
 };
 
 // TypedComponentArray implementations
@@ -391,7 +404,7 @@ const std::vector<Entity>& World::GetEntitiesWithComponents() const
 }
 
 template<typename... ComponentTypes, typename Func>
-void World::ForEachEntityWith(Func&& func) const
+void World::Query(Func&& func)
 {
     ComponentMask mask;
     (mask.set(GetComponentType<ComponentTypes>()), ...);
@@ -400,7 +413,9 @@ void World::ForEachEntityWith(Func&& func) const
     const auto& livingEntities = entityManager->GetLivingEntities();
     for (Entity entity : livingEntities) {
         if ((entityManager->GetComponentMask(entity) & mask) == mask) {
-            func(entity);
+            // Unpack components as references and pass to lambda
+            // First parameter is entity, then components
+            func(entity, GetComponent<ComponentTypes>(entity)...);
         }
     }
 }
