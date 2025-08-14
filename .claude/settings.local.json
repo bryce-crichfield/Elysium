@@ -19,7 +19,9 @@
       "Bash(pacman:*)",
       "Bash(C:msys64usrbinpacman -S --needed mingw-w64-x86_64-gdb)",
       "Bash(.build.ps1)",
-      "Bash(.elysium.ps1:*)"
+      "Bash(.elysium.ps1:*)",
+      "Bash(git mv:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

@@ -9,6 +9,7 @@
 #include "Services/LoadingService.h"
 #include "Services/JukeboxService.h"
 #include "Services/SceneService.h"
+#include "Services/PersistenceService.h"
 #include "raylib.h"
 #include <memory>
 #include <string>
@@ -59,6 +60,7 @@ public:
     Services::NetworkService& GetNetworkService() { return networkService_; }
     Services::LogService& GetLogService() { return logService_; }
     Services::JukeboxService& GetJukeboxService() { return jukeboxService_; }
+    Services::PersistenceService& GetPersistenceService() { return persistenceService_; }
 
     bool ShouldClose() const;
 
@@ -85,6 +87,7 @@ private:
     Services::NetworkService networkService_;
     Services::LogService logService_;
     Services::JukeboxService jukeboxService_;
+    Services::PersistenceService persistenceService_;
 
     RenderTexture2D frontBuffer_;
     RenderTexture2D backBuffer_;

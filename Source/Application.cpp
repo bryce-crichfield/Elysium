@@ -62,6 +62,7 @@ bool Application::Initialize(const std::string& configPath) {
         assetService_.Initialize();
         networkService_.Initialize();
         logService_.Initialize();
+        persistenceService_.Initialize();
         // loadingService_.Initialize(); // Temporarily disabled for testing Scene.xml loading
 
         initialized_ = true;
@@ -271,6 +272,7 @@ void Application::Run() {
         }
 
         logService_.Draw();
+        persistenceService_.Draw();
         jukeboxService_.OnDebugDraw();
 
 
@@ -299,6 +301,11 @@ void Application::Run() {
         if (IsKeyPressed(KEY_F3))
         {
             logService_.ToggleVisibility();
+        }
+
+        if (IsKeyPressed(KEY_F8))
+        {
+            persistenceService_.ToggleVisibility();
         }
     }
 

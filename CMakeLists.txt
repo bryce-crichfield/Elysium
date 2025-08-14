@@ -19,6 +19,9 @@ file(GLOB_RECURSE SOURCE_FILES
 add_subdirectory(Vendor/raylib)
 add_subdirectory(Vendor/tinyxml2)
 
+# Add SQLiteCpp third party library
+add_subdirectory(third_party/SQLiteCpp)
+
 # ImGui sources (since ImGui doesn't have CMakeLists.txt by default)
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/imgui)
 set(IMGUI_SOURCES
@@ -57,6 +60,7 @@ target_link_libraries(${PROJECT_NAME}
     rlimgui
     imgui
     tinyxml2
+    SQLiteCpp
 )
 
 # Include directories
@@ -68,6 +72,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/imgui
     ${CMAKE_SOURCE_DIR}/Vendor/imgui/backends
     ${CMAKE_SOURCE_DIR}/Vendor/tinyxml2
+    ${CMAKE_SOURCE_DIR}/third_party/SQLiteCpp/include
 )
 
 # Track all asset files as dependencies
