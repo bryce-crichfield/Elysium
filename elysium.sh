@@ -3,6 +3,10 @@
 # Get the root path
 ELYSIUM_ROOT="$(dirname "${BASH_SOURCE[0]}")"
 
+Elysium_Setup() {
+    echo "Setting up Elysium environment..."
+}
+
 # Function definitions
 Elysium_Clean() {
     echo "Cleaning build artifacts..."
@@ -43,6 +47,7 @@ show_help() {
 }
 
 # Parse command-line arguments
+should_setup=false
 should_clean=false
 should_build=false
 should_run=false
@@ -50,6 +55,9 @@ should_run=false
 # Convert arguments to lowercase for case-insensitive matching
 for arg in "$@"; do
     case "${arg,,}" in
+        --setup)
+            should_setup=true
+            ;;
         --clean)
             should_clean=true
             ;;
@@ -71,6 +79,10 @@ for arg in "$@"; do
 done
 
 # Execute operations in the correct order
+if [ "$should_setup" = true ]; then
+    Elysium_Setup
+fi
+
 if [ "$should_clean" = true ]; then
     Elysium_Clean
 fi

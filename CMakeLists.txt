@@ -92,7 +92,7 @@ add_dependencies(${PROJECT_NAME} copy_assets)
 # Platform-specific settings
 if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        OUTPUT_NAME "Elysium.exe"
+        OUTPUT_NAME "Elysium"
     )
     
     # Use Visual Studio on Windows if available, otherwise MinGW
