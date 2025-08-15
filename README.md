@@ -6,14 +6,21 @@ A C++ game engine built for 2D style game.
 ### Linux/Mac
 
 ```bash
-# Clean, build, and run
 chmod +x ./elysium.sh
+
+# Setup build environment for the first time
+./elysium.sh --Setup
+
+# Clean, build, and run
 ./elysium.sh --clean --build --run
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
+# Setup build environment for the first time
+.\elysium.ps1 --Setup
+
 # Clean, build, and run
 .\elysium.ps1 --Clean --Build --Run
 ```
