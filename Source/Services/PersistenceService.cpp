@@ -32,11 +32,11 @@ void PersistenceService::Initialize(const std::string& databasePath) {
         // Initialize CharacterService
         characterService_ = std::make_unique<CharacterService>(this);
 
-        LOG_SERVICE_INFO("PersistenceService", "Database opened successfully: " + databasePath_);
+        LOG_INFO("PersistenceService", "Database opened successfully: " + databasePath_);
         initialized_ = true;
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("PersistenceService", "Failed to open database: " + std::string(e.what()));
+        LOG_ERROR("PersistenceService", "Failed to open database: " + std::string(e.what()));
         database_.reset();
         initialized_ = false;
     }
@@ -49,11 +49,11 @@ void PersistenceService::Shutdown() {
         characterService_.reset();
         if (database_) {
             database_.reset();
-            LOG_SERVICE_INFO("PersistenceService", "Database closed successfully");
+            LOG_INFO("PersistenceService", "Database closed successfully");
         }
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("PersistenceService", "Error closing database: " + std::string(e.what()));
+        LOG_ERROR("PersistenceService", "Error closing database: " + std::string(e.what()));
     }
 
     initialized_ = false;
@@ -172,7 +172,7 @@ void PersistenceService::CreateDefaultTables() {
         )");
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("PersistenceService", "Error creating tables: " + std::string(e.what()));
+        LOG_ERROR("PersistenceService", "Error creating tables: " + std::string(e.what()));
     }
 }
 

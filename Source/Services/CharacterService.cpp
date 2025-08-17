@@ -118,7 +118,7 @@ void CharacterService::RefreshArchetypes() {
         }
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("CharacterService", "Error refreshing archetypes: " + std::string(e.what()));
+        LOG_ERROR("CharacterService", "Error refreshing archetypes: " + std::string(e.what()));
     }
 }
 
@@ -146,7 +146,7 @@ void CharacterService::RefreshItems() {
         }
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("CharacterService", "Error refreshing items: " + std::string(e.what()));
+        LOG_ERROR("CharacterService", "Error refreshing items: " + std::string(e.what()));
     }
 }
 
@@ -168,7 +168,7 @@ void CharacterService::RefreshSpells() {
         }
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("CharacterService", "Error refreshing spells: " + std::string(e.what()));
+        LOG_ERROR("CharacterService", "Error refreshing spells: " + std::string(e.what()));
     }
 }
 
@@ -195,7 +195,7 @@ void CharacterService::RefreshCharacters() {
         }
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("CharacterService", "Error refreshing characters: " + std::string(e.what()));
+        LOG_ERROR("CharacterService", "Error refreshing characters: " + std::string(e.what()));
     }
 }
 
@@ -225,7 +225,7 @@ void CharacterService::RefreshCurrentInventory() {
         }
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("CharacterService", "Error refreshing inventory: " + std::string(e.what()));
+        LOG_ERROR("CharacterService", "Error refreshing inventory: " + std::string(e.what()));
     }
 }
 
@@ -255,7 +255,7 @@ void CharacterService::RefreshCurrentSpellbook() {
         }
     }
     catch (const std::exception& e) {
-        LOG_SERVICE_ERROR("CharacterService", "Error refreshing spellbook: " + std::string(e.what()));
+        LOG_ERROR("CharacterService", "Error refreshing spellbook: " + std::string(e.what()));
     }
 }
 
@@ -376,16 +376,16 @@ void CharacterService::DrawCharacterAttributesTab() {
         if (ImGui::Button("Deselect Character")) {
             NewCharacter();  // Clear selection and reset form
         }
-        
+
         ImGui::SameLine();
         if (ImGui::Button("Delete Character")) {
             ImGui::OpenPopup("Delete Character?");
         }
-        
+
         if (ImGui::BeginPopupModal("Delete Character?", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("Are you sure you want to delete this character?\nThis action cannot be undone!");
             ImGui::Separator();
-            
+
             if (ImGui::Button("Yes, Delete", ImVec2(120, 0))) {
                 DeleteCharacter();
                 ImGui::CloseCurrentPopup();
@@ -523,16 +523,16 @@ void CharacterService::DrawArchetypesTab() {
         if (ImGui::Button("Deselect Archetype")) {
             NewArchetype();  // Clear selection and reset form
         }
-        
+
         ImGui::SameLine();
         if (ImGui::Button("Delete Archetype")) {
             ImGui::OpenPopup("Delete Archetype?");
         }
-        
+
         if (ImGui::BeginPopupModal("Delete Archetype?", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("Are you sure you want to delete this archetype?\nThis action cannot be undone!");
             ImGui::Separator();
-            
+
             if (ImGui::Button("Yes, Delete", ImVec2(120, 0))) {
                 DeleteArchetype();
                 ImGui::CloseCurrentPopup();
@@ -639,16 +639,16 @@ void CharacterService::DrawItemsTab() {
         if (ImGui::Button("Deselect Item")) {
             NewItem();  // Clear selection and reset form
         }
-        
+
         ImGui::SameLine();
         if (ImGui::Button("Delete Item")) {
             ImGui::OpenPopup("Delete Item?");
         }
-        
+
         if (ImGui::BeginPopupModal("Delete Item?", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("Are you sure you want to delete this item?\nThis action cannot be undone!");
             ImGui::Separator();
-            
+
             if (ImGui::Button("Yes, Delete", ImVec2(120, 0))) {
                 DeleteItem();
                 ImGui::CloseCurrentPopup();
@@ -743,16 +743,16 @@ void CharacterService::DrawSpellsTab() {
         if (ImGui::Button("Deselect Spell")) {
             NewSpell();  // Clear selection and reset form
         }
-        
+
         ImGui::SameLine();
         if (ImGui::Button("Delete Spell")) {
             ImGui::OpenPopup("Delete Spell?");
         }
-        
+
         if (ImGui::BeginPopupModal("Delete Spell?", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("Are you sure you want to delete this spell?\nThis action cannot be undone!");
             ImGui::Separator();
-            
+
             if (ImGui::Button("Yes, Delete", ImVec2(120, 0))) {
                 DeleteSpell();
                 ImGui::CloseCurrentPopup();

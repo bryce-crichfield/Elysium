@@ -29,7 +29,7 @@ public:
 
     // Load scene from XML file
     virtual void LoadFromXML(const std::string& xmlPath);
-    
+
     // Set XML path for deferred loading
     void SetXmlPath(const std::string& xmlPath) { xmlPath_ = xmlPath; }
 
@@ -61,6 +61,7 @@ public:
     // Entity and system access
     World* GetWorld() { return world_.get(); }
     const std::vector<std::unique_ptr<System>>& GetSystems() const { return systems_; }
+    void AddSystem(std::unique_ptr<System> system);
 
 protected:
     // Called during XML loading to create scene-specific systems

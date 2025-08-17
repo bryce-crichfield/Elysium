@@ -3,9 +3,18 @@
 #include "raylib.h"
 #include "Scene.h"
 #include "Systems/AnimationSystem.h"
+#include "Systems/BattleSystem.h"
+#include "Systems/TurnSystem.h"
 #include <memory>
 
-namespace Elysium { struct Action; }
+namespace Elysium {
+    struct Action;
+    enum class BattleState;
+}
+
+namespace Elysium::Events {
+    struct BattleEndEvent;
+}
 
 namespace Elysium::Scenes {
 
@@ -21,15 +30,15 @@ public:
     void OnExit() override;
 
     std::vector<Asset> GetAssets() override;
+
+    void StartBattle(const std::vector<int>& playerUnits, const std::vector<int>& enemyUnits);
+    BattleState GetBattleState() const;
+
 private:
-    // Action factory methods for different behavior types
-    std::shared_ptr<Elysium::Action> CreateHeroIdleAnimation();
-    std::shared_ptr<Elysium::Action> CreateEnemyBreathingAnimation(Entity enemy);
-    std::shared_ptr<Elysium::Action> CreateHeroAttackSequence(Entity hero);
-    std::shared_ptr<Elysium::Action> CreateHeroDefensiveStance(Entity hero);
-    std::shared_ptr<Elysium::Action> CreateEnemyChargeAttack(Entity enemy);
-    std::shared_ptr<Elysium::Action> CreateEnemyMagicCast(Entity enemy);
-    std::shared_ptr<Elysium::Action> CreateHeroCombatSequence(Entity hero);
-    std::shared_ptr<Elysium::Action> CreateEnemyCombatSequence(Entity enemy);
+    void InitializeEventHandlers();
+    void OnBattleEnd(const Events::BattleEndEvent& event);
+
+    std::unique_ptr<BattleSystem> battleSystem;
+    std::unique_ptr<TurnSystem> turnSystem;
 };
-};
+}

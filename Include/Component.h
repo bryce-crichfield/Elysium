@@ -20,6 +20,7 @@ struct PositionComponent
 struct LocationComponent
 {
     int x, y;
+
     LocationComponent(int x = 0, int y = 0);
 };
 
@@ -28,8 +29,11 @@ struct MovementComponent
     std::vector<Vector2> waypoints;
     size_t currentWaypointIndex = 0;
     float speed = 100.0f;
-    bool isMoving = true;
+    bool isMoving = false;
     bool loop = true;              // should it loop back to start when done?
+
+    void AddWaypoint(const Vector2& waypoint);
+    void ClearWaypoints();
 
     MovementComponent() = default;
     MovementComponent(const std::vector<Vector2>& waypoints);
@@ -61,7 +65,7 @@ struct DirectionComponent {
 
     DirectionComponent() = default;
     DirectionComponent(Direction dir) : currentDirection(dir), previousDirection(dir) {}
-    
+
     void SetDirection(Direction newDir) {
         if (newDir != currentDirection) {
             previousDirection = currentDirection;
@@ -69,7 +73,7 @@ struct DirectionComponent {
             hasChanged = true;
         }
     }
-    
+
     void ClearChanged() { hasChanged = false; }
 };
 
@@ -194,4 +198,15 @@ struct TeamComponent
     TeamComponent(int teamId);
 };
 
+struct CooldownComponent
+{
+    float cooldownTime = 0.0f;          // Time in seconds
+    float elapsedTime = 0.0f;           // Time elapsed since last action
+    bool isOnCooldown = false;           // Is the action currently on cooldown
+
+    void SetCooldown(float duration);
+
+    CooldownComponent();
+    CooldownComponent(float cooldown);
+};
 };

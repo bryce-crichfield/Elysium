@@ -9,12 +9,12 @@ namespace Elysium::Services {
 
 void SceneService::SetScene(std::unique_ptr<Scene> scene) {
     if (currentScene_) {
-        LOG_SERVICE_INFO("SCENE_SERVICE", "Exiting current scene");
+        LOG_INFO("SCENE_SERVICE", "Exiting current scene");
         currentScene_->OnExit();
     }
     currentScene_ = std::move(scene);
     if (currentScene_) {
-        LOG_SERVICE_INFO("SCENE_SERVICE", "Entering new scene");
+        LOG_INFO("SCENE_SERVICE", "Entering new scene");
         currentScene_->OnEnter();
     }
 }
@@ -22,11 +22,11 @@ void SceneService::SetScene(std::unique_ptr<Scene> scene) {
 void SceneService::QueueScene(std::unique_ptr<Scene> scene) {
     if (!sceneTransitionLocked_) {
         LOG_SECTION_START("SCENE TRANSITION");
-        LOG_SERVICE_INFO("SCENE_SERVICE", "Scene transition queued");
-        
+        LOG_INFO("SCENE_SERVICE", "Scene transition queued");
+
         pendingScene_ = std::move(scene);
         sceneTransitionPending_ = true;
-        
+
         // Get assets from the scene but don't start loading yet
         // Loading will start after fade out completes
         if (pendingScene_) {
@@ -37,50 +37,50 @@ void SceneService::QueueScene(std::unique_ptr<Scene> scene) {
 
 void SceneService::RegisterScene(const std::string& typeName, SceneFactory factory) {
     sceneFactories_[typeName] = factory;
-    LOG_SERVICE_INFOF("SCENE_SERVICE", "Registered scene type: %s", typeName.c_str());
+    LOG_INFOF("SCENE_SERVICE", "Registered scene type: %s", typeName.c_str());
 }
 
 void SceneService::QueueScene(const std::string& xmlPath) {
     // Read the XML file to determine the scene type
     XMLDocument doc;
     if (doc.LoadFile(xmlPath.c_str()) != XML_SUCCESS) {
-        LOG_SERVICE_ERRORF("SCENE_SERVICE", "Failed to load scene file: %s. Error: %s", xmlPath.c_str(), doc.ErrorStr());
+        LOG_ERRORF("SCENE_SERVICE", "Failed to load scene file: %s. Error: %s", xmlPath.c_str(), doc.ErrorStr());
         return;
     }
-    
+
     XMLElement *root = doc.FirstChildElement("Scene");
     if (!root) {
-        LOG_SERVICE_ERRORF("SCENE_SERVICE", "Invalid scene file format in: %s", xmlPath.c_str());
+        LOG_ERRORF("SCENE_SERVICE", "Invalid scene file format in: %s", xmlPath.c_str());
         return;
     }
-    
+
     const char* sceneType = root->Attribute("type");
     if (!sceneType) {
-        LOG_SERVICE_ERRORF("SCENE_SERVICE", "Scene type not specified in: %s", xmlPath.c_str());
+        LOG_ERRORF("SCENE_SERVICE", "Scene type not specified in: %s", xmlPath.c_str());
         return;
     }
-    
+
     // Find the scene factory
     auto factoryIt = sceneFactories_.find(sceneType);
     if (factoryIt == sceneFactories_.end()) {
-        LOG_SERVICE_ERRORF("SCENE_SERVICE", "Unknown scene type '%s' in file: %s", sceneType, xmlPath.c_str());
+        LOG_ERRORF("SCENE_SERVICE", "Unknown scene type '%s' in file: %s", sceneType, xmlPath.c_str());
         return;
     }
-    
+
     // Create the scene using the factory
     std::unique_ptr<Scene> scene = factoryIt->second();
-    
+
     // Store the XML path for later loading after assets are available
     scene->SetXmlPath(xmlPath);
-    
+
     // Queue the scene transition
     QueueScene(std::move(scene));
-    LOG_SERVICE_INFOF("SCENE_SERVICE", "Queued scene from XML: %s (type: %s)", xmlPath.c_str(), sceneType);
+    LOG_INFOF("SCENE_SERVICE", "Queued scene from XML: %s (type: %s)", xmlPath.c_str(), sceneType);
 }
 
 void SceneService::Update(float deltaTime) {
     HandleSceneTransition();
-    
+
     if (transitionState_ == TransitionState::FADE_OUT) {
         transitionTimer_ += deltaTime;
         if (transitionTimer_ >= transitionDuration_) {
@@ -126,7 +126,7 @@ void SceneService::HandleSceneTransition() {
         sceneTransitionLocked_ = true;
         transitionState_ = TransitionState::FADE_OUT;
         transitionTimer_ = 0.0f;
-        
+
         // Don't call OnEnter() yet - wait until loading completes
     }
 }
@@ -136,11 +136,11 @@ void SceneService::Shutdown() {
         currentScene_->OnExit();
         currentScene_.reset();
     }
-    
+
     pendingScene_.reset();
     sceneFactories_.clear();
     pendingAssets_.clear();
-    
+
     transitionState_ = TransitionState::NONE;
     transitionTimer_ = 0.0f;
     sceneTransitionPending_ = false;
@@ -153,7 +153,7 @@ void SceneService::OnAssetsLoaded() {
         if (pendingScene_) {
             pendingScene_->OnEnter();
         }
-        
+
         transitionState_ = TransitionState::FADE_IN;
         transitionTimer_ = 0.0f;
     }
