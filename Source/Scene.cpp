@@ -1,5 +1,6 @@
 #include "Scene.h"
 #include "Entity.h"
+#include "System.h"
 #include "Systems/RenderSystem.h"
 #include "Systems/MovementSystem.h"
 #include "Systems/AnimationSystem.h"
@@ -495,6 +496,10 @@ void Scene::OnDraw(Rectangle screen) {
 }
 
 void Scene::OnDebugDraw() {
+}
+
+void Scene::AddSystem(std::unique_ptr<System> system) {
+    systems_.emplace_back(std::move(system));
 }
 
 } // namespace Elysium

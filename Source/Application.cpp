@@ -37,12 +37,12 @@ bool Application::Initialize(const std::string& configPath) {
         SetTraceLogLevel(LOG_INFO);
 
         if (!ApplicationConfig::FromXML(configPath, config_)) {
-            LOG_SERVICE_ERROR("Application", "Failed to load ApplicationConfig.xml");
+            LOG_ERROR("Application", "Failed to load ApplicationConfig.xml");
             return false;
         }
 
         LOG_SECTION_START("ENGINE INITIALIZATION");
-        LOG_SERVICE_INFO("Application", "Elysium Engine initializing");
+        LOG_INFO("Application", "Elysium Engine initializing");
 
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
         InitWindow(config_.windowWidth, config_.windowHeight, config_.windowTitle.c_str());
@@ -66,7 +66,7 @@ bool Application::Initialize(const std::string& configPath) {
         // loadingService_.Initialize(); // Temporarily disabled for testing Scene.xml loading
 
         initialized_ = true;
-        LOG_SERVICE_INFO("Application", "Engine initialization complete");
+        LOG_INFO("Application", "Engine initialization complete");
         LOG_SECTION_END("ENGINE INITIALIZATION");
         return true;
     }

@@ -14,6 +14,16 @@ MovementComponent::MovementComponent(const std::vector<Vector2> &waypoints) : wa
 {
 }
 
+void MovementComponent::AddWaypoint(const Vector2& waypoint)
+{
+    waypoints.push_back(waypoint);
+}
+
+void MovementComponent::ClearWaypoints()
+{
+    waypoints.clear();
+}
+
 AnimationComponent::AnimationComponent(std::string marker) : marker(marker)
 {
 }
@@ -53,5 +63,13 @@ TeamComponent::TeamComponent(int teamId) : teamId(teamId)
 CameraComponent::CameraComponent()
     : position({0.0f, 0.0f}), zoom(1.0f), viewport({0, 0, 800, 600}), renderOrder(0), isVisible(true)
 {
+}
+
+CooldownComponent::CooldownComponent() {}
+CooldownComponent::CooldownComponent(float cooldown) : cooldownTime(cooldown) {}
+void CooldownComponent::SetCooldown(float duration) {
+    cooldownTime = duration;
+    elapsedTime = 0.0f;
+    isOnCooldown = true;
 }
 } // namespace Elysium

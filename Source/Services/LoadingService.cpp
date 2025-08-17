@@ -24,7 +24,7 @@ void LoadingService::Shutdown()
     if (loadingThread_.joinable()) {
         loadingThread_.join();
     }
-    
+
     // Unload background textures
     for (auto& texture : backgroundTextures_) {
         if (texture.id != 0) {
@@ -32,7 +32,7 @@ void LoadingService::Shutdown()
         }
     }
     backgroundTextures_.clear();
-    
+
     // Unload background music
     if (musicLoaded_) {
         UnloadSound(backgroundMusic_);
@@ -49,7 +49,7 @@ float LoadingService::GetProgress() const
 {
     int total = totalAssets_.load();
     if (total == 0) return 1.0f;
-    
+
     int loaded = loadedAssets_.load();
     return (float)loaded / (float)total;
 }
@@ -69,7 +69,7 @@ void LoadingService::LoadAssets(const std::vector<Asset>& assets, AssetService& 
     if (isLoading_.load()) {
         return; // Already loading
     }
-    
+
     {
         std::lock_guard<std::mutex> lock(queueMutex_);
         assetQueue_ = assets;
@@ -77,14 +77,14 @@ void LoadingService::LoadAssets(const std::vector<Asset>& assets, AssetService& 
         totalAssets_.store(assets.size());
         loadedAssets_.store(0);
     }
-    
+
     isLoading_.store(true);
-    
+
     // Start loading thread if not already running
     if (loadingThread_.joinable()) {
         loadingThread_.join();
     }
-    
+
     loadingThread_ = std::thread(&LoadingService::LoadingThreadFunction, this);
 }
 
@@ -99,50 +99,50 @@ void LoadingService::ClearQueue()
 void LoadingService::LoadingThreadFunction()
 {
     LOG_SECTION_START("ASSET LOADING");
-    LOG_SERVICE_INFO("LOADING_SERVICE", "Loading thread started");
-    
+    LOG_INFO("LOADING_SERVICE", "Loading thread started");
+
     std::vector<Asset> assetsToLoad;
     {
         std::lock_guard<std::mutex> lock(queueMutex_);
         assetsToLoad = assetQueue_;
     }
-    
+
     for (const auto& asset : assetsToLoad) {
         if (shouldExit_) {
             break;
         }
-        
+
         if (assetService_) {
-            LOG_SERVICE_INFOF("LOADING_SERVICE", "Loading asset: %s -> %s", asset.GetName().c_str(), asset.GetPath().c_str());
+            LOG_INFOF("LOADING_SERVICE", "Loading asset: %s -> %s", asset.GetName().c_str(), asset.GetPath().c_str());
             assetService_->LoadAsset(asset);
             loadedAssets_.fetch_add(1);
-            
+
             int delayTime = config_.delayTime;  // notice, prob not thread safe eggggaddd
             std::this_thread::sleep_for(std::chrono::milliseconds(delayTime));
         }
     }
-    
+
     isLoading_.store(false);
-    LOG_SERVICE_INFO("LOADING_SERVICE", "Loading thread finished");
+    LOG_INFO("LOADING_SERVICE", "Loading thread finished");
     LOG_SECTION_END("ASSET LOADING");
 }
 
 void LoadingService::LoadConfig(const std::string& configPath)
 {
-    LOG_SERVICE_INFOF("LOADING_SERVICE", "Loading config from: %s", configPath.c_str());
-    
+    LOG_INFOF("LOADING_SERVICE", "Loading config from: %s", configPath.c_str());
+
     XMLDocument doc;
     XMLError result = doc.LoadFile(configPath.c_str());
     if (result != XML_SUCCESS) {
-        LOG_SERVICE_WARNINGF("LOADING_SERVICE", "Failed to load LoadingConfig.xml, error code: %d", result);
-        LOG_SERVICE_WARNINGF("LOADING_SERVICE", "XML Error: %s", doc.ErrorStr());
+        LOG_WARNINGF("LOADING_SERVICE", "Failed to load LoadingConfig.xml, error code: %d", result);
+        LOG_WARNINGF("LOADING_SERVICE", "XML Error: %s", doc.ErrorStr());
         return;
     }
-    
-    
+
+
     XMLElement* root = doc.FirstChildElement("LoadingConfig");
     if (!root) {
-        LOG_SERVICE_WARNING("LOADING_SERVICE", "Invalid LoadingConfig.xml format - no LoadingConfig root element");
+        LOG_WARNING("LOADING_SERVICE", "Invalid LoadingConfig.xml format - no LoadingConfig root element");
         return;
     }
 
@@ -160,32 +160,32 @@ void LoadingService::LoadConfig(const std::string& configPath)
             config_.progressBar.x = x->IntText(-1);
         if (XMLElement* y = progressBar->FirstChildElement("Y"))
             config_.progressBar.y = y->IntText(300);
-            
+
         if (XMLElement* bgColor = progressBar->FirstChildElement("BackgroundColor")) {
             config_.progressBar.backgroundColor.r = bgColor->FirstChildElement("r")->IntText(64);
             config_.progressBar.backgroundColor.g = bgColor->FirstChildElement("g")->IntText(64);
             config_.progressBar.backgroundColor.b = bgColor->FirstChildElement("b")->IntText(64);
             config_.progressBar.backgroundColor.a = bgColor->FirstChildElement("a")->IntText(255);
         }
-        
+
         if (XMLElement* borderColor = progressBar->FirstChildElement("BorderColor")) {
             config_.progressBar.borderColor.r = borderColor->FirstChildElement("r")->IntText(128);
             config_.progressBar.borderColor.g = borderColor->FirstChildElement("g")->IntText(128);
             config_.progressBar.borderColor.b = borderColor->FirstChildElement("b")->IntText(128);
             config_.progressBar.borderColor.a = borderColor->FirstChildElement("a")->IntText(255);
         }
-        
+
         if (XMLElement* fillColor = progressBar->FirstChildElement("FillColor")) {
             config_.progressBar.fillColor.r = fillColor->FirstChildElement("r")->IntText(0);
             config_.progressBar.fillColor.g = fillColor->FirstChildElement("g")->IntText(255);
             config_.progressBar.fillColor.b = fillColor->FirstChildElement("b")->IntText(128);
             config_.progressBar.fillColor.a = fillColor->FirstChildElement("a")->IntText(255);
         }
-        
+
         if (XMLElement* borderThickness = progressBar->FirstChildElement("BorderThickness"))
             config_.progressBar.borderThickness = borderThickness->IntText(2);
     }
-    
+
     // Load Text config
     if (XMLElement* text = root->FirstChildElement("Text")) {
         if (XMLElement* loadingText = text->FirstChildElement("LoadingText"))
@@ -196,14 +196,14 @@ void LoadingService::LoadConfig(const std::string& configPath)
             config_.text.x = x->IntText(-1);
         if (XMLElement* y = text->FirstChildElement("Y"))
             config_.text.y = y->IntText(200);
-            
+
         if (XMLElement* color = text->FirstChildElement("Color")) {
             config_.text.color.r = color->FirstChildElement("r")->IntText(255);
             config_.text.color.g = color->FirstChildElement("g")->IntText(255);
             config_.text.color.b = color->FirstChildElement("b")->IntText(255);
             config_.text.color.a = color->FirstChildElement("a")->IntText(255);
         }
-        
+
         if (XMLElement* statusText = text->FirstChildElement("StatusText"))
             config_.text.statusText = statusText->GetText() ? statusText->GetText() : "Assets loaded: {loaded} / {total}";
         if (XMLElement* statusFontSize = text->FirstChildElement("StatusFontSize"))
@@ -212,7 +212,7 @@ void LoadingService::LoadConfig(const std::string& configPath)
             config_.text.statusX = statusX->IntText(-1);
         if (XMLElement* statusY = text->FirstChildElement("StatusY"))
             config_.text.statusY = statusY->IntText(350);
-            
+
         if (XMLElement* statusColor = text->FirstChildElement("StatusColor")) {
             config_.text.statusColor.r = statusColor->FirstChildElement("r")->IntText(200);
             config_.text.statusColor.g = statusColor->FirstChildElement("g")->IntText(200);
@@ -220,7 +220,7 @@ void LoadingService::LoadConfig(const std::string& configPath)
             config_.text.statusColor.a = statusColor->FirstChildElement("a")->IntText(255);
         }
     }
-    
+
     // Load Background config
     if (XMLElement* background = root->FirstChildElement("Background")) {
         if (XMLElement* images = background->FirstChildElement("Images")) {
@@ -230,18 +230,18 @@ void LoadingService::LoadConfig(const std::string& configPath)
                 }
             }
         }
-        
+
         if (XMLElement* cycleTime = background->FirstChildElement("CycleTime"))
             config_.background.cycleTime = cycleTime->FloatText(2.0f);
-            
+
         if (XMLElement* music = background->FirstChildElement("Music"))
             config_.background.musicPath = music->GetText() ? music->GetText() : "";
     }
-    
+
     // Load Tooltips config
-    LOG_SERVICE_INFO("LOADING_SERVICE", "Parsing Tooltips config");
+    LOG_INFO("LOADING_SERVICE", "Parsing Tooltips config");
     if (XMLElement* tooltips = root->FirstChildElement("Tooltips")) {
-        LOG_SERVICE_INFO("LOADING_SERVICE", "Found Tooltips element");
+        LOG_INFO("LOADING_SERVICE", "Found Tooltips element");
         if (XMLElement* messages = tooltips->FirstChildElement("Messages")) {
             for (XMLElement* message = messages->FirstChildElement("Message"); message != nullptr; message = message->NextSiblingElement("Message")) {
                 if (message->GetText()) {
@@ -249,7 +249,7 @@ void LoadingService::LoadConfig(const std::string& configPath)
                 }
             }
         }
-        
+
         if (XMLElement* cycleTime = tooltips->FirstChildElement("CycleTime"))
             config_.tooltips.cycleTime = cycleTime->FloatText(3.0f);
         if (XMLElement* fontSize = tooltips->FirstChildElement("FontSize"))
@@ -258,7 +258,7 @@ void LoadingService::LoadConfig(const std::string& configPath)
             config_.tooltips.x = x->IntText(-1);
         if (XMLElement* y = tooltips->FirstChildElement("Y"))
             config_.tooltips.y = y->IntText(400);
-            
+
         if (XMLElement* color = tooltips->FirstChildElement("Color")) {
             if (XMLElement* r = color->FirstChildElement("r"))
                 config_.tooltips.color.r = r->IntText(180);
@@ -270,30 +270,30 @@ void LoadingService::LoadConfig(const std::string& configPath)
                 config_.tooltips.color.a = a->IntText(255);
         }
     } else {
-        LOG_SERVICE_INFO("LOADING_SERVICE", "No Tooltips element found in config");
+        LOG_INFO("LOADING_SERVICE", "No Tooltips element found in config");
     }
-    
+
     // Load background textures
     for (const auto& imagePath : config_.background.imagePaths) {
         Texture2D texture = LoadTexture(imagePath.c_str());
         if (texture.id != 0) {
             backgroundTextures_.push_back(texture);
         } else {
-            LOG_SERVICE_WARNINGF("LOADING_SERVICE", "Failed to load loading background: %s", imagePath.c_str());
+            LOG_WARNINGF("LOADING_SERVICE", "Failed to load loading background: %s", imagePath.c_str());
         }
     }
-    
+
     // Load background music
     if (!config_.background.musicPath.empty()) {
         backgroundMusic_ = LoadSound(config_.background.musicPath.c_str());
         if (backgroundMusic_.frameCount > 0) {
             musicLoaded_ = true;
         } else {
-            LOG_SERVICE_WARNINGF("LOADING_SERVICE", "Failed to load loading music: %s", config_.background.musicPath.c_str());
+            LOG_WARNINGF("LOADING_SERVICE", "Failed to load loading music: %s", config_.background.musicPath.c_str());
         }
     }
-    
-    LOG_SERVICE_INFO("LOADING_SERVICE", "LoadingConfig.xml loaded and parsed successfully");
+
+    LOG_INFO("LOADING_SERVICE", "LoadingConfig.xml loaded and parsed successfully");
 }
 
 void LoadingService::Draw(int screenWidth, int screenHeight)
@@ -304,14 +304,14 @@ void LoadingService::Draw(int screenWidth, int screenHeight)
         backgroundTimer_ = 0.0f;
         currentBackgroundIndex_ = (currentBackgroundIndex_ + 1) % backgroundTextures_.size();
     }
-    
+
     // Update tooltip timer
     tooltipTimer_ += GetFrameTime();
     if (tooltipTimer_ >= config_.tooltips.cycleTime && !config_.tooltips.messages.empty()) {
         tooltipTimer_ = 0.0f;
         currentTooltipIndex_ = (currentTooltipIndex_ + 1) % config_.tooltips.messages.size();
     }
-    
+
     DrawBackground(screenWidth, screenHeight);
     DrawLoadingText(screenWidth, screenHeight);
     DrawProgressBar(screenWidth, screenHeight);
@@ -322,7 +322,7 @@ void LoadingService::DrawBackground(int screenWidth, int screenHeight)
 {
     // Clear to black first
     ClearBackground(BLACK);
-    
+
     // Draw background image if available
     if (!backgroundTextures_.empty() && currentBackgroundIndex_ < backgroundTextures_.size()) {
         Texture2D& texture = backgroundTextures_[currentBackgroundIndex_];
@@ -331,12 +331,12 @@ void LoadingService::DrawBackground(int screenWidth, int screenHeight)
             float scaleX = (float)screenWidth / texture.width;
             float scaleY = (float)screenHeight / texture.height;
             float scale = fminf(scaleX, scaleY);
-            
+
             int scaledWidth = (int)(texture.width * scale);
             int scaledHeight = (int)(texture.height * scale);
             int offsetX = (screenWidth - scaledWidth) / 2;
             int offsetY = (screenHeight - scaledHeight) / 2;
-            
+
             DrawTexturePro(
                 texture,
                 Rectangle{0, 0, (float)texture.width, (float)texture.height},
@@ -356,7 +356,7 @@ void LoadingService::DrawLoadingText(int screenWidth, int screenHeight)
     int textWidth = MeasureText(loadingText, config_.text.fontSize);
     int textX = config_.text.x == -1 ? (screenWidth - textWidth) / 2 : config_.text.x;
     ::DrawText(loadingText, textX, config_.text.y, config_.text.fontSize, config_.text.color);
-    
+
     // Draw status text
     std::string statusText = FormatStatusText(config_.text.statusText, loadedAssets_.load(), totalAssets_.load());
     int statusWidth = MeasureText(statusText.c_str(), config_.text.statusFontSize);
@@ -368,17 +368,17 @@ void LoadingService::DrawProgressBar(int screenWidth, int screenHeight)
 {
     int barX = config_.progressBar.x == -1 ? (screenWidth - config_.progressBar.width) / 2 : config_.progressBar.x;
     int barY = config_.progressBar.y;
-    
+
     // Draw background
     DrawRectangle(barX, barY, config_.progressBar.width, config_.progressBar.height, config_.progressBar.backgroundColor);
-    
+
     // Draw progress fill
     float progress = GetProgress();
     int fillWidth = (int)(config_.progressBar.width * progress);
     if (fillWidth > 0) {
         DrawRectangle(barX, barY, fillWidth, config_.progressBar.height, config_.progressBar.fillColor);
     }
-    
+
     // Draw border
     if (config_.progressBar.borderThickness > 0) {
         DrawRectangleLines(barX, barY, config_.progressBar.width, config_.progressBar.height, config_.progressBar.borderColor);
@@ -393,19 +393,19 @@ void LoadingService::DrawProgressBar(int screenWidth, int screenHeight)
 std::string LoadingService::FormatStatusText(const std::string& template_str, int loaded, int total)
 {
     std::string result = template_str;
-    
+
     // Replace {loaded} with actual loaded count
     size_t pos = result.find("{loaded}");
     if (pos != std::string::npos) {
         result.replace(pos, 8, std::to_string(loaded));
     }
-    
+
     // Replace {total} with actual total count
     pos = result.find("{total}");
     if (pos != std::string::npos) {
         result.replace(pos, 7, std::to_string(total));
     }
-    
+
     return result;
 }
 

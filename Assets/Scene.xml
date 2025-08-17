@@ -1,5 +1,6 @@
 <Scene type="BattleScene">
     <Systems>
+        <System type="MovementSystem" />
         <System type="SpriteSystem" />
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
@@ -11,7 +12,8 @@
         <Layer name="default" z="0" type="World" space="World" blend="Normal" />
         <Layer name="tile" z="1" type="World" space="World" blend="Normal" />
         <Layer name="entity" z="2" type="World" space="World" blend="Normal" />
-        <Layer name="light" z="3" type="Lighting" space="World" blend="Additive" opacity="0.8" />
+        <Layer name="cursor" z="3" type="World" space="World" blend="Normal" />
+        <Layer name="light" z="4" type="Lighting" space="World" blend="Additive" opacity="0.8" />
     </Layers>
 
     <!--
@@ -54,23 +56,24 @@
     <Entities >
         <Entity name="CAMERA">
             <PositionComponent />
-            <CameraComponent target="ENTITY_0" />
+            <CameraComponent target="CURSOR" />
         </Entity>
 
         <Entity name="CURSOR">
             <LocationComponent x="0" y="0" />
             <PositionComponent />
-            <AnimationComponent />
+            <MovementComponent />
+            <RectangleComponent width="32" height="32" background="#ffffffaa" border="#000000" layerName="entity" />
         </Entity>
 
         <Entity name="ENTITY_0">
             <LocationComponent x="0" y="0" />
             <PositionComponent />
             <TeamComponent teamId="0" />
-            <SpriteComponent
+            <!-- <SpriteComponent
                 spriteName="mushroom_warrior"
                 markerName="idle/down"
-                layerName="entity" />
+                layerName="entity" /> -->
             <AnimationComponent />
         </Entity>
 
@@ -98,10 +101,10 @@
             <AnimationComponent />
         </Entity>
 
-        <Entity name="LIGHT_1">
+        <!-- <Entity name="LIGHT_1">
             <LocationComponent x="3" y="3" />
             <PositionComponent />
             <LightComponent radius="80" r="255" g="200" b="100" a="60" layerName="light" />
-        </Entity>
+        </Entity> -->
     </Entities>
 </Scene>
