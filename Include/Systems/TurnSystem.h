@@ -1,5 +1,6 @@
 #pragma once
 
+#include "System.h"
 #include "Events/BattleEvents.h"
 #include <vector>
 
@@ -11,12 +12,12 @@ namespace Elysium {
         bool isPlayerUnit;
     };
 
-    class TurnSystem {
+    class TurnSystem : public System {
     public:
-        TurnSystem();
+        TurnSystem(Context context);
         ~TurnSystem();
 
-        void Update(float deltaTime);
+        void Update(float deltaTime) override;
         void InitializeTurnOrder(const std::vector<int>& playerUnits, const std::vector<int>& enemyUnits);
         void NextTurn();
         void EndCurrentTurn();
@@ -28,13 +29,12 @@ namespace Elysium {
 
     private:
         void OnBattleStart(const Events::BattleStartEvent& event);
-        void OnUnitDefeated(const Events::UnitDefeatedEvent& event);
+        void OnUnitDefeated(const Events::UnitKilledEvent& event);
         void OnActionSelected(const Events::ActionSelectedEvent& event);
 
         void CalculateInitiative();
         void StartTurn();
         void RemoveUnitFromTurnOrder(int unitId);
-        void InitializeEventHandlers();
         int CalculateInitiativeForUnit(int unitId);
 
         std::vector<TurnOrder> turnQueue;

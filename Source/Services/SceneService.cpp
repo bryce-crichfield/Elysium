@@ -9,20 +9,19 @@ namespace Elysium::Services {
 
 void SceneService::SetScene(std::unique_ptr<Scene> scene) {
     if (currentScene_) {
-        LOG_INFO("SCENE_SERVICE", "Exiting current scene");
+        LOG_INFO("SceneService", "Exiting current scene");
         currentScene_->OnExit();
     }
     currentScene_ = std::move(scene);
     if (currentScene_) {
-        LOG_INFO("SCENE_SERVICE", "Entering new scene");
+        LOG_INFO("SceneService", "Entering new scene");
         currentScene_->OnEnter();
     }
 }
 
 void SceneService::QueueScene(std::unique_ptr<Scene> scene) {
     if (!sceneTransitionLocked_) {
-        LOG_SECTION_START("SCENE TRANSITION");
-        LOG_INFO("SCENE_SERVICE", "Scene transition queued");
+        LOG_INFO("SceneService", "Scene transition queued");
 
         pendingScene_ = std::move(scene);
         sceneTransitionPending_ = true;
@@ -37,33 +36,33 @@ void SceneService::QueueScene(std::unique_ptr<Scene> scene) {
 
 void SceneService::RegisterScene(const std::string& typeName, SceneFactory factory) {
     sceneFactories_[typeName] = factory;
-    LOG_INFOF("SCENE_SERVICE", "Registered scene type: %s", typeName.c_str());
+    LOG_INFOF("SceneService", "Registered scene type: %s", typeName.c_str());
 }
 
 void SceneService::QueueScene(const std::string& xmlPath) {
     // Read the XML file to determine the scene type
     XMLDocument doc;
     if (doc.LoadFile(xmlPath.c_str()) != XML_SUCCESS) {
-        LOG_ERRORF("SCENE_SERVICE", "Failed to load scene file: %s. Error: %s", xmlPath.c_str(), doc.ErrorStr());
+        LOG_ERRORF("SceneService", "Failed to load scene file: %s. Error: %s", xmlPath.c_str(), doc.ErrorStr());
         return;
     }
 
     XMLElement *root = doc.FirstChildElement("Scene");
     if (!root) {
-        LOG_ERRORF("SCENE_SERVICE", "Invalid scene file format in: %s", xmlPath.c_str());
+        LOG_ERRORF("SceneService", "Invalid scene file format in: %s", xmlPath.c_str());
         return;
     }
 
     const char* sceneType = root->Attribute("type");
     if (!sceneType) {
-        LOG_ERRORF("SCENE_SERVICE", "Scene type not specified in: %s", xmlPath.c_str());
+        LOG_ERRORF("SceneService", "Scene type not specified in: %s", xmlPath.c_str());
         return;
     }
 
     // Find the scene factory
     auto factoryIt = sceneFactories_.find(sceneType);
     if (factoryIt == sceneFactories_.end()) {
-        LOG_ERRORF("SCENE_SERVICE", "Unknown scene type '%s' in file: %s", sceneType, xmlPath.c_str());
+        LOG_ERRORF("SceneService", "Unknown scene type '%s' in file: %s", sceneType, xmlPath.c_str());
         return;
     }
 
@@ -75,7 +74,7 @@ void SceneService::QueueScene(const std::string& xmlPath) {
 
     // Queue the scene transition
     QueueScene(std::move(scene));
-    LOG_INFOF("SCENE_SERVICE", "Queued scene from XML: %s (type: %s)", xmlPath.c_str(), sceneType);
+    LOG_INFOF("SceneService", "Queued scene from XML: %s (type: %s)", xmlPath.c_str(), sceneType);
 }
 
 void SceneService::Update(float deltaTime) {
@@ -98,7 +97,6 @@ void SceneService::Update(float deltaTime) {
             SetScene(std::move(pendingScene_));
             sceneTransitionPending_ = false;
             sceneTransitionLocked_ = false;
-            LOG_SECTION_END("SCENE TRANSITION");
         }
     }
     else if (transitionState_ == TransitionState::NONE && currentScene_) {

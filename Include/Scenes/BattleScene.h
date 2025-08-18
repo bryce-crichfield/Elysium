@@ -32,13 +32,17 @@ public:
     std::vector<Asset> GetAssets() override;
 
     void StartBattle(const std::vector<int>& playerUnits, const std::vector<int>& enemyUnits);
-    BattleState GetBattleState() const;
+    Systems::BattleState GetBattleState() const;
 
 private:
-    void InitializeEventHandlers();
     void OnBattleEnd(const Events::BattleEndEvent& event);
+    void SetupBattleEntities();
 
-    std::unique_ptr<BattleSystem> battleSystem;
-    std::unique_ptr<TurnSystem> turnSystem;
+    // System references
+    Systems::BattleSystem* battleSystem = nullptr;
+    TurnSystem* turnSystem = nullptr;
+
+    // UI state
+    int selectedUnit = -1;
 };
 }

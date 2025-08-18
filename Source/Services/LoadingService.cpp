@@ -98,8 +98,7 @@ void LoadingService::ClearQueue()
 
 void LoadingService::LoadingThreadFunction()
 {
-    LOG_SECTION_START("ASSET LOADING");
-    LOG_INFO("LOADING_SERVICE", "Loading thread started");
+    LOG_INFO("LoadingService", "Loading thread started");
 
     std::vector<Asset> assetsToLoad;
     {
@@ -113,7 +112,7 @@ void LoadingService::LoadingThreadFunction()
         }
 
         if (assetService_) {
-            LOG_INFOF("LOADING_SERVICE", "Loading asset: %s -> %s", asset.GetName().c_str(), asset.GetPath().c_str());
+            LOG_DEBUGF("LoadingService", "Loading asset: %s -> %s", asset.GetName().c_str(), asset.GetPath().c_str());
             assetService_->LoadAsset(asset);
             loadedAssets_.fetch_add(1);
 
@@ -123,26 +122,25 @@ void LoadingService::LoadingThreadFunction()
     }
 
     isLoading_.store(false);
-    LOG_INFO("LOADING_SERVICE", "Loading thread finished");
-    LOG_SECTION_END("ASSET LOADING");
+    LOG_INFO("LoadingService", "Loading thread finished");
 }
 
 void LoadingService::LoadConfig(const std::string& configPath)
 {
-    LOG_INFOF("LOADING_SERVICE", "Loading config from: %s", configPath.c_str());
+    LOG_INFOF("LoadingService", "Loading config from: %s", configPath.c_str());
 
     XMLDocument doc;
     XMLError result = doc.LoadFile(configPath.c_str());
     if (result != XML_SUCCESS) {
-        LOG_WARNINGF("LOADING_SERVICE", "Failed to load LoadingConfig.xml, error code: %d", result);
-        LOG_WARNINGF("LOADING_SERVICE", "XML Error: %s", doc.ErrorStr());
+        LOG_WARNINGF("LoadingService", "Failed to load LoadingConfig.xml, error code: %d", result);
+        LOG_WARNINGF("LoadingService", "XML Error: %s", doc.ErrorStr());
         return;
     }
 
 
     XMLElement* root = doc.FirstChildElement("LoadingConfig");
     if (!root) {
-        LOG_WARNING("LOADING_SERVICE", "Invalid LoadingConfig.xml format - no LoadingConfig root element");
+        LOG_WARNING("LoadingService", "Invalid LoadingConfig.xml format - no LoadingConfig root element");
         return;
     }
 
@@ -239,9 +237,9 @@ void LoadingService::LoadConfig(const std::string& configPath)
     }
 
     // Load Tooltips config
-    LOG_INFO("LOADING_SERVICE", "Parsing Tooltips config");
+    LOG_INFO("LoadingService", "Parsing Tooltips config");
     if (XMLElement* tooltips = root->FirstChildElement("Tooltips")) {
-        LOG_INFO("LOADING_SERVICE", "Found Tooltips element");
+        LOG_INFO("LoadingService", "Found Tooltips element");
         if (XMLElement* messages = tooltips->FirstChildElement("Messages")) {
             for (XMLElement* message = messages->FirstChildElement("Message"); message != nullptr; message = message->NextSiblingElement("Message")) {
                 if (message->GetText()) {
@@ -270,7 +268,7 @@ void LoadingService::LoadConfig(const std::string& configPath)
                 config_.tooltips.color.a = a->IntText(255);
         }
     } else {
-        LOG_INFO("LOADING_SERVICE", "No Tooltips element found in config");
+        LOG_INFO("LoadingService", "No Tooltips element found in config");
     }
 
     // Load background textures
@@ -279,7 +277,7 @@ void LoadingService::LoadConfig(const std::string& configPath)
         if (texture.id != 0) {
             backgroundTextures_.push_back(texture);
         } else {
-            LOG_WARNINGF("LOADING_SERVICE", "Failed to load loading background: %s", imagePath.c_str());
+            LOG_WARNINGF("LoadingService", "Failed to load loading background: %s", imagePath.c_str());
         }
     }
 
@@ -289,11 +287,11 @@ void LoadingService::LoadConfig(const std::string& configPath)
         if (backgroundMusic_.frameCount > 0) {
             musicLoaded_ = true;
         } else {
-            LOG_WARNINGF("LOADING_SERVICE", "Failed to load loading music: %s", config_.background.musicPath.c_str());
+            LOG_WARNINGF("LoadingService", "Failed to load loading music: %s", config_.background.musicPath.c_str());
         }
     }
 
-    LOG_INFO("LOADING_SERVICE", "LoadingConfig.xml loaded and parsed successfully");
+    LOG_INFO("LoadingService", "LoadingConfig.xml loaded and parsed successfully");
 }
 
 void LoadingService::Draw(int screenWidth, int screenHeight)

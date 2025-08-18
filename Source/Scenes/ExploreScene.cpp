@@ -1,4 +1,5 @@
 #include "Scenes/ExploreScene.h"
+#include "Services/LogService.h"
 #include "Scenes/MenuScene.h"
 #include "Application.h"
 
@@ -9,7 +10,7 @@ ExploreScene::ExploreScene() : Scene("ExploreScene") {
 
 void ExploreScene::OnEnter() {
     Scene::OnEnter();
-    TraceLog(LOG_INFO, "Entering Explore Scene");
+    LOG_INFO("ExploreScene", "Entering scene");
 
     Entity patrolEntity;
     if (world_->GetEntityByName("ENTITY_0", &patrolEntity)) {
@@ -36,7 +37,7 @@ void ExploreScene::OnEnter() {
 
 void ExploreScene::OnExit() {
     Scene::OnExit();
-    TraceLog(LOG_INFO, "Exiting Explore Scene");
+    LOG_INFO("ExploreScene", "Exiting scene");
 }
 
 void ExploreScene::OnUpdate(float deltaTime) {

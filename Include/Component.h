@@ -209,4 +209,45 @@ struct CooldownComponent
     CooldownComponent();
     CooldownComponent(float cooldown);
 };
+
+/**
+ *  In our game, characters are stored in a database.  All of the information about a character's
+ *  attributes, skills, and equipment is stored here.
+ *
+ *  It's weird, but we won't store that info in the ECS.  We will keep that in the database.
+ *  Therefore character component is just an access point for that database.  We just need an id.
+ */
+struct CharacterComponent {
+    int id;
+};
+
+/**
+ *  In our game, units are the entities that the player controls.  They usually have a character
+ *  component that links them to the character database, and they store information about the unit's
+ *  state in battle including turn state, status effects, and other battle-only modifiers
+ */
+struct UnitComponent {
+    bool hasActedThisTurn;
+    bool canMove;
+    bool canAttack;
+    bool canCastSpells;
+    bool canUseItems;
+
+    UnitComponent()
+        : hasActedThisTurn(false)
+        , canMove(true)
+        , canAttack(true)
+        , canCastSpells(true)
+        , canUseItems(true)
+        {}
+
+    void StartTurn() {
+        hasActedThisTurn = false;
+    }
+
+    void EndTurn() {
+        hasActedThisTurn = true;
+    }
+};
+
 };

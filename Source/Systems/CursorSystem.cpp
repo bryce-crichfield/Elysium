@@ -1,9 +1,13 @@
 #include "Systems/CursorSystem.h"
+#include "Services/LogService.h"
 #include "Scene.h"
 #include "Entity.h"
 
 #include "raylib.h"
 #include "raymath.h"
+
+#define MAP_WIDTH 8
+#define MAP_HEIGHT 8
 
 namespace Elysium::Systems {
     void CursorSystem::Update(float deltaTime) {
@@ -12,7 +16,7 @@ namespace Elysium::Systems {
             if (!world->HasComponent<LocationComponent>(cursor) ||
                 !world->HasComponent<MovementComponent>(cursor) ||
                 !world->HasComponent<PositionComponent>(cursor)) {
-                TraceLog(LOG_WARNING, "CURSOR entity missing required components");
+                LOG_WARNING("CursorSystem", "CURSOR entity missing required components");
                 return;
             }
 
@@ -29,40 +33,37 @@ namespace Elysium::Systems {
             int newX = location.x;
             int newY = location.y;
 
-            if (IsKeyPressed(KEY_UP)) {
+            if (IsKeyDown(KEY_UP)) {
                 newY -= 1;
                 moved = true;
-                TraceLog(LOG_INFO, "Cursor UP: %d, %d", newX, newY);
             }
-            if (IsKeyPressed(KEY_DOWN)) {
+            else if (IsKeyDown(KEY_DOWN)) {
                 newY += 1;
                 moved = true;
-                TraceLog(LOG_INFO, "Cursor DOWN: %d, %d", newX, newY);
             }
-            if (IsKeyPressed(KEY_LEFT)) {
+            else if (IsKeyDown(KEY_LEFT)) {
                 newX -= 1;
                 moved = true;
-                TraceLog(LOG_INFO, "Cursor LEFT: %d, %d", newX, newY);
             }
-            if (IsKeyPressed(KEY_RIGHT)) {
+            else if (IsKeyDown(KEY_RIGHT)) {
                 newX += 1;
                 moved = true;
-                TraceLog(LOG_INFO, "Cursor RIGHT: %d, %d", newX, newY);
             }
 
-            if (moved) {
+
+
+            // Check map boundaries (assuming map size constants are defined)
+            if (moved && newX >= 0 && newX < MAP_WIDTH && newY >= 0 && newY < MAP_HEIGHT) {
                 // Update location
                 location.x = newX;
                 location.y = newY;
-                
+
                 // Set up movement - use TILE coordinates (MovementSystem will convert to world)
                 movement.ClearWaypoints();
                 movement.AddWaypoint(Vector2{ static_cast<float>(newX), static_cast<float>(newY) });
                 movement.currentWaypointIndex = 0;
                 movement.isMoving = true;
                 movement.loop = false;
-                
-                TraceLog(LOG_INFO, "Cursor movement initiated to tile (%d, %d)", newX, newY);
             }
         }
     }

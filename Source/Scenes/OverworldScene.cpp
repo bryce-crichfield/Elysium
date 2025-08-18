@@ -1,4 +1,5 @@
 #include "Scenes/OverworldScene.h"
+#include "Services/LogService.h"
 #include "Scenes/MenuScene.h"
 #include "Application.h"
 
@@ -8,11 +9,11 @@ OverworldScene::OverworldScene() : Scene("OverworldScene") {
 }
 
 void OverworldScene::OnEnter() {
-    TraceLog(LOG_INFO, "Entering Overworld Scene");
+    LOG_INFO("OverworldScene", "Entering scene");
 }
 
 void OverworldScene::OnExit() {
-    TraceLog(LOG_INFO, "Exiting Overworld Scene");
+    LOG_INFO("OverworldScene", "Exiting scene");
 }
 
 void OverworldScene::OnUpdate(float deltaTime) {

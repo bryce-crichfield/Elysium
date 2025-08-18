@@ -1,37 +1,34 @@
-#include "Systems/TurnSystem.h"
 #include "Application.h"
+#include "Systems/TurnSystem.h"
 #include "Services/LogService.h"
 #include <algorithm>
 #include <random>
 
 namespace Elysium {
 
-TurnSystem::TurnSystem()
-    : currentTurnIndex(-1)
+TurnSystem::TurnSystem(Context context)
+    : System(context)
+    , currentTurnIndex(-1)
     , currentUnit(-1)
     , turnNumber(1)
     , isCurrentPlayerTurn(false)
     , turnTimer(0.0f) {
-    InitializeEventHandlers();
-}
-
-TurnSystem::~TurnSystem() {
-}
-
-void TurnSystem::InitializeEventHandlers() {
     auto& eventService = Application::GetInstance().GetEventService();
 
     eventService.Subscribe<Events::BattleStartEvent>([this](const Events::BattleStartEvent& event) {
         OnBattleStart(event);
     });
 
-    eventService.Subscribe<Events::UnitDefeatedEvent>([this](const Events::UnitDefeatedEvent& event) {
+    eventService.Subscribe<Events::UnitKilledEvent>([this](const Events::UnitKilledEvent& event) {
         OnUnitDefeated(event);
     });
 
     eventService.Subscribe<Events::ActionSelectedEvent>([this](const Events::ActionSelectedEvent& event) {
         OnActionSelected(event);
     });
+}
+
+TurnSystem::~TurnSystem() {
 }
 
 void TurnSystem::Update(float deltaTime) {
@@ -48,29 +45,13 @@ void TurnSystem::Update(float deltaTime) {
 void TurnSystem::InitializeTurnOrder(const std::vector<int>& playerUnits, const std::vector<int>& enemyUnits) {
     turnQueue.clear();
 
-    for (int unitId : playerUnits) {
-        TurnOrder order;
-        order.unitId = unitId;
-        order.initiative = CalculateInitiativeForUnit(unitId);
-        order.isPlayerUnit = true;
-        turnQueue.push_back(order);
-    }
-
-    for (int unitId : enemyUnits) {
-        TurnOrder order;
-        order.unitId = unitId;
-        order.initiative = CalculateInitiativeForUnit(unitId);
-        order.isPlayerUnit = false;
-        turnQueue.push_back(order);
-    }
-
     CalculateInitiative();
 
     currentTurnIndex = 0;
     turnNumber = 1;
     StartTurn();
 
-    LOG_INFO("TurnSystem", "Turn order initialized with " + std::to_string(turnQueue.size()) + " units");
+    LOG_DEBUG("TurnSystem", "Turn order initialized with " + std::to_string(turnQueue.size()) + " units");
 }
 
 void TurnSystem::NextTurn() {
@@ -91,7 +72,7 @@ void TurnSystem::EndCurrentTurn() {
 
     auto& eventService = Application::GetInstance().GetEventService();
     Events::TurnEndEvent endEvent;
-    endEvent.unitId = currentUnit;
+    endEvent.teamId = isCurrentPlayerTurn ? 0 : 1;
     endEvent.turnNumber = turnNumber;
     eventService.FireEvent(endEvent);
 
@@ -101,15 +82,17 @@ void TurnSystem::EndCurrentTurn() {
 }
 
 void TurnSystem::OnBattleStart(const Events::BattleStartEvent& event) {
-    InitializeTurnOrder(event.playerUnits, event.enemyUnits);
+    std::vector<int> playerUnits;  // Empty for now
+    std::vector<int> enemyUnits;   // Empty for now
+    InitializeTurnOrder(playerUnits, enemyUnits);
 }
 
-void TurnSystem::OnUnitDefeated(const Events::UnitDefeatedEvent& event) {
-    RemoveUnitFromTurnOrder(event.unitId);
+void TurnSystem::OnUnitDefeated(const Events::UnitKilledEvent& event) {
+    RemoveUnitFromTurnOrder(event.unit);
 }
 
 void TurnSystem::OnActionSelected(const Events::ActionSelectedEvent& event) {
-    if (event.unitId == currentUnit) {
+    if (event.unit == currentUnit) {
         EndCurrentTurn();
     }
 }
@@ -134,7 +117,7 @@ void TurnSystem::StartTurn() {
 
     auto& eventService = Application::GetInstance().GetEventService();
     Events::TurnStartEvent startEvent;
-    startEvent.unitId = currentUnit;
+    startEvent.teamId = isCurrentPlayerTurn ? 0 : 1;
     startEvent.turnNumber = turnNumber;
     eventService.FireEvent(startEvent);
 

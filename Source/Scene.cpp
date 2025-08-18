@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include "Services/LogService.h"
 #include "Entity.h"
 #include "System.h"
 #include "Systems/RenderSystem.h"
@@ -74,7 +75,7 @@ void ProcessIncludes(XMLDocument& doc, const std::string& basePath) {
                 includeElem->Parent()->InsertAfterChild(includeElem, clone);
             }
         } else {
-            TraceLog(LOG_ERROR, "Failed to load include");
+            LOG_ERROR("Scene", "Failed to load include");
             // std::cerr << "Failed to load include: " << src << "\n";
         }
 
@@ -86,28 +87,28 @@ void ProcessIncludes(XMLDocument& doc, const std::string& basePath) {
 }
 
 void Scene::LoadFromXML(const std::string& xmlPath) {
-    TraceLog(LOG_INFO, "Loading scene from XML: %s", xmlPath.c_str());
+    LOG_INFOF("Scene", "Loading scene from XML: %s", xmlPath.c_str());
     XMLDocument doc;
 
     if (doc.LoadFile(xmlPath.c_str()) != XML_SUCCESS) {
-        TraceLog(LOG_ERROR, "Failed to load scene file: %s. Error: %s. Using defaults.",
+        LOG_ERRORF("Scene", "Failed to load scene file: %s. Error: %s. Using defaults.",
                 xmlPath.c_str(), doc.ErrorStr());
         return;
     }
 
-    TraceLog(LOG_INFO, "XML file loaded successfully");
+    LOG_INFO("Scene", "XML file loaded successfully");
 
     ProcessIncludes(doc, "");
 
     XMLElement *root = doc.FirstChildElement("Scene");
     if (!root) {
-        TraceLog(LOG_ERROR, "Invalid scene file format. Using defaults.");
+        LOG_ERROR("Scene", "Invalid scene file format. Using defaults.");
         return;
     }
 
     // Load layers first - these define the layer structure for rendering
     if (XMLElement *layersElement = root->FirstChildElement("Layers")) {
-        TraceLog(LOG_INFO, "Processing Layers section");
+        LOG_DEBUG("Scene", "Processing Layers section");
         FOREACH("Layer", xmlLayer, layersElement) {
             const char* name = xmlLayer->Attribute("name");
             int zIndex = xmlLayer->IntAttribute("z", 0);
@@ -161,7 +162,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
             }
 
             world_->AddComponent(layerEntity, layerComp);
-            TraceLog(LOG_INFO, "Created layer '%s' with z-index %d", layerComp.name.c_str(), layerComp.zIndex);
+            LOG_DEBUGF("Scene", "Created layer '%s' with z-index %d", layerComp.name.c_str(), layerComp.zIndex);
         }
     }
 
@@ -201,7 +202,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
         }
 
         if (XMLElement *xmlTileDefinitions = tilemap->FirstChildElement("TileDefinitions")) {
-            TraceLog(LOG_INFO, "Processing TileDefinitions");
+            LOG_DEBUG("Scene", "Processing TileDefinitions");
             FOREACH("TileDefinition", xmlTileDefinition, xmlTileDefinitions) {
                 int id = xmlTileDefinition->IntAttribute("id", 0);
                 std::string backgroundHex = xmlTileDefinition->Attribute("background") ? xmlTileDefinition->Attribute("background") : "";
@@ -211,7 +212,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                 Color borderColor = ParseHexColor(borderHex, BLANK);
 
                 tileDefinitions[id] = RectangleComponent(32, 32, backgroundColor, borderColor, layerName ? layerName : "tile");
-                TraceLog(LOG_INFO, "Created tile definition %d with layer '%s'", id, layerName ? layerName : "tile");
+                LOG_DEBUGF("Scene", "Created tile definition %d with layer '%s'", id, layerName ? layerName : "tile");
             }
         }
 
@@ -226,23 +227,23 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
     }
 
     // Load entities
-    TraceLog(LOG_INFO, "Starting entity loading");
+    LOG_INFO("Scene", "Starting entity loading");
     int count = 0;
     if (XMLElement *entities = root->FirstChildElement("Entities")) {
-        TraceLog(LOG_INFO, "Processing Entities section");
+        LOG_DEBUG("Scene", "Processing Entities section");
         FOREACH("Entity", xmlEntity, entities) {
             const char* entityName = xmlEntity->Attribute("name");
             Entity entity = world_->CreateEntity(entityName);
             count++;
 
-            TraceLog(LOG_INFO, "Created entity: %s", entityName ? entityName : "unnamed");
+            LOG_DEBUGF("Scene", "Created entity: %s", entityName ? entityName : "unnamed");
 
             for (XMLElement* component = xmlEntity->FirstChildElement();
                 component != nullptr;
                 component = component->NextSiblingElement()) {
                 // Parse the components
                 std::string componentType = component->Name();
-                TraceLog(LOG_INFO, "Processing component: %s", componentType.c_str());
+                LOG_DEBUGF("Scene", "Processing component: %s", componentType.c_str());
 
                 if (componentType == "PositionComponent") {
                     float x = component->FloatAttribute("x", 0.0f);
@@ -361,7 +362,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                             layerName ? layerName : "default"
                         ));
                     } else {
-                        TraceLog(LOG_WARNING, "SpriteComponent missing required attributes: spriteName or markerName");
+                        LOG_WARNING("Scene", "SpriteComponent missing required attributes: spriteName or markerName");
                     }
                 }
                 else if (componentType == "TextComponent") {
@@ -412,7 +413,7 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
                 }
 
                 else {
-                    TraceLog(LOG_WARNING, "Unknown component type: %s", componentType.c_str());
+                    LOG_WARNINGF("Scene", "Unknown component type: %s", componentType.c_str());
                 }
             }
         }
@@ -434,26 +435,26 @@ void Scene::LoadFromXML(const std::string& xmlPath) {
 
             if (systemName == "RenderSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::RenderSystem>(context));
-                TraceLog(LOG_INFO, "Loaded RenderSystem");
+                LOG_DEBUG("Scene", "Loaded RenderSystem");
             }
             else if (systemName == "MovementSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::MovementSystem>(context));
-                TraceLog(LOG_INFO, "Loaded MovementSystem");
+                LOG_DEBUG("Scene", "Loaded MovementSystem");
             }
             else if (systemName == "AnimationSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::AnimationSystem>(context));
-                TraceLog(LOG_INFO, "Loaded AnimationSystem");
+                LOG_DEBUG("Scene", "Loaded AnimationSystem");
             }
             else if (systemName == "CameraSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::CameraSystem>(context));
-                TraceLog(LOG_INFO, "Loaded CameraSystem");
+                LOG_DEBUG("Scene", "Loaded CameraSystem");
             }
             else if (systemName == "SpriteSystem") {
                 systems_.push_back(std::make_unique<Elysium::Systems::SpriteSystem>(context));
-                TraceLog(LOG_INFO, "Loaded SpriteSystem");
+                LOG_DEBUG("Scene", "Loaded SpriteSystem");
             }
             else {
-                TraceLog(LOG_WARNING, "Unknown system type: %s", systemName.c_str());
+                LOG_WARNINGF("Scene", "Unknown system type: %s", systemName.c_str());
             }
         }
     }

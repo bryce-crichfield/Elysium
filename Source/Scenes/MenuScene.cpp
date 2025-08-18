@@ -1,4 +1,5 @@
 #include "Scenes/MenuScene.h"
+#include "Services/LogService.h"
 #include "Scenes/ExploreScene.h"
 #include "Scenes/BattleScene.h"
 #include "Scenes/OverworldScene.h"
@@ -14,11 +15,11 @@ MenuScene::MenuScene() : Scene("MenuScene") {
 }
 
 void MenuScene::OnEnter() {
-    TraceLog(LOG_INFO, "Entering Menu Scene");
+    LOG_INFO("MenuScene", "Entering scene");
 }
 
 void MenuScene::OnExit() {
-    TraceLog(LOG_INFO, "Exiting Menu Scene");
+    LOG_INFO("MenuScene", "Exiting scene");
 }
 
 void MenuScene::OnUpdate(float deltaTime) {

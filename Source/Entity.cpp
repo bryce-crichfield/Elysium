@@ -1,6 +1,5 @@
 #include "Entity.h"
 #include "Sprite.h"
-#include "Components/CharacterComponent.h"
 
 namespace Elysium
 {
@@ -130,7 +129,6 @@ World::World()
     RegisterComponent<FollowComponent>();
     RegisterComponent<TileComponent>();
     RegisterComponent<TeamComponent>();
-    RegisterComponent<Components::CharacterComponent>();
 }
 
 Entity World::CreateEntity()

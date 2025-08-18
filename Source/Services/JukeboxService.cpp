@@ -1,4 +1,5 @@
 #include "Services/JukeboxService.h"
+#include "Services/LogService.h"
 #include "Application.h"
 #include "Asset.h"
 #include "imgui.h"
@@ -7,13 +8,13 @@
 namespace Elysium::Services {
 
 JukeboxService::JukeboxService() {
-    TraceLog(LOG_INFO, "JukeboxService created");
+    LOG_INFO("JukeboxService", "Service created successfully");
 }
 
 JukeboxService::~JukeboxService() {
     StopAll();
     tracks_.clear();
-    TraceLog(LOG_INFO, "JukeboxService destroyed");
+    LOG_INFO("JukeboxService", "Service destroyed successfully");
 }
 
 void JukeboxService::Update() {
@@ -33,7 +34,7 @@ void JukeboxService::UpdateTrack(AudioTrack& track) {
             track.sound = assetService.GetSound(track.assetName);
         }
         track.isLoaded = true;
-        TraceLog(LOG_INFO, "JukeboxService loaded track '%s' from asset '%s'", 
+        LOG_INFOF("JukeboxService", "Loaded track '%s' from asset '%s'", 
                 track.name.c_str(), track.assetName.c_str());
     }
     
@@ -72,14 +73,14 @@ void JukeboxService::UpdateTrack(AudioTrack& track) {
 bool JukeboxService::CreateTrack(const std::string& trackName, const std::string& assetName, bool isMusic) {
     // Check if track already exists
     if (FindTrack(trackName) != nullptr) {
-        TraceLog(LOG_WARNING, "Track '%s' already exists", trackName.c_str());
+        LOG_WARNINGF("JukeboxService", "Track '%s' already exists", trackName.c_str());
         return false;
     }
     
     // Check if asset exists
     auto& assetService = Application::GetInstance().GetAssetService();
     if (!assetService.IsAssetLoaded(assetName)) {
-        TraceLog(LOG_ERROR, "Asset '%s' not found in AssetService", assetName.c_str());
+        LOG_ERRORF("JukeboxService", "Asset '%s' not found in AssetService", assetName.c_str());
         return false;
     }
     
@@ -89,7 +90,7 @@ bool JukeboxService::CreateTrack(const std::string& trackName, const std::string
     track->isMusic = isMusic;
     
     tracks_.push_back(std::move(track));
-    TraceLog(LOG_INFO, "Created track '%s' using asset '%s'", trackName.c_str(), assetName.c_str());
+    LOG_INFOF("JukeboxService", "Created track '%s' using asset '%s'", trackName.c_str(), assetName.c_str());
     return true;
 }
 
@@ -100,7 +101,7 @@ void JukeboxService::RemoveTrack(const std::string& trackName) {
     if (it != tracks_.end()) {
         StopTrack(trackName);
         tracks_.erase(it);
-        TraceLog(LOG_INFO, "Removed track '%s'", trackName.c_str());
+        LOG_INFOF("JukeboxService", "Removed track '%s'", trackName.c_str());
     }
 }
 

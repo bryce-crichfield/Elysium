@@ -8,8 +8,6 @@ namespace Elysium::Events {
 
 struct BattleStartEvent {
     std::string battleId;
-    std::vector<int> playerUnits;
-    std::vector<int> enemyUnits;
 };
 
 struct BattleEndEvent {
@@ -18,55 +16,44 @@ struct BattleEndEvent {
 };
 
 struct TurnStartEvent {
-    int unitId;
+    int teamId;
     int turnNumber;
 };
 
 struct TurnEndEvent {
-    int unitId;
+    int teamId;
     int turnNumber;
 };
 
 struct AttackEvent {
-    int attackerId;
-    int targetId;
-    int damage;
-    Vector2 attackerPosition;
-    Vector2 targetPosition;
-    std::string attackType;
+    Entity entity;
+    Entity target;
 };
 
 struct MoveEvent {
-    int unitId;
-    Vector2 fromPosition;
+    Entity entity;
     Vector2 toPosition;
-    float movementCost;
 };
 
 struct CastSpellEvent {
-    int casterId;
+    Entity entity;
     std::string spellName;
     Vector2 targetPosition;
-    std::vector<int> affectedUnits;
-    int manaCost;
 };
 
-struct UseIt1emEvent {
-    int userId;
+struct UseItemEvent {
+    Entity user;
     std::string itemName;
     Vector2 targetPosition;
-    std::vector<int> affectedUnits;
 };
 
-struct UnitDefeatedEvent {
-    int unitId;
-    Vector2 position;
-    bool isPlayerUnit;
+struct UnitKilledEvent {
+    Entity unit;
 };
 
 struct ActionSelectedEvent {
-    int unitId;
-    std::string actionType;
+    Entity unit;
+    std::string action;
 };
 
 } // namespace Elysium::Events

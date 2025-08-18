@@ -34,14 +34,13 @@ bool Application::Initialize(const std::string& configPath) {
 
         g_appInstance = this;
         SetTraceLogCallback(CustomTraceLogCallback);
-        SetTraceLogLevel(LOG_INFO);
+        SetTraceLogLevel(LOG_DEBUG);
 
         if (!ApplicationConfig::FromXML(configPath, config_)) {
             LOG_ERROR("Application", "Failed to load ApplicationConfig.xml");
             return false;
         }
 
-        LOG_SECTION_START("ENGINE INITIALIZATION");
         LOG_INFO("Application", "Elysium Engine initializing");
 
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -67,7 +66,6 @@ bool Application::Initialize(const std::string& configPath) {
 
         initialized_ = true;
         LOG_INFO("Application", "Engine initialization complete");
-        LOG_SECTION_END("ENGINE INITIALIZATION");
         return true;
     }
 
