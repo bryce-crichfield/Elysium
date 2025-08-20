@@ -11,6 +11,8 @@
 #include <functional>
 #include <set>
 #include <unordered_map>
+#include <string>
+#include <variant>
 
 namespace Elysium {
 
@@ -18,12 +20,23 @@ class Application;
 class Scene;
 class World;
 
-enum class InspectorFilter
-{
-    SomeOf,
-    AllOf,
-    NoneOf,
+enum class InspectorLogicalOperator { AND, OR };
+
+struct InspectorFilter {
+    std::string componentName;
+    bool negate = false;
+    InspectorLogicalOperator logicalOperator = InspectorLogicalOperator::OR;
+    std::function<bool(Entity, World*)> predicate;
+
+    InspectorFilter() = default;
+    InspectorFilter(const std::string& name, bool neg, InspectorLogicalOperator op, std::function<bool(Entity, World*)> pred)
+        : componentName(name), negate(neg), logicalOperator(op), predicate(pred) {}
+
+    bool Evaluate(Entity entity, World* world) const {
+        return negate ? !predicate(entity, world) : predicate(entity, world);
+    }
 };
+
 
 class InspectorService
 {
@@ -45,8 +58,10 @@ private:
     };
 
     std::vector<ComponentPlaceholder> componentPlaceholders;
-    std::unordered_map<std::string, bool> filterStates;
-    InspectorFilter currentFilter = InspectorFilter::SomeOf;
+    std::vector<InspectorFilter> filters;
+    bool filtersCollapsed = true;
+    float leftPanelWidth = 240.0f; // 2/5 of 600px default width
+    bool isDraggingSplitter = false;
 
     void RegisterComponentTypes();
     void DrawEntityList();

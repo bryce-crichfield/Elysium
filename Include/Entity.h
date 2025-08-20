@@ -120,6 +120,7 @@ public:
     Entity CreateEntity(std::string name);
     void DestroyEntity(Entity entity);
     bool GetEntityByName(std::string name, Entity* entity);
+    std::string GetEntityName(Entity entity) const;
     void SetComponentMask(Entity entity, ComponentMask mask);
     ComponentMask GetComponentMask(Entity entity);
     size_t GetLivingEntityCount() const;
@@ -138,6 +139,7 @@ public:
     Entity CreateEntity(); // Declaration only
     Entity CreateEntity(std::string name); // Declaration only
     bool GetEntityByName(std::string name, Entity* entity); // Declaration only
+    std::string GetEntityName(Entity entity) const; // Declaration only
     void DestroyEntity(Entity entity); // Declaration only
     size_t GetEntityCount() const; // Declaration only
 

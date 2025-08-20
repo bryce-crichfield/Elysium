@@ -1,10 +1,11 @@
 #include "Services/InspectorService.h"
-#include "raylib.h"
-#include <iostream>
-#include <algorithm>
 #include "Entity.h"
+#include "raylib.h"
+#include <algorithm>
+#include <iostream>
 
-namespace Elysium {
+namespace Elysium
+{
 
 void InspectorService::Initialize()
 {
@@ -36,39 +37,41 @@ void InspectorService::RegisterComponentTypes()
     RegisterComponent<CooldownComponent>("Cooldown");
     RegisterComponent<CharacterComponent>("Character");
     RegisterComponent<UnitComponent>("Unit");
-
-    for (auto& placeholder : componentPlaceholders)
-    {
-        filterStates[placeholder.name] = true; // Default to showing all components
-    }
 }
-
 
 void InspectorService::Update(float deltaTime)
 {
-    if (!showInspector) return;
+    if (!showInspector)
+        return;
 }
-
 
 void InspectorService::Draw()
 {
-    if (!showInspector || !world) return;
+    if (!showInspector || !world)
+        return;
 
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
     float inspectorWidth = viewport->WorkSize.x * 0.6f;
     float inspectorHeight = viewport->WorkSize.y * 0.8f;
 
-    ImGui::SetNextWindowSize(ImVec2(inspectorWidth, inspectorHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 50, viewport->WorkPos.y + 50), ImGuiCond_FirstUseEver);
 
     if (ImGui::Begin("Entity Inspector", &showInspector))
     {
-        static float leftPanelWidth = inspectorWidth * 0.4f;
+        // Left side header
+        ImGui::Text("Entities");
+        ImGui::SameLine(leftPanelWidth + 10); // Position right side header
+        ImGui::Text("Inspector");
 
         // Left panel - Entity List
-        ImGui::BeginChild("EntityList", ImVec2(leftPanelWidth, 0), true);
-            DrawEntityToolbar();
-            DrawEntityList();
+        ImGui::BeginChild("EntityPanel", ImVec2(leftPanelWidth, 0), true);
+        DrawEntityToolbar();
+
+        // Scrollable entity table
+        ImGui::BeginChild("EntityList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+        DrawEntityList();
+        ImGui::EndChild();
         ImGui::EndChild();
 
         ImGui::SameLine();
@@ -78,12 +81,30 @@ void InspectorService::Draw()
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
         ImGui::Button("##splitter", ImVec2(4.0f, -1));
+
+        // Handle dragging - only use mouse delta when already dragging
         if (ImGui::IsItemActive())
         {
-            leftPanelWidth += ImGui::GetIO().MouseDelta.x;
-            if (leftPanelWidth < 200.0f) leftPanelWidth = 200.0f;
-            if (leftPanelWidth > inspectorWidth - 200.0f) leftPanelWidth = inspectorWidth - 200.0f;
+            if (!isDraggingSplitter)
+            {
+                // First frame of dragging - don't apply delta yet, just mark as dragging
+                isDraggingSplitter = true;
+            }
+            else
+            {
+                // Subsequent frames - apply mouse delta
+                leftPanelWidth += ImGui::GetIO().MouseDelta.x;
+                if (leftPanelWidth < 200.0f)
+                    leftPanelWidth = 200.0f;
+                if (leftPanelWidth > ImGui::GetWindowWidth() - 200.0f)
+                    leftPanelWidth = ImGui::GetWindowWidth() - 200.0f;
+            }
         }
+        else
+        {
+            isDraggingSplitter = false;
+        }
+
         if (ImGui::IsItemHovered())
         {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
@@ -93,8 +114,8 @@ void InspectorService::Draw()
 
         // Right panel - Inspector
         ImGui::BeginChild("Inspector", ImVec2(0, 0), true);
-            DrawInspectorToolbar();
-            DrawInspectorPanel();
+        DrawInspectorToolbar();
+        DrawInspectorPanel();
         ImGui::EndChild();
     }
     ImGui::End();
@@ -112,6 +133,92 @@ void InspectorService::DrawEntityToolbar()
     }
     ImGui::Separator();
 
+    // Filter panel
+    if (ImGui::CollapsingHeader("Filters", filtersCollapsed ? 0 : ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        // Clear button at the top
+        if (ImGui::Button("Clear All Filters"))
+        {
+            filters.clear();
+        }
+
+        // Filter table
+        if (!filters.empty() && ImGui::BeginTable("Filters", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+        {
+            ImGui::TableSetupColumn("NOT", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+            ImGui::TableSetupColumn("Component", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Op", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+            ImGui::TableHeadersRow();
+
+            for (size_t i = 0; i < filters.size(); ++i)
+            {
+                ImGui::PushID(static_cast<int>(i));
+                ImGui::TableNextRow();
+
+                // Negation checkbox
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Checkbox("##negate", &filters[i].negate);
+
+                // Component dropdown
+                ImGui::TableSetColumnIndex(1);
+                ImGui::SetNextItemWidth(-1);
+                std::vector<const char *> componentNames;
+                int currentSelection = -1;
+                for (size_t j = 0; j < componentPlaceholders.size(); ++j)
+                {
+                    componentNames.push_back(componentPlaceholders[j].name.c_str());
+                    if (componentPlaceholders[j].name == filters[i].componentName)
+                    {
+                        currentSelection = static_cast<int>(j);
+                    }
+                }
+
+                if (ImGui::Combo("##component", &currentSelection, componentNames.data(), componentNames.size()))
+                {
+                    if (currentSelection >= 0)
+                    {
+                        filters[i].componentName = componentPlaceholders[currentSelection].name;
+                        filters[i].predicate = componentPlaceholders[currentSelection].hasComponentFunc;
+                    }
+                }
+
+                // Operator dropdown (skip for first filter)
+                ImGui::TableSetColumnIndex(2);
+                if (i > 0)
+                {
+                    const char *operators[] = {"AND", "OR"};
+                    int currentOp = static_cast<int>(filters[i].logicalOperator);
+                    if (ImGui::Combo("##operator", &currentOp, operators, IM_ARRAYSIZE(operators)))
+                    {
+                        filters[i].logicalOperator = static_cast<InspectorLogicalOperator>(currentOp);
+                    }
+                }
+                else
+                {
+                    ImGui::Text("-");
+                }
+
+                ImGui::PopID();
+            }
+
+            ImGui::EndTable();
+        }
+
+        // Add/Remove buttons at the bottom
+        if (ImGui::Button("Add Filter"))
+        {
+            filters.emplace_back();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Remove Filter") && !filters.empty())
+        {
+            filters.pop_back();
+        }
+    }
+
+    ImGui::Separator();
+
+    // Entity management buttons
     bool canDeselect = selectedEntity != INVALID_ENTITY;
     if (!canDeselect)
     {
@@ -119,12 +226,14 @@ void InspectorService::DrawEntityToolbar()
     }
     if (ImGui::Button("Deselect"))
     {
-        if (canDeselect) DeselectEntity();
+        if (canDeselect)
+            DeselectEntity();
     }
     ImGui::SameLine();
     if (ImGui::Button("Remove"))
     {
-        if (canDeselect) RemoveEntity();
+        if (canDeselect)
+            RemoveEntity();
     }
     if (!canDeselect)
     {
@@ -135,37 +244,6 @@ void InspectorService::DrawEntityToolbar()
     {
         CreateEntity();
     }
-    ImGui::Separator();
-
-    // Filter panel
-    ImGui::Text("Component Filter:");
-    ImGui::Separator();
-
-    // Filter mode dropdown
-    const char* filterModes[] = { "Some Of", "All Of", "None Of" };
-    static int currentFilterMode = 1; // Default to "All Of"
-    if (ImGui::Combo("Filter Mode", &currentFilterMode, filterModes, IM_ARRAYSIZE(filterModes)))
-    {
-        // Update currentFilter based on currentFilterMode
-        switch (currentFilterMode)
-        {
-        case 0: currentFilter = InspectorFilter::SomeOf; break;
-        case 1: currentFilter = InspectorFilter::AllOf; break;
-        case 2: currentFilter = InspectorFilter::NoneOf; break;
-        }
-    }
-    ImGui::Separator();
-
-    // Grid layout for checkboxes
-    const int columns = 3; // Adjust based on UI width or preference
-    ImGui::BeginTable("ComponentFilterTable", columns, ImGuiTableFlags_SizingStretchProp);
-    for (auto& placeholder : componentPlaceholders)
-    {
-        ImGui::TableNextColumn();
-        ImGui::Checkbox(placeholder.name.c_str(), &filterStates[placeholder.name]);
-    }
-    ImGui::EndTable();
-    ImGui::Separator();
 }
 
 void InspectorService::DrawEntityList()
@@ -176,56 +254,47 @@ void InspectorService::DrawEntityList()
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
-        const auto& livingEntities = world->GetEntitiesWithComponents<>();
+        const auto &livingEntities = world->GetEntitiesWithComponents<>();
 
         for (Entity entity : livingEntities)
         {
             bool shouldDraw = true;
-            switch (currentFilter)
+            if (!filters.empty())
             {
-            case InspectorFilter::SomeOf:
-                shouldDraw = false;
-                for (const auto& placeholder : componentPlaceholders)
+                // Evaluate first filter (only if it has a valid predicate)
+                if (filters[0].predicate)
                 {
-                    // Only check components that are enabled in filterStates
-                    if (filterStates[placeholder.name] && placeholder.hasComponentFunc(entity, world))
+                    shouldDraw = filters[0].Evaluate(entity, world);
+                }
+
+                // Evaluate remaining filters in order
+                for (size_t i = 1; i < filters.size(); ++i)
+                {
+                    if (filters[i].predicate)
                     {
-                        shouldDraw = true;
-                        break;
+                        bool filterResult = filters[i].Evaluate(entity, world);
+
+                        if (filters[i].logicalOperator == InspectorLogicalOperator::AND)
+                        {
+                            shouldDraw = shouldDraw && filterResult;
+                        }
+                        else // OR
+                        {
+                            shouldDraw = shouldDraw || filterResult;
+                        }
                     }
                 }
-                break;
-            case InspectorFilter::AllOf:
-                shouldDraw = true;
-                for (const auto& placeholder : componentPlaceholders)
-                {
-                    // Only check components that are enabled in filterStates
-                    if (filterStates[placeholder.name] && !placeholder.hasComponentFunc(entity, world))
-                    {
-                        shouldDraw = false;
-                        break;
-                    }
-                }
-                break;
-            case InspectorFilter::NoneOf:
-                shouldDraw = true;
-                for (const auto& placeholder : componentPlaceholders)
-                {
-                    // Only check components that are enabled in filterStates
-                    if (filterStates[placeholder.name] && placeholder.hasComponentFunc(entity, world))
-                    {
-                        shouldDraw = false;
-                        break;
-                    }
-                }
-                break;
-            default:
-                break;
             }
 
-            if (!shouldDraw) continue;
+            if (!shouldDraw)
+                continue;
 
-            std::string entityName = "Entity " + std::to_string(entity);
+            // Get the actual entity name if it exists, otherwise use generic name
+            std::string entityName = world->GetEntityName(entity);
+            if (entityName.empty())
+            {
+                entityName = "Entity " + std::to_string(entity);
+            }
 
             if (!searchFilter.empty())
             {
@@ -261,9 +330,16 @@ void InspectorService::DrawInspectorToolbar()
 {
     if (selectedEntity != INVALID_ENTITY)
     {
+        // Get the actual entity name if it exists, otherwise use generic name
+        std::string entityName = world->GetEntityName(selectedEntity);
+        if (entityName.empty())
+        {
+            entityName = "Entity " + std::to_string(selectedEntity);
+        }
+
         ImGui::Text("Entity ID: %zu", selectedEntity);
         ImGui::SameLine();
-        ImGui::Text("Name: Entity %zu", selectedEntity);
+        ImGui::Text("Name: %s", entityName.c_str());
 
         ImGui::Separator();
 
@@ -274,7 +350,7 @@ void InspectorService::DrawInspectorToolbar()
 
         if (ImGui::BeginPopup("AddComponentPopup"))
         {
-            for (const auto& placeholder : componentPlaceholders)
+            for (const auto &placeholder : componentPlaceholders)
             {
                 if (!placeholder.hasComponentFunc(selectedEntity, world))
                 {
@@ -296,12 +372,13 @@ void InspectorService::DrawInspectorToolbar()
 
 void InspectorService::DrawInspectorPanel()
 {
-    if (selectedEntity == INVALID_ENTITY) return;
+    if (selectedEntity == INVALID_ENTITY)
+        return;
 
     // Clear any previous deletion request
     componentToDelete = "";
 
-    for (const auto& placeholder : componentPlaceholders)
+    for (const auto &placeholder : componentPlaceholders)
     {
         if (placeholder.hasComponentFunc(selectedEntity, world))
         {
@@ -312,7 +389,7 @@ void InspectorService::DrawInspectorPanel()
     // Process deletion after the loop to avoid iterator invalidation
     if (!componentToDelete.empty())
     {
-        for (const auto& placeholder : componentPlaceholders)
+        for (const auto &placeholder : componentPlaceholders)
         {
             if (placeholder.name == componentToDelete)
             {
@@ -324,33 +401,31 @@ void InspectorService::DrawInspectorPanel()
     }
 }
 
-void InspectorService::DrawComponentPanel(const ComponentPlaceholder& placeholder)
+void InspectorService::DrawComponentPanel(const ComponentPlaceholder &placeholder)
 {
     ImGuiTreeNodeFlags treeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed;
 
     bool nodeOpen = ImGui::TreeNodeEx(placeholder.name.c_str(), treeFlags);
 
-    ImGui::SameLine();
+    // ImGui::SameLine();
     ImGui::PushID(placeholder.name.c_str());
-
-    if (ImGui::SmallButton("Delete"))
-    {
-        componentToDelete = placeholder.name;
-        ImGui::PopID();
-        if (nodeOpen) ImGui::TreePop();
-        return;
-    }
-
-    ImGui::SameLine();
-    if (ImGui::SmallButton("Reset"))
-    {
-        placeholder.resetComponentFunc(selectedEntity, world);
-    }
-
     ImGui::PopID();
 
     if (nodeOpen)
     {
+        if (ImGui::SmallButton("Delete"))
+        {
+            componentToDelete = placeholder.name;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Reset"))
+        {
+            placeholder.resetComponentFunc(selectedEntity, world);
+        }
+
+        ImGui::Separator();
+
         placeholder.drawFunc(selectedEntity, world);
         ImGui::TreePop();
     }
@@ -376,222 +451,249 @@ void InspectorService::CreateEntity()
     selectedEntity = newEntity;
 }
 
-template<>
-void InspectorService::DrawComponent<PositionComponent>(Entity entity, World* world)
+#define FIELD_LABEL(text)                                                                                              \
+    ImGui::AlignTextToFramePadding();                                                                                  \
+    ImGui::Text(text);                                                                                                 \
+    ImGui::SameLine(140.0f);                                                                                           \
+    ImGui::SetNextItemWidth(-1);
+
+template <> void InspectorService::DrawComponent<PositionComponent>(Entity entity, World *world)
 {
-    auto& pos = world->GetComponent<PositionComponent>(entity);
-    ImGui::Text("X:"); ImGui::SameLine(); ImGui::DragFloat("##X", &pos.x, 1.0f);
-    ImGui::Text("Y:"); ImGui::SameLine(); ImGui::DragFloat("##Y", &pos.y, 1.0f);
+    auto &pos = world->GetComponent<PositionComponent>(entity);
+    FIELD_LABEL("X: ")
+    ImGui::DragFloat("##X", &pos.x, 1.0f);
+    FIELD_LABEL("Y: ")
+    ImGui::DragFloat("##Y", &pos.y, 1.0f);
 }
 
-template<>
-void InspectorService::DrawComponent<LocationComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<LocationComponent>(Entity entity, World *world)
 {
-    auto& loc = world->GetComponent<LocationComponent>(entity);
-    ImGui::Text("X:"); ImGui::SameLine(); ImGui::DragInt("##X", &loc.x);
-    ImGui::Text("Y:"); ImGui::SameLine(); ImGui::DragInt("##Y", &loc.y);
+    auto &loc = world->GetComponent<LocationComponent>(entity);
+    FIELD_LABEL("X: ")
+    ImGui::DragInt("##X", &loc.x);
+    FIELD_LABEL("Y: ")
+    ImGui::DragInt("##Y", &loc.y);
 }
 
-template<>
-void InspectorService::DrawComponent<MovementComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<MovementComponent>(Entity entity, World *world)
 {
-    auto& movement = world->GetComponent<MovementComponent>(entity);
-    ImGui::Text("Speed:"); ImGui::SameLine(); ImGui::DragFloat("##Speed", &movement.speed, 1.0f, 0.0f, 1000.0f);
-    ImGui::Text("Is Moving:"); ImGui::SameLine(); ImGui::Checkbox("##IsMoving", &movement.isMoving);
-    ImGui::Text("Loop:"); ImGui::SameLine(); ImGui::Checkbox("##Loop", &movement.loop);
+    auto &movement = world->GetComponent<MovementComponent>(entity);
+    FIELD_LABEL("Speed: ")
+    ImGui::DragFloat("##Speed", &movement.speed, 1.0f, 0.0f, 1000.0f);
+    FIELD_LABEL("Is Moving: ")
+    ImGui::Checkbox("##IsMoving", &movement.isMoving);
+    FIELD_LABEL("Loop: ")
+    ImGui::Checkbox("##Loop", &movement.loop);
     ImGui::Text("Waypoints: %zu", movement.waypoints.size());
     ImGui::Text("Current Waypoint: %zu", movement.currentWaypointIndex);
 }
 
-template<>
-void InspectorService::DrawComponent<AnimationComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<AnimationComponent>(Entity entity, World *world)
 {
-    auto& anim = world->GetComponent<AnimationComponent>(entity);
+    auto &anim = world->GetComponent<AnimationComponent>(entity);
 
     static char markerBuffer[256];
     strncpy(markerBuffer, anim.marker.c_str(), sizeof(markerBuffer) - 1);
     markerBuffer[sizeof(markerBuffer) - 1] = '\0';
 
-    ImGui::Text("Marker:"); ImGui::SameLine();
+    FIELD_LABEL("Marker: ")
     if (ImGui::InputText("##Marker", markerBuffer, sizeof(markerBuffer)))
     {
         anim.marker = std::string(markerBuffer);
     }
 
-    ImGui::Text("Current Frame:"); ImGui::SameLine(); ImGui::DragInt("##CurrentFrame", &anim.currentFrame, 1.0f, 0);
-    ImGui::Text("Start Frame:"); ImGui::SameLine(); ImGui::DragInt("##StartFrame", &anim.start, 1.0f, 0);
-    ImGui::Text("End Frame:"); ImGui::SameLine(); ImGui::DragInt("##EndFrame", &anim.end, 1.0f, 0);
-    ImGui::Text("Frame Duration:"); ImGui::SameLine(); ImGui::DragFloat("##FrameDuration", &anim.frameDuration, 0.01f, 0.0f, 10.0f);
-    ImGui::Text("Elapsed:"); ImGui::SameLine(); ImGui::DragFloat("##Elapsed", &anim.elapsed, 0.01f, 0.0f);
-    ImGui::Text("Loop:"); ImGui::SameLine(); ImGui::Checkbox("##Loop", &anim.loop);
+    FIELD_LABEL("Current Frame: ")
+    ImGui::DragInt("##CurrentFrame", &anim.currentFrame, 1.0f, 0);
+    FIELD_LABEL("Start Frame: ")
+    ImGui::DragInt("##StartFrame", &anim.start, 1.0f, 0);
+    FIELD_LABEL("End Frame: ")
+    ImGui::DragInt("##EndFrame", &anim.end, 1.0f, 0);
+    FIELD_LABEL("Duration: ")
+    ImGui::DragFloat("##FrameDuration", &anim.frameDuration, 0.01f, 0.0f, 10.0f);
+    FIELD_LABEL("Elapsed: ")
+    ImGui::DragFloat("##Elapsed", &anim.elapsed, 0.01f, 0.0f);
+    FIELD_LABEL("Loop: ")
+    ImGui::Checkbox("##Loop", &anim.loop);
 }
 
-template<>
-void InspectorService::DrawComponent<DirectionComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<DirectionComponent>(Entity entity, World *world)
 {
-    auto& dir = world->GetComponent<DirectionComponent>(entity);
+    auto &dir = world->GetComponent<DirectionComponent>(entity);
 
-    const char* directions[] = { "NONE", "UP", "DOWN", "LEFT", "RIGHT" };
+    const char *directions[] = {"NONE", "UP", "DOWN", "LEFT", "RIGHT"};
     int currentDir = static_cast<int>(dir.currentDirection);
     int previousDir = static_cast<int>(dir.previousDirection);
 
-    ImGui::Text("Current Direction:"); ImGui::SameLine();
+    FIELD_LABEL("Current Dir: ")
     if (ImGui::Combo("##CurrentDirection", &currentDir, directions, IM_ARRAYSIZE(directions)))
     {
         dir.SetDirection(static_cast<Direction>(currentDir));
     }
 
-    ImGui::Text("Previous Direction:"); ImGui::SameLine(); ImGui::Combo("##PreviousDirection", &previousDir, directions, IM_ARRAYSIZE(directions));
-    ImGui::Text("Has Changed:"); ImGui::SameLine(); ImGui::Checkbox("##HasChanged", &dir.hasChanged);
+    FIELD_LABEL("Previous Dir: ")
+    ImGui::Combo("##PreviousDirection", &previousDir, directions, IM_ARRAYSIZE(directions));
+    FIELD_LABEL("Has Changed: ")
+    ImGui::Checkbox("##HasChanged", &dir.hasChanged);
 }
 
-template<>
-void InspectorService::DrawComponent<LayerComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<LayerComponent>(Entity entity, World *world)
 {
-    auto& layer = world->GetComponent<LayerComponent>(entity);
+    auto &layer = world->GetComponent<LayerComponent>(entity);
 
-    ImGui::Text("Z Index:"); ImGui::SameLine(); ImGui::DragInt("##ZIndex", &layer.zIndex);
+    FIELD_LABEL("Z Index: ")
+    ImGui::DragInt("##ZIndex", &layer.zIndex);
 
-    const char* types[] = { "Background", "World", "Lighting", "Overlay" };
+    const char *types[] = {"Background", "World", "Lighting", "Overlay"};
     int typeIndex = static_cast<int>(layer.type);
-    ImGui::Text("Type:"); ImGui::SameLine();
+    FIELD_LABEL("Type: ")
     if (ImGui::Combo("##Type", &typeIndex, types, IM_ARRAYSIZE(types)))
     {
         layer.type = static_cast<LayerComponent::Type>(typeIndex);
     }
 
-    const char* spaces[] = { "World", "Screen", "Parallax" };
+    const char *spaces[] = {"World", "Screen", "Parallax"};
     int spaceIndex = static_cast<int>(layer.space);
-    ImGui::Text("Space:"); ImGui::SameLine();
+    FIELD_LABEL("Space: ")
     if (ImGui::Combo("##Space", &spaceIndex, spaces, IM_ARRAYSIZE(spaces)))
     {
         layer.space = static_cast<LayerComponent::Space>(spaceIndex);
     }
 
-    const char* blends[] = { "Normal", "Additive", "Multiply", "Alpha" };
+    const char *blends[] = {"Normal", "Additive", "Multiply", "Alpha"};
     int blendIndex = static_cast<int>(layer.blend);
-    ImGui::Text("Blend:"); ImGui::SameLine();
+    FIELD_LABEL("Blend: ")
     if (ImGui::Combo("##Blend", &blendIndex, blends, IM_ARRAYSIZE(blends)))
     {
         layer.blend = static_cast<LayerComponent::Blend>(blendIndex);
     }
 
-    ImGui::Text("Opacity:"); ImGui::SameLine(); ImGui::DragFloat("##Opacity", &layer.opacity, 0.01f, 0.0f, 1.0f);
-    ImGui::Text("Is Visible:"); ImGui::SameLine(); ImGui::Checkbox("##IsVisible", &layer.isVisible);
+    FIELD_LABEL("Opacity: ")
+    ImGui::DragFloat("##Opacity", &layer.opacity, 0.01f, 0.0f, 1.0f);
+    FIELD_LABEL("Is Visible: ")
+    ImGui::Checkbox("##IsVisible", &layer.isVisible);
 
     static char nameBuffer[256];
     strncpy(nameBuffer, layer.name.c_str(), sizeof(nameBuffer) - 1);
     nameBuffer[sizeof(nameBuffer) - 1] = '\0';
 
-    ImGui::Text("Name:"); ImGui::SameLine();
+    FIELD_LABEL("Name: ")
     if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer)))
     {
         layer.name = std::string(nameBuffer);
     }
 
-    ImGui::Text("Parallax Factor:"); ImGui::SameLine(); ImGui::DragFloat2("##ParallaxFactor", &layer.parallaxFactor.x, 0.01f, 0.0f, 1.0f);
+    FIELD_LABEL("Parallax: ")
+    ImGui::DragFloat2("##ParallaxFactor", &layer.parallaxFactor.x, 0.01f, 0.0f, 1.0f);
 }
 
-template<>
-void InspectorService::DrawComponent<RectangleComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<RectangleComponent>(Entity entity, World *world)
 {
-    auto& rect = world->GetComponent<RectangleComponent>(entity);
+    auto &rect = world->GetComponent<RectangleComponent>(entity);
 
-    ImGui::Text("Width:"); ImGui::SameLine(); ImGui::DragFloat("##Width", &rect.width, 1.0f, 1.0f, 1000.0f);
-    ImGui::Text("Height:"); ImGui::SameLine(); ImGui::DragFloat("##Height", &rect.height, 1.0f, 1.0f, 1000.0f);
+    FIELD_LABEL("Width: ")
+    ImGui::DragFloat("##Width", &rect.width, 1.0f, 1.0f, 1000.0f);
+    FIELD_LABEL("Height: ")
+    ImGui::DragFloat("##Height", &rect.height, 1.0f, 1.0f, 1000.0f);
 
-    float bg[4] = { rect.background.r / 255.0f, rect.background.g / 255.0f, rect.background.b / 255.0f, rect.background.a / 255.0f };
-    ImGui::Text("Background:"); ImGui::SameLine();
+    float bg[4] = {rect.background.r / 255.0f, rect.background.g / 255.0f, rect.background.b / 255.0f,
+                   rect.background.a / 255.0f};
+    FIELD_LABEL("Background: ")
     if (ImGui::ColorEdit4("##Background", bg))
     {
-        rect.background = { (unsigned char)(bg[0] * 255), (unsigned char)(bg[1] * 255), (unsigned char)(bg[2] * 255), (unsigned char)(bg[3] * 255) };
+        rect.background = {(unsigned char)(bg[0] * 255), (unsigned char)(bg[1] * 255), (unsigned char)(bg[2] * 255),
+                           (unsigned char)(bg[3] * 255)};
     }
 
-    float border[4] = { rect.border.r / 255.0f, rect.border.g / 255.0f, rect.border.b / 255.0f, rect.border.a / 255.0f };
-    ImGui::Text("Border:"); ImGui::SameLine();
+    float border[4] = {rect.border.r / 255.0f, rect.border.g / 255.0f, rect.border.b / 255.0f, rect.border.a / 255.0f};
+    FIELD_LABEL("Border: ")
     if (ImGui::ColorEdit4("##Border", border))
     {
-        rect.border = { (unsigned char)(border[0] * 255), (unsigned char)(border[1] * 255), (unsigned char)(border[2] * 255), (unsigned char)(border[3] * 255) };
+        rect.border = {(unsigned char)(border[0] * 255), (unsigned char)(border[1] * 255),
+                       (unsigned char)(border[2] * 255), (unsigned char)(border[3] * 255)};
     }
 
     static char layerBuffer[256];
     strncpy(layerBuffer, rect.layerName.c_str(), sizeof(layerBuffer) - 1);
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
-    ImGui::Text("Layer Name:"); ImGui::SameLine();
+    FIELD_LABEL("Layer Name: ")
     if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
     {
         rect.layerName = std::string(layerBuffer);
     }
 }
 
-template<>
-void InspectorService::DrawComponent<CircleComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<CircleComponent>(Entity entity, World *world)
 {
-    auto& circle = world->GetComponent<CircleComponent>(entity);
+    auto &circle = world->GetComponent<CircleComponent>(entity);
 
-    ImGui::Text("Radius:"); ImGui::SameLine(); ImGui::DragFloat("##Radius", &circle.radius, 1.0f, 1.0f, 1000.0f);
+    FIELD_LABEL("Radius: ")
+    ImGui::DragFloat("##Radius", &circle.radius, 1.0f, 1.0f, 1000.0f);
 
-    float bg[4] = { circle.background.r / 255.0f, circle.background.g / 255.0f, circle.background.b / 255.0f, circle.background.a / 255.0f };
-    ImGui::Text("Background:"); ImGui::SameLine();
+    float bg[4] = {circle.background.r / 255.0f, circle.background.g / 255.0f, circle.background.b / 255.0f,
+                   circle.background.a / 255.0f};
+    FIELD_LABEL("Background: ")
     if (ImGui::ColorEdit4("##Background", bg))
     {
-        circle.background = { (unsigned char)(bg[0] * 255), (unsigned char)(bg[1] * 255), (unsigned char)(bg[2] * 255), (unsigned char)(bg[3] * 255) };
+        circle.background = {(unsigned char)(bg[0] * 255), (unsigned char)(bg[1] * 255), (unsigned char)(bg[2] * 255),
+                             (unsigned char)(bg[3] * 255)};
     }
 
-    float border[4] = { circle.border.r / 255.0f, circle.border.g / 255.0f, circle.border.b / 255.0f, circle.border.a / 255.0f };
-    ImGui::Text("Border:"); ImGui::SameLine();
+    float border[4] = {circle.border.r / 255.0f, circle.border.g / 255.0f, circle.border.b / 255.0f,
+                       circle.border.a / 255.0f};
+    FIELD_LABEL("Border: ")
     if (ImGui::ColorEdit4("##Border", border))
     {
-        circle.border = { (unsigned char)(border[0] * 255), (unsigned char)(border[1] * 255), (unsigned char)(border[2] * 255), (unsigned char)(border[3] * 255) };
+        circle.border = {(unsigned char)(border[0] * 255), (unsigned char)(border[1] * 255),
+                         (unsigned char)(border[2] * 255), (unsigned char)(border[3] * 255)};
     }
 
     static char layerBuffer[256];
     strncpy(layerBuffer, circle.layerName.c_str(), sizeof(layerBuffer) - 1);
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
-    ImGui::Text("Layer Name:"); ImGui::SameLine();
+    FIELD_LABEL("Layer Name: ")
     if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
     {
         circle.layerName = std::string(layerBuffer);
     }
 }
 
-template<>
-void InspectorService::DrawComponent<LightComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<LightComponent>(Entity entity, World *world)
 {
-    auto& light = world->GetComponent<LightComponent>(entity);
+    auto &light = world->GetComponent<LightComponent>(entity);
 
-    float color[4] = { light.color.r / 255.0f, light.color.g / 255.0f, light.color.b / 255.0f, light.color.a / 255.0f };
-    ImGui::Text("Color:"); ImGui::SameLine();
+    float color[4] = {light.color.r / 255.0f, light.color.g / 255.0f, light.color.b / 255.0f, light.color.a / 255.0f};
+    FIELD_LABEL("Color: ")
     if (ImGui::ColorEdit4("##Color", color))
     {
-        light.color = { (unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255), (unsigned char)(color[2] * 255), (unsigned char)(color[3] * 255) };
+        light.color = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255),
+                       (unsigned char)(color[2] * 255), (unsigned char)(color[3] * 255)};
     }
 
-    ImGui::Text("Radius:"); ImGui::SameLine(); ImGui::DragFloat("##Radius", &light.radius, 1.0f, 1.0f, 1000.0f);
+    FIELD_LABEL("Radius: ")
+    ImGui::DragFloat("##Radius", &light.radius, 1.0f, 1.0f, 1000.0f);
 
     static char layerBuffer[256];
     strncpy(layerBuffer, light.layerName.c_str(), sizeof(layerBuffer) - 1);
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
-    ImGui::Text("Layer Name:"); ImGui::SameLine();
+    FIELD_LABEL("Layer Name: ")
     if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
     {
         light.layerName = std::string(layerBuffer);
     }
 }
 
-template<>
-void InspectorService::DrawComponent<SpriteComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<SpriteComponent>(Entity entity, World *world)
 {
-    auto& sprite = world->GetComponent<SpriteComponent>(entity);
+    auto &sprite = world->GetComponent<SpriteComponent>(entity);
 
     static char markerBuffer[256];
     strncpy(markerBuffer, sprite.markerName.c_str(), sizeof(markerBuffer) - 1);
     markerBuffer[sizeof(markerBuffer) - 1] = '\0';
 
-    ImGui::Text("Marker Name:"); ImGui::SameLine();
+    FIELD_LABEL("Marker Name: ")
     if (ImGui::InputText("##MarkerName", markerBuffer, sizeof(markerBuffer)))
     {
         sprite.markerName = std::string(markerBuffer);
@@ -601,120 +703,132 @@ void InspectorService::DrawComponent<SpriteComponent>(Entity entity, World* worl
     strncpy(layerBuffer, sprite.layerName.c_str(), sizeof(layerBuffer) - 1);
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
-    ImGui::Text("Layer Name:"); ImGui::SameLine();
+    FIELD_LABEL("Layer Name: ")
     if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
     {
         sprite.layerName = std::string(layerBuffer);
     }
 
-    ImGui::Text("Frame Index:"); ImGui::SameLine(); ImGui::DragInt("##FrameIndex", &sprite.frameIndex, 1.0f, 0);
-    ImGui::Text("Frame Duration:"); ImGui::SameLine(); ImGui::DragFloat("##FrameDuration", &sprite.frameDuration, 0.01f, 0.0f, 10.0f);
-    ImGui::Text("Frame Elapsed:"); ImGui::SameLine(); ImGui::DragFloat("##FrameElapsed", &sprite.frameElapsed, 0.01f, 0.0f);
+    FIELD_LABEL("Frame Index: ")
+    ImGui::DragInt("##FrameIndex", &sprite.frameIndex, 1.0f, 0);
+    FIELD_LABEL("Duration: ")
+    ImGui::DragFloat("##FrameDuration", &sprite.frameDuration, 0.01f, 0.0f, 10.0f);
+    FIELD_LABEL("Elapsed: ")
+    ImGui::DragFloat("##FrameElapsed", &sprite.frameElapsed, 0.01f, 0.0f);
 }
 
-template<>
-void InspectorService::DrawComponent<TextComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<TextComponent>(Entity entity, World *world)
 {
-    auto& text = world->GetComponent<TextComponent>(entity);
+    auto &text = world->GetComponent<TextComponent>(entity);
 
     static char contentBuffer[1024];
     strncpy(contentBuffer, text.content.c_str(), sizeof(contentBuffer) - 1);
     contentBuffer[sizeof(contentBuffer) - 1] = '\0';
 
-    ImGui::Text("Content:"); ImGui::SameLine();
+    FIELD_LABEL("Content: ")
     if (ImGui::InputTextMultiline("##Content", contentBuffer, sizeof(contentBuffer)))
     {
         text.content = std::string(contentBuffer);
     }
 
-    ImGui::Text("Font Size:"); ImGui::SameLine(); ImGui::DragInt("##FontSize", &text.fontSize, 1.0f, 1, 200);
+    FIELD_LABEL("Font Size: ")
+    ImGui::DragInt("##FontSize", &text.fontSize, 1.0f, 1, 200);
 
-    float color[4] = { text.color.r / 255.0f, text.color.g / 255.0f, text.color.b / 255.0f, text.color.a / 255.0f };
-    ImGui::Text("Color:"); ImGui::SameLine();
+    float color[4] = {text.color.r / 255.0f, text.color.g / 255.0f, text.color.b / 255.0f, text.color.a / 255.0f};
+    FIELD_LABEL("Color: ")
     if (ImGui::ColorEdit4("##Color", color))
     {
-        text.color = { (unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255), (unsigned char)(color[2] * 255), (unsigned char)(color[3] * 255) };
+        text.color = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255), (unsigned char)(color[2] * 255),
+                      (unsigned char)(color[3] * 255)};
     }
 
     static char layerBuffer[256];
     strncpy(layerBuffer, text.layerName.c_str(), sizeof(layerBuffer) - 1);
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
-    ImGui::Text("Layer Name:"); ImGui::SameLine();
+    FIELD_LABEL("Layer Name: ")
     if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
     {
         text.layerName = std::string(layerBuffer);
     }
 }
 
-template<>
-void InspectorService::DrawComponent<CameraComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<CameraComponent>(Entity entity, World *world)
 {
-    auto& camera = world->GetComponent<CameraComponent>(entity);
+    auto &camera = world->GetComponent<CameraComponent>(entity);
 
-    ImGui::Text("Position:"); ImGui::SameLine(); ImGui::DragFloat2("##Position", &camera.position.x, 1.0f);
-    ImGui::Text("Zoom:"); ImGui::SameLine(); ImGui::DragFloat("##Zoom", &camera.zoom, 0.01f, 0.1f, 10.0f);
-    ImGui::Text("Viewport:"); ImGui::SameLine(); ImGui::DragFloat4("##Viewport", &camera.viewport.x, 1.0f);
-    ImGui::Text("Render Order:"); ImGui::SameLine(); ImGui::DragInt("##RenderOrder", &camera.renderOrder);
-    ImGui::Text("Is Visible:"); ImGui::SameLine(); ImGui::Checkbox("##IsVisible", &camera.isVisible);
+    FIELD_LABEL("Position: ")
+    ImGui::DragFloat2("##Position", &camera.position.x, 1.0f);
+    FIELD_LABEL("Zoom: ")
+    ImGui::DragFloat("##Zoom", &camera.zoom, 0.01f, 0.1f, 10.0f);
+    FIELD_LABEL("Viewport: ")
+    ImGui::DragFloat4("##Viewport", &camera.viewport.x, 1.0f);
+    FIELD_LABEL("Render Order: ")
+    ImGui::DragInt("##RenderOrder", &camera.renderOrder);
+    FIELD_LABEL("Is Visible: ")
+    ImGui::Checkbox("##IsVisible", &camera.isVisible);
 }
 
-template<>
-void InspectorService::DrawComponent<FollowComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<FollowComponent>(Entity entity, World *world)
 {
-    auto& follow = world->GetComponent<FollowComponent>(entity);
+    auto &follow = world->GetComponent<FollowComponent>(entity);
 
     static char targetBuffer[256];
     strncpy(targetBuffer, follow.targetEntityName.c_str(), sizeof(targetBuffer) - 1);
     targetBuffer[sizeof(targetBuffer) - 1] = '\0';
 
-    ImGui::Text("Target Entity Name:"); ImGui::SameLine();
+    FIELD_LABEL("Target: ")
     if (ImGui::InputText("##TargetEntityName", targetBuffer, sizeof(targetBuffer)))
     {
         follow.targetEntityName = std::string(targetBuffer);
     }
 }
 
-template<>
-void InspectorService::DrawComponent<TileComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<TileComponent>(Entity entity, World *world)
 {
     ImGui::Text("Tile component (no properties)");
 }
 
-template<>
-void InspectorService::DrawComponent<TeamComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<TeamComponent>(Entity entity, World *world)
 {
-    auto& team = world->GetComponent<TeamComponent>(entity);
-    ImGui::Text("Team ID:"); ImGui::SameLine(); ImGui::DragInt("##TeamID", &team.teamId, 1.0f, 0);
+    auto &team = world->GetComponent<TeamComponent>(entity);
+    FIELD_LABEL("Team ID: ")
+    ImGui::DragInt("##TeamID", &team.teamId, 1.0f, 0);
 }
 
-template<>
-void InspectorService::DrawComponent<CooldownComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<CooldownComponent>(Entity entity, World *world)
 {
-    auto& cooldown = world->GetComponent<CooldownComponent>(entity);
+    auto &cooldown = world->GetComponent<CooldownComponent>(entity);
 
-    ImGui::Text("Cooldown Time:"); ImGui::SameLine(); ImGui::DragFloat("##CooldownTime", &cooldown.cooldownTime, 0.1f, 0.0f, 60.0f);
-    ImGui::Text("Elapsed Time:"); ImGui::SameLine(); ImGui::DragFloat("##ElapsedTime", &cooldown.elapsedTime, 0.01f, 0.0f);
-    ImGui::Text("Is On Cooldown:"); ImGui::SameLine(); ImGui::Checkbox("##IsOnCooldown", &cooldown.isOnCooldown);
+    FIELD_LABEL("Cooldown Time: ")
+    ImGui::DragFloat("##CooldownTime", &cooldown.cooldownTime, 0.1f, 0.0f, 60.0f);
+    FIELD_LABEL("Elapsed Time: ")
+    ImGui::DragFloat("##ElapsedTime", &cooldown.elapsedTime, 0.01f, 0.0f);
+    FIELD_LABEL("On Cooldown: ")
+    ImGui::Checkbox("##IsOnCooldown", &cooldown.isOnCooldown);
 }
 
-template<>
-void InspectorService::DrawComponent<CharacterComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<CharacterComponent>(Entity entity, World *world)
 {
-    auto& character = world->GetComponent<CharacterComponent>(entity);
-    ImGui::Text("Character ID:"); ImGui::SameLine(); ImGui::DragInt("##CharacterID", &character.id, 1.0f, 0);
+    auto &character = world->GetComponent<CharacterComponent>(entity);
+    FIELD_LABEL("Char ID: ")
+    ImGui::DragInt("##CharacterID", &character.id, 1.0f, 0);
 }
 
-template<>
-void InspectorService::DrawComponent<UnitComponent>(Entity entity, World* world)
+template <> void InspectorService::DrawComponent<UnitComponent>(Entity entity, World *world)
 {
-    auto& unit = world->GetComponent<UnitComponent>(entity);
+    auto &unit = world->GetComponent<UnitComponent>(entity);
 
-    ImGui::Text("Has Acted This Turn:"); ImGui::SameLine(); ImGui::Checkbox("##HasActedThisTurn", &unit.hasActedThisTurn);
-    ImGui::Text("Can Move:"); ImGui::SameLine(); ImGui::Checkbox("##CanMove", &unit.canMove);
-    ImGui::Text("Can Attack:"); ImGui::SameLine(); ImGui::Checkbox("##CanAttack", &unit.canAttack);
-    ImGui::Text("Can Cast Spells:"); ImGui::SameLine(); ImGui::Checkbox("##CanCastSpells", &unit.canCastSpells);
-    ImGui::Text("Can Use Items:"); ImGui::SameLine(); ImGui::Checkbox("##CanUseItems", &unit.canUseItems);
+    FIELD_LABEL("Acted: ")
+    ImGui::Checkbox("##HasActedThisTurn", &unit.hasActedThisTurn);
+    FIELD_LABEL("Can Move: ")
+    ImGui::Checkbox("##CanMove", &unit.canMove);
+    FIELD_LABEL("Can Attack: ")
+    ImGui::Checkbox("##CanAttack", &unit.canAttack);
+    FIELD_LABEL("Can Cast Spells: ")
+    ImGui::Checkbox("##CanCastSpells", &unit.canCastSpells);
+    FIELD_LABEL("Can Use Items: ")
+    ImGui::Checkbox("##CanUseItems", &unit.canUseItems);
 
     if (ImGui::Button("Start Turn"))
     {

@@ -81,6 +81,15 @@ bool EntityManager::GetEntityByName(std::string name, Entity *entity)
     return false;
 }
 
+std::string EntityManager::GetEntityName(Entity entity) const
+{
+    auto it = names.find(entity);
+    if (it != names.end()) {
+        return it->second;
+    }
+    return ""; // Return empty string if entity has no name
+}
+
 void EntityManager::SetComponentMask(Entity entity, ComponentMask mask)
 {
     if (entity < MAX_ENTITIES)
@@ -147,6 +156,11 @@ Entity World::CreateEntity(std::string name)
 bool World::GetEntityByName(std::string name, Entity *entity)
 {
     return entityManager->GetEntityByName(name, entity);
+}
+
+std::string World::GetEntityName(Entity entity) const
+{
+    return entityManager->GetEntityName(entity);
 }
 
 void World::DestroyEntity(Entity entity)
