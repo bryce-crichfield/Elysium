@@ -21,7 +21,8 @@
       "Bash(.build.ps1)",
       "Bash(.elysium.ps1:*)",
       "Bash(git mv:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

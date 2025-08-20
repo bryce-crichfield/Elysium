@@ -33,6 +33,10 @@ class System
     virtual void Render()
     {
     }
+    virtual void OnDebugDraw()
+    {
+
+    }
     virtual void OnEvent(const char *eventName, void *data)
     {
     }

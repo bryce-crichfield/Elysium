@@ -129,6 +129,9 @@ World::World()
     RegisterComponent<FollowComponent>();
     RegisterComponent<TileComponent>();
     RegisterComponent<TeamComponent>();
+    RegisterComponent<CooldownComponent>();
+    RegisterComponent<CharacterComponent>();
+    RegisterComponent<UnitComponent>();
 }
 
 Entity World::CreateEntity()

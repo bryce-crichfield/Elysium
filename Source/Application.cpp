@@ -7,6 +7,7 @@
 #include <cstdarg>
 #include <chrono>
 #include "Services/JukeboxService.h"
+#include "Services/InspectorService.h"
 
 using namespace tinyxml2;
 
@@ -62,6 +63,7 @@ bool Application::Initialize(const std::string& configPath) {
         networkService_.Initialize();
         logService_.Initialize();
         persistenceService_.Initialize();
+        inspectorService_.Initialize();
         // loadingService_.Initialize(); // Temporarily disabled for testing Scene.xml loading
 
         initialized_ = true;
@@ -179,6 +181,8 @@ void Application::Run() {
             loadingStarted = false;
         }
 
+        inspectorService_.Update(deltaTime);
+
         networkService_.Update();
     }
 
@@ -272,6 +276,12 @@ void Application::Run() {
         logService_.Draw();
         persistenceService_.Draw();
         jukeboxService_.OnDebugDraw();
+        
+        // Set current world for inspector service
+        if (currentScene) {
+            inspectorService_.SetCurrentWorld(currentScene->GetWorld());
+        }
+        inspectorService_.Draw();
 
 
         rlImGuiEnd();
@@ -304,6 +314,16 @@ void Application::Run() {
         if (IsKeyPressed(KEY_F8))
         {
             persistenceService_.ToggleVisibility();
+        }
+
+        if (IsKeyPressed(KEY_F1))
+        {
+            // Toggle inspector system visibility in current scene
+            Scene* currentScene = sceneService_.GetScene();
+            if (currentScene)
+            {
+                inspectorService_.ToggleVisibility();
+            }
         }
     }
 
