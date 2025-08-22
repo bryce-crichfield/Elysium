@@ -3,6 +3,7 @@
 #include "Services/LogService.h"
 #include "raylib.h"
 #include "tinyxml2.h"
+#include "imgui.h"
 #include <chrono>
 #include <sstream>
 #include <regex>
@@ -67,7 +68,22 @@ int LoadingService::GetLoadedAssets() const
 void LoadingService::LoadAssets(const std::vector<Asset>& assets, AssetService& assetService)
 {
     if (isLoading_.load()) {
+        LOG_WARNING("LoadingService", "LoadAssets called while already loading - ignoring");
         return; // Already loading
+    }
+
+    LOG_INFOF("LoadingService", "LoadAssets called with %zu assets", assets.size());
+    for (const auto& asset : assets) {
+        LOG_DEBUGF("LoadingService", "Queued for loading: %s (%s) -> %s", 
+                  asset.GetName().c_str(),
+                  asset.GetType() == AssetType::TEXTURE ? "TEXTURE" : 
+                  asset.GetType() == AssetType::SOUND ? "SOUND" :
+                  asset.GetType() == AssetType::MUSIC ? "MUSIC" :
+                  asset.GetType() == AssetType::FONT ? "FONT" :
+                  asset.GetType() == AssetType::MODEL ? "MODEL" :
+                  asset.GetType() == AssetType::SHADER ? "SHADER" :
+                  asset.GetType() == AssetType::SPRITE ? "SPRITE" : "UNKNOWN",
+                  asset.GetPath().c_str());
     }
 
     {
@@ -121,6 +137,12 @@ void LoadingService::LoadingThreadFunction()
         }
     }
 
+    // Clear the queue when loading completes
+    {
+        std::lock_guard<std::mutex> lock(queueMutex_);
+        assetQueue_.clear();
+    }
+    
     isLoading_.store(false);
     LOG_INFO("LoadingService", "Loading thread finished");
 }
@@ -416,6 +438,78 @@ void LoadingService::DrawTooltips(int screenWidth, int screenHeight)
         int textX = config_.tooltips.x == -1 ? (screenWidth - textWidth) / 2 : config_.tooltips.x;
         ::DrawText(tooltipText, textX, config_.tooltips.y, config_.tooltips.fontSize, config_.tooltips.color);
     }
+}
+
+void LoadingService::OnDebugDraw()
+{
+    if (!debugVisible_) return;
+
+    ImGui::Begin("Loading Service");
+
+    // Loading Status
+    ImGui::Text("Loading Status: %s", isLoading_.load() ? "LOADING" : "IDLE");
+    
+    // Queue count
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(queueMutex_));
+    ImGui::Text("Queue Count: %zu", assetQueue_.size());
+
+    ImGui::Separator();
+
+    // All Assets (if we have access to AssetService)
+    if (assetService_) {
+        const auto& allAssets = assetService_->GetAllAssets();
+        ImGui::Text("All Assets (%zu total):", allAssets.size());
+        
+        if (ImGui::BeginTable("AllAssetsTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable)) {
+            ImGui::TableSetupColumn("Name");
+            ImGui::TableSetupColumn("Type");
+            ImGui::TableSetupColumn("Status");
+            ImGui::TableSetupColumn("Path");
+            ImGui::TableHeadersRow();
+
+            for (const auto& [name, asset] : allAssets) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%s", asset.GetName().c_str());
+                
+                ImGui::TableSetColumnIndex(1);
+                std::string typeStr;
+                switch (asset.GetType()) {
+                    case AssetType::TEXTURE: typeStr = "TEXTURE"; break;
+                    case AssetType::SOUND: typeStr = "SOUND"; break;
+                    case AssetType::MUSIC: typeStr = "MUSIC"; break;
+                    case AssetType::FONT: typeStr = "FONT"; break;
+                    case AssetType::MODEL: typeStr = "MODEL"; break;
+                    case AssetType::SHADER: typeStr = "SHADER"; break;
+                    case AssetType::SPRITE: typeStr = "SPRITE"; break;
+                    default: typeStr = "UNKNOWN"; break;
+                }
+                ImGui::Text("%s", typeStr.c_str());
+                
+                ImGui::TableSetColumnIndex(2);
+                if (asset.IsLoaded()) {
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "LOADED");
+                } else if (asset.HasImageData() || asset.HasWaveData()) {
+                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "RAW DATA");
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "NOT LOADED");
+                }
+                
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%s", asset.GetPath().c_str());
+            }
+            ImGui::EndTable();
+        }
+    } else {
+        ImGui::Text("No AssetService reference available");
+    }
+
+    ImGui::End();
+}
+
+void LoadingService::ToggleVisibility()
+{
+    debugVisible_ = !debugVisible_;
 }
 
 } // namespace Elysium::Services

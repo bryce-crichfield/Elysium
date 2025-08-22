@@ -4,12 +4,11 @@
 #include "Scenes/BattleScene.h"
 #include "Scenes/OverworldScene.h"
 #include "Application.h"
-#include "imgui.h"
 #include <memory>
 
 namespace Elysium::Scenes {
 
-MenuScene::MenuScene() : Scene("MenuScene") {
+MenuScene::MenuScene() : Scene() {
     rotation_ = 0.0f;
     backgroundColor_ = DARKBLUE;
 }
@@ -51,48 +50,7 @@ void MenuScene::OnDraw(Rectangle screen) {
 }
 
 void MenuScene::OnDebugDraw() {
-    // ImGui Scene Manager Window
-    ImGui::Begin("Scene Manager");
-
-    ImGui::Text("Current Scene: %s", GetName().c_str());
-    ImGui::Separator();
-
-    ImGui::Text("Available Scenes:");
-
-    if (ImGui::Button("Switch to Overworld Scene", ImVec2(200, 30))) {
-        auto overworldScene = std::make_unique<OverworldScene>();
-        Elysium::Application::GetInstance().QueueScene(std::move(overworldScene));
-    }
-
-    if (ImGui::Button("Switch to Explore Scene", ImVec2(200, 30))) {
-        Elysium::Application::GetInstance().QueueScene("./Assets/ExploreScene.xml");
-    }
-
-    if (ImGui::Button("Switch to Battle Scene", ImVec2(200, 30))) {
-        // Use the new XML loading system
-        Elysium::Application::GetInstance().QueueScene("./Assets/Scene.xml");
-    }
-
-    ImGui::Separator();
-
-    ImGui::Text("Menu Scene Controls:");
-    ImGui::ColorEdit3("Background Color", (float*)&backgroundColor_);
-
-    if (ImGui::Button("Reset Rotation")) {
-        rotation_ = 0.0f;
-    }
-
-    ImGui::Text("Rotation: %.1f degrees", rotation_);
-
-    ImGui::Separator();
-
-    auto& jukebox = Application::GetInstance().GetJukeboxService();
-
-    ImGui::Text("JukeBox: %s", jukebox.IsPlaying() ? "true" : "false");
-    ImGui::Text("Current Song ID: %s", jukebox.GetCurrentSongId());
-
-
-    ImGui::End();
+    
 }
 
 } // namespace Elysium::Scenes

@@ -5,7 +5,7 @@
 
 namespace Elysium::Scenes {
 
-OverworldScene::OverworldScene() : Scene("OverworldScene") {
+OverworldScene::OverworldScene() : Scene() {
 }
 
 void OverworldScene::OnEnter() {
@@ -18,8 +18,7 @@ void OverworldScene::OnExit() {
 
 void OverworldScene::OnUpdate(float deltaTime) {
     if (IsKeyPressed(KEY_BACKSPACE)) {
-        auto menuScene = std::make_unique<MenuScene>();
-        Elysium::Application::GetInstance().QueueScene(std::move(menuScene));
+        Elysium::Application::GetInstance().QueueScene("MenuScene");
     }
 }
 

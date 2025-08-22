@@ -121,24 +121,24 @@ void Application::Run() {
         initialized_ = false;
     }
 
-    void Application::SetScene(std::unique_ptr<Scene> scene)
+    // void Application::SetScene(std::unique_ptr<Scene> scene)
+    // {
+    //     sceneService_.SetScene(std::move(scene));
+    // }
+
+    void Application::SetScene(const std::string& scene)
     {
-        sceneService_.SetScene(std::move(scene));
+        sceneService_.SetScene(scene);
     }
 
-    void Application::QueueScene(std::unique_ptr<Scene> scene)
+    void Application::QueueScene(const std::string& scene)
     {
-        sceneService_.QueueScene(std::move(scene));
+        sceneService_.QueueScene(scene);
     }
 
-    void Application::DefineScene(const std::string& typeName, SceneFactory factory)
+    void Application::DefineScene(const std::string& typeName, std::string xmlPath, SceneFactory factory)
     {
-        sceneService_.RegisterScene(typeName, factory);
-    }
-
-    void Application::QueueScene(const std::string& xmlPath)
-    {
-        sceneService_.QueueScene(xmlPath);
+        sceneService_.RegisterScene(typeName, xmlPath, factory);
     }
 
     bool Application::ShouldClose() const
@@ -157,16 +157,21 @@ void Application::Run() {
 
         // Handle asset loading during transitions
         static bool loadingStarted = false;
+        const std::string& currentState = sceneService_.GetCurrentState();
 
-        if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::LOADING && !loadingStarted) {
-            // Start loading assets when we enter LOADING state
+        if (currentState == "LOADING_ASSETS" && !loadingStarted) {
+            // Start loading assets when we enter LOADING_ASSETS state
             const auto& pendingAssets = sceneService_.GetPendingAssets();
+            LOG_INFOF("Application", "Application received %zu pending assets from SceneService", pendingAssets.size());
             if (!pendingAssets.empty()) {
+                LOG_INFO("Application", "Starting asset loading via LoadingService");
                 loadingService_.LoadAssets(pendingAssets, assetService_);
+            } else {
+                LOG_WARNING("Application", "No pending assets to load - scene may not have defined any assets");
             }
             loadingStarted = true;
         }
-        else if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::LOADING) {
+        else if (currentState == "LOADING_ASSETS") {
             // Check if we're done loading
             if (!loadingService_.IsLoading())
             {
@@ -177,7 +182,8 @@ void Application::Run() {
                 sceneService_.OnAssetsLoaded();
             }
         }
-        else if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::NONE) {
+        else if (currentState != "LOADING_ASSETS" && loadingStarted) {
+            LOG_INFOF("Application", "Resetting loadingStarted flag (state: %s)", currentState.c_str());
             loadingStarted = false;
         }
 
@@ -192,9 +198,11 @@ void Application::Run() {
         auto screenRect = Rectangle { 0, 0, config_.framebufferWidth, config_.framebufferHeight};
         Scene* currentScene = sceneService_.GetScene();
 
+        const std::string& drawState = sceneService_.GetCurrentState();
+        
         if (sceneService_.IsTransitioning())
         {
-            if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::LOADING)
+            if (drawState == "LOADING_ASSETS")
             {
                 BeginDrawing();
                 ClearBackground(BLACK);
@@ -220,7 +228,7 @@ void Application::Run() {
 
                 float alpha = sceneService_.GetTransitionProgress();
 
-                if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::FADE_OUT)
+                if (drawState == "EXITING")
                 {
                     Color currentTint = {255, 255, 255, (unsigned char)(255 * (1.0f - alpha))};
                     DrawTexturePro(
@@ -231,7 +239,7 @@ void Application::Run() {
                         0.0f,
                         currentTint);
                 }
-                else if (sceneService_.GetTransitionState() == Services::SceneService::TransitionState::FADE_IN)
+                else if (drawState == "ENTERING")
                 {
                     Color pendingTint = {255, 255, 255, (unsigned char)(255 * alpha)};
                     DrawTexturePro(
@@ -268,6 +276,44 @@ void Application::Run() {
 
         rlImGuiBegin();
 
+        // Main menu bar with debug window toggles
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("Debug Windows")) {
+                // Inspector Service (F1)
+                bool inspectorVisible = inspectorService_.IsVisible();
+                if (ImGui::MenuItem("Inspector", "F1", inspectorVisible)) {
+                    inspectorService_.ToggleVisibility();
+                }
+                
+                // Scene Service (F2)
+                bool sceneVisible = sceneService_.IsVisible();
+                if (ImGui::MenuItem("Scene Service", "F2", sceneVisible)) {
+                    sceneService_.ToggleVisibility();
+                }
+                
+                // Log Service (F3)
+                bool logVisible = logService_.IsVisible();
+                if (ImGui::MenuItem("Log Viewer", "F3", logVisible)) {
+                    logService_.ToggleVisibility();
+                }
+                
+                // Persistence Service (F8)
+                bool persistenceVisible = persistenceService_.IsVisible();
+                if (ImGui::MenuItem("Database", "F8", persistenceVisible)) {
+                    persistenceService_.ToggleVisibility();
+                }
+                
+                // Loading Service (F4)
+                bool loadingVisible = loadingService_.IsVisible();
+                if (ImGui::MenuItem("Asset Loader", "F4", loadingVisible)) {
+                    loadingService_.ToggleVisibility();
+                }
+                
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
+
         if (currentScene)
         {
             currentScene->OnDebugDraw();
@@ -276,7 +322,8 @@ void Application::Run() {
         logService_.Draw();
         persistenceService_.Draw();
         jukeboxService_.OnDebugDraw();
-        
+        sceneService_.DebugDraw();
+        loadingService_.OnDebugDraw();
         // Set current world for inspector service
         if (currentScene) {
             inspectorService_.SetCurrentWorld(currentScene->GetWorld());
@@ -302,8 +349,19 @@ void Application::Run() {
     {
         ImGuiIO& io = ImGui::GetIO();
 
+        if (IsKeyPressed(KEY_F1))
+        {
+            // Toggle inspector system visibility in current scene
+            Scene* currentScene = sceneService_.GetScene();
+            if (currentScene)
+            {
+                inspectorService_.ToggleVisibility();
+            }
+        }
+
         if (IsKeyPressed(KEY_F2))
         {
+            sceneService_.ToggleVisibility();
         }
 
         if (IsKeyPressed(KEY_F3))
@@ -316,14 +374,9 @@ void Application::Run() {
             persistenceService_.ToggleVisibility();
         }
 
-        if (IsKeyPressed(KEY_F1))
+        if (IsKeyPressed(KEY_F4))
         {
-            // Toggle inspector system visibility in current scene
-            Scene* currentScene = sceneService_.GetScene();
-            if (currentScene)
-            {
-                inspectorService_.ToggleVisibility();
-            }
+            loadingService_.ToggleVisibility();
         }
     }
 

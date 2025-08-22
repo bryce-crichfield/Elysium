@@ -19,7 +19,7 @@ using namespace tinyxml2;
 
 namespace Elysium {
 
-Scene::Scene(const std::string& name) : name_(name) {
+Scene::Scene() {
     world_ = std::make_unique<World>();
 }
 

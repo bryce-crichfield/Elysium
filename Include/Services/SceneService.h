@@ -4,68 +4,119 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <queue>
 #include "Scene.h"
 #include "Asset.h"
+#include "StateMachine.h"
 
 namespace Elysium::Services {
-class SceneService {
-public:
-    enum class TransitionState {
-        NONE,
-        FADE_OUT,
-        LOADING,
-        FADE_IN
+    enum class SceneStatus {
+        UNLOADED,           // Scene registered but no assets loaded, no instance created
+        LOADING_ASSETS,     // Assets are being loaded by LoadingService
+        ASSETS_LOADED,      // Assets ready, but scene instance not created yet
+        INITIALIZING,       // Scene instance being created and initialized
+        ENTERING,           // Scene transitioning in (fade in, entrance animations)
+        ACTIVE,             // Scene running normally, receiving updates
+        EXITING,            // Scene transitioning out (fade out, exit animations)
+        SUSPENDED           // Scene paused/inactive but still in memory
     };
 
-    SceneService() = default;
+    std::string PrintSceneStatus(SceneStatus status);
+
+    struct SceneData {
+        std::string name;
+
+        Scene* scene;
+        SceneFactory factory;
+        std::vector<std::string> assets;
+        std::string xmlPath;
+        bool xmlLoaded = false;
+
+        SceneStatus status;
+    };
+
+
+class SceneService {
+public:
+
+    // The SceneService manages scene transitions through the SceneStatus FSM.
+    // During LOADING_ASSETS, it waits for LoadingService to complete before proceeding.
+    // It will be notified with OnAssetsLoaded() to transition from LOADING_ASSETS to ASSETS_LOADED.
+
+    SceneService();
     ~SceneService() = default;
     SceneService(const SceneService&) = delete;
     SceneService& operator=(const SceneService&) = delete;
 
     // Scene management
-    Scene* GetScene() const { return currentScene_.get(); }
-    void SetScene(std::unique_ptr<Scene> scene);
-
-    void QueueScene(const std::string& xmlPath);
-    void QueueScene(std::unique_ptr<Scene> scene);
-
-    // Scene factory registration and XML loading
-    void RegisterScene(const std::string& typeName, SceneFactory factory);
+    void RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory);
+    Scene* GetScene() const;
+    void SetScene(std::string name);
+    void QueueScene(std::string name);
 
     // Scene lifecycle methods
     void Update(float deltaTime);
-    void ProcessEvents();
-    bool IsTransitioning() const { return transitionState_ != TransitionState::NONE; }
-    TransitionState GetTransitionState() const { return transitionState_; }
+    void DebugDraw();
+    bool IsTransitioning() const; 
+    const std::string& GetCurrentState() const { return transitionStateMachine_.GetCurrentState(); }
     float GetTransitionProgress() const;
-
-    // Transition configuration
-    float GetTransitionDuration() const { return transitionDuration_; }
-    void SetTransitionDuration(float duration) { transitionDuration_ = duration; }
+    
+    // Debug timeout
+    void StartTimeout();
+    void SetTimeoutMs(float milliseconds) { timeoutDuration_ = milliseconds; }
 
     // Asset management for transitions
     const std::vector<Asset>& GetPendingAssets() const { return pendingAssets_; }
-    void ClearPendingAssets() { pendingAssets_.clear(); }
     void OnAssetsLoaded(); // Called when asset loading completes
 
     // Cleanup
     void Shutdown();
 
+    void ToggleVisibility();
+    bool IsVisible() const { return inspectorVisible_; }
+
+
 private:
-    void HandleSceneTransition();
+    // State machine handlers
+    void InitializeStateMachine();
+    void OnEnterExiting();
+    void OnUpdateExiting();
+    void OnEnterLoadingAssets();
+    void OnEnterAssetsLoaded();
+    void OnEnterEntering();
+    void OnUpdateEntering();
+    void OnEnterActive();
+    void OnEnterActiveRunning();
+    void OnEnterActivePaused();
 
-    std::unique_ptr<Scene> currentScene_;
-    std::unique_ptr<Scene> pendingScene_;
-    bool sceneTransitionPending_ = false;
-    bool sceneTransitionLocked_ = false;
+    Scene* CreateOrGetScene(const std::string& name);
+    void EnterScene(const std::string& name);
+    void UpdateSceneStatus(const std::string& name, SceneStatus status);
+    void UpdateActiveSceneStatus(SceneStatus status);
 
-    // Scene factory registry
-    std::unordered_map<std::string, SceneFactory> sceneFactories_;
+    std::unordered_map<std::string, SceneData> scenes_;
 
-    TransitionState transitionState_ = TransitionState::NONE;
+    bool inspectorVisible_ = false;
+
+    // Queue-based scene management
+    std::queue<std::string> sceneQueue_;
+    Scene* activeScene_ = nullptr;
+    std::vector<Asset> pendingAssets_;
+
+    // State machine for transitions
+    StateMachine transitionStateMachine_;
+    
+    // Transition timing
     float transitionTimer_ = 0.0f;
     float transitionDuration_ = 1.0f;
-    std::vector<Asset> pendingAssets_;
+    
+    // Pause/unpause deltaTime handling
+    float cachedDeltaTime_ = 0.016f; // Default 60fps
+    
+    // Timeout system
+    float timeoutDuration_ = 100.0f; // Timeout duration in milliseconds
+    float timeoutTimer_ = 0.0f; // Current timeout timer
+    bool isTimingOut_ = false; // Flag for timeout mode
 };
 
 } // namespace Elysium::Services

@@ -76,6 +76,11 @@ public:
     void LoadAssets(const std::vector<Asset>& assets, AssetService& assetService);
     void ClearQueue();
 
+    // Debug interface
+    void OnDebugDraw();
+    void ToggleVisibility();
+    bool IsVisible() const { return debugVisible_; }
+
 private:
     void LoadingThreadFunction();
     void DrawProgressBar(int screenWidth, int screenHeight);
@@ -104,6 +109,9 @@ private:
 
     float tooltipTimer_{0.0f};
     int currentTooltipIndex_{0};
+
+    // Debug visibility
+    bool debugVisible_{false};
 };
 
 } // namespace Elysium::Services

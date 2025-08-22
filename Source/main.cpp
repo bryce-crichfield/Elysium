@@ -14,16 +14,17 @@ int main()
         return -1;
     }
 
-    app.DefineScene("MenuScene", []() { return std::make_unique<Elysium::Scenes::MenuScene>(); });
-    app.DefineScene("OverworldScene", []() { return std::make_unique<Elysium::Scenes::OverworldScene>(); });
-    app.DefineScene("ExploreScene", []() { return std::make_unique<Elysium::Scenes::ExploreScene>(); });
-    app.DefineScene("BattleScene", []() { return std::make_unique<Elysium::Scenes::BattleScene>(); });
+    app.DefineScene("MenuScene", "", []() { return new Elysium::Scenes::MenuScene(); });
+    app.DefineScene("OverworldScene", "", []() { return new Elysium::Scenes::OverworldScene(); });
+    app.DefineScene("ExploreScene", "./Assets/ExploreScene.xml", []() { return new Elysium::Scenes::ExploreScene(); });
+    app.DefineScene("BattleScene", "./Assets/Scene.xml", []() { return new Elysium::Scenes::BattleScene(); });
 
     // Start with MemoryTestScene to test memory tracking
-    auto menuScene = std::make_unique<Elysium::Scenes::MenuScene>();
-    app.SetScene(std::move(menuScene));
+    app.SetScene("MenuScene");
 
     app.Run();
+
+    app.Shutdown();
 
     return 0;
 }

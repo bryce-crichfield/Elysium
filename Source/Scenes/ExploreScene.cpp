@@ -5,7 +5,7 @@
 
 namespace Elysium::Scenes {
 
-ExploreScene::ExploreScene() : Scene("ExploreScene") {
+ExploreScene::ExploreScene() : Scene() {
 }
 
 void ExploreScene::OnEnter() {
@@ -44,8 +44,7 @@ void ExploreScene::OnUpdate(float deltaTime) {
     Scene::OnUpdate(deltaTime);
 
     if (IsKeyPressed(KEY_BACKSPACE)) {
-        auto menuScene = std::make_unique<MenuScene>();
-        Elysium::Application::GetInstance().QueueScene(std::move(menuScene));
+        Elysium::Application::GetInstance().QueueScene("MenuScene");
     }
 }
 

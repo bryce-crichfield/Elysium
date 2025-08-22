@@ -29,7 +29,7 @@ struct LogEntry {
 
     LogEntry(LogLevel lvl, const std::string& tpc, const std::string& msg)
         : level(lvl), topic(tpc), message(msg), timestamp(std::chrono::system_clock::now()) {}
-    
+
     // Legacy constructor for compatibility with TraceLog (raylib internal logs)
     LogEntry(int lvl, const std::string& msg)
         : level(LogLevel::INFO), topic("System"), message(msg), timestamp(std::chrono::system_clock::now()) {}
@@ -87,7 +87,7 @@ public:
 
     void LogMessage(int logLevel, const std::string& message);
     void LogMessage(LogLevel level, const std::string& topic, const std::string& message);
-    
+
     // Get all discovered topics for filtering
     std::vector<std::string> GetAllTopics() const;
 
@@ -104,16 +104,16 @@ private:
     std::thread writerThread_;
     std::ofstream logFile_;
     std::string logFilePath_;
-    
+
     // Topic discovery
     mutable std::unordered_set<std::string> discoveredTopics_;
-    
+
     // UI state - filtering
     std::unordered_map<std::string, bool> topicFilters_;
     std::unordered_map<LogLevel, bool> levelFilters_;
     bool showFilterPanel_ = false;
     std::string searchFilter_ = "";
-    
+
     // UI state - selection
     std::unordered_set<int> selectedLogIndices_;
     int dragStartIndex_ = -1;
@@ -128,7 +128,7 @@ private:
     void WriteLogToFile(const LogEntry& entry);
     void WriteLogToStdout(const LogEntry& entry);
     void InitializeFilters();
-    
+
     // UI rendering
     void DrawHeader();
     void DrawFilterPanel();
@@ -137,7 +137,7 @@ private:
     void DrawLogEntries();
     void HandleLogSelection(int logIndex, const std::vector<int>& visibleIndices);
     void DrawLogContextMenu(int logIndex, const LogEntry& entry, const std::string& fullLogText);
-    
+
     // Filtering and utilities
     bool ShouldDisplayEntry(const LogEntry& entry) const;
     std::string FormatTimestamp(const std::chrono::system_clock::time_point& timestamp) const;

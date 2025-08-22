@@ -49,10 +49,10 @@ public:
     void Run();
     void Shutdown();
 
-    void SetScene(std::unique_ptr<Scene> scene);
-    void QueueScene(const std::string& xmlPath);
-    void DefineScene(const std::string& typeName, SceneFactory factory);
-    void QueueScene(std::unique_ptr<Scene> scene);
+    void SetScene(const std::string& name);
+    void QueueScene(const std::string& name);
+    void DefineScene(const std::string& typeName, std::string xmlPath, SceneFactory factory);
+    // void QueueScene(std::unique_ptr<Scene> scene);
     // Scene factory registration and XML loading
     const ApplicationConfig& GetConfig() const { return config_; }
     Services::SceneService& GetSceneService() { return sceneService_; }

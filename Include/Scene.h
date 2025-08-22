@@ -22,16 +22,11 @@ struct Application;
 
 class Scene {
 public:
-    Scene(const std::string& name);
+    Scene();
     virtual ~Scene();
-
-    const std::string& GetName() const { return name_; }
 
     // Load scene from XML file
     virtual void LoadFromXML(const std::string& xmlPath);
-
-    // Set XML path for deferred loading
-    void SetXmlPath(const std::string& xmlPath) { xmlPath_ = xmlPath; }
 
     // Called during loading, returns Asset objects with name, path, and type
     // application then passes these to loading service
@@ -50,11 +45,7 @@ public:
     // virtual void OnInput(const InputEvent& event) {}
 
     virtual void OnEnter() {
-        // Load XML if path was set but not yet loaded
-        if (!xmlPath_.empty()) {
-            LoadFromXML(xmlPath_);
-            xmlPath_.clear(); // Clear to prevent reloading
-        }
+
     }
     virtual void OnExit() {}
 
@@ -67,15 +58,12 @@ protected:
     // Called during XML loading to create scene-specific systems
     virtual void CreateCustomSystems() {}
 
-    std::string name_;
-    std::string xmlPath_;
-
     // Core scene components
     std::unique_ptr<World> world_;
     std::vector<std::unique_ptr<System>> systems_;
 };
 
 // Scene factory function type - declared after Scene class is defined
-using SceneFactory = std::function<std::unique_ptr<Scene>()>;
+using SceneFactory = std::function<Scene*()>;
 
 } // namespace Elysium

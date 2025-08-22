@@ -12,7 +12,7 @@
 
 namespace Elysium::Scenes {
 
-BattleScene::BattleScene() : Scene("BattleScene") {
+BattleScene::BattleScene() : Scene() {
     // Systems will be initialized in OnEnter() with proper context
 }
 
