@@ -32,10 +32,10 @@ void BattleScene::OnEnter() {
     auto battleSys = std::make_unique<Systems::BattleSystem>(context);
     auto turnSys = std::make_unique<TurnSystem>(context);
     auto cursorSystem = std::make_unique<Elysium::Systems::CursorSystem>(context);
-    
+
     battleSystem = battleSys.get();
     turnSystem = turnSys.get();
-    
+
     this->AddSystem(std::move(battleSys));
     this->AddSystem(std::move(turnSys));
     this->AddSystem(std::move(cursorSystem));
@@ -70,70 +70,6 @@ void BattleScene::OnUpdate(float deltaTime) {
 
 void BattleScene::OnDraw(Rectangle screen) {
     Scene::OnDraw(screen);
-}
-
-void BattleScene::OnDebugDraw() {
-    Scene::OnDebugDraw();
-
-    // Draw battle UI
-    if (ImGui::Begin("Battle Manager")) {
-        if (ImGui::CollapsingHeader("Battle Status", ImGuiTreeNodeFlags_DefaultOpen)) {
-            if (battleSystem) {
-                Systems::BattleState state = battleSystem->GetCurrentState();
-                ImGui::Text("Battle State: %d", static_cast<int>(state));
-                ImGui::Text("Battle Active: %s", battleSystem->IsBattleActive() ? "Yes" : "No");
-            }
-
-            if (turnSystem) {
-                ImGui::Text("Current Unit: %d", turnSystem->GetCurrentUnit());
-                ImGui::Text("Turn Number: %d", turnSystem->GetTurnNumber());
-                ImGui::Text("Player Turn: %s", turnSystem->IsPlayerTurn() ? "Yes" : "No");
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Unit Management", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Unit management stubbed out - battle components removed");
-        }
-
-        if (ImGui::CollapsingHeader("Actions", ImGuiTreeNodeFlags_DefaultOpen)) {
-            if (turnSystem && turnSystem->IsPlayerTurn() && turnSystem->HasActiveTurn()) {
-                int currentUnit = turnSystem->GetCurrentUnit();
-                ImGui::Text("Active Unit: %d", currentUnit);
-
-                if (selectedUnit != -1) {
-                    ImGui::Separator();
-                    ImGui::Text("Selected Target: Unit %d", selectedUnit);
-
-                    if (ImGui::Button("Attack Selected")) {
-                        // TODO: Implement attack action
-                        LOG_INFOF("BattleScene", "Unit %d attacks Unit %d", currentUnit, selectedUnit);
-                    }
-
-                    ImGui::SameLine();
-                    if (ImGui::Button("Move To Target")) {
-                        // TODO: Implement move action
-                        LOG_INFOF("BattleScene", "Unit %d moves toward Unit %d", currentUnit, selectedUnit);
-                    }
-                }
-
-                ImGui::Separator();
-                if (ImGui::Button("End Turn")) {
-                    turnSystem->EndCurrentTurn();
-                    selectedUnit = -1; // Clear selection
-                }
-            } else {
-                ImGui::Text("Waiting for player turn...");
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Battle Log")) {
-            ImGui::BeginChild("BattleLogScrolling", ImVec2(0, 100), true);
-            // TODO: Display action history
-            ImGui::Text("Battle started...");
-            ImGui::EndChild();
-        }
-    }
-    ImGui::End();
 }
 
 void BattleScene::OnExit() {

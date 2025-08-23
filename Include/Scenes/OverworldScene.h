@@ -12,7 +12,6 @@ public:
 
     void OnUpdate(float deltaTime) override;
     void OnDraw(Rectangle screen) override;
-    void OnDebugDraw() override;
     void OnEnter() override;
     void OnExit() override;
 };

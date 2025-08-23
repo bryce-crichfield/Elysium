@@ -38,7 +38,6 @@ public:
     // Hook methods - can be overridden by subclasses
     virtual void OnUpdate(float deltaTime);
     virtual void OnDraw(Rectangle screen);
-    virtual void OnDebugDraw();
 
     // Add OnEventHandlers
     // virtual void OnNetwork(const NetworkEvent& event) {}

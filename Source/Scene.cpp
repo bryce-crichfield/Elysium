@@ -496,12 +496,6 @@ void Scene::OnDraw(Rectangle screen) {
     }
 }
 
-void Scene::OnDebugDraw() {
-    for (auto& system : systems_) {
-        system->OnDebugDraw();
-    }
-}
-
 void Scene::AddSystem(std::unique_ptr<System> system) {
     systems_.emplace_back(std::move(system));
 }

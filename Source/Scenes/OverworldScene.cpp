@@ -28,7 +28,4 @@ void OverworldScene::OnDraw(Rectangle screen) {
     DrawText("Backspace to Menu", 0, 0, 16, WHITE);
 }
 
-void OverworldScene::OnDebugDraw() {
-}
-
 } // namespace Elysium::Scenes

@@ -54,9 +54,6 @@ void ExploreScene::OnDraw(Rectangle screen) {
     DrawText("EXPLORE_SCENE - Backspace to Menu", 0, 0, 16, WHITE);
 }
 
-void ExploreScene::OnDebugDraw() {
-}
-
 std::vector<Asset> ExploreScene::GetAssets() {
     return {
         Asset(AssetType::TEXTURE, "mushroom_warrior_idle", "./Assets/Sprites/mushroom_warrior/mushroom_warrior_idle.png"),

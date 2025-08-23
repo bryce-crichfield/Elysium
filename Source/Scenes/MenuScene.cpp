@@ -49,8 +49,4 @@ void MenuScene::OnDraw(Rectangle screen) {
     DrawText("Use the Scene Manager window to switch scenes", centerX - 200, centerY + 150, 20, LIGHTGRAY);
 }
 
-void MenuScene::OnDebugDraw() {
-    
-}
-
 } // namespace Elysium::Scenes

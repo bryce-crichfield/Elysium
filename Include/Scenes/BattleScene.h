@@ -26,7 +26,6 @@ public:
     void OnEnter() override;
     void OnUpdate(float deltaTime) override;
     void OnDraw(Rectangle screen) override;
-    void OnDebugDraw() override;
     void OnExit() override;
 
     std::vector<Asset> GetAssets() override;

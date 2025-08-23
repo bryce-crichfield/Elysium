@@ -199,7 +199,7 @@ void Application::Run() {
         Scene* currentScene = sceneService_.GetScene();
 
         const std::string& drawState = sceneService_.GetCurrentState();
-        
+
         if (sceneService_.IsTransitioning())
         {
             if (drawState == "LOADING_ASSETS")
@@ -284,39 +284,34 @@ void Application::Run() {
                 if (ImGui::MenuItem("Inspector", "F1", inspectorVisible)) {
                     inspectorService_.ToggleVisibility();
                 }
-                
+
                 // Scene Service (F2)
                 bool sceneVisible = sceneService_.IsVisible();
                 if (ImGui::MenuItem("Scene Service", "F2", sceneVisible)) {
                     sceneService_.ToggleVisibility();
                 }
-                
+
                 // Log Service (F3)
                 bool logVisible = logService_.IsVisible();
                 if (ImGui::MenuItem("Log Viewer", "F3", logVisible)) {
                     logService_.ToggleVisibility();
                 }
-                
+
                 // Persistence Service (F8)
                 bool persistenceVisible = persistenceService_.IsVisible();
                 if (ImGui::MenuItem("Database", "F8", persistenceVisible)) {
                     persistenceService_.ToggleVisibility();
                 }
-                
+
                 // Loading Service (F4)
                 bool loadingVisible = loadingService_.IsVisible();
                 if (ImGui::MenuItem("Asset Loader", "F4", loadingVisible)) {
                     loadingService_.ToggleVisibility();
                 }
-                
+
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
-        }
-
-        if (currentScene)
-        {
-            currentScene->OnDebugDraw();
         }
 
         logService_.Draw();
