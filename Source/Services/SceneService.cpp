@@ -20,7 +20,7 @@ SceneService::SceneService() {
 void SceneService::InitializeStateMachine() {
     // Scene transition states
     constexpr auto NONE = "NONE";
-    constexpr auto EXITING = "EXITING"; 
+    constexpr auto EXITING = "EXITING";
     constexpr auto LOADING_ASSETS = "LOADING_ASSETS";
     constexpr auto ASSETS_LOADED = "ASSETS_LOADED";
     constexpr auto ENTERING = "ENTERING";
@@ -73,19 +73,19 @@ void SceneService::OnUpdateExiting() {
 
 void SceneService::OnEnterLoadingAssets() {
     transitionTimer_ = 0.0f;
-    
+
     if (!sceneQueue_.empty()) {
         const std::string& sceneName = sceneQueue_.front();
         UpdateSceneStatus(sceneName, SceneStatus::LOADING_ASSETS);
-        
+
         Scene* scene = CreateOrGetScene(sceneName);
         if (scene) {
             pendingAssets_ = scene->GetAssets();
             LOG_INFOF("SceneService", "Scene '%s' requested %zu assets for loading", sceneName.c_str(), pendingAssets_.size());
             for (const auto& asset : pendingAssets_) {
-                LOG_DEBUGF("SceneService", "Asset requested: %s (%s) -> %s", 
+                LOG_DEBUGF("SceneService", "Asset requested: %s (%s) -> %s",
                           asset.GetName().c_str(),
-                          asset.GetType() == AssetType::TEXTURE ? "TEXTURE" : 
+                          asset.GetType() == AssetType::TEXTURE ? "TEXTURE" :
                           asset.GetType() == AssetType::SOUND ? "SOUND" :
                           asset.GetType() == AssetType::MUSIC ? "MUSIC" :
                           asset.GetType() == AssetType::FONT ? "FONT" :
@@ -139,7 +139,7 @@ void SceneService::OnEnterActive() {
             UpdateSceneStatus(sceneName, SceneStatus::ACTIVE);
         }
     }
-    
+
     // Automatically transition to ACTIVE_RUNNING
     transitionStateMachine_.TransitionTo("ACTIVE_RUNNING");
 }
@@ -204,10 +204,10 @@ void SceneService::SetScene(std::string name) {
     while (!sceneQueue_.empty()) {
         sceneQueue_.pop();
     }
-    
+
     sceneQueue_.push(name);
     transitionDuration_ = 0.0f; // Immediate transition
-    
+
     if (activeScene_) {
         transitionStateMachine_.TransitionTo("EXITING");
     } else {
@@ -254,11 +254,11 @@ void SceneService::Update(float deltaTime) {
     // Update active scene when running
     if (activeScene_ && currentState == "ACTIVE_RUNNING") {
         activeScene_->OnUpdate(cachedDeltaTime_);
-        
+
         // Handle timeout if active
         if (isTimingOut_) {
             timeoutTimer_ += cachedDeltaTime_ * 1000.0f; // Convert to milliseconds
-            
+
             // Check if timeout duration has been reached
             if (timeoutTimer_ >= timeoutDuration_) {
                 isTimingOut_ = false;
@@ -317,8 +317,8 @@ void SceneService::EnterScene(const std::string& name) {
 void SceneService::DebugDraw() {
     if (!inspectorVisible_) return;
 
-    ImGui::Begin("Scene Service");
-    
+    ImGui::Begin("Scene Service", &inspectorVisible_, ImGuiWindowFlags_NoCollapse);
+
     // Active scene info and controls
     if (activeScene_) {
         std::string activeSceneName = "Unknown";
@@ -330,7 +330,7 @@ void SceneService::DebugDraw() {
         }
         ImGui::Text("Active Scene: %s", activeSceneName.c_str());
         ImGui::SameLine();
-        
+
         // Play/Pause/Step controls
         const std::string& currentState = transitionStateMachine_.GetCurrentState();
         if (currentState == "ACTIVE_RUNNING") {
@@ -342,7 +342,7 @@ void SceneService::DebugDraw() {
                 transitionStateMachine_.TransitionTo("ACTIVE_RUNNING");
             }
             ImGui::SameLine();
-            
+
             // Timeout configuration
             ImGui::PushItemWidth(80);
             ImGui::InputFloat("##timeout", &timeoutDuration_, 10.0f, 100.0f, "%.0f");
@@ -351,15 +351,15 @@ void SceneService::DebugDraw() {
             }
             ImGui::PopItemWidth();
             if (timeoutDuration_ < 1.0f) timeoutDuration_ = 1.0f;
-            
+
             ImGui::SameLine();
             ImGui::Text("ms");
             ImGui::SameLine();
-            
+
             if (ImGui::Button("Timeout")) {
                 StartTimeout();
             }
-            
+
             // Show timeout progress if currently timing out
             if (isTimingOut_) {
                 ImGui::SameLine();
@@ -367,7 +367,7 @@ void SceneService::DebugDraw() {
                 ImGui::Text("(%.0fms left)", remaining);
             }
         }
-        
+
         ImGui::Text("State: %s", currentState.c_str());
         if (IsTransitioning()) {
             ImGui::Text("Progress: %.2f", GetTransitionProgress());
@@ -375,7 +375,7 @@ void SceneService::DebugDraw() {
     } else {
         ImGui::Text("No active scene");
     }
-    
+
     ImGui::Separator();
 
     // Scene Management Buttons

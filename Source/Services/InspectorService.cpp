@@ -57,7 +57,7 @@ void InspectorService::Draw()
     ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 50, viewport->WorkPos.y + 50), ImGuiCond_FirstUseEver);
 
-    if (ImGui::Begin("Entity Inspector", &showInspector))
+    if (ImGui::Begin("Entity Inspector", &showInspector, ImGuiWindowFlags_NoCollapse))
     {
         // Left side header
         ImGui::Text("Entities");

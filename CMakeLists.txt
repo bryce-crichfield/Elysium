@@ -10,7 +10,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/Binary)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/Binary)
 
 # Find all source files in Source directory
-file(GLOB_RECURSE SOURCE_FILES 
+file(GLOB_RECURSE SOURCE_FILES
     "${CMAKE_SOURCE_DIR}/Source/*.cpp"
     "${CMAKE_SOURCE_DIR}/Source/*.c"
 )
@@ -20,7 +20,7 @@ add_subdirectory(Vendor/raylib)
 add_subdirectory(Vendor/tinyxml2)
 
 # Add SQLiteCpp third party library
-add_subdirectory(third_party/SQLiteCpp)
+add_subdirectory(Vendor/SQLiteCpp)
 
 # ImGui sources (since ImGui doesn't have CMakeLists.txt by default)
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/imgui)
@@ -35,7 +35,7 @@ set(IMGUI_SOURCES
 
 # Create ImGui library
 add_library(imgui STATIC ${IMGUI_SOURCES})
-target_include_directories(imgui PUBLIC 
+target_include_directories(imgui PUBLIC
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
 )
@@ -55,7 +55,7 @@ target_link_libraries(rlimgui PUBLIC raylib imgui)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} 
+target_link_libraries(${PROJECT_NAME}
     raylib
     rlimgui
     imgui
@@ -72,7 +72,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/imgui
     ${CMAKE_SOURCE_DIR}/Vendor/imgui/backends
     ${CMAKE_SOURCE_DIR}/Vendor/tinyxml2
-    ${CMAKE_SOURCE_DIR}/third_party/SQLiteCpp/include
+    ${CMAKE_SOURCE_DIR}/Vendor/SQLiteCpp/include
 )
 
 # Track all asset files as dependencies
@@ -94,7 +94,7 @@ if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         OUTPUT_NAME "Elysium"
     )
-    
+
     # Use Visual Studio on Windows if available, otherwise MinGW
     if(MSVC)
         # Visual Studio specific settings
