@@ -26,16 +26,6 @@ Scene::~Scene() {
 
 }
 
-void Scene::LoadFromXML(const std::string& xmlPath) {
-    SceneSerializer serializer;
-    serializer.LoadScene(*this, xmlPath);
-}
-
-void Scene::SaveToXML(const std::string& xmlPath) {
-    SceneSerializer serializer;
-    serializer.SaveScene(*this, xmlPath);
-}
-
 void Scene::OnUpdate(float deltaTime) {
     for (auto& system : systems_) {
         system->Update(deltaTime);

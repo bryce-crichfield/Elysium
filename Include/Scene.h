@@ -25,9 +25,6 @@ public:
     Scene();
     virtual ~Scene();
 
-    // Load scene from XML file
-    void LoadFromXML(const std::string& xmlPath);
-    void SaveToXML(const std::string& xmlPath);
     // Called during loading, returns Asset objects with name, path, and type
     // application then passes these to loading service
     // application waits until loading service is done
@@ -53,9 +50,11 @@ public:
     const std::vector<std::unique_ptr<System>>& GetSystems() const { return systems_; }
     void AddSystem(std::unique_ptr<System> system);
 
-protected:
+
     // Called during XML loading to create scene-specific systems
     virtual void CreateCustomSystems() {}
+protected:
+
 
     // Core scene components
     std::unique_ptr<World> world_;
@@ -65,12 +64,7 @@ protected:
 // Scene factory function type - declared after Scene class is defined
 using SceneFactory = std::function<Scene*()>;
 
-
-class SceneSerializer {
-public:
-    ~SceneSerializer() = default;
-    void LoadScene(Scene& scene, const std::string& path);
-    void SaveScene(const Scene& scene, const std::string& path);
-};
+static bool LoadScene(Scene& scene, const std::string& path);
+static bool SaveScene(Scene& scene, const std::string& path);
 
 } // namespace Elysium

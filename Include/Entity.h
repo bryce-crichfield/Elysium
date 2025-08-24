@@ -16,7 +16,7 @@
 // Entity-Component-System (ECS) Storage Layout:
 //
 // Entity: Just an ID (size_t). Entities are managed by EntityManager with component masks.
-// 
+//
 // Components: Stored in separate TypedComponentArray<T> for each component type.
 // Each array is dense (no gaps), with entity->index mapping for O(1) access.
 //
@@ -142,6 +142,7 @@ public:
     std::string GetEntityName(Entity entity) const; // Declaration only
     void DestroyEntity(Entity entity); // Declaration only
     size_t GetEntityCount() const; // Declaration only
+    const std::vector<Entity>& GetLivingEntities() const; // Declaration only
 
     // Template methods remain in the header
     template<typename T>

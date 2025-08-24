@@ -31,6 +31,7 @@ class System
 
     virtual void Update(float deltaTime) {}
     virtual void Draw() {}
+    std::string GetName() const { return typeid(*this).name(); }
 };
 
 } // namespace Elysium

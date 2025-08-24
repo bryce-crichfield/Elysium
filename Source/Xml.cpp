@@ -34,7 +34,7 @@ Color ParseHexColor(const std::string& hex, Color defaultColor) {
 }
 
 // Processes XML '<Include src="path" />' tags by loading and merging referenced files into main document
-void ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath) {
+bool ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath) {
     for (tinyxml2::XMLElement* includeElem = doc.RootElement()->FirstChildElement("Include");
          includeElem != nullptr;
          includeElem = includeElem->NextSiblingElement("Include"))
@@ -53,7 +53,7 @@ void ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath) {
                 includeElem->Parent()->InsertAfterChild(includeElem, clone);
             }
         } else {
-            // LOG_ERROR("Scene", "Failed to load include");
+            LOG_ERRORF("Scene", "Failed to load include file: %s", (basePath + src).c_str());
         }
 
         // Remove the <include> tag
@@ -61,6 +61,36 @@ void ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath) {
         // Restart search from the beginning after modification
         includeElem = doc.RootElement()->FirstChildElement("Include");
     }
+
+    return true;
+}
+
+bool LoadXml(const std::string& filePath, tinyxml2::XMLDocument& doc) {
+    tinyxml2::XMLError result = doc.LoadFile(filePath.c_str());
+    if (result != tinyxml2::XML_SUCCESS) {
+        LOG_ERRORF("Xml", "Failed to load xml file: %s", filePath.c_str());
+        return false;
+    } else {
+        LOG_INFO("Xml", "XML file loaded successfully");
+    }
+
+    if (!ProcessIncludes(doc, "")) {
+        LOG_ERROR("Xml", "Failed to process includes.");
+        return false;
+    }
+
+    return true;
+}
+
+bool SaveXml(const std::string& filePath, tinyxml2::XMLDocument& doc) {
+    tinyxml2::XMLError result = doc.SaveFile(filePath.c_str());
+    if (result != tinyxml2::XML_SUCCESS) {
+        LOG_ERRORF("Xml", "Failed to save xml file: %s", filePath.c_str());
+        return false;
+    } else {
+        LOG_INFO("Xml", "XML file saved successfully");
+    }
+    return true;
 }
 
 } // namespace Elysium::Xml

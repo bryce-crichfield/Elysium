@@ -173,4 +173,9 @@ size_t World::GetEntityCount() const
 {
     return entityManager->GetLivingEntityCount();
 }
+
+const std::vector<Entity>& World::GetLivingEntities() const
+{
+    return entityManager->GetLivingEntities();
+}
 } // namespace Elysium
