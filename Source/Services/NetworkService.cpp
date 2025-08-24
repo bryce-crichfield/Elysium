@@ -2,9 +2,14 @@
 
 namespace Elysium::Services {
 
+NetworkService::NetworkService() {
+    name_ = "NetworkService";
+}
+
 void NetworkService::Initialize() {
     isServer_ = false;
     isConnected_ = false;
+    isVisible_ = false;
 }
 
 void NetworkService::Shutdown() {
@@ -13,7 +18,11 @@ void NetworkService::Shutdown() {
     }
 }
 
-void NetworkService::Update() {
+void NetworkService::Update(float deltaTime) {
+}
+
+void NetworkService::OnDebugDraw() {
+    // No debug UI for NetworkService currently
 }
 
 bool NetworkService::StartServer(int port) {

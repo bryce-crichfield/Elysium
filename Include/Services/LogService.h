@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Service.h"
 #include "raylib.h"
 #include <string>
 #include <vector>
@@ -35,13 +36,14 @@ struct LogEntry {
         : level(LogLevel::INFO), topic("System"), message(msg), timestamp(std::chrono::system_clock::now()) {}
 };
 
-class LogService {
+class LogService : public Elysium::Service {
 public:
     LogService();
     ~LogService();
 
+    void Initialize() override;
     void Initialize(const std::string& logFilePath = "logs/engine.log");
-    void Shutdown();
+    void Shutdown() override;
 
     // Standardized service logging methods
     static void LogInfo(const std::string& topic, const std::string& message);
@@ -78,12 +80,8 @@ public:
         LogDebug(topic, std::string(buffer));
     }
 
-    void Update(float deltaTime);
-    void Draw();
-
-    void SetVisible(bool visible) { isVisible_ = visible; }
-    bool IsVisible() const { return isVisible_; }
-    void ToggleVisibility() { isVisible_ = !isVisible_; }
+    void Update(float deltaTime) override;
+    void OnDebugDraw() override;
 
     void LogMessage(int logLevel, const std::string& message);
     void LogMessage(LogLevel level, const std::string& topic, const std::string& message);
@@ -93,7 +91,6 @@ public:
 
 private:
     // Core state
-    bool isVisible_;
     bool initialized_;
     std::atomic<bool> shouldStop_;
 

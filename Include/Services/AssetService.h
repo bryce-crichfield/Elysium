@@ -1,16 +1,22 @@
 #pragma once
 
 #include "../Asset.h"
+#include "../Service.h"
 #include "raylib.h"
 #include <string>
 #include <unordered_map>
 
 namespace Elysium::Services {
 
-class AssetService {
+class AssetService : public Elysium::Service {
 public:
-    void Initialize();
-    void Shutdown();
+    AssetService();
+    
+    // Service interface
+    void Initialize() override;
+    void Shutdown() override;
+    void Update(float deltaTime) override;
+    void OnDebugDraw() override;
 
     // Core asset loading - takes Asset object with name, path, type
     void LoadAsset(const Asset& asset);

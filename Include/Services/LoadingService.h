@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Service.h"
 #include "raylib.h"
 #include <string>
 #include <vector>
@@ -60,10 +61,12 @@ namespace Elysium::Services {
 
 class AssetService;
 
-class LoadingService {
+class LoadingService : public Elysium::Service {
 public:
-    void Initialize();
-    void Shutdown();
+    LoadingService();
+    void Initialize() override;
+    void Shutdown() override;
+    void Update(float deltaTime) override;
 
     void LoadConfig(const std::string& configPath);
     void Draw(int screenWidth, int screenHeight);
@@ -77,9 +80,7 @@ public:
     void ClearQueue();
 
     // Debug interface
-    void OnDebugDraw();
-    void ToggleVisibility();
-    bool IsVisible() const { return debugVisible_; }
+    void OnDebugDraw() override;
 
 private:
     void LoadingThreadFunction();
@@ -110,8 +111,7 @@ private:
     float tooltipTimer_{0.0f};
     int currentTooltipIndex_{0};
 
-    // Debug visibility
-    bool debugVisible_{false};
+    // Removed debugVisible_ - using base class isVisible_ instead
 };
 
 } // namespace Elysium::Services

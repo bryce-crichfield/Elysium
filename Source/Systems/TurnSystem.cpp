@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "Systems/TurnSystem.h"
 #include "Services/LogService.h"
+#include "Services/EventService.h"
 #include <algorithm>
 #include <random>
 
@@ -13,7 +14,7 @@ TurnSystem::TurnSystem(Context context)
     , turnNumber(1)
     , isCurrentPlayerTurn(false)
     , turnTimer(0.0f) {
-    auto& eventService = Application::GetInstance().GetEventService();
+    auto& eventService = Application::GetInstance().GetService<Elysium::Services::EventService>("EventService");
 
     eventService.Subscribe<Events::BattleStartEvent>([this](const Events::BattleStartEvent& event) {
         OnBattleStart(event);
@@ -70,7 +71,7 @@ void TurnSystem::NextTurn() {
 void TurnSystem::EndCurrentTurn() {
     if (!HasActiveTurn()) return;
 
-    auto& eventService = Application::GetInstance().GetEventService();
+    auto& eventService = Application::GetInstance().GetService<Elysium::Services::EventService>("EventService");
     Events::TurnEndEvent endEvent;
     endEvent.teamId = isCurrentPlayerTurn ? 0 : 1;
     endEvent.turnNumber = turnNumber;
@@ -115,7 +116,7 @@ void TurnSystem::StartTurn() {
     isCurrentPlayerTurn = currentTurn.isPlayerUnit;
     turnTimer = 0.0f;
 
-    auto& eventService = Application::GetInstance().GetEventService();
+    auto& eventService = Application::GetInstance().GetService<Elysium::Services::EventService>("EventService");
     Events::TurnStartEvent startEvent;
     startEvent.teamId = isCurrentPlayerTurn ? 0 : 1;
     startEvent.turnNumber = turnNumber;

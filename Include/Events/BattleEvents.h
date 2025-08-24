@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Entity.h"
 #include "raylib.h"
 #include <string>
 #include <vector>

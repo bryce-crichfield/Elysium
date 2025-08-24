@@ -11,7 +11,6 @@ CharacterUI::CharacterUI(std::shared_ptr<CharacterRepository> repository)
 }
 
 void CharacterUI::Draw() {
-    if (ImGui::Begin("Character Management")) {
         if (ImGui::BeginTabBar("MainTabs")) {
             if (ImGui::BeginTabItem("Characters")) {
                 if (ImGui::BeginTabBar("CharacterSubTabs")) {
@@ -59,8 +58,6 @@ void CharacterUI::Draw() {
             ImGui::Separator();
             ImGui::TextColored(ImVec4(0, 1, 0, 1), "%s", statusMessage_.c_str());
         }
-    }
-    ImGui::End();
 }
 
 // === DATA OPERATIONS ===
@@ -617,7 +614,7 @@ void CharacterUI::AddSpellToSpellbook() {
 
 void CharacterUI::ExportToJson() {
     try {
-       
+
 
         statusMessage_ = "Data exported to character_export.json";
     } catch (const std::exception& e) {

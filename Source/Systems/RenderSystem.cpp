@@ -5,13 +5,15 @@
 #include "Application.h"
 #include "Scene.h"
 #include "Entity.h"
+#include "Services/AssetService.h"
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
 #include <variant>
 #include <optional>
 namespace Elysium::Systems {
-void RenderSystem::Render() {
+    
+void RenderSystem::Draw() {
     // Find the first active camera
     Entity cameraEntity;
     CameraComponent* camera = nullptr;
@@ -259,17 +261,17 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
         else if constexpr (std::is_same_v<T, SpriteComponent>) {
             const Sprite& sprite = component.sprite;
             const std::string& marker = component.markerName;
-            
+
             // Use GetMarkerFrameClip to get the specific frame within the marker
             Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
             std::string textureName = sprite.GetMarkerTextureName(marker);
 
             if (!textureName.empty() && sourceRect.width > 0 && sourceRect.height > 0) {
-                auto& assets = Application::GetInstance().GetAssetService();
+                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>("AssetService");
                 Texture2D texture = assets.GetTexture(textureName);
 
                 if (texture.id != 0) {
-                    
+
                     // For grid alignment, we want sprites to be centered on their tile position
                     // Since sprites might be larger than tiles, we center them properly
                     Rectangle destRect = {

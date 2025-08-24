@@ -1,10 +1,16 @@
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "raylib.h"
+#include "imgui.h"
 
 #include "Sprite.h"
 
 namespace Elysium::Services {
+
+AssetService::AssetService() {
+    name_ = "AssetService";
+    hasUi_ = false;
+}
 
 void AssetService::Initialize() {
     assetsByName_.clear();
@@ -26,6 +32,15 @@ void AssetService::Shutdown() {
     assetsByName_.clear();
     pathToName_.clear();
     LOG_INFO("AssetService", "Shutdown complete");
+}
+
+void AssetService::Update(float deltaTime) {
+    // AssetService doesn't need per-frame updates currently
+    // This method is here to satisfy the Service interface
+}
+
+void AssetService::OnDebugDraw() {
+    // This sucks, but we've removed this for now.  We do the drawing in the LoadingService
 }
 
 void AssetService::LoadAsset(const Asset& unloadedAsset) {

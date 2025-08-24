@@ -29,16 +29,8 @@ class System
     }
     virtual ~System() = default;
 
-    virtual void Update(float deltaTime) = 0;
-    virtual void Render()
-    {
-    }
-    virtual void OnDebugDraw()
-    {
-
-    }
-    virtual void OnEvent(const char *eventName, void *data)
-    {
-    }
+    virtual void Update(float deltaTime) {}
+    virtual void Draw() {}
 };
+
 } // namespace Elysium

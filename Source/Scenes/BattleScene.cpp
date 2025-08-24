@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "Services/LogService.h"
+#include "Services/EventService.h"
 #include "Scenes/BattleScene.h"
 #include "Systems/BattleSystem.h"
 #include "Systems/TurnSystem.h"
@@ -41,7 +42,7 @@ void BattleScene::OnEnter() {
     this->AddSystem(std::move(cursorSystem));
 
     // Initialize event handlers
-    auto& eventService = Application::GetInstance().GetEventService();
+    auto& eventService = Application::GetInstance().GetService<Elysium::Services::EventService>("EventService");
 
     eventService.Subscribe<Events::BattleEndEvent>([this](const Events::BattleEndEvent& event) {
         OnBattleEnd(event);

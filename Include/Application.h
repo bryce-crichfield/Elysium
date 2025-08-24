@@ -1,19 +1,11 @@
 #pragma once
 
-#include "Scene.h"
-#include <unordered_map>
-#include "Services/LogService.h"
-#include "Services/EventService.h"
-#include "Services/AssetService.h"
-#include "Services/NetworkService.h"
-#include "Services/LoadingService.h"
-#include "Services/JukeboxService.h"
-#include "Services/SceneService.h"
-#include "Services/PersistenceService.h"
-#include "Services/InspectorService.h"
+#include "Service.h"
+
 #include "raylib.h"
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace Elysium {
 
@@ -49,23 +41,19 @@ public:
     void Run();
     void Shutdown();
 
-    void SetScene(const std::string& name);
-    void QueueScene(const std::string& name);
-    void DefineScene(const std::string& typeName, std::string xmlPath, SceneFactory factory);
-    // void QueueScene(std::unique_ptr<Scene> scene);
-    // Scene factory registration and XML loading
     const ApplicationConfig& GetConfig() const { return config_; }
-    Services::SceneService& GetSceneService() { return sceneService_; }
-    Services::EventService& GetEventService() { return eventService_; }
-    Services::AssetService& GetAssetService() { return assetService_; }
-    Services::NetworkService& GetNetworkService() { return networkService_; }
-    Services::LogService& GetLogService() { return logService_; }
-    Services::JukeboxService& GetJukeboxService() { return jukeboxService_; }
-    Services::PersistenceService& GetPersistenceService() { return persistenceService_; }
-    InspectorService& GetInspectorService() { return inspectorService_; }
+
+    template <typename T>
+    T& GetService(const std::string& serviceName) {
+        return serviceRegistry_.GetService<T>(serviceName);
+    }
+
+    template <typename T>
+    void RegisterService(std::unique_ptr<T> service) {
+        serviceRegistry_.RegisterService(std::move(service));
+    }
 
     bool ShouldClose() const;
-
 private:
     Application() = default;
     ~Application() = default;
@@ -82,20 +70,12 @@ private:
 
     ApplicationConfig config_;
 
-    Services::SceneService sceneService_;
-    Services::LoadingService loadingService_;
-    Services::EventService eventService_;
-    Services::AssetService assetService_;
-    Services::NetworkService networkService_;
-    Services::LogService logService_;
-    Services::JukeboxService jukeboxService_;
-    Services::PersistenceService persistenceService_;
-    InspectorService inspectorService_;
+    ServiceRegistry serviceRegistry_;
 
     RenderTexture2D frontBuffer_;
     RenderTexture2D backBuffer_;
     RenderTexture2D sceneFramebuffer_;
-    RenderTexture2D transitionBuffer_;
+    RenderTexture2D transitionBuffer_;  
 
     Rectangle letterboxRect_;
     float scaleX_, scaleY_;

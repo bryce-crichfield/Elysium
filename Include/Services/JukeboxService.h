@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Service.h"
 #include <raylib.h>
 #include <string>
 #include <vector>
@@ -22,25 +23,27 @@ struct AudioTrack {
     bool isLoaded = false;
 };
 
-class JukeboxService {
+class JukeboxService : public Elysium::Service {
 public:
     JukeboxService();
     ~JukeboxService();
-    
+
     // Disable copy/move to avoid issues with unique_ptr vectors
     JukeboxService(const JukeboxService&) = delete;
     JukeboxService& operator=(const JukeboxService&) = delete;
     JukeboxService(JukeboxService&&) = delete;
     JukeboxService& operator=(JukeboxService&&) = delete;
-    
-    // Core functionality
-    void Update();
-    void OnDebugDraw();
-    
+
+    // Service interface
+    void Initialize() override;
+    void Shutdown() override;
+    void Update(float deltaTime) override;
+    void OnDebugDraw() override;
+
     // Track management
     bool CreateTrack(const std::string& trackName, const std::string& assetName, bool isMusic = true);
     void RemoveTrack(const std::string& trackName);
-    
+
     // Track control
     void PlayTrack(const std::string& name);
     void StopTrack(const std::string& name);
@@ -50,20 +53,20 @@ public:
     void SetTrackVolume(const std::string& name, float volume);
     void SetTrackLoop(const std::string& name, bool loop);
     void MuteTrack(const std::string& name, bool mute = true);
-    
+
     // Track queries
     bool IsTrackPlaying(const std::string& name) const;
     bool IsTrackPaused(const std::string& name) const;
     float GetTrackLength(const std::string& name) const;
     float GetTrackPosition(const std::string& name) const;
-    
+
     // Global controls
     void SetMasterVolume(float volume);
     float GetMasterVolume() const { return masterVolume_; }
     void StopAll();
     void PauseAll();
     void ResumeAll();
-    
+
     // Legacy compatibility
     bool LoadSong(const std::string& xmlPath) { return false; } // Deprecated
     void Play() {} // Deprecated
@@ -73,17 +76,14 @@ public:
     const char* GetCurrentSongId() const { return "jukebox"; }
     void SetGlobalEnergy(float energy) { SetMasterVolume(energy); }
     float GetGlobalEnergy() const { return GetMasterVolume(); }
-    
+
 private:
     void UpdateTrack(AudioTrack& track);
     AudioTrack* FindTrack(const std::string& name);
     const AudioTrack* FindTrack(const std::string& name) const;
-    
+
     std::vector<std::unique_ptr<AudioTrack>> tracks_;
     float masterVolume_ = 1.0f;
-    
-    // Debug interface
-    bool showDebugWindow_ = false;
 };
 
 } // namespace Elysium::Services

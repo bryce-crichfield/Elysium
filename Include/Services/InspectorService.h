@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Service.h"
 #include "Entity.h"
 #include "Component.h"
 #include "imgui.h"
@@ -14,11 +15,18 @@
 #include <string>
 #include <variant>
 
-namespace Elysium {
+namespace Elysium::Services {
 
 class Application;
 class Scene;
+
+} // namespace Elysium::Services
+
+namespace Elysium {
 class World;
+} // namespace Elysium
+
+namespace Elysium::Services {
 
 enum class InspectorLogicalOperator { AND, OR };
 
@@ -26,34 +34,33 @@ struct InspectorFilter {
     std::string componentName;
     bool negate = false;
     InspectorLogicalOperator logicalOperator = InspectorLogicalOperator::OR;
-    std::function<bool(Entity, World*)> predicate;
+    std::function<bool(Entity, Elysium::World*)> predicate;
 
     InspectorFilter() = default;
-    InspectorFilter(const std::string& name, bool neg, InspectorLogicalOperator op, std::function<bool(Entity, World*)> pred)
+    InspectorFilter(const std::string& name, bool neg, InspectorLogicalOperator op, std::function<bool(Entity, Elysium::World*)> pred)
         : componentName(name), negate(neg), logicalOperator(op), predicate(pred) {}
 
-    bool Evaluate(Entity entity, World* world) const {
+    bool Evaluate(Entity entity, Elysium::World* world) const {
         return negate ? !predicate(entity, world) : predicate(entity, world);
     }
 };
 
 
-class InspectorService
+class InspectorService : public Elysium::Service
 {
 private:
     Entity selectedEntity = INVALID_ENTITY;
     std::string searchFilter = "";
-    bool showInspector = true;
-    World* currentWorld = nullptr;
-    World* world = nullptr;
+    Elysium::World* currentWorld = nullptr;
+    Elysium::World* world = nullptr;
     std::string componentToDelete = "";
 
     struct ComponentPlaceholder {
-        std::function<void(Entity, World*)> drawFunc;
-        std::function<bool(Entity, World*)> hasComponentFunc;
-        std::function<void(Entity, World*)> addComponentFunc;
-        std::function<void(Entity, World*)> removeComponentFunc;
-        std::function<void(Entity, World*)> resetComponentFunc;
+        std::function<void(Entity, Elysium::World*)> drawFunc;
+        std::function<bool(Entity, Elysium::World*)> hasComponentFunc;
+        std::function<void(Entity, Elysium::World*)> addComponentFunc;
+        std::function<void(Entity, Elysium::World*)> removeComponentFunc;
+        std::function<void(Entity, Elysium::World*)> resetComponentFunc;
         std::string name;
     };
 
@@ -78,22 +85,22 @@ private:
     void RegisterComponent(const std::string& name);
 
     template<typename T>
-    void DrawComponent(Entity entity, World* world);
+    void DrawComponent(Entity entity, Elysium::World* world);
 
 public:
-    InspectorService() = default;
+    InspectorService();
     ~InspectorService() = default;
 
-    void Initialize();
-    void Shutdown();
-    void Update(float deltaTime);
-    void Draw();
+    // Service interface
+    void Initialize() override;
+    void Shutdown() override;
+    void Update(float deltaTime) override;
+    void OnDebugDraw() override;
 
-    void SetCurrentWorld(World* world) { currentWorld = world; this->world = world; }
+    // Service-specific functionality
+    void SetCurrentWorld(Elysium::World* world) { currentWorld = world; this->world = world; }
     void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
     Entity GetSelectedEntity() const { return selectedEntity; }
-    void ToggleVisibility() { showInspector = !showInspector; }
-    bool IsVisible() const { return showInspector; }
 };
 
 template<typename T>
@@ -102,11 +109,11 @@ void InspectorService::RegisterComponent(const std::string& name)
     ComponentPlaceholder placeholder;
     placeholder.name = name;
 
-    placeholder.drawFunc = [this](Entity entity, World* world) { this->DrawComponent<T>(entity, world); };
-    placeholder.hasComponentFunc = [](Entity entity, World* world) { return world->HasComponent<T>(entity); };
-    placeholder.addComponentFunc = [](Entity entity, World* world) { world->AddComponent<T>(entity, T{}); };
-    placeholder.removeComponentFunc = [](Entity entity, World* world) { world->RemoveComponent<T>(entity); };
-    placeholder.resetComponentFunc = [](Entity entity, World* world) {
+    placeholder.drawFunc = [this](Entity entity, Elysium::World* world) { this->DrawComponent<T>(entity, world); };
+    placeholder.hasComponentFunc = [](Entity entity, Elysium::World* world) { return world->HasComponent<T>(entity); };
+    placeholder.addComponentFunc = [](Entity entity, Elysium::World* world) { world->AddComponent<T>(entity, T{}); };
+    placeholder.removeComponentFunc = [](Entity entity, Elysium::World* world) { world->RemoveComponent<T>(entity); };
+    placeholder.resetComponentFunc = [](Entity entity, Elysium::World* world) {
         world->RemoveComponent<T>(entity);
         world->AddComponent<T>(entity, T{});
     };

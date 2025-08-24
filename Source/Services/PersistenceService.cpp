@@ -7,11 +7,17 @@
 namespace Elysium::Services {
 
 PersistenceService::PersistenceService()
-    : initialized_(false), isVisible_(false) {
+    : initialized_(false) {
+    name_ = "PersistenceService";
 }
 
 PersistenceService::~PersistenceService() {
     Shutdown();
+}
+
+void PersistenceService::Initialize() {
+    Initialize("./Assets/save.db");
+    isVisible_ = false;
 }
 
 void PersistenceService::Initialize(const std::string& databasePath) {
@@ -62,18 +68,15 @@ void PersistenceService::Shutdown() {
 void PersistenceService::Update(float deltaTime) {
 }
 
-void PersistenceService::Draw() {
-    if (!isVisible_ || !initialized_ || !characterService_) return;
+void PersistenceService::OnDebugDraw() {
+    if (!initialized_ || !characterService_) return;
 
-    if (ImGui::Begin("Persistence Service", &isVisible_)) {
         ImGui::Text("Database Status: %s", initialized_ ? "Connected" : "Disconnected");
         ImGui::Text("Database Path: %s", databasePath_.c_str());
 
         ImGui::Separator();
 
-        characterService_->Draw();
-    }
-    ImGui::End();
+        characterService_->OnDebugDraw();
 }
 
 void PersistenceService::CreateDefaultTables() {

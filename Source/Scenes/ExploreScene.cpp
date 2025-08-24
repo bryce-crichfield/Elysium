@@ -1,5 +1,6 @@
 #include "Scenes/ExploreScene.h"
 #include "Services/LogService.h"
+#include "Services/SceneService.h"
 #include "Scenes/MenuScene.h"
 #include "Application.h"
 
@@ -44,7 +45,8 @@ void ExploreScene::OnUpdate(float deltaTime) {
     Scene::OnUpdate(deltaTime);
 
     if (IsKeyPressed(KEY_BACKSPACE)) {
-        Elysium::Application::GetInstance().QueueScene("MenuScene");
+        auto& sceneService = Elysium::Application::GetInstance().GetService<Elysium::Services::SceneService>("SceneService");
+        sceneService.SetScene("MenuScene");
     }
 }
 

@@ -8,6 +8,7 @@
 #include "Scene.h"
 #include "Asset.h"
 #include "StateMachine.h"
+#include "Service.h"
 
 namespace Elysium::Services {
     enum class SceneStatus {
@@ -36,7 +37,7 @@ namespace Elysium::Services {
     };
 
 
-class SceneService {
+class SceneService : public Elysium::Service {
 public:
 
     // The SceneService manages scene transitions through the SceneStatus FSM.
@@ -48,15 +49,19 @@ public:
     SceneService(const SceneService&) = delete;
     SceneService& operator=(const SceneService&) = delete;
 
+    // Service interface
+    void Initialize() override;
+    void Shutdown() override;
+    void Update(float deltaTime) override;
+    void OnDebugDraw() override;
+
     // Scene management
     void RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory);
-    Scene* GetScene() const;
+    Elysium::Scene* GetScene() const;
     void SetScene(std::string name);
     void QueueScene(std::string name);
 
     // Scene lifecycle methods
-    void Update(float deltaTime);
-    void DebugDraw();
     bool IsTransitioning() const; 
     const std::string& GetCurrentState() const { return transitionStateMachine_.GetCurrentState(); }
     float GetTransitionProgress() const;
@@ -69,11 +74,9 @@ public:
     const std::vector<Asset>& GetPendingAssets() const { return pendingAssets_; }
     void OnAssetsLoaded(); // Called when asset loading completes
 
-    // Cleanup
-    void Shutdown();
+    // Cleanup - implemented via Service interface
 
-    void ToggleVisibility();
-    bool IsVisible() const { return inspectorVisible_; }
+    // Visibility handled by base Service class
 
 
 private:
@@ -96,8 +99,6 @@ private:
 
     std::unordered_map<std::string, SceneData> scenes_;
 
-    bool inspectorVisible_ = false;
-
     // Queue-based scene management
     std::queue<std::string> sceneQueue_;
     Scene* activeScene_ = nullptr;
@@ -117,6 +118,17 @@ private:
     float timeoutDuration_ = 100.0f; // Timeout duration in milliseconds
     float timeoutTimer_ = 0.0f; // Current timeout timer
     bool isTimingOut_ = false; // Flag for timeout mode
+    
+    // Panel management for dual panel UI
+    float leftPanelWidth = 300.0f; // Width of the scenes panel
+    bool isDraggingSplitter = false; // Track splitter drag state
+    int selectedSceneIndex = -1; // Selected scene in the registry
+    
+    // Helper methods for dual panel UI
+    void DrawScenesPanel();
+    void DrawCurrentScenePanel();
+    void DrawSystemsDrawer();
+    void DrawAssetsDrawer();
 };
 
 } // namespace Elysium::Services

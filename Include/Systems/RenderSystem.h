@@ -26,8 +26,7 @@ public:
 
     RenderSystem(Context context) : System(context) {}
 
-    void Update(float deltaTime) override {}
-    void Render() override;
+    void Draw() override;
 private:
     void RenderCamera(Entity entity, const CameraComponent& camera, const Layers& layers);
     bool CanCameraSeeLayer(Entity entity, const CameraComponent& camera, const std::string& layerName, const Layers& layers);

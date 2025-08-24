@@ -13,6 +13,11 @@ using namespace tinyxml2;
 
 namespace Elysium::Services {
 
+LoadingService::LoadingService()
+{
+    name_ = "LoadingService";
+}
+
 void LoadingService::Initialize()
 {
     shouldExit_ = false;
@@ -74,9 +79,9 @@ void LoadingService::LoadAssets(const std::vector<Asset>& assets, AssetService& 
 
     LOG_INFOF("LoadingService", "LoadAssets called with %zu assets", assets.size());
     for (const auto& asset : assets) {
-        LOG_DEBUGF("LoadingService", "Queued for loading: %s (%s) -> %s", 
+        LOG_DEBUGF("LoadingService", "Queued for loading: %s (%s) -> %s",
                   asset.GetName().c_str(),
-                  asset.GetType() == AssetType::TEXTURE ? "TEXTURE" : 
+                  asset.GetType() == AssetType::TEXTURE ? "TEXTURE" :
                   asset.GetType() == AssetType::SOUND ? "SOUND" :
                   asset.GetType() == AssetType::MUSIC ? "MUSIC" :
                   asset.GetType() == AssetType::FONT ? "FONT" :
@@ -142,7 +147,7 @@ void LoadingService::LoadingThreadFunction()
         std::lock_guard<std::mutex> lock(queueMutex_);
         assetQueue_.clear();
     }
-    
+
     isLoading_.store(false);
     LOG_INFO("LoadingService", "Loading thread finished");
 }
@@ -318,20 +323,6 @@ void LoadingService::LoadConfig(const std::string& configPath)
 
 void LoadingService::Draw(int screenWidth, int screenHeight)
 {
-    // Update background timer
-    backgroundTimer_ += GetFrameTime();
-    if (backgroundTimer_ >= config_.background.cycleTime && !backgroundTextures_.empty()) {
-        backgroundTimer_ = 0.0f;
-        currentBackgroundIndex_ = (currentBackgroundIndex_ + 1) % backgroundTextures_.size();
-    }
-
-    // Update tooltip timer
-    tooltipTimer_ += GetFrameTime();
-    if (tooltipTimer_ >= config_.tooltips.cycleTime && !config_.tooltips.messages.empty()) {
-        tooltipTimer_ = 0.0f;
-        currentTooltipIndex_ = (currentTooltipIndex_ + 1) % config_.tooltips.messages.size();
-    }
-
     DrawBackground(screenWidth, screenHeight);
     DrawLoadingText(screenWidth, screenHeight);
     DrawProgressBar(screenWidth, screenHeight);
@@ -440,15 +431,28 @@ void LoadingService::DrawTooltips(int screenWidth, int screenHeight)
     }
 }
 
+void LoadingService::Update(float deltaTime)
+{
+    // Update background timer
+    backgroundTimer_ += deltaTime;
+    if (backgroundTimer_ >= config_.background.cycleTime && !backgroundTextures_.empty()) {
+        backgroundTimer_ = 0.0f;
+        currentBackgroundIndex_ = (currentBackgroundIndex_ + 1) % backgroundTextures_.size();
+    }
+
+    // Update tooltip timer
+    tooltipTimer_ += deltaTime;
+    if (tooltipTimer_ >= config_.tooltips.cycleTime && !config_.tooltips.messages.empty()) {
+        tooltipTimer_ = 0.0f;
+        currentTooltipIndex_ = (currentTooltipIndex_ + 1) % config_.tooltips.messages.size();
+    }
+}
+
 void LoadingService::OnDebugDraw()
 {
-    if (!debugVisible_) return;
-
-    ImGui::Begin("Loading Service");
-
     // Loading Status
     ImGui::Text("Loading Status: %s", isLoading_.load() ? "LOADING" : "IDLE");
-    
+
     // Queue count
     std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(queueMutex_));
     ImGui::Text("Queue Count: %zu", assetQueue_.size());
@@ -459,7 +463,7 @@ void LoadingService::OnDebugDraw()
     if (assetService_) {
         const auto& allAssets = assetService_->GetAllAssets();
         ImGui::Text("All Assets (%zu total):", allAssets.size());
-        
+
         if (ImGui::BeginTable("AllAssetsTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable)) {
             ImGui::TableSetupColumn("Name");
             ImGui::TableSetupColumn("Type");
@@ -471,7 +475,7 @@ void LoadingService::OnDebugDraw()
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("%s", asset.GetName().c_str());
-                
+
                 ImGui::TableSetColumnIndex(1);
                 std::string typeStr;
                 switch (asset.GetType()) {
@@ -485,7 +489,7 @@ void LoadingService::OnDebugDraw()
                     default: typeStr = "UNKNOWN"; break;
                 }
                 ImGui::Text("%s", typeStr.c_str());
-                
+
                 ImGui::TableSetColumnIndex(2);
                 if (asset.IsLoaded()) {
                     ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "LOADED");
@@ -494,7 +498,7 @@ void LoadingService::OnDebugDraw()
                 } else {
                     ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "NOT LOADED");
                 }
-                
+
                 ImGui::TableSetColumnIndex(3);
                 ImGui::Text("%s", asset.GetPath().c_str());
             }
@@ -503,13 +507,7 @@ void LoadingService::OnDebugDraw()
     } else {
         ImGui::Text("No AssetService reference available");
     }
-
-    ImGui::End();
 }
 
-void LoadingService::ToggleVisibility()
-{
-    debugVisible_ = !debugVisible_;
-}
 
 } // namespace Elysium::Services

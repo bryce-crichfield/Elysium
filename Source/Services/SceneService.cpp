@@ -1,8 +1,10 @@
 #include "Services/SceneService.h"
 #include "Services/LogService.h"
+#include "System.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "tinyxml2.h"
+#include <typeinfo>
 
 using namespace tinyxml2;
 
@@ -14,6 +16,10 @@ namespace Elysium::Services
 // =============================================================================
 
 SceneService::SceneService() {
+    name_ = "SceneService";
+}
+
+void SceneService::Initialize() {
     InitializeStateMachine();
 }
 
@@ -190,7 +196,7 @@ std::string PrintSceneStatus(SceneStatus status) {
 // Public Interface
 // =============================================================================
 
-Scene* SceneService::GetScene() const {
+Elysium::Scene* SceneService::GetScene() const {
     return activeScene_;
 }
 
@@ -314,11 +320,196 @@ void SceneService::EnterScene(const std::string& name) {
 // Debug & Utility
 // =============================================================================
 
-void SceneService::DebugDraw() {
-    if (!inspectorVisible_) return;
+void SceneService::OnDebugDraw() {
+    // Left side header
+    ImGui::Text("Scenes");
+    ImGui::SameLine(leftPanelWidth + 10); // Position right side header
+    ImGui::Text("Current Scene");
 
-    ImGui::Begin("Scene Service", &inspectorVisible_, ImGuiWindowFlags_NoCollapse);
+    // Left panel - Scenes Panel
+    ImGui::BeginChild("ScenesPanel", ImVec2(leftPanelWidth, 0), true);
+    DrawScenesPanel();
+    ImGui::EndChild();
 
+    ImGui::SameLine();
+
+    // Splitter
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+    ImGui::Button("##splitter", ImVec2(4.0f, -1));
+
+    // Handle dragging - only use mouse delta when already dragging
+    if (ImGui::IsItemActive()) {
+        if (!isDraggingSplitter) {
+            // First frame of dragging - don't apply delta yet, just mark as dragging
+            isDraggingSplitter = true;
+        } else {
+            // Subsequent frames - apply mouse delta
+            leftPanelWidth += ImGui::GetIO().MouseDelta.x;
+            if (leftPanelWidth < 200.0f)
+                leftPanelWidth = 200.0f;
+            if (leftPanelWidth > ImGui::GetWindowWidth() - 200.0f)
+                leftPanelWidth = ImGui::GetWindowWidth() - 200.0f;
+        }
+    } else {
+        isDraggingSplitter = false;
+    }
+
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::SameLine();
+
+    // Right panel - Current Scene Panel
+    ImGui::BeginChild("CurrentScenePanel", ImVec2(0, 0), true);
+    DrawCurrentScenePanel();
+    ImGui::EndChild();
+}
+
+float SceneService::GetTransitionProgress() const {
+    if (!IsTransitioning() || transitionDuration_ == 0.0f) {
+        return 0.0f;
+    }
+    return transitionTimer_ / transitionDuration_;
+}
+
+void SceneService::StartTimeout() {
+    // Only allow timeout when paused and not already timing out
+    if (transitionStateMachine_.IsInState("ACTIVE_PAUSED") && !isTimingOut_) {
+        isTimingOut_ = true;
+        timeoutTimer_ = 0.0f;
+        transitionStateMachine_.TransitionTo("ACTIVE_RUNNING");
+    }
+}
+
+void SceneService::OnAssetsLoaded() {
+    if (transitionStateMachine_.IsInState("LOADING_ASSETS")) {
+        transitionStateMachine_.TransitionTo("ASSETS_LOADED");
+    }
+}
+
+void SceneService::Shutdown() {
+    if (activeScene_) {
+        activeScene_->OnExit();
+        activeScene_ = nullptr;
+    }
+
+    while (!sceneQueue_.empty()) {
+        sceneQueue_.pop();
+    }
+
+    for (auto& [name, data] : scenes_) {
+        delete data.scene;
+    }
+
+    scenes_.clear();
+    pendingAssets_.clear();
+    transitionTimer_ = 0.0f;
+}
+
+// =============================================================================
+// Dual Panel UI Methods
+// =============================================================================
+
+void SceneService::DrawScenesPanel() {
+    // Scene Management Buttons
+    if (ImGui::Button("Create")) {
+        // TODO: Implement scene creation
+    }
+    ImGui::SameLine();
+
+    bool hasSelection = selectedSceneIndex >= 0 && selectedSceneIndex < scenes_.size();
+
+    if (ImGui::Button("Load") && hasSelection) {
+        auto it = scenes_.begin();
+        std::advance(it, selectedSceneIndex);
+        QueueScene(it->first);
+    }
+    if (!hasSelection) {
+        ImGui::SetItemTooltip("Select a scene to load");
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Remove") && hasSelection) {
+        // TODO: Implement scene removal
+    }
+    if (!hasSelection) {
+        ImGui::SetItemTooltip("Select a scene to remove");
+    }
+
+    ImGui::Separator();
+
+    // Scene Registry Table
+    ImGui::Text("Scene Registry:");
+    if (ImGui::BeginTable("SceneTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2(0, -80))) {
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 100);
+        ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn("XML Path", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Assets", ImGuiTableColumnFlags_WidthFixed, 50);
+        ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableHeadersRow();
+
+        int index = 0;
+        for (const auto& [name, sceneData] : scenes_) {
+            ImGui::TableNextRow();
+
+            // Name column with selection
+            ImGui::TableSetColumnIndex(0);
+            if (ImGui::Selectable(name.c_str(), selectedSceneIndex == index, ImGuiSelectableFlags_SpanAllColumns)) {
+                selectedSceneIndex = index;
+            }
+
+            // Status column
+            ImGui::TableSetColumnIndex(1);
+            std::string statusText = PrintSceneStatus(sceneData.status);
+            ImGui::Text("%s", statusText.c_str());
+
+            // XML Path column
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%s", sceneData.xmlPath.c_str());
+
+            // Assets column
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%zu", sceneData.assets.size());
+
+            index++;
+        }
+        ImGui::EndTable();
+    }
+
+    ImGui::Separator();
+
+    // Scene Queue Table
+    ImGui::Text("Scene Queue:");
+    if (ImGui::BeginTable("QueueTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg, ImVec2(0, 0))) {
+        ImGui::TableSetupColumn("Order", ImGuiTableColumnFlags_WidthFixed, 40);
+        ImGui::TableSetupColumn("Scene Name", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableHeadersRow();
+
+        std::queue<std::string> tempQueue = sceneQueue_;
+        int order = 1;
+        while (!tempQueue.empty()) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", order++);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%s", tempQueue.front().c_str());
+            ImGui::TableSetColumnIndex(2);
+            auto it = scenes_.find(tempQueue.front());
+            if (it != scenes_.end()) {
+                std::string statusText = PrintSceneStatus(it->second.status);
+                ImGui::Text("%s", statusText.c_str());
+            }
+            tempQueue.pop();
+        }
+        ImGui::EndTable();
+    }
+}
+
+void SceneService::DrawCurrentScenePanel() {
     // Active scene info and controls
     if (activeScene_) {
         std::string activeSceneName = "Unknown";
@@ -328,8 +519,8 @@ void SceneService::DebugDraw() {
                 break;
             }
         }
+
         ImGui::Text("Active Scene: %s", activeSceneName.c_str());
-        ImGui::SameLine();
 
         // Play/Pause/Step controls
         const std::string& currentState = transitionStateMachine_.GetCurrentState();
@@ -372,151 +563,132 @@ void SceneService::DebugDraw() {
         if (IsTransitioning()) {
             ImGui::Text("Progress: %.2f", GetTransitionProgress());
         }
+
+        ImGui::Separator();
+
+        // Systems drawer
+        DrawSystemsDrawer();
+
+        ImGui::Separator();
+
+        // Assets drawer
+        DrawAssetsDrawer();
+
     } else {
         ImGui::Text("No active scene");
+        ImGui::Text("Select a scene from the left panel and click 'Load' to begin.");
     }
+}
 
-    ImGui::Separator();
+void SceneService::DrawSystemsDrawer() {
+    static bool systemsOpen = true;
+    if (ImGui::CollapsingHeader("Systems", systemsOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
+        if (!activeScene_) {
+            ImGui::Text("No active scene");
+            return;
+        }
 
-    // Scene Management Buttons
-    if (ImGui::Button("Create")) {
-        // TODO: Implement scene creation
-    }
-    ImGui::SameLine();
+        const auto& systems = activeScene_->GetSystems();
+        if (systems.empty()) {
+            ImGui::Text("No systems in current scene");
+            return;
+        }
 
-    static int selectedSceneIndex = -1;
-    bool hasSelection = selectedSceneIndex >= 0 && selectedSceneIndex < scenes_.size();
+        if (ImGui::BeginTable("SystemsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2(0, 150))) {
+            ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 40);
+            ImGui::TableSetupColumn("System Type", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 60);
+            ImGui::TableSetupScrollFreeze(0, 1);
+            ImGui::TableHeadersRow();
 
-    if (ImGui::Button("Load") && hasSelection) {
-        auto it = scenes_.begin();
-        std::advance(it, selectedSceneIndex);
-        QueueScene(it->first);
-    }
-    if (!hasSelection) {
-        ImGui::SetItemTooltip("Select a scene to load");
-    }
+            for (size_t i = 0; i < systems.size(); ++i) {
+                ImGui::TableNextRow();
 
-    ImGui::SameLine();
-    if (ImGui::Button("Remove") && hasSelection) {
-        // TODO: Implement scene removal
-    }
-    if (!hasSelection) {
-        ImGui::SetItemTooltip("Select a scene to remove");
-    }
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%zu", i);
 
-    ImGui::Separator();
+                ImGui::TableSetColumnIndex(1);
+                // Get system type name using typeid - this is basic but functional
+                const std::type_info& typeInfo = typeid(*systems[i]);
+                std::string systemName = typeInfo.name();
 
-    // Scene Registry Table
-    if (ImGui::BeginTable("SceneTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
-        ImGui::TableSetupColumn("Name");
-        ImGui::TableSetupColumn("Status");
-        ImGui::TableSetupColumn("XML Path");
-        ImGui::TableSetupColumn("Assets");
-        ImGui::TableHeadersRow();
+                // Clean up the type name (remove namespace prefixes if present)
+                size_t lastColon = systemName.find_last_of(':');
+                if (lastColon != std::string::npos && lastColon < systemName.length() - 1) {
+                    systemName = systemName.substr(lastColon + 1);
+                }
 
-        int index = 0;
-        for (const auto& [name, sceneData] : scenes_) {
-            ImGui::TableNextRow();
+                ImGui::Text("%s", systemName.c_str());
 
-            // Name column with selection
-            ImGui::TableSetColumnIndex(0);
-            if (ImGui::Selectable(name.c_str(), selectedSceneIndex == index, ImGuiSelectableFlags_SpanAllColumns)) {
-                selectedSceneIndex = index;
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("Active"); // All systems in the list are active
             }
 
-            // Status column
-            ImGui::TableSetColumnIndex(1);
-            std::string statusText = PrintSceneStatus(sceneData.status);
-            ImGui::Text("%s", statusText.c_str());
-
-            // XML Path column
-            ImGui::TableSetColumnIndex(2);
-            ImGui::Text("%s", sceneData.xmlPath.c_str());
-
-            // Assets column
-            ImGui::TableSetColumnIndex(3);
-            ImGui::Text("%zu assets", sceneData.assets.size());
-
-            index++;
+            ImGui::EndTable();
         }
-        ImGui::EndTable();
+
+        ImGui::Text("Total Systems: %zu", systems.size());
     }
+}
 
-    ImGui::Separator();
+void SceneService::DrawAssetsDrawer() {
+    static bool assetsOpen = true;
+    if (ImGui::CollapsingHeader("Assets", assetsOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
+        if (!activeScene_) {
+            ImGui::Text("No active scene");
+            return;
+        }
 
-    // Scene Queue Table
-    ImGui::Text("Scene Queue:");
-    if (ImGui::BeginTable("QueueTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-        ImGui::TableSetupColumn("Order");
-        ImGui::TableSetupColumn("Scene Name");
-        ImGui::TableSetupColumn("Status");
-        ImGui::TableHeadersRow();
+        // Get assets from the current scene
+        std::vector<Asset> sceneAssets = activeScene_->GetAssets();
 
-        std::queue<std::string> tempQueue = sceneQueue_;
-        int order = 1;
-        while (!tempQueue.empty()) {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%d", order++);
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%s", tempQueue.front().c_str());
-            ImGui::TableSetColumnIndex(2);
-            auto it = scenes_.find(tempQueue.front());
-            if (it != scenes_.end()) {
-                std::string statusText = PrintSceneStatus(it->second.status);
-                ImGui::Text("%s", statusText.c_str());
+        if (sceneAssets.empty()) {
+            ImGui::Text("No assets declared by current scene");
+            return;
+        }
+
+        if (ImGui::BeginTable("AssetsTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImVec2(0, 150))) {
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 120);
+            ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80);
+            ImGui::TableSetupColumn("Path", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 60);
+            ImGui::TableSetupScrollFreeze(0, 1);
+            ImGui::TableHeadersRow();
+
+            for (const auto& asset : sceneAssets) {
+                ImGui::TableNextRow();
+
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%s", asset.GetName().c_str());
+
+                ImGui::TableSetColumnIndex(1);
+                // Convert AssetType to string
+                std::string typeStr;
+                switch (asset.GetType()) {
+                    case AssetType::TEXTURE: typeStr = "TEXTURE"; break;
+                    case AssetType::SOUND: typeStr = "SOUND"; break;
+                    case AssetType::MUSIC: typeStr = "MUSIC"; break;
+                    case AssetType::FONT: typeStr = "FONT"; break;
+                    case AssetType::MODEL: typeStr = "MODEL"; break;
+                    case AssetType::SHADER: typeStr = "SHADER"; break;
+                    case AssetType::SPRITE: typeStr = "SPRITE"; break;
+                    default: typeStr = "UNKNOWN"; break;
+                }
+                ImGui::Text("%s", typeStr.c_str());
+
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%s", asset.GetPath().c_str());
+
+                ImGui::TableSetColumnIndex(3);
+                // For now, just show "Loaded" - in the future this could check AssetService
+                ImGui::Text("Loaded");
             }
-            tempQueue.pop();
+
+            ImGui::EndTable();
         }
-        ImGui::EndTable();
+
+        ImGui::Text("Total Assets: %zu", sceneAssets.size());
     }
-
-    ImGui::End();
-}
-
-void SceneService::ToggleVisibility() {
-    inspectorVisible_ = !inspectorVisible_;
-}
-
-float SceneService::GetTransitionProgress() const {
-    if (!IsTransitioning() || transitionDuration_ == 0.0f) {
-        return 0.0f;
-    }
-    return transitionTimer_ / transitionDuration_;
-}
-
-void SceneService::StartTimeout() {
-    // Only allow timeout when paused and not already timing out
-    if (transitionStateMachine_.IsInState("ACTIVE_PAUSED") && !isTimingOut_) {
-        isTimingOut_ = true;
-        timeoutTimer_ = 0.0f;
-        transitionStateMachine_.TransitionTo("ACTIVE_RUNNING");
-    }
-}
-
-void SceneService::OnAssetsLoaded() {
-    if (transitionStateMachine_.IsInState("LOADING_ASSETS")) {
-        transitionStateMachine_.TransitionTo("ASSETS_LOADED");
-    }
-}
-
-void SceneService::Shutdown() {
-    if (activeScene_) {
-        activeScene_->OnExit();
-        activeScene_ = nullptr;
-    }
-
-    while (!sceneQueue_.empty()) {
-        sceneQueue_.pop();
-    }
-
-    for (auto& [name, data] : scenes_) {
-        delete data.scene;
-    }
-
-    scenes_.clear();
-    pendingAssets_.clear();
-    transitionTimer_ = 0.0f;
 }
 
 } // namespace Elysium::Services

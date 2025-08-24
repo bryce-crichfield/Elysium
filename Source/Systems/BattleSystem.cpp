@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "Systems/BattleSystem.h"
 #include "Services/LogService.h"
+#include "Services/EventService.h"
 
 #include <algorithm>
 
@@ -12,7 +13,7 @@ BattleSystem::BattleSystem(Context context)
     , battleTimer(0.0f) {
 
     // Initialize event handlers
-    auto& eventService = Application::GetInstance().GetEventService();
+    auto& eventService = Application::GetInstance().GetService<Elysium::Services::EventService>("EventService");
 
     eventService.Subscribe<Events::AttackEvent>([this](const Events::AttackEvent& event) {
         OnAttackEvent(event);
@@ -58,7 +59,7 @@ void BattleSystem::StartBattle(const std::vector<int>& playerUnits, const std::v
     battleTimer = 0.0f;
     currentBattleId = "battle_" + std::to_string(battleTimer);
 
-    auto& eventService = Application::GetInstance().GetEventService();
+    auto& eventService = Application::GetInstance().GetService<Elysium::Services::EventService>("EventService");
     Events::BattleStartEvent startEvent;
     startEvent.battleId = currentBattleId;
     eventService.FireEvent(startEvent);
@@ -72,7 +73,7 @@ void BattleSystem::EndBattle(bool playerVictory) {
 
     currentState = BattleState::Ended;
 
-    auto& eventService = Application::GetInstance().GetEventService();
+    auto& eventService = Application::GetInstance().GetService<Elysium::Services::EventService>("EventService");
     Events::BattleEndEvent endEvent;
     endEvent.battleId = currentBattleId;
     endEvent.playerVictory = playerVictory;

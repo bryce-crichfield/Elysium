@@ -1,5 +1,6 @@
 #include "Scenes/OverworldScene.h"
 #include "Services/LogService.h"
+#include "Services/SceneService.h"
 #include "Scenes/MenuScene.h"
 #include "Application.h"
 
@@ -18,7 +19,8 @@ void OverworldScene::OnExit() {
 
 void OverworldScene::OnUpdate(float deltaTime) {
     if (IsKeyPressed(KEY_BACKSPACE)) {
-        Elysium::Application::GetInstance().QueueScene("MenuScene");
+        auto& sceneService = Elysium::Application::GetInstance().GetService<Elysium::Services::SceneService>("SceneService");
+        sceneService.SetScene("MenuScene");
     }
 }
 

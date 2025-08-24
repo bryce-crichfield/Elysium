@@ -1,5 +1,6 @@
 #include "Services/JukeboxService.h"
 #include "Services/LogService.h"
+#include "Services/AssetService.h"
 #include "Application.h"
 #include "Asset.h"
 #include "imgui.h"
@@ -8,6 +9,7 @@
 namespace Elysium::Services {
 
 JukeboxService::JukeboxService() {
+    name_ = "JukeboxService";
     LOG_INFO("JukeboxService", "Service created successfully");
 }
 
@@ -17,15 +19,24 @@ JukeboxService::~JukeboxService() {
     LOG_INFO("JukeboxService", "Service destroyed successfully");
 }
 
-void JukeboxService::Update() {
+void JukeboxService::Initialize() {
+    isVisible_ = false;
+}
+
+void JukeboxService::Shutdown() {
+    StopAll();
+    tracks_.clear();
+}
+
+void JukeboxService::Update(float deltaTime) {
     for (auto& track : tracks_) {
         UpdateTrack(*track);
     }
 }
 
 void JukeboxService::UpdateTrack(AudioTrack& track) {
-    auto& assetService = Application::GetInstance().GetAssetService();
-    
+    auto& assetService = Application::GetInstance().GetService<Elysium::Services::AssetService>("AssetService");
+
     // Ensure track is loaded from AssetService
     if (!track.isLoaded && assetService.IsAssetLoaded(track.assetName)) {
         if (track.isMusic) {
@@ -34,12 +45,12 @@ void JukeboxService::UpdateTrack(AudioTrack& track) {
             track.sound = assetService.GetSound(track.assetName);
         }
         track.isLoaded = true;
-        LOG_INFOF("JukeboxService", "Loaded track '%s' from asset '%s'", 
+        LOG_INFOF("JukeboxService", "Loaded track '%s' from asset '%s'",
                 track.name.c_str(), track.assetName.c_str());
     }
-    
+
     if (!track.isLoaded) return;
-    
+
     // Handle fade out
     if (track.shouldFadeOut) {
         track.volume -= track.fadeSpeed * GetFrameTime();
@@ -50,16 +61,16 @@ void JukeboxService::UpdateTrack(AudioTrack& track) {
             return;
         }
     }
-    
+
     // Update music streams and apply volume
     if (track.isPlaying) {
         float finalVolume = track.volume * masterVolume_;
         if (track.isMuted) finalVolume = 0.0f;
-        
+
         if (track.isMusic) {
             UpdateMusicStream(track.music);
             SetMusicVolume(track.music, finalVolume);
-            
+
             // Handle looping
             if (track.isLooping && !IsMusicStreamPlaying(track.music)) {
                 PlayMusicStream(track.music);
@@ -76,19 +87,19 @@ bool JukeboxService::CreateTrack(const std::string& trackName, const std::string
         LOG_WARNINGF("JukeboxService", "Track '%s' already exists", trackName.c_str());
         return false;
     }
-    
+
     // Check if asset exists
-    auto& assetService = Application::GetInstance().GetAssetService();
+    auto& assetService = Application::GetInstance().GetService<Elysium::Services::AssetService>("AssetService");
     if (!assetService.IsAssetLoaded(assetName)) {
         LOG_ERRORF("JukeboxService", "Asset '%s' not found in AssetService", assetName.c_str());
         return false;
     }
-    
+
     auto track = std::make_unique<AudioTrack>();
     track->name = trackName;
     track->assetName = assetName;
     track->isMusic = isMusic;
-    
+
     tracks_.push_back(std::move(track));
     LOG_INFOF("JukeboxService", "Created track '%s' using asset '%s'", trackName.c_str(), assetName.c_str());
     return true;
@@ -97,7 +108,7 @@ bool JukeboxService::CreateTrack(const std::string& trackName, const std::string
 void JukeboxService::RemoveTrack(const std::string& trackName) {
     auto it = std::find_if(tracks_.begin(), tracks_.end(),
         [&](const auto& track) { return track->name == trackName; });
-    
+
     if (it != tracks_.end()) {
         StopTrack(trackName);
         tracks_.erase(it);
@@ -108,7 +119,7 @@ void JukeboxService::RemoveTrack(const std::string& trackName) {
 void JukeboxService::PlayTrack(const std::string& name) {
     AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded) return;
-    
+
     if (track->isMusic) {
         PlayMusicStream(track->music);
     } else {
@@ -121,7 +132,7 @@ void JukeboxService::PlayTrack(const std::string& name) {
 void JukeboxService::StopTrack(const std::string& name) {
     AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded) return;
-    
+
     if (track->isMusic) {
         StopMusicStream(track->music);
     } else {
@@ -133,7 +144,7 @@ void JukeboxService::StopTrack(const std::string& name) {
 void JukeboxService::PauseTrack(const std::string& name) {
     AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded) return;
-    
+
     if (track->isMusic) {
         PauseMusicStream(track->music);
     } else {
@@ -144,7 +155,7 @@ void JukeboxService::PauseTrack(const std::string& name) {
 void JukeboxService::ResumeTrack(const std::string& name) {
     AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded) return;
-    
+
     if (track->isMusic) {
         ResumeMusicStream(track->music);
     } else {
@@ -155,35 +166,35 @@ void JukeboxService::ResumeTrack(const std::string& name) {
 void JukeboxService::SeekTrack(const std::string& name, float timeInSeconds) {
     AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded || !track->isMusic) return;
-    
+
     SeekMusicStream(track->music, timeInSeconds);
 }
 
 void JukeboxService::SetTrackVolume(const std::string& name, float volume) {
     AudioTrack* track = FindTrack(name);
     if (!track) return;
-    
+
     track->volume = std::clamp(volume, 0.0f, 1.0f);
 }
 
 void JukeboxService::SetTrackLoop(const std::string& name, bool loop) {
     AudioTrack* track = FindTrack(name);
     if (!track) return;
-    
+
     track->isLooping = loop;
 }
 
 void JukeboxService::MuteTrack(const std::string& name, bool mute) {
     AudioTrack* track = FindTrack(name);
     if (!track) return;
-    
+
     track->isMuted = mute;
 }
 
 bool JukeboxService::IsTrackPlaying(const std::string& name) const {
     const AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded) return false;
-    
+
     if (track->isMusic) {
         return IsMusicStreamPlaying(track->music);
     } else {
@@ -194,21 +205,21 @@ bool JukeboxService::IsTrackPlaying(const std::string& name) const {
 bool JukeboxService::IsTrackPaused(const std::string& name) const {
     const AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded || !track->isMusic) return false;
-    
+
     return !IsMusicStreamPlaying(track->music) && track->isPlaying;
 }
 
 float JukeboxService::GetTrackLength(const std::string& name) const {
     const AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded || !track->isMusic) return 0.0f;
-    
+
     return GetMusicTimeLength(track->music);
 }
 
 float JukeboxService::GetTrackPosition(const std::string& name) const {
     const AudioTrack* track = FindTrack(name);
     if (!track || !track->isLoaded || !track->isMusic) return 0.0f;
-    
+
     return GetMusicTimePlayed(track->music);
 }
 
@@ -257,40 +268,34 @@ const AudioTrack* JukeboxService::FindTrack(const std::string& name) const {
     return it != tracks_.end() ? it->get() : nullptr;
 }
 
-void JukeboxService::OnDebugDraw() {
-    if (!showDebugWindow_) {
-        if (ImGui::IsKeyPressed(ImGuiKey_F4)) {
-            showDebugWindow_ = true;
-        }
-        return;
-    }
 
-    if (ImGui::Begin("Jukebox Control Panel", &showDebugWindow_)) {
+void JukeboxService::OnDebugDraw() {
+
         // Global Controls
         ImGui::Text("Global Controls");
         ImGui::Separator();
-        
+
         if (ImGui::Button("Stop All")) StopAll();
         ImGui::SameLine();
         if (ImGui::Button("Pause All")) PauseAll();
         ImGui::SameLine();
         if (ImGui::Button("Resume All")) ResumeAll();
-        
+
         ImGui::SliderFloat("Master Volume", &masterVolume_, 0.0f, 1.0f);
-        
+
         // Available Assets Section
         ImGui::Spacing();
         ImGui::Text("Available Assets (from AssetService)");
         ImGui::Separator();
-        
-        auto& assetService = Application::GetInstance().GetAssetService();
+
+        auto& assetService = Application::GetInstance().GetService<Elysium::Services::AssetService>("AssetService");
         static char newTrackName[64] = "";
         static char selectedAsset[64] = "";
         static bool isMusic = false;
-        
+
         // List available assets from AssetService
         const auto& allAssets = assetService.GetAllAssets();
-        
+
         if (allAssets.empty()) {
             ImGui::Text("No assets loaded yet. Load a scene to see available assets.");
         } else {
@@ -304,23 +309,23 @@ void JukeboxService::OnDebugDraw() {
                     }
                 }
             }
-            
+
             // Sort audio assets: MUSIC first, then SOUND, then by name
-            std::sort(audioAssets.begin(), audioAssets.end(), 
+            std::sort(audioAssets.begin(), audioAssets.end(),
                 [](const auto& a, const auto& b) {
                     AssetType typeA = a.second->GetType();
                     AssetType typeB = b.second->GetType();
-                    
+
                     // MUSIC before SOUND
                     if (typeA != typeB) {
                         if (typeA == AssetType::MUSIC) return true;
                         if (typeB == AssetType::MUSIC) return false;
                     }
-                    
+
                     // Within same type, sort by name
                     return a.first < b.first;
                 });
-            
+
             if (audioAssets.empty()) {
                 ImGui::Text("No audio assets (SOUND/MUSIC) found. Load scenes with audio files.");
             } else {
@@ -333,18 +338,18 @@ void JukeboxService::OnDebugDraw() {
                 ImGui::Text("Action");
                 ImGui::NextColumn();
                 ImGui::Separator();
-                
+
                 for (const auto& [assetName, assetPtr] : audioAssets) {
                     const Asset& asset = *assetPtr;
-                    
+
                     ImGui::Text("%s", assetName.c_str());
                     ImGui::NextColumn();
-                    
+
                     // Show asset type (we know it's audio)
                     const char* typeStr = (asset.GetType() == AssetType::MUSIC) ? "MUSIC" : "SOUND";
                     ImGui::Text("%s", typeStr);
                     ImGui::NextColumn();
-                    
+
                     // Select button
                     std::string buttonLabel = "Select##" + assetName;
                     if (ImGui::Button(buttonLabel.c_str())) {
@@ -355,19 +360,19 @@ void JukeboxService::OnDebugDraw() {
                     ImGui::NextColumn();
                 }
             }
-            
+
             ImGui::Columns(1);
         }
-        
+
         // Track Creation
         ImGui::Spacing();
         ImGui::Text("Create New Track");
         ImGui::Separator();
-        
+
         ImGui::InputText("Track Name", newTrackName, sizeof(newTrackName));
         ImGui::InputText("Asset Name", selectedAsset, sizeof(selectedAsset));
         ImGui::Checkbox("Create as Music (unchecked = Sound)", &isMusic);
-        
+
         if (ImGui::Button("Create Track")) {
             if (strlen(newTrackName) > 0 && strlen(selectedAsset) > 0) {
                 if (CreateTrack(newTrackName, selectedAsset, isMusic)) {
@@ -376,26 +381,26 @@ void JukeboxService::OnDebugDraw() {
                 }
             }
         }
-        
+
         // Active Tracks Section
         ImGui::Spacing();
         ImGui::Text("Active Tracks (%zu)", tracks_.size());
         ImGui::Separator();
-        
+
         for (auto& track : tracks_) {
             ImGui::PushID(track->name.c_str());
-            
+
             // Track Header
             ImGui::Text("Track: %s", track->name.c_str());
             ImGui::SameLine();
-            ImGui::TextColored(track->isPlaying ? ImVec4(0,1,0,1) : ImVec4(1,0,0,1), 
+            ImGui::TextColored(track->isPlaying ? ImVec4(0,1,0,1) : ImVec4(1,0,0,1),
                               track->isPlaying ? "PLAYING" : "STOPPED");
             ImGui::SameLine();
             ImGui::TextColored(track->isLoaded ? ImVec4(0,1,0,1) : ImVec4(1,1,0,1),
                               track->isLoaded ? "LOADED" : "LOADING...");
-            
+
             ImGui::Text("Asset: %s (%s)", track->assetName.c_str(), track->isMusic ? "Music" : "Sound");
-            
+
             if (track->isLoaded) {
                 // Playback Controls
                 if (ImGui::Button(track->isPlaying ? "■ Stop" : "▶ Play")) {
@@ -403,14 +408,14 @@ void JukeboxService::OnDebugDraw() {
                     else PlayTrack(track->name);
                 }
                 ImGui::SameLine();
-                
+
                 if (track->isMusic) {
                     if (ImGui::Button("⏸ Pause")) PauseTrack(track->name);
                     ImGui::SameLine();
                     if (ImGui::Button("⏵ Resume")) ResumeTrack(track->name);
                     ImGui::SameLine();
                 }
-                
+
                 // Delete button (prominent placement)
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
@@ -421,33 +426,33 @@ void JukeboxService::OnDebugDraw() {
                     break; // Exit loop since we modified the container
                 }
                 ImGui::PopStyleColor(2);
-                
+
                 // Track Properties
                 bool loop = track->isLooping;
                 if (ImGui::Checkbox("Loop", &loop)) {
                     SetTrackLoop(track->name, loop);
                 }
                 ImGui::SameLine();
-                
+
                 bool mute = track->isMuted;
                 if (ImGui::Checkbox("Mute", &mute)) {
                     MuteTrack(track->name, mute);
                 }
-                
+
                 // Volume Control
                 float volume = track->volume;
                 if (ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f)) {
                     SetTrackVolume(track->name, volume);
                 }
-                
+
                 // Timeline Scrubber (for all tracks, since Sounds can have length too)
                 if (track->isMusic) {
                     float length = GetTrackLength(track->name);
                     float position = GetTrackPosition(track->name);
-                    
+
                     // Timeline display
                     ImGui::Text("Timeline: %.1fs / %.1fs", position, length);
-                    
+
                     if (length > 0.0f) {
                         // Make the timeline scrubber wider and more prominent
                         ImGui::PushItemWidth(-1); // Full width
@@ -456,7 +461,7 @@ void JukeboxService::OnDebugDraw() {
                             SeekTrack(track->name, seekPos);
                         }
                         ImGui::PopItemWidth();
-                        
+
                         // Quick jump buttons
                         if (ImGui::Button("Start")) SeekTrack(track->name, 0.0f);
                         ImGui::SameLine();
@@ -475,16 +480,14 @@ void JukeboxService::OnDebugDraw() {
                     ImGui::Text("Timeline: Sound effect (no scrubbing available)");
                 }
             }
-            
+
             ImGui::PopID();
             ImGui::Separator();
         }
-        
+
         if (tracks_.empty()) {
             ImGui::Text("No tracks created. Use the controls above to create tracks from loaded assets.");
         }
-    }
-    ImGui::End();
 }
 
 } // namespace Elysium::Services

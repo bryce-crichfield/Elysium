@@ -1,14 +1,17 @@
 #pragma once
 
+#include "Service.h"
 #include <string>
 
 namespace Elysium::Services {
 
-class NetworkService {
+class NetworkService : public Elysium::Service {
 public:
-    void Initialize();
-    void Shutdown();
-    void Update();
+    NetworkService();
+    void Initialize() override;
+    void Shutdown() override;
+    void Update(float deltaTime) override;
+    void OnDebugDraw() override;
     
     bool StartServer(int port);
     bool ConnectToServer(const std::string& address, int port);

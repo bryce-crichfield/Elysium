@@ -1,11 +1,18 @@
 #include "Services/InspectorService.h"
+#include "Services/SceneService.h"
+#include "Application.h"
 #include "Entity.h"
 #include "raylib.h"
 #include <algorithm>
 #include <iostream>
 
-namespace Elysium
+namespace Elysium::Services
 {
+
+InspectorService::InspectorService()
+{
+    name_ = "InspectorService";
+}
 
 void InspectorService::Initialize()
 {
@@ -41,84 +48,80 @@ void InspectorService::RegisterComponentTypes()
 
 void InspectorService::Update(float deltaTime)
 {
-    if (!showInspector)
-        return;
+    auto& app = Elysium::Application::GetInstance();
+    auto& sceneService = app.GetService<SceneService>("SceneService");
+    auto newWorld = sceneService.GetScene() ? sceneService.GetScene()->GetWorld() : nullptr;
+
+    if (newWorld != world) {
+        world = newWorld;
+    }
 }
 
-void InspectorService::Draw()
+void InspectorService::OnDebugDraw()
 {
-    if (!showInspector || !world)
+    if (!world) {
+        ImGui::Text("No World Loaded");
         return;
+    }
 
-    ImGuiViewport *viewport = ImGui::GetMainViewport();
-    float inspectorWidth = viewport->WorkSize.x * 0.6f;
-    float inspectorHeight = viewport->WorkSize.y * 0.8f;
+    // Left side header
+    ImGui::Text("Entities");
+    ImGui::SameLine(leftPanelWidth + 10); // Position right side header
+    ImGui::Text("Inspector");
 
-    ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 50, viewport->WorkPos.y + 50), ImGuiCond_FirstUseEver);
+    // Left panel - Entity List
+    ImGui::BeginChild("EntityPanel", ImVec2(leftPanelWidth, 0), true);
+    DrawEntityToolbar();
 
-    if (ImGui::Begin("Entity Inspector", &showInspector, ImGuiWindowFlags_NoCollapse))
+    // Scrollable entity table
+    ImGui::BeginChild("EntityList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+    DrawEntityList();
+    ImGui::EndChild();
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Splitter
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+    ImGui::Button("##splitter", ImVec2(4.0f, -1));
+
+    // Handle dragging - only use mouse delta when already dragging
+    if (ImGui::IsItemActive())
     {
-        // Left side header
-        ImGui::Text("Entities");
-        ImGui::SameLine(leftPanelWidth + 10); // Position right side header
-        ImGui::Text("Inspector");
-
-        // Left panel - Entity List
-        ImGui::BeginChild("EntityPanel", ImVec2(leftPanelWidth, 0), true);
-        DrawEntityToolbar();
-
-        // Scrollable entity table
-        ImGui::BeginChild("EntityList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-        DrawEntityList();
-        ImGui::EndChild();
-        ImGui::EndChild();
-
-        ImGui::SameLine();
-
-        // Splitter
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
-        ImGui::Button("##splitter", ImVec2(4.0f, -1));
-
-        // Handle dragging - only use mouse delta when already dragging
-        if (ImGui::IsItemActive())
+        if (!isDraggingSplitter)
         {
-            if (!isDraggingSplitter)
-            {
-                // First frame of dragging - don't apply delta yet, just mark as dragging
-                isDraggingSplitter = true;
-            }
-            else
-            {
-                // Subsequent frames - apply mouse delta
-                leftPanelWidth += ImGui::GetIO().MouseDelta.x;
-                if (leftPanelWidth < 200.0f)
-                    leftPanelWidth = 200.0f;
-                if (leftPanelWidth > ImGui::GetWindowWidth() - 200.0f)
-                    leftPanelWidth = ImGui::GetWindowWidth() - 200.0f;
-            }
+            // First frame of dragging - don't apply delta yet, just mark as dragging
+            isDraggingSplitter = true;
         }
         else
         {
-            isDraggingSplitter = false;
+            // Subsequent frames - apply mouse delta
+            leftPanelWidth += ImGui::GetIO().MouseDelta.x;
+            if (leftPanelWidth < 200.0f)
+                leftPanelWidth = 200.0f;
+            if (leftPanelWidth > ImGui::GetWindowWidth() - 200.0f)
+                leftPanelWidth = ImGui::GetWindowWidth() - 200.0f;
         }
-
-        if (ImGui::IsItemHovered())
-        {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        }
-        ImGui::PopStyleColor(3);
-        ImGui::SameLine();
-
-        // Right panel - Inspector
-        ImGui::BeginChild("Inspector", ImVec2(0, 0), true);
-        DrawInspectorToolbar();
-        DrawInspectorPanel();
-        ImGui::EndChild();
     }
-    ImGui::End();
+    else
+    {
+        isDraggingSplitter = false;
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::SameLine();
+
+    // Right panel - Inspector
+    ImGui::BeginChild("Inspector", ImVec2(0, 0), true);
+    DrawInspectorToolbar();
+    DrawInspectorPanel();
+    ImGui::EndChild();
 }
 
 void InspectorService::DrawEntityToolbar()
@@ -457,7 +460,7 @@ void InspectorService::CreateEntity()
     ImGui::SameLine(140.0f);                                                                                           \
     ImGui::SetNextItemWidth(-1);
 
-template <> void InspectorService::DrawComponent<PositionComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<PositionComponent>(Entity entity, Elysium::World *world)
 {
     auto &pos = world->GetComponent<PositionComponent>(entity);
     FIELD_LABEL("X: ")
@@ -466,7 +469,7 @@ template <> void InspectorService::DrawComponent<PositionComponent>(Entity entit
     ImGui::DragFloat("##Y", &pos.y, 1.0f);
 }
 
-template <> void InspectorService::DrawComponent<LocationComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<LocationComponent>(Entity entity, Elysium::World *world)
 {
     auto &loc = world->GetComponent<LocationComponent>(entity);
     FIELD_LABEL("X: ")
@@ -475,7 +478,7 @@ template <> void InspectorService::DrawComponent<LocationComponent>(Entity entit
     ImGui::DragInt("##Y", &loc.y);
 }
 
-template <> void InspectorService::DrawComponent<MovementComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<MovementComponent>(Entity entity, Elysium::World *world)
 {
     auto &movement = world->GetComponent<MovementComponent>(entity);
     FIELD_LABEL("Speed: ")
@@ -488,7 +491,7 @@ template <> void InspectorService::DrawComponent<MovementComponent>(Entity entit
     ImGui::Text("Current Waypoint: %zu", movement.currentWaypointIndex);
 }
 
-template <> void InspectorService::DrawComponent<AnimationComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<AnimationComponent>(Entity entity, Elysium::World *world)
 {
     auto &anim = world->GetComponent<AnimationComponent>(entity);
 
@@ -516,7 +519,7 @@ template <> void InspectorService::DrawComponent<AnimationComponent>(Entity enti
     ImGui::Checkbox("##Loop", &anim.loop);
 }
 
-template <> void InspectorService::DrawComponent<DirectionComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<DirectionComponent>(Entity entity, Elysium::World *world)
 {
     auto &dir = world->GetComponent<DirectionComponent>(entity);
 
@@ -536,7 +539,7 @@ template <> void InspectorService::DrawComponent<DirectionComponent>(Entity enti
     ImGui::Checkbox("##HasChanged", &dir.hasChanged);
 }
 
-template <> void InspectorService::DrawComponent<LayerComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<LayerComponent>(Entity entity, Elysium::World *world)
 {
     auto &layer = world->GetComponent<LayerComponent>(entity);
 
@@ -586,7 +589,7 @@ template <> void InspectorService::DrawComponent<LayerComponent>(Entity entity, 
     ImGui::DragFloat2("##ParallaxFactor", &layer.parallaxFactor.x, 0.01f, 0.0f, 1.0f);
 }
 
-template <> void InspectorService::DrawComponent<RectangleComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<RectangleComponent>(Entity entity, Elysium::World *world)
 {
     auto &rect = world->GetComponent<RectangleComponent>(entity);
 
@@ -623,7 +626,7 @@ template <> void InspectorService::DrawComponent<RectangleComponent>(Entity enti
     }
 }
 
-template <> void InspectorService::DrawComponent<CircleComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<CircleComponent>(Entity entity, Elysium::World *world)
 {
     auto &circle = world->GetComponent<CircleComponent>(entity);
 
@@ -659,7 +662,7 @@ template <> void InspectorService::DrawComponent<CircleComponent>(Entity entity,
     }
 }
 
-template <> void InspectorService::DrawComponent<LightComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<LightComponent>(Entity entity, Elysium::World *world)
 {
     auto &light = world->GetComponent<LightComponent>(entity);
 
@@ -685,7 +688,7 @@ template <> void InspectorService::DrawComponent<LightComponent>(Entity entity, 
     }
 }
 
-template <> void InspectorService::DrawComponent<SpriteComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<SpriteComponent>(Entity entity, Elysium::World *world)
 {
     auto &sprite = world->GetComponent<SpriteComponent>(entity);
 
@@ -717,7 +720,7 @@ template <> void InspectorService::DrawComponent<SpriteComponent>(Entity entity,
     ImGui::DragFloat("##FrameElapsed", &sprite.frameElapsed, 0.01f, 0.0f);
 }
 
-template <> void InspectorService::DrawComponent<TextComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<TextComponent>(Entity entity, Elysium::World *world)
 {
     auto &text = world->GetComponent<TextComponent>(entity);
 
@@ -753,7 +756,7 @@ template <> void InspectorService::DrawComponent<TextComponent>(Entity entity, W
     }
 }
 
-template <> void InspectorService::DrawComponent<CameraComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<CameraComponent>(Entity entity, Elysium::World *world)
 {
     auto &camera = world->GetComponent<CameraComponent>(entity);
 
@@ -769,7 +772,7 @@ template <> void InspectorService::DrawComponent<CameraComponent>(Entity entity,
     ImGui::Checkbox("##IsVisible", &camera.isVisible);
 }
 
-template <> void InspectorService::DrawComponent<FollowComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<FollowComponent>(Entity entity, Elysium::World *world)
 {
     auto &follow = world->GetComponent<FollowComponent>(entity);
 
@@ -784,19 +787,19 @@ template <> void InspectorService::DrawComponent<FollowComponent>(Entity entity,
     }
 }
 
-template <> void InspectorService::DrawComponent<TileComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<TileComponent>(Entity entity, Elysium::World *world)
 {
     ImGui::Text("Tile component (no properties)");
 }
 
-template <> void InspectorService::DrawComponent<TeamComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<TeamComponent>(Entity entity, Elysium::World *world)
 {
     auto &team = world->GetComponent<TeamComponent>(entity);
     FIELD_LABEL("Team ID: ")
     ImGui::DragInt("##TeamID", &team.teamId, 1.0f, 0);
 }
 
-template <> void InspectorService::DrawComponent<CooldownComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<CooldownComponent>(Entity entity, Elysium::World *world)
 {
     auto &cooldown = world->GetComponent<CooldownComponent>(entity);
 
@@ -808,14 +811,14 @@ template <> void InspectorService::DrawComponent<CooldownComponent>(Entity entit
     ImGui::Checkbox("##IsOnCooldown", &cooldown.isOnCooldown);
 }
 
-template <> void InspectorService::DrawComponent<CharacterComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<CharacterComponent>(Entity entity, Elysium::World *world)
 {
     auto &character = world->GetComponent<CharacterComponent>(entity);
     FIELD_LABEL("Char ID: ")
     ImGui::DragInt("##CharacterID", &character.id, 1.0f, 0);
 }
 
-template <> void InspectorService::DrawComponent<UnitComponent>(Entity entity, World *world)
+template <> void InspectorService::DrawComponent<UnitComponent>(Entity entity, Elysium::World *world)
 {
     auto &unit = world->GetComponent<UnitComponent>(entity);
 
@@ -841,4 +844,4 @@ template <> void InspectorService::DrawComponent<UnitComponent>(Entity entity, W
     }
 }
 
-} // namespace Elysium
+} // namespace Elysium::Services

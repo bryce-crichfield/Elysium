@@ -10,14 +10,14 @@ SpriteSystem::SpriteSystem(Context context) : System(context) {
 void SpriteSystem::Update(float deltaTime) {
     // Update all sprite components with frame timing
     world->Query<SpriteComponent>([&](Entity entity, auto& spriteComp) {
-        
+
         // Advance frame timing
         spriteComp.frameElapsed += deltaTime;
-        
+
         // Check if it's time to advance to the next frame
         if (spriteComp.frameElapsed >= spriteComp.frameDuration) {
             spriteComp.frameElapsed -= spriteComp.frameDuration; // Keep remainder for smooth timing
-            
+
             // Get frame count for current marker
             int frameCount = spriteComp.sprite.GetMarkerFrameCount(spriteComp.markerName);
             if (frameCount > 0) {
@@ -26,14 +26,6 @@ void SpriteSystem::Update(float deltaTime) {
             }
         }
     });
-}
-
-void SpriteSystem::Render() {
-    // SpriteSystem doesn't need rendering - that's handled by RenderSystem
-}
-
-void SpriteSystem::OnEvent(const char* eventName, void* data) {
-    // SpriteSystem doesn't handle events
 }
 
 } // namespace Elysium::Systems
