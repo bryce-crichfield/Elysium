@@ -62,10 +62,10 @@ public:
     void QueueScene(std::string name);
 
     // Scene lifecycle methods
-    bool IsTransitioning() const; 
+    bool IsTransitioning() const;
     const std::string& GetCurrentState() const { return transitionStateMachine_.GetCurrentState(); }
     float GetTransitionProgress() const;
-    
+
     // Debug timeout
     void StartTimeout();
     void SetTimeoutMs(float milliseconds) { timeoutDuration_ = milliseconds; }
@@ -73,11 +73,6 @@ public:
     // Asset management for transitions
     const std::vector<Asset>& GetPendingAssets() const { return pendingAssets_; }
     void OnAssetsLoaded(); // Called when asset loading completes
-
-    // Cleanup - implemented via Service interface
-
-    // Visibility handled by base Service class
-
 
 private:
     // State machine handlers
@@ -106,24 +101,24 @@ private:
 
     // State machine for transitions
     StateMachine transitionStateMachine_;
-    
+
     // Transition timing
     float transitionTimer_ = 0.0f;
     float transitionDuration_ = 1.0f;
-    
+
     // Pause/unpause deltaTime handling
     float cachedDeltaTime_ = 0.016f; // Default 60fps
-    
+
     // Timeout system
     float timeoutDuration_ = 100.0f; // Timeout duration in milliseconds
     float timeoutTimer_ = 0.0f; // Current timeout timer
     bool isTimingOut_ = false; // Flag for timeout mode
-    
+
     // Panel management for dual panel UI
     float leftPanelWidth = 300.0f; // Width of the scenes panel
     bool isDraggingSplitter = false; // Track splitter drag state
     int selectedSceneIndex = -1; // Selected scene in the registry
-    
+
     // Helper methods for dual panel UI
     void DrawScenesPanel();
     void DrawCurrentScenePanel();

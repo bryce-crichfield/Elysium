@@ -64,7 +64,7 @@ protected:
 // Scene factory function type - declared after Scene class is defined
 using SceneFactory = std::function<Scene*()>;
 
-static bool LoadScene(Scene& scene, const std::string& path);
-static bool SaveScene(Scene& scene, const std::string& path);
+bool LoadScene(Scene& scene, const std::string& path);
+bool SaveScene(Scene& scene, const std::string& path);
 
 } // namespace Elysium
