@@ -760,8 +760,6 @@ template <> void InspectorService::DrawComponent<CameraComponent>(Entity entity,
 {
     auto &camera = world->GetComponent<CameraComponent>(entity);
 
-    FIELD_LABEL("Position: ")
-    ImGui::DragFloat2("##Position", &camera.position.x, 1.0f);
     FIELD_LABEL("Zoom: ")
     ImGui::DragFloat("##Zoom", &camera.zoom, 0.01f, 0.1f, 10.0f);
     FIELD_LABEL("Viewport: ")
@@ -780,11 +778,15 @@ template <> void InspectorService::DrawComponent<FollowComponent>(Entity entity,
     strncpy(targetBuffer, follow.targetEntityName.c_str(), sizeof(targetBuffer) - 1);
     targetBuffer[sizeof(targetBuffer) - 1] = '\0';
 
+    FIELD_LABEL("Follow Speed: ")
+    ImGui::DragFloat("##FollowSpeed", &follow.speed, 0.1f, 0.0f);
+
     FIELD_LABEL("Target: ")
     if (ImGui::InputText("##TargetEntityName", targetBuffer, sizeof(targetBuffer)))
     {
         follow.targetEntityName = std::string(targetBuffer);
     }
+
 }
 
 template <> void InspectorService::DrawComponent<TileComponent>(Entity entity, Elysium::World *world)

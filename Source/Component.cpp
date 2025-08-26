@@ -61,7 +61,7 @@ TeamComponent::TeamComponent(int teamId) : teamId(teamId)
 }
 
 CameraComponent::CameraComponent()
-    : position({0.0f, 0.0f}), zoom(1.0f), viewport({0, 0, 800, 600}), renderOrder(0), isVisible(true)
+    : zoom(1.0f), viewport({0, 0, 800, 600}), renderOrder(0), isVisible(true)
 {
 }
 

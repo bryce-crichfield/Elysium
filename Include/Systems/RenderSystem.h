@@ -30,12 +30,12 @@ public:
 private:
     void RenderCamera(Entity entity, const CameraComponent& camera, const Layers& layers);
     bool CanCameraSeeLayer(Entity entity, const CameraComponent& camera, const std::string& layerName, const Layers& layers);
-    void RenderLayer(int index, const std::vector<RenderItem>& items, Vector2 cameraWorldPosition, const CameraComponent& camera, const LayerComponent& layer);
+    void RenderLayer(int index, const std::vector<RenderItem>& items, Entity cameraEntity, const LayerComponent& layer);
     std::optional<Renderable> GetRenderable(Entity entity);
     std::string GetLayerName(const std::optional<Renderable>& renderable);
     void RenderSingleItem(const RenderItem& item, const LayerComponent& layer);
     void ApplyBlendMode(const LayerComponent::Blend& blend);
-    Matrix GetLayerTransform(const LayerComponent& layer, const CameraComponent& camera);
+    Matrix GetLayerTransform(const LayerComponent& layer, Entity cameraEntity);
 };
 
 } // namespace Elysium::Systems

@@ -12,7 +12,7 @@
 #include <variant>
 #include <optional>
 namespace Elysium::Systems {
-    
+
 void RenderSystem::Draw() {
     // Find the first active camera
     Entity cameraEntity;
@@ -30,7 +30,10 @@ void RenderSystem::Draw() {
     });
 
     if (!foundCamera || !camera) {
-        throw std::runtime_error("No active camera found. Scene must have at least one visible CameraComponent.");
+        ClearBackground(BLACK);
+        DrawText("No active camera found", 10, 10, 20, RED);
+        return;
+        // throw std::runtime_error("No active camera found. Scene must have at least one visible CameraComponent.");
     }
 
     // Build layer definition lookup = layerIndex -> <Entity, LayerComponent>
@@ -46,12 +49,13 @@ void RenderSystem::Draw() {
     RenderCamera(cameraEntity, *camera, layers);
 }
 
-void RenderSystem::RenderCamera(Entity entity, const CameraComponent& camera, const Layers& layers) {
+void RenderSystem::RenderCamera(Entity cameraEntity, const CameraComponent& camera, const Layers& layers) {
     // Get the camera's world transform
     Vector2 cameraWorldPosition = {0, 0};
-    if (world->HasComponent<PositionComponent>(entity)) {
-        auto& pos = world->GetComponent<PositionComponent>(entity);
-        cameraWorldPosition = {pos.x + camera.position.x, pos.y + camera.position.y};
+    if (world->HasComponent<PositionComponent>(cameraEntity)) {
+        auto& pos = world->GetComponent<PositionComponent>(cameraEntity);
+        cameraWorldPosition.x = pos.x;
+        cameraWorldPosition.y = pos.y;
     }
 
     BeginScissorMode(
@@ -109,10 +113,10 @@ void RenderSystem::RenderCamera(Entity entity, const CameraComponent& camera, co
         auto layerIt = layers.find(layerIndex);
         if (layerIt != layers.end()) {
             RenderLayer(layerIndex, layerItems[layerIndex],
-                cameraWorldPosition, camera, *layerIt->second.second);
+                cameraEntity, *layerIt->second.second);
         } else {
             LayerComponent defaultLayer;
-            RenderLayer(layerIndex, layerItems[layerIndex], cameraWorldPosition, camera, defaultLayer);
+            RenderLayer(layerIndex, layerItems[layerIndex], cameraEntity, defaultLayer);
         }
     }
 
@@ -125,11 +129,11 @@ bool RenderSystem::CanCameraSeeLayer(Entity entity, const CameraComponent& camer
     return true;
 }
 
-void RenderSystem::RenderLayer(int index, const std::vector<RenderItem>& items, Vector2 cameraWorldPosition, const CameraComponent& camera, const LayerComponent& layer)
+void RenderSystem::RenderLayer(int index, const std::vector<RenderItem>& items, Entity cameraEntity, const LayerComponent& layer)
 {
     ApplyBlendMode(layer.blend);
 
-    Matrix transform = GetLayerTransform(layer, camera);
+    Matrix transform = GetLayerTransform(layer, cameraEntity);
 
     rlPushMatrix();
     rlMultMatrixf(MatrixToFloat(transform));
@@ -163,8 +167,13 @@ void RenderSystem::ApplyBlendMode(const LayerComponent::Blend& blend)
     }
 }
 
-Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, const CameraComponent& camera)
+Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, Entity cameraEntity)
 {
+    auto &cameraPosition = world->GetComponent<PositionComponent>(cameraEntity);
+    auto &camera = world->GetComponent<CameraComponent>(cameraEntity);
+
+
+
     switch (layer.space) {
         case LayerComponent::Space::Screen: {
             return MatrixIdentity();
@@ -178,15 +187,15 @@ Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, const Camera
 
             Matrix centerTranslation = MatrixTranslate(viewportCenter.x, viewportCenter.y, 0);
             Matrix scale = MatrixScale(camera.zoom, camera.zoom, 1.0f);
-            Matrix cameraTranslation = MatrixTranslate(-camera.position.x, -camera.position.y, 0);
+            Matrix cameraTranslation = MatrixTranslate(-cameraPosition.x, -cameraPosition.y, 0);
 
             // Apply in order: camera translation -> scale -> center in viewport
             return MatrixMultiply(MatrixMultiply(cameraTranslation, scale), centerTranslation);
         }
         case LayerComponent::Space::Parallax: {
             Vector2 parallaxOffset = {
-                -camera.position.x * layer.parallaxFactor.x,
-                -camera.position.y * layer.parallaxFactor.y
+                -cameraPosition.x * layer.parallaxFactor.x,
+                -cameraPosition.y * layer.parallaxFactor.y
             };
 
             Matrix translation = MatrixTranslate(parallaxOffset.x, parallaxOffset.y, 0);

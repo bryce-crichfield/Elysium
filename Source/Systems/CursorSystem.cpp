@@ -33,19 +33,19 @@ namespace Elysium::Systems {
             int newX = location.x;
             int newY = location.y;
 
-            if (IsKeyDown(KEY_UP)) {
+            if (IsKeyDown(KEY_UP) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_UP)) {
                 newY -= 1;
                 moved = true;
             }
-            else if (IsKeyDown(KEY_DOWN)) {
+            else if (IsKeyDown(KEY_DOWN) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN)) {
                 newY += 1;
                 moved = true;
             }
-            else if (IsKeyDown(KEY_LEFT)) {
+            else if (IsKeyDown(KEY_LEFT) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT)) {
                 newX -= 1;
                 moved = true;
             }
-            else if (IsKeyDown(KEY_RIGHT)) {
+            else if (IsKeyDown(KEY_RIGHT) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT)) {
                 newX += 1;
                 moved = true;
             }

@@ -10,7 +10,7 @@ namespace Elysium::Systems {
 
 void CameraSystem::Update(float deltaTime) {
     // Update camera components that have follow behavior
-    world->Query<CameraComponent, FollowComponent>([&](Entity entity, auto& cameraComp, auto& followComp) {
+    world->Query<PositionComponent, CameraComponent, FollowComponent>([&](Entity entity, auto& positionComp, auto& cameraComp, auto& followComp) {
 
         // Find the target entity by name
         Entity targetEntity;
@@ -20,14 +20,12 @@ void CameraSystem::Update(float deltaTime) {
 
                 // Lerp the camera position to follow the target
                 Vector2 targetCameraPos = {targetPos.x, targetPos.y};
-                Vector2 currentCameraPos = cameraComp.position;
-                Vector2 newCameraPos = LerpVector2(currentCameraPos, targetCameraPos, lerpSpeed_ * deltaTime);
+                Vector2 currentCameraPos = {positionComp.x, positionComp.y};
+                Vector2 newCameraPos = LerpVector2(currentCameraPos, targetCameraPos, followComp.speed * deltaTime);
 
                 // Update camera position directly
-                cameraComp.position = newCameraPos;
-
-                // Set reasonable zoom
-                cameraComp.zoom = 2.0f;
+                positionComp.x = newCameraPos.x;
+                positionComp.y = newCameraPos.y;
             }
         }
     });

@@ -167,12 +167,11 @@ struct TextComponent
     TextComponent(const std::string& text = "", int size = 20, Color c = {}, const std::string& layer = "default");
 };
 
-// Specialized components
 struct CameraComponent
 {
-    Vector2 position;                   // relative to entity's PositionComponent (for lerping)
-    float zoom = 1.0f;
+    // Expects PositionComponent
     Rectangle viewport;
+    float zoom = 1.0f;
     std::vector<int> layerMask;         // which layers this camera renders
     int renderOrder = 0;                // for multi-camera setups
     bool isVisible = true;
@@ -182,6 +181,7 @@ struct CameraComponent
 
 struct FollowComponent
 {
+    float speed = 1.0f;
     std::string targetEntityName;
 };
 
