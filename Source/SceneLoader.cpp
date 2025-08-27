@@ -92,7 +92,8 @@ void LoadLayers(XMLElement *root, World *world)
         LOG_DEBUG("Scene", "Processing Layers section");
         ForEachElement(layersElement, "Layer", [&](XMLElement *xmlLayer) {
             LayerComponent layerComp = CreateLayerComponent(xmlLayer);
-            Entity layerEntity = world->CreateEntity(std::string("Layer_") + layerComp.name);
+            Entity layerEntity = world->CreateEntity();
+            world->AddComponent<NameComponent>(layerEntity, NameComponent(std::string("Layer_") + layerComp.name));
             world->AddComponent(layerEntity, layerComp);
             LOG_DEBUGF("Scene", "Created layer '%s' with z-index %d", layerComp.name.c_str(), layerComp.zIndex);
         });
@@ -165,8 +166,10 @@ void LoadTilemap(XMLElement *root, World *world)
             int x = i % tilemapWidth;
             int y = i / tilemapWidth;
             auto entity = world->CreateEntity();
+            world->AddComponent<NameComponent>(entity, NameComponent(std::string("Tile_") + std::to_string(i)));
             world->AddComponent<LocationComponent>(entity, LocationComponent(x, y));
             world->AddComponent<RectangleComponent>(entity, tileDefinitions[id]);
+            world->AddComponent<TileComponent>(entity, TileComponent());
         }
     });
 }
@@ -182,6 +185,11 @@ const std::unordered_map<std::string, ComponentLoader> &ComponentLoaders()
         return componentLoaders;
 
     // Register component parser functions
+    componentLoaders["NameComponent"] = [](XMLElement *xmlComponent, World *world, Entity entity) {
+        const char *name = xmlComponent->Attribute("name");
+        world->AddComponent(entity, NameComponent(name));
+    };
+
     componentLoaders["PositionComponent"] = [](XMLElement *xmlComponent, World *world, Entity entity) {
         float x = xmlComponent->FloatAttribute("x", 0.0f);
         float y = xmlComponent->FloatAttribute("y", 0.0f);
@@ -311,9 +319,8 @@ void LoadEntities(XMLElement *root, World *world)
         LOG_DEBUG("Scene", "Processing Entities section");
         ForEachElement(entities, "Entity", [&](XMLElement *xmlEntity) {
             // Create the entity
-            const char *entityName = xmlEntity->Attribute("name");
-            Entity entity = world->CreateEntity(entityName);
-            LOG_DEBUGF("Scene", "Created entity: %s", entityName ? entityName : "unnamed");
+            Entity entity = world->CreateEntity();
+            LOG_DEBUGF("Scene", "Created entity: %d", entity);
 
             // Create the components
             ForEachChild(xmlEntity, [&](XMLElement *component) {
@@ -402,9 +409,6 @@ bool LoadScene(Scene &scene, const std::string &path)
     // We allow the user to define the location and have the position component be implicit
     // Position component represents the CENTER of the tile in world coordinates
     world_->Query<LocationComponent>([&](Entity entity, auto &loc) {
-        if (world_->HasComponent<TileComponent>(entity))
-            return;
-
         // Convert tile coordinates to centered world coordinates
         float worldX = loc.x * TILE_WIDTH + TILE_WIDTH * 0.5f;
         float worldY = loc.y * TILE_HEIGHT + TILE_HEIGHT * 0.5f;

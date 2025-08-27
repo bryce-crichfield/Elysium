@@ -26,6 +26,7 @@ void InspectorService::Shutdown()
 
 void InspectorService::RegisterComponentTypes()
 {
+    RegisterComponent<NameComponent>("Name");
     RegisterComponent<PositionComponent>("Position");
     RegisterComponent<LocationComponent>("Location");
     RegisterComponent<MovementComponent>("Movement");
@@ -459,6 +460,21 @@ void InspectorService::CreateEntity()
     ImGui::Text(text);                                                                                                 \
     ImGui::SameLine(140.0f);                                                                                           \
     ImGui::SetNextItemWidth(-1);
+
+template <> void InspectorService::DrawComponent<NameComponent>(Entity entity, Elysium::World *world)
+{
+    auto &nameComp = world->GetComponent<NameComponent>(entity);
+
+    static char nameBuffer[256];
+    strncpy(nameBuffer, nameComp.name.c_str(), sizeof(nameBuffer) - 1);
+    nameBuffer[sizeof(nameBuffer) - 1] = '\0';
+
+    FIELD_LABEL("Name: ")
+    if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer)))
+    {
+        nameComp.name = std::string(nameBuffer);
+    }
+}
 
 template <> void InspectorService::DrawComponent<PositionComponent>(Entity entity, Elysium::World *world)
 {

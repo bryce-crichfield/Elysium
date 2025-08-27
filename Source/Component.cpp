@@ -2,6 +2,8 @@
 
 namespace Elysium
 {
+NameComponent::NameComponent(const std::string& name) : name(name) {}
+
 PositionComponent::PositionComponent(float x, float y) : x(x), y(y)
 {
 }

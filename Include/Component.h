@@ -10,6 +10,11 @@ namespace Elysium {
 // Forward declarations
 using Entity = size_t;
 
+struct NameComponent {
+    std::string name;
+    NameComponent(const std::string& name = "");
+};
+
 // Component structs
 struct PositionComponent
 {
@@ -188,6 +193,7 @@ struct FollowComponent
 struct TileComponent
 {
     // ACTS LIKE A TYPE FLAG
+    TileComponent() = default;
 };
 
 struct TeamComponent

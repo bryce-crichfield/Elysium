@@ -34,30 +34,32 @@
 
 
     <Entities >
-        <Entity name="CAMERA">
+        <Entity>
+            <NameComponent name="CAMERA" />
             <PositionComponent />
             <CameraComponent target="ENTITY_0" />
         </Entity>
 
-        <Entity name="ENTITY_0">
+        <Entity>
+            <NameComponent name="ENTITY_0" />
             <LocationComponent x="0" y="0" />
             <PositionComponent />
             <MovementComponent>
-                <Waypoints>
-                    <Waypoint x="0" y="0" />
-                    <Waypoint x="4" y="0" />
-                    <Waypoint x="4" y="4" />
-                    <Waypoint x="0" y="4" />
-                </Waypoints>
+            <Waypoints>
+                <Waypoint x="0" y="0" />
+                <Waypoint x="4" y="0" />
+                <Waypoint x="4" y="4" />
+                <Waypoint x="0" y="4" />
+            </Waypoints>
             </MovementComponent>
             <AnimationComponent />
             <DirectionComponent />
             <!-- <CircleComponent radius="8" background="#ad0000" layerName="entity" /> -->
 
             <SpriteComponent
-                spriteName="mushroom_warrior"
-                markerName="idle/down"
-                layerName="entity" />
+            spriteName="mushroom_warrior"
+            markerName="idle/down"
+            layerName="entity" />
         </Entity>
     </Entities>
 </Scene>

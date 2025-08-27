@@ -36,16 +36,6 @@ Entity EntityManager::CreateEntity()
     return id;
 }
 
-Entity EntityManager::CreateEntity(std::string name)
-{
-    Entity entity = CreateEntity();
-    if (entity != INVALID_ENTITY)
-    {
-        names[entity] = name;
-    }
-    return entity;
-}
-
 void EntityManager::DestroyEntity(Entity entity)
 {
     if (entity >= MAX_ENTITIES || livingEntityCount == 0)
@@ -61,34 +51,8 @@ void EntityManager::DestroyEntity(Entity entity)
         livingEntities.pop_back();
         --livingEntityCount;
     }
-    auto nameIt = names.find(entity);
-    if (nameIt != names.end())
-    {
-        names.erase(nameIt);
-    }
 }
 
-bool EntityManager::GetEntityByName(std::string name, Entity *entity)
-{
-    for (const auto &pair : names)
-    {
-        if (pair.second == name)
-        {
-            *entity = pair.first;
-            return true;
-        }
-    }
-    return false;
-}
-
-std::string EntityManager::GetEntityName(Entity entity) const
-{
-    auto it = names.find(entity);
-    if (it != names.end()) {
-        return it->second;
-    }
-    return ""; // Return empty string if entity has no name
-}
 
 void EntityManager::SetComponentMask(Entity entity, ComponentMask mask)
 {
@@ -123,6 +87,7 @@ World::World()
     componentManager = std::make_unique<ComponentManager>();
     entityManager = std::make_unique<EntityManager>();
 
+    RegisterComponent<NameComponent>();
     RegisterComponent<LocationComponent>();
     RegisterComponent<PositionComponent>();
     RegisterComponent<MovementComponent>();
@@ -148,19 +113,22 @@ Entity World::CreateEntity()
     return entityManager->CreateEntity();
 }
 
-Entity World::CreateEntity(std::string name)
-{
-    return entityManager->CreateEntity(name);
+bool World::GetEntityByName(std::string name, Entity* entity) {
+    bool found = false;
+    Query<NameComponent>([&](Entity e, auto &nameComp) {
+        if (!found && nameComp.name == name) {
+            *entity = e;
+            found = true;
+        }
+    });
+    return found;
 }
 
-bool World::GetEntityByName(std::string name, Entity *entity)
-{
-    return entityManager->GetEntityByName(name, entity);
-}
-
-std::string World::GetEntityName(Entity entity) const
-{
-    return entityManager->GetEntityName(entity);
+std::string World::GetEntityName(Entity entity) const {
+    if (HasComponent<NameComponent>(entity)) {
+        return GetComponent<NameComponent>(entity).name;
+    }
+    return "";
 }
 
 void World::DestroyEntity(Entity entity)
