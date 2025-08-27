@@ -63,7 +63,7 @@
             <LocationComponent x="0" y="0" />
             <PositionComponent />
             <MovementComponent />
-            <RectangleComponent width="32" height="32" background="#ffffffaa" border="#000000" layerName="entity" />
+            <RectangleComponent width="32" height="32" background="#aaffffaa" border="#000000" layerName="entity" />
         </Entity>
 
         <Entity name="ENTITY_0">

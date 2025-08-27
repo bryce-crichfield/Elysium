@@ -79,10 +79,10 @@ void BattleScene::OnExit() {
 
 std::vector<Asset> BattleScene::GetAssets() {
     return {
-        Asset(AssetType::MUSIC, "music", "./Assets/sounds/music.mp3"),
-        Asset(AssetType::TEXTURE, "mushroom_warrior_idle", "./Assets/Sprites/mushroom_warrior/mushroom_warrior_idle.png"),
-        Asset(AssetType::TEXTURE, "mushroom_warrior_walk", "./Assets/Sprites/mushroom_warrior/mushroom_warrior_walk.png"),
-        Asset(AssetType::SPRITE, "mushroom_warrior", "./Assets/Sprites/mushroom_warrior/sprite.xml")
+        Asset(AssetType::MUSIC, "music", "sounds/music.mp3"),
+        Asset(AssetType::TEXTURE, "mushroom_warrior_idle", "Sprites/mushroom_warrior/mushroom_warrior_idle.png"),
+        Asset(AssetType::TEXTURE, "mushroom_warrior_walk", "Sprites/mushroom_warrior/mushroom_warrior_walk.png"),
+        Asset(AssetType::SPRITE, "mushroom_warrior", "Sprites/mushroom_warrior/sprite.xml")
     };
 }
 

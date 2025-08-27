@@ -1,6 +1,7 @@
 #include "Services/SceneService.h"
 #include "Services/LogService.h"
 #include "System.h"
+#include "Path.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "tinyxml2.h"
@@ -379,7 +380,7 @@ void SceneService::EnterScene(const std::string &name)
     sceneData.status = SceneStatus::INITIALIZING;
     if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded)
     {
-        LoadScene(*sceneData.scene, sceneData.xmlPath);
+        LoadScene(*sceneData.scene, Path(sceneData.xmlPath).GetFullPath());
         sceneData.xmlLoaded = true;
     }
     sceneData.status = SceneStatus::ENTERING;

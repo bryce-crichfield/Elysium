@@ -1,6 +1,7 @@
 #include "Services/LoadingService.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
+#include "Path.h"
 #include "raylib.h"
 #include "tinyxml2.h"
 #include "imgui.h"
@@ -21,7 +22,7 @@ LoadingService::LoadingService()
 void LoadingService::Initialize()
 {
     shouldExit_ = false;
-    LoadConfig("./Assets/LoadingConfig.xml");
+    LoadConfig("LoadingConfig.xml");
 }
 
 void LoadingService::Shutdown()
@@ -157,7 +158,7 @@ void LoadingService::LoadConfig(const std::string& configPath)
     LOG_INFOF("LoadingService", "Loading config from: %s", configPath.c_str());
 
     XMLDocument doc;
-    XMLError result = doc.LoadFile(configPath.c_str());
+    XMLError result = doc.LoadFile(Path(configPath).c_str());
     if (result != XML_SUCCESS) {
         LOG_WARNINGF("LoadingService", "Failed to load LoadingConfig.xml, error code: %d", result);
         LOG_WARNINGF("LoadingService", "XML Error: %s", doc.ErrorStr());

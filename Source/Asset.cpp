@@ -3,7 +3,7 @@
 
 namespace Elysium {
 
-Asset::Asset(AssetType type, const AssetName& name, const std::string& path) : type_(type), name_(name), path_(path), loaded_(false) {
+Asset::Asset(AssetType type, const AssetName& name, const std::string& path) : type_(type), name_(name), path_(Path(path)), loaded_(false) {
 }
 
 Texture2D Asset::GetTexture() const {

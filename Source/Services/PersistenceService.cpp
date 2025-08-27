@@ -1,6 +1,8 @@
 #include "Services/PersistenceService.h"
 #include "Services/CharacterService.h"
 #include "Services/LogService.h"
+#include "Asset.h"
+#include "Path.h"
 #include "imgui.h"
 #include <filesystem>
 
@@ -16,14 +18,14 @@ PersistenceService::~PersistenceService() {
 }
 
 void PersistenceService::Initialize() {
-    Initialize("./Assets/save.db");
+    Initialize("save.db");
     isVisible_ = false;
 }
 
 void PersistenceService::Initialize(const std::string& databasePath) {
     if (initialized_) return;
 
-    databasePath_ = databasePath;
+    databasePath_ = Path(databasePath).GetFullPath();
 
     try {
         std::filesystem::path dbPath(databasePath_);

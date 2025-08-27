@@ -4,6 +4,12 @@
 #include <string>
 #include <variant>
 #include "Sprite.h"
+#include "Path.h"
+
+#ifndef ASSETS_PATH
+#define ASSETS_PATH "./Assets/"
+#endif
+
 
 namespace Elysium {
 
@@ -27,7 +33,9 @@ public:
 
     AssetType GetType() const { return type_; }
     const AssetName& GetName() const { return name_; }
-    const std::string& GetPath() const { return path_; }
+    std::string GetPath() const { 
+        return path_.GetFullPath(); }
+    const Path& GetAssetPath() const { return path_; }
     bool IsLoaded() const { return loaded_; }
     bool HasImageData() const { return hasImageData_; }
     bool HasWaveData() const { return hasWaveData_; }
@@ -57,7 +65,7 @@ public:
 private:
     AssetType type_;
     std::string name_;
-    std::string path_;
+    Path path_;
     bool loaded_ = false;
     bool hasImageData_ = false;
     bool hasWaveData_ = false;

@@ -24,7 +24,8 @@
       "Bash(mv:*)",
       "Bash(sed:*)",
       "Bash(find:*)",
-      "Bash(msbuild:*)"
+      "Bash(msbuild:*)",
+      "Bash(where mingw32-make)"
     ],
     "deny": []
   }

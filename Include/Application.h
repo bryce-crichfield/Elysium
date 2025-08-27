@@ -37,7 +37,7 @@ class Application {
 public:
     static Application& GetInstance();
 
-    bool Initialize(const std::string& configPath = "./Assets/Config/ApplicationConfig.xml");
+    bool Initialize(const std::string& configPath = "Config/ApplicationConfig.xml");
     void Run();
     void Shutdown();
 

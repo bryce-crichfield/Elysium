@@ -2,6 +2,7 @@
 #include "Services/Services.h"
 #include "Services/EventService.h"
 #include "Services/PersistenceService.h"
+#include "Path.h"
 #include "imgui.h"
 #include "rlImGui.h"
 #include "tinyxml2.h"
@@ -334,7 +335,7 @@ bool ApplicationConfig::FromXML(const std::string &configPath, ApplicationConfig
     ApplicationConfig &config = out;
     XMLDocument doc;
 
-    if (doc.LoadFile(configPath.c_str()) != XML_SUCCESS)
+    if (doc.LoadFile(Path(configPath).c_str()) != XML_SUCCESS)
     {
         TraceLog(LOG_ERROR, "Failed to load config file: %s. Using defaults.", configPath.c_str());
         return false;

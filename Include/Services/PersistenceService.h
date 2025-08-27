@@ -16,7 +16,7 @@ public:
 
     // Service interface
     void Initialize() override;
-    void Initialize(const std::string& databasePath = "./Assets/save.db");
+    void Initialize(const std::string& databasePath = "save.db");
     void Shutdown() override;
     void Update(float deltaTime) override;
     void OnDebugDraw() override;
