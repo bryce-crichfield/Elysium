@@ -1,4 +1,5 @@
 #include "Services/CharacterUI.h"
+#include "Common.h"
 #include <imgui.h>
 #include <algorithm>
 #include <fstream>

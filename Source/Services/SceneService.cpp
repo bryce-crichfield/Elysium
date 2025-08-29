@@ -6,6 +6,7 @@
 #include "raylib.h"
 #include "tinyxml2.h"
 #include <typeinfo>
+#include "Common.h"
 
 using namespace tinyxml2;
 
@@ -292,6 +293,7 @@ void SceneService::QueueScene(std::string name)
 
 void SceneService::Update(float deltaTime)
 {
+    Profile;
     // Cache deltaTime for smooth pause/unpause transitions
     if (deltaTime > 0.0f && deltaTime < 0.1f)
     { // Reasonable deltaTime bounds
@@ -393,6 +395,7 @@ void SceneService::EnterScene(const std::string &name)
 
 void SceneService::OnDebugDraw()
 {
+    Profile;
     // Left side header
     ImGui::Text("Scenes");
     ImGui::SameLine(leftPanelWidth + 10); // Position right side header

@@ -5,6 +5,9 @@ $ELYSIUM_ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 function Elysium_Setup {
     Write-Host "Setting up Elysium environment..."
+
+    git submodule update --init --recursive
+
     $msys64Path = "C:\msys64"
     $msys2DownloadUrl = "https://github.com/msys2/msys2-installer/releases/download/2024-01-13/msys2-x86_64-20240113.exe"
     $msys2InstallerPath = "msys2-installer.exe"
@@ -73,7 +76,7 @@ function Elysium_Build {
         # Use Ninja generator with MinGW and override shell
         $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
         $env:ComSpec = "C:\Windows\System32\cmd.exe"
-        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja ..
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja -DTRACY_ENABLE=ON ..
         if ($LASTEXITCODE -eq 0) {
             cmake --build . --config Release
         }

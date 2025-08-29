@@ -2,6 +2,7 @@
 #include "Services/LogService.h"
 #include "raylib.h"
 #include "imgui.h"
+#include "Common.h"
 
 #include "Sprite.h"
 
@@ -35,11 +36,13 @@ void AssetService::Shutdown() {
 }
 
 void AssetService::Update(float deltaTime) {
+    Profile;
     // AssetService doesn't need per-frame updates currently
     // This method is here to satisfy the Service interface
 }
 
 void AssetService::OnDebugDraw() {
+    Profile;
     // This sucks, but we've removed this for now.  We do the drawing in the LoadingService
 }
 

@@ -54,6 +54,15 @@ target_link_libraries(rlimgui PUBLIC raylib imgui)
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
+# Tracy profiler
+option(TRACY_ENABLE "Enable Tracy profiler" OFF)
+if(TRACY_ENABLE)
+    set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
+    add_subdirectory(Vendor/tracy)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE TRACY_ENABLE)
+    message(STATUS "Tracy profiler enabled")
+endif()
+
 # Link libraries
 target_link_libraries(${PROJECT_NAME}
     raylib
@@ -62,6 +71,11 @@ target_link_libraries(${PROJECT_NAME}
     tinyxml2
     SQLiteCpp
 )
+
+# Add Tracy if enabled
+if(TRACY_ENABLE)
+    target_link_libraries(${PROJECT_NAME} Tracy::TracyClient)
+endif()
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -74,6 +88,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/tinyxml2
     ${CMAKE_SOURCE_DIR}/Vendor/SQLiteCpp/include
 )
+
+if(TRACY_ENABLE)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/Vendor/tracy/public
+    )
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     # In debug, define ASSETS_PATH to point to source directory

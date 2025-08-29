@@ -9,6 +9,8 @@
 #include <sstream>
 #include <regex>
 #include <cmath>
+#include "Common.h"
+#include <tracy/Tracy.hpp>
 
 using namespace tinyxml2;
 
@@ -120,7 +122,9 @@ void LoadingService::ClearQueue()
 
 void LoadingService::LoadingThreadFunction()
 {
+    Profile;
     LOG_INFO("LoadingService", "Loading thread started");
+    tracy::SetThreadName("LoadingService");
 
     std::vector<Asset> assetsToLoad;
     {
@@ -134,9 +138,13 @@ void LoadingService::LoadingThreadFunction()
         }
 
         if (assetService_) {
-            LOG_DEBUGF("LoadingService", "Loading asset: %s -> %s", asset.GetName().c_str(), asset.GetPath().c_str());
-            assetService_->LoadAsset(asset);
-            loadedAssets_.fetch_add(1);
+            {
+                ProfileN("LoadAsset");
+                ProfileText(asset.GetName().c_str());
+                LOG_DEBUGF("LoadingService", "Loading asset: %s -> %s", asset.GetName().c_str(), asset.GetPath().c_str());
+                assetService_->LoadAsset(asset);
+                loadedAssets_.fetch_add(1);
+            }
 
             int delayTime = config_.delayTime;  // notice, prob not thread safe eggggaddd
             std::this_thread::sleep_for(std::chrono::milliseconds(delayTime));
@@ -434,6 +442,7 @@ void LoadingService::DrawTooltips(int screenWidth, int screenHeight)
 
 void LoadingService::Update(float deltaTime)
 {
+    Profile;
     // Update background timer
     backgroundTimer_ += deltaTime;
     if (backgroundTimer_ >= config_.background.cycleTime && !backgroundTextures_.empty()) {
@@ -451,6 +460,7 @@ void LoadingService::Update(float deltaTime)
 
 void LoadingService::OnDebugDraw()
 {
+    Profile;
     // Loading Status
     ImGui::Text("Loading Status: %s", isLoading_.load() ? "LOADING" : "IDLE");
 

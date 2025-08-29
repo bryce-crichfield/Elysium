@@ -4,6 +4,7 @@
 #include "Asset.h"
 #include "Path.h"
 #include "imgui.h"
+#include "Common.h"
 #include <filesystem>
 
 namespace Elysium::Services {
@@ -68,9 +69,11 @@ void PersistenceService::Shutdown() {
 }
 
 void PersistenceService::Update(float deltaTime) {
+    Profile;
 }
 
 void PersistenceService::OnDebugDraw() {
+    Profile;
     if (!initialized_ || !characterService_) return;
 
         ImGui::Text("Database Status: %s", initialized_ ? "Connected" : "Disconnected");

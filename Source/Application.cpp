@@ -10,6 +10,8 @@
 #include <cstdarg>
 #include <cstdio>
 
+#include "Common.h"
+
 using namespace tinyxml2;
 
 namespace Elysium
@@ -35,6 +37,7 @@ void CustomTraceLogCallback(int logLevel, const char *text, va_list args)
 
 bool Application::Initialize(const std::string &configPath)
 {
+    Profile;
     if (initialized_)
     {
         return true;
@@ -89,6 +92,7 @@ bool Application::Initialize(const std::string &configPath)
 
 void Application::Run()
 {
+    Profile;
     if (!initialized_)
     {
         TraceLog(LOG_ERROR, "Application not initialized!");
@@ -97,6 +101,12 @@ void Application::Run()
 
     while (!WindowShouldClose() && !shouldClose_)
     {
+        #ifdef TRACY_ENABLE
+            FrameMark;
+        #endif
+        
+        ProfileN("Frame");
+
         float deltaTime = GetFrameTime();
 
         if (IsWindowResized())
@@ -114,6 +124,7 @@ void Application::Run()
 
 void Application::Shutdown()
 {
+    Profile;
     if (!initialized_)
     {
         return;
@@ -144,6 +155,7 @@ bool Application::ShouldClose() const
 
 void Application::Update(float deltaTime)
 {
+    Profile;
     for (auto service : serviceRegistry_.GetAllServices()) {
         service->Update(deltaTime);
     }
@@ -193,6 +205,7 @@ void Application::Update(float deltaTime)
 
 void Application::Draw()
 {
+    Profile;
     auto &loadingService_ = serviceRegistry_.GetService<Elysium::Services::LoadingService>("LoadingService");
     auto &sceneService_ = serviceRegistry_.GetService<Elysium::Services::SceneService>("SceneService");
     auto &assetService_ = serviceRegistry_.GetService<Elysium::Services::AssetService>("AssetService");
@@ -288,10 +301,12 @@ void Application::Draw()
 
 void Application::ProcessEvents()
 {
+    Profile;
 }
 
 void Application::ProcessInput()
 {
+    Profile;
     ImGuiIO &io = ImGui::GetIO();
 
     if (IsKeyPressed(KEY_F1))

@@ -1,20 +1,24 @@
 #include "Service.h"
 #include "imgui.h"
+#include "Common.h"
 
 namespace Elysium
 {
 std::string Service::GetName()
 {
+    Profile;
     return name_;
 }
 
 void Service::ToggleVisibility()
 {
+    Profile;
     isVisible_ = !isVisible_;
 }
 
 void Service::DebugDraw()
 {
+    Profile;
     if (!isVisible_ || !hasUi_)
         return;
 
@@ -29,5 +33,6 @@ void Service::DebugDraw()
 
 void Service::OnDebugDraw()
 {
+    Profile;
 }
 } // namespace Elysium

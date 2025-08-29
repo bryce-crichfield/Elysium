@@ -5,6 +5,7 @@
 #include "Asset.h"
 #include "imgui.h"
 #include <algorithm>
+#include "Common.h"
 
 namespace Elysium::Services {
 
@@ -29,6 +30,7 @@ void JukeboxService::Shutdown() {
 }
 
 void JukeboxService::Update(float deltaTime) {
+    Profile;
     for (auto& track : tracks_) {
         UpdateTrack(*track);
     }
@@ -270,7 +272,7 @@ const AudioTrack* JukeboxService::FindTrack(const std::string& name) const {
 
 
 void JukeboxService::OnDebugDraw() {
-
+    Profile;
         // Global Controls
         ImGui::Text("Global Controls");
         ImGui::Separator();

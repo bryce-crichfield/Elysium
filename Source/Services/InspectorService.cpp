@@ -3,6 +3,7 @@
 #include "Application.h"
 #include "Entity.h"
 #include "raylib.h"
+#include "Common.h"
 #include <algorithm>
 #include <iostream>
 
@@ -49,6 +50,7 @@ void InspectorService::RegisterComponentTypes()
 
 void InspectorService::Update(float deltaTime)
 {
+    Profile;
     auto& app = Elysium::Application::GetInstance();
     auto& sceneService = app.GetService<SceneService>("SceneService");
     auto newWorld = sceneService.GetScene() ? sceneService.GetScene()->GetWorld() : nullptr;
@@ -60,6 +62,7 @@ void InspectorService::Update(float deltaTime)
 
 void InspectorService::OnDebugDraw()
 {
+    Profile;
     if (!world) {
         ImGui::Text("No World Loaded");
         return;

@@ -1,9 +1,11 @@
 #include "Application.h"
 #include "Services/Services.h"
 #include "Scenes/Scenes.h"
+#include "Common.h"
 
 int main()
 {
+    Profile;
     Elysium::Application &app = Elysium::Application::GetInstance();
 
     if (!app.Initialize())

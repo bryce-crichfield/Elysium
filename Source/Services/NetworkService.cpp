@@ -1,4 +1,5 @@
 #include "Services/NetworkService.h"
+#include "Common.h"
 
 namespace Elysium::Services {
 
@@ -19,9 +20,11 @@ void NetworkService::Shutdown() {
 }
 
 void NetworkService::Update(float deltaTime) {
+    Profile;
 }
 
 void NetworkService::OnDebugDraw() {
+    Profile;
     // No debug UI for NetworkService currently
 }
 

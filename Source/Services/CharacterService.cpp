@@ -1,6 +1,7 @@
 #include "Services/CharacterService.h"
 #include "Services/CharacterRepository.h"
 #include "Services/CharacterUI.h"
+#include "Common.h"
 
 namespace Elysium::Services {
 
@@ -25,10 +26,12 @@ void CharacterService::Shutdown() {
 }
 
 void CharacterService::Update(float deltaTime) {
+    Profile;
     // Service update if needed
 }
 
 void CharacterService::OnDebugDraw() {
+    Profile;
     if (ui_) {
         ui_->Draw();
     }

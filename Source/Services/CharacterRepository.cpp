@@ -1,6 +1,7 @@
 #include "Services/CharacterRepository.h"
 #include "Services/PersistenceService.h"
 #include "Services/LogService.h"
+#include "Common.h"
 #include <SQLiteCpp/SQLiteCpp.h>
 
 namespace Elysium::Services {

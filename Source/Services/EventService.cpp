@@ -1,5 +1,6 @@
 #include "Services/EventService.h"
 #include "imgui.h"
+#include "Common.h"
 
 namespace Elysium::Services {
 
@@ -23,10 +24,12 @@ void EventService::Shutdown() {
 }
 
 void EventService::Update(float deltaTime) {
+    Profile;
     // Event service doesn't need per-frame updates
 }
 
 void EventService::OnDebugDraw() {
+    Profile;
         ImGui::Text("Total Events Processed: %zu", totalEventsProcessed_);
         ImGui::Text("Active Event Types: %zu", listeners.size());
         ImGui::Text("Event Type Counts: %zu", eventCounts_.size());

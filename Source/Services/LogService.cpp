@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
+#include "Common.h"
 
 namespace Elysium::Services {
 
@@ -58,6 +59,7 @@ void LogService::Shutdown() {
 }
 
 void LogService::Update(float deltaTime) {
+    Profile;
     std::lock_guard<std::mutex> lock(logMutex_);
 
     while (!pendingLogs_.empty()) {
@@ -71,7 +73,7 @@ void LogService::Update(float deltaTime) {
 }
 
 void LogService::OnDebugDraw() {
-
+    Profile;
     DrawHeader();
     ImGui::Separator();
 
