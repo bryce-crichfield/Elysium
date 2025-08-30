@@ -176,7 +176,7 @@ void Application::Update(float deltaTime)
         if (!pendingAssets.empty())
         {
             LOG_INFO("Application", "Starting asset loading via LoadingService");
-            loadingService_.LoadAssets(pendingAssets, assetService_);
+            loadingService_.LoadAssets(pendingAssets);
         }
         else
         {
@@ -187,7 +187,7 @@ void Application::Update(float deltaTime)
     else if (currentState == "LOADING_ASSETS")
     {
         // Check if we're done loading
-        if (!loadingService_.IsLoading())
+        if (loadingService_.IsComplete())
         {
             // Loading complete, finalize GPU resources on main thread
             assetService_.FinalizeAssets();
@@ -226,7 +226,7 @@ void Application::Draw()
             int screenHeight = GetScreenHeight();
 
             // Delegate drawing to LoadingService
-            loadingService_.Draw(screenWidth, screenHeight);
+            // loadingService_.Draw(screenWidth, screenHeight);
         }
         else
         {

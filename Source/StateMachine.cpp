@@ -1,10 +1,12 @@
 #include "StateMachine.h"
 #include "Services/LogService.h"
 #include <algorithm>
+#include "Common.h"
 
 namespace Elysium {
 
 void StateMachine::SetCurrentState(const std::string& state) {
+    Profile;
     if (!currentState_.empty()) {
         // Call exit handler for current state
         auto exitIt = onExitHandlers_.find(currentState_);
@@ -59,6 +61,7 @@ bool StateMachine::CanTransition(const std::string& from, const std::string& to)
 }
 
 bool StateMachine::TransitionTo(const std::string& newState) {
+    Profile;
     if (currentState_ == newState) {
         return true; // Already in target state
     }
@@ -80,6 +83,7 @@ bool StateMachine::TransitionTo(const std::string& newState) {
 }
 
 void StateMachine::Update() {
+    Profile;
     if (currentState_.empty()) {
         return;
     }

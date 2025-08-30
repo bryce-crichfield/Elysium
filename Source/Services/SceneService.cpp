@@ -73,12 +73,14 @@ void SceneService::InitializeStateMachine()
 
 void SceneService::OnEnterExiting()
 {
+    Profile;
     transitionTimer_ = 0.0f;
     transitionDuration_ = (sceneQueue_.size() > 1) ? 0.1f : 1.0f;
 }
 
 void SceneService::OnUpdateExiting()
 {
+    Profile;
     transitionTimer_ += GetFrameTime();
     if (transitionTimer_ >= transitionDuration_)
     {
@@ -88,6 +90,7 @@ void SceneService::OnUpdateExiting()
 
 void SceneService::OnEnterLoadingAssets()
 {
+    Profile;
     transitionTimer_ = 0.0f;
 
     if (!sceneQueue_.empty())
@@ -124,6 +127,7 @@ void SceneService::OnEnterLoadingAssets()
 
 void SceneService::OnEnterAssetsLoaded()
 {
+    Profile;
     if (!sceneQueue_.empty())
     {
         UpdateSceneStatus(sceneQueue_.front(), SceneStatus::ASSETS_LOADED);
@@ -133,6 +137,7 @@ void SceneService::OnEnterAssetsLoaded()
 
 void SceneService::OnEnterEntering()
 {
+    Profile;
     transitionTimer_ = 0.0f;
     if (!sceneQueue_.empty())
     {
@@ -142,6 +147,7 @@ void SceneService::OnEnterEntering()
 
 void SceneService::OnUpdateEntering()
 {
+    Profile;
     transitionTimer_ += GetFrameTime();
     if (transitionTimer_ >= transitionDuration_)
     {
@@ -151,6 +157,7 @@ void SceneService::OnUpdateEntering()
 
 void SceneService::OnEnterActive()
 {
+    Profile;
     if (!sceneQueue_.empty())
     {
         const std::string sceneName = sceneQueue_.front();
@@ -192,6 +199,7 @@ void SceneService::OnEnterActivePaused()
 
 void SceneService::UpdateSceneStatus(const std::string &name, SceneStatus status)
 {
+    Profile;
     auto it = scenes_.find(name);
     if (it != scenes_.end())
     {
