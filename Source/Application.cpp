@@ -1,7 +1,5 @@
 #include "Application.h"
 #include "Services/Services.h"
-#include "Services/EventService.h"
-#include "Services/PersistenceService.h"
 #include "Path.h"
 #include "imgui.h"
 #include "rlImGui.h"
@@ -31,7 +29,7 @@ void CustomTraceLogCallback(int logLevel, const char *text, va_list args)
     {
         char buffer[1024];
         vsnprintf(buffer, sizeof(buffer), text, args);
-        g_appInstance->GetService<Elysium::Services::LogService>("LogService").LogMessage(logLevel, std::string(buffer));
+        g_appInstance->GetService<Elysium::Services::LogService>().LogMessage(logLevel, std::string(buffer));
     }
 }
 
@@ -44,15 +42,11 @@ bool Application::Initialize(const std::string &configPath)
     }
 
     RegisterService(std::make_unique<Elysium::Services::LogService>());
-    RegisterService(std::make_unique<Elysium::Services::NetworkService>());
-    RegisterService(std::make_unique<Elysium::Services::EventService>());
     RegisterService(std::make_unique<Elysium::Services::AssetService>());
-    RegisterService(std::make_unique<Elysium::Services::PersistenceService>());
-    RegisterService(std::make_unique<Elysium::Services::CharacterService>());
     RegisterService(std::make_unique<Elysium::Services::InspectorService>());
     RegisterService(std::make_unique<Elysium::Services::LoadingService>());
-    RegisterService(std::make_unique<Elysium::Services::JukeboxService>());
     RegisterService(std::make_unique<Elysium::Services::SceneService>());
+    RegisterService(std::make_unique<Elysium::Services::TimelineService>());
 
     g_appInstance = this;
     SetTraceLogCallback(CustomTraceLogCallback);
@@ -160,9 +154,9 @@ void Application::Update(float deltaTime)
         service->Update(deltaTime);
     }
 
-    auto &loadingService_ = serviceRegistry_.GetService<Elysium::Services::LoadingService>("LoadingService");
-    auto &sceneService_ = serviceRegistry_.GetService<Elysium::Services::SceneService>("SceneService");
-    auto &assetService_ = serviceRegistry_.GetService<Elysium::Services::AssetService>("AssetService");
+    auto &loadingService_ = serviceRegistry_.GetService<Elysium::Services::LoadingService>();
+    auto &sceneService_ = serviceRegistry_.GetService<Elysium::Services::SceneService>();
+    auto &assetService_ = serviceRegistry_.GetService<Elysium::Services::AssetService>();
 
     // Handle asset loading during transitions
     static bool loadingStarted = false;
@@ -206,9 +200,9 @@ void Application::Update(float deltaTime)
 void Application::Draw()
 {
     Profile;
-    auto &loadingService_ = serviceRegistry_.GetService<Elysium::Services::LoadingService>("LoadingService");
-    auto &sceneService_ = serviceRegistry_.GetService<Elysium::Services::SceneService>("SceneService");
-    auto &assetService_ = serviceRegistry_.GetService<Elysium::Services::AssetService>("AssetService");
+    auto &loadingService_ = serviceRegistry_.GetService<Elysium::Services::LoadingService>();
+    auto &sceneService_ = serviceRegistry_.GetService<Elysium::Services::SceneService>();
+    auto &assetService_ = serviceRegistry_.GetService<Elysium::Services::AssetService>();
 
     auto renderStart = std::chrono::high_resolution_clock::now();
     auto screenRect = Rectangle{0, 0, config_.framebufferWidth, config_.framebufferHeight};
@@ -311,37 +305,22 @@ void Application::ProcessInput()
 
     if (IsKeyPressed(KEY_F1))
     {
-        serviceRegistry_.GetService<Elysium::Services::SceneService>("SceneService").ToggleVisibility();
-    }
-
-    if (IsKeyPressed(KEY_F2))
-    {
-        serviceRegistry_.GetService<Elysium::Services::InspectorService>("InspectorService").ToggleVisibility();
+        serviceRegistry_.GetService<Elysium::Services::SceneService>().ToggleVisibility();
     }
 
     if (IsKeyPressed(KEY_F3))
     {
-        serviceRegistry_.GetService<Elysium::Services::PersistenceService>("PersistenceService").ToggleVisibility();
+        serviceRegistry_.GetService<Elysium::Services::InspectorService>().ToggleVisibility();
+    }
+
+    if (IsKeyPressed(KEY_F2))
+    {
+        serviceRegistry_.GetService<Elysium::Services::LogService>().ToggleVisibility();
     }
 
     if (IsKeyPressed(KEY_F4))
     {
-        serviceRegistry_.GetService<Elysium::Services::LoadingService>("LoadingService").ToggleVisibility();
-    }
-
-    if (IsKeyPressed(KEY_F5))
-    {
-        serviceRegistry_.GetService<Elysium::Services::LogService>("LogService").ToggleVisibility();
-    }
-
-    if (IsKeyPressed(KEY_F6))
-    {
-        serviceRegistry_.GetService<Elysium::Services::JukeboxService>("JukeboxService").ToggleVisibility();
-    }
-
-    if (IsKeyPressed(KEY_F7))
-    {
-        serviceRegistry_.GetService<Elysium::Services::EventService>("EventService").ToggleVisibility();
+        serviceRegistry_.GetService<Elysium::Services::TimelineService>().ToggleVisibility();
     }
 }
 

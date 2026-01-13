@@ -276,7 +276,7 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
             std::string textureName = sprite.GetMarkerTextureName(marker);
 
             if (!textureName.empty() && sourceRect.width > 0 && sourceRect.height > 0) {
-                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>("AssetService");
+                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
                 Texture2D texture = assets.GetTexture(textureName);
 
                 if (texture.id != 0) {

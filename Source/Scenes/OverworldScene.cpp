@@ -3,6 +3,7 @@
 #include "Services/SceneService.h"
 #include "Scenes/MenuScene.h"
 #include "Application.h"
+#include "imgui.h"
 
 namespace Elysium::Scenes {
 
@@ -18,8 +19,16 @@ void OverworldScene::OnExit() {
 }
 
 void OverworldScene::OnUpdate(float deltaTime) {
+    Scene::OnUpdate(deltaTime);
+
+    // Don't process input if ImGui is capturing keyboard
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureKeyboard) {
+        return;
+    }
+
     if (IsKeyPressed(KEY_BACKSPACE)) {
-        auto& sceneService = Elysium::Application::GetInstance().GetService<Elysium::Services::SceneService>("SceneService");
+        auto& sceneService = Elysium::Application::GetInstance().GetService<Elysium::Services::SceneService>();
         sceneService.SetScene("MenuScene");
     }
 }

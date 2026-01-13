@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <typeindex>
 
 #include "imgui.h"
 #include <unordered_map>
@@ -39,20 +40,21 @@ namespace Elysium
         template <typename T>
         void RegisterService(std::unique_ptr<T> service)
         {
-            const std::string& name = service->GetName();
-            services_[name] = std::move(service);
+            auto typeIndex = std::type_index(typeid(T));
+            services_[typeIndex] = std::move(service);
         }
 
         template <typename T>
-        T& GetService(const std::string& serviceName)
+        T& GetService()
         {
-            return dynamic_cast<T&>(*services_.at(serviceName));
+            auto typeIndex = std::type_index(typeid(T));
+            return dynamic_cast<T&>(*services_.at(typeIndex));
         }
 
         std::vector<Service*> GetAllServices()
         {
             std::vector<Service*> result;
-            for (auto& [name, service] : services_)
+            for (auto& [typeIndex, service] : services_)
             {
                 result.push_back(service.get());
             }
@@ -60,6 +62,6 @@ namespace Elysium
         }
 
       private:
-        std::unordered_map<std::string, std::unique_ptr<Service>> services_;
+        std::unordered_map<std::type_index, std::unique_ptr<Service>> services_;
     };
 }

@@ -52,7 +52,7 @@ void InspectorService::Update(float deltaTime)
 {
     Profile;
     auto& app = Elysium::Application::GetInstance();
-    auto& sceneService = app.GetService<SceneService>("SceneService");
+    auto& sceneService = app.GetService<SceneService>();
     auto newWorld = sceneService.GetScene() ? sceneService.GetScene()->GetWorld() : nullptr;
 
     if (newWorld != world) {

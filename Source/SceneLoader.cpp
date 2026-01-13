@@ -265,7 +265,7 @@ const std::unordered_map<std::string, ComponentLoader> &ComponentLoaders()
 
         if (spriteName && markerName)
         {
-            auto &assetService = Application::GetInstance().GetService<Elysium::Services::AssetService>("AssetService");
+            auto &assetService = Application::GetInstance().GetService<Elysium::Services::AssetService>();
             Sprite sprite = assetService.GetSprite(spriteName);
             world->AddComponent(entity, SpriteComponent(sprite, markerName, layerName ? layerName : "default"));
         }

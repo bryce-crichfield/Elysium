@@ -20,7 +20,7 @@ LoadTask::LoadTask(Asset asset) : asset_(std::move(asset)) {}
 
 void LoadTask::Execute() {
     ProfileN("Load Asset");
-    auto &assetService = Application::GetInstance().GetService<AssetService>("AssetService");
+    auto &assetService = Application::GetInstance().GetService<AssetService>();
     assetService.LoadAsset(asset_);
 }
 

@@ -44,8 +44,14 @@ void ExploreScene::OnExit() {
 void ExploreScene::OnUpdate(float deltaTime) {
     Scene::OnUpdate(deltaTime);
 
+    // Don't process input if ImGui is capturing keyboard
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureKeyboard) {
+        return;
+    }
+
     if (IsKeyPressed(KEY_BACKSPACE)) {
-        auto& sceneService = Elysium::Application::GetInstance().GetService<Elysium::Services::SceneService>("SceneService");
+        auto& sceneService = Elysium::Application::GetInstance().GetService<Elysium::Services::SceneService>();
         sceneService.SetScene("MenuScene");
     }
 }

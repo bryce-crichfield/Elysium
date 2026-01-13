@@ -44,8 +44,8 @@ public:
     const ApplicationConfig& GetConfig() const { return config_; }
 
     template <typename T>
-    T& GetService(const std::string& serviceName) {
-        return serviceRegistry_.GetService<T>(serviceName);
+    T& GetService() {
+        return serviceRegistry_.GetService<T>();
     }
 
     template <typename T>
