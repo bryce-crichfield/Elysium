@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Services/TaskService.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "Services/WorldService.h"
