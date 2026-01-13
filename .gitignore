@@ -95,3 +95,9 @@ node_modules/
 *.bak
 *.backup
 *.old
+*.bak
+*.backup
+*.old
+
+# tmclaude temporary files
+tmpclaude-*

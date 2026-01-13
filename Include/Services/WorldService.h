@@ -28,16 +28,16 @@ class World;
 
 namespace Elysium::Services {
 
-enum class InspectorLogicalOperator { AND, OR };
+enum class FilterLogicalOperator { AND, OR };
 
-struct InspectorFilter {
+struct EntityFilter {
     std::string componentName;
     bool negate = false;
-    InspectorLogicalOperator logicalOperator = InspectorLogicalOperator::OR;
+    FilterLogicalOperator logicalOperator = FilterLogicalOperator::OR;
     std::function<bool(Entity, Elysium::World*)> predicate;
 
-    InspectorFilter() = default;
-    InspectorFilter(const std::string& name, bool neg, InspectorLogicalOperator op, std::function<bool(Entity, Elysium::World*)> pred)
+    EntityFilter() = default;
+    EntityFilter(const std::string& name, bool neg, FilterLogicalOperator op, std::function<bool(Entity, Elysium::World*)> pred)
         : componentName(name), negate(neg), logicalOperator(op), predicate(pred) {}
 
     bool Evaluate(Entity entity, Elysium::World* world) const {
@@ -46,7 +46,7 @@ struct InspectorFilter {
 };
 
 
-class InspectorService : public Elysium::Service
+class WorldService : public Elysium::Service
 {
 private:
     Entity selectedEntity = INVALID_ENTITY;
@@ -65,7 +65,7 @@ private:
     };
 
     std::vector<ComponentPlaceholder> componentPlaceholders;
-    std::vector<InspectorFilter> filters;
+    std::vector<EntityFilter> filters;
     bool filtersCollapsed = true;
     float leftPanelWidth = 240.0f; // 2/5 of 600px default width
     bool isDraggingSplitter = false;
@@ -88,8 +88,8 @@ private:
     void DrawComponent(Entity entity, Elysium::World* world);
 
 public:
-    InspectorService();
-    ~InspectorService() = default;
+    WorldService();
+    ~WorldService() = default;
 
     // Service interface
     void Initialize() override;
@@ -104,7 +104,7 @@ public:
 };
 
 template<typename T>
-void InspectorService::RegisterComponent(const std::string& name)
+void WorldService::RegisterComponent(const std::string& name)
 {
     ComponentPlaceholder placeholder;
     placeholder.name = name;

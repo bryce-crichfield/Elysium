@@ -1,4 +1,4 @@
-#include "Services/InspectorService.h"
+#include "Services/WorldService.h"
 #include "Services/SceneService.h"
 #include "Application.h"
 #include "Entity.h"
@@ -10,22 +10,22 @@
 namespace Elysium::Services
 {
 
-InspectorService::InspectorService()
+WorldService::WorldService()
 {
-    name_ = "InspectorService";
+    name_ = "WorldService";
 }
 
-void InspectorService::Initialize()
+void WorldService::Initialize()
 {
     RegisterComponentTypes();
 }
 
-void InspectorService::Shutdown()
+void WorldService::Shutdown()
 {
     // Service cleanup if needed
 }
 
-void InspectorService::RegisterComponentTypes()
+void WorldService::RegisterComponentTypes()
 {
     RegisterComponent<NameComponent>("Name");
     RegisterComponent<PositionComponent>("Position");
@@ -48,7 +48,7 @@ void InspectorService::RegisterComponentTypes()
     RegisterComponent<UnitComponent>("Unit");
 }
 
-void InspectorService::Update(float deltaTime)
+void WorldService::Update(float deltaTime)
 {
     Profile;
     auto& app = Elysium::Application::GetInstance();
@@ -60,7 +60,7 @@ void InspectorService::Update(float deltaTime)
     }
 }
 
-void InspectorService::OnDebugDraw()
+void WorldService::OnDebugDraw()
 {
     Profile;
     if (!world) {
@@ -128,7 +128,7 @@ void InspectorService::OnDebugDraw()
     ImGui::EndChild();
 }
 
-void InspectorService::DrawEntityToolbar()
+void WorldService::DrawEntityToolbar()
 {
     ImGui::Text("Search: ");
     ImGui::SameLine();
@@ -197,7 +197,7 @@ void InspectorService::DrawEntityToolbar()
                     int currentOp = static_cast<int>(filters[i].logicalOperator);
                     if (ImGui::Combo("##operator", &currentOp, operators, IM_ARRAYSIZE(operators)))
                     {
-                        filters[i].logicalOperator = static_cast<InspectorLogicalOperator>(currentOp);
+                        filters[i].logicalOperator = static_cast<FilterLogicalOperator>(currentOp);
                     }
                 }
                 else
@@ -253,7 +253,7 @@ void InspectorService::DrawEntityToolbar()
     }
 }
 
-void InspectorService::DrawEntityList()
+void WorldService::DrawEntityList()
 {
     if (ImGui::BeginTable("Entities", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
     {
@@ -281,7 +281,7 @@ void InspectorService::DrawEntityList()
                     {
                         bool filterResult = filters[i].Evaluate(entity, world);
 
-                        if (filters[i].logicalOperator == InspectorLogicalOperator::AND)
+                        if (filters[i].logicalOperator == FilterLogicalOperator::AND)
                         {
                             shouldDraw = shouldDraw && filterResult;
                         }
@@ -333,7 +333,7 @@ void InspectorService::DrawEntityList()
     }
 }
 
-void InspectorService::DrawInspectorToolbar()
+void WorldService::DrawInspectorToolbar()
 {
     if (selectedEntity != INVALID_ENTITY)
     {
@@ -377,7 +377,7 @@ void InspectorService::DrawInspectorToolbar()
     }
 }
 
-void InspectorService::DrawInspectorPanel()
+void WorldService::DrawInspectorPanel()
 {
     if (selectedEntity == INVALID_ENTITY)
         return;
@@ -408,7 +408,7 @@ void InspectorService::DrawInspectorPanel()
     }
 }
 
-void InspectorService::DrawComponentPanel(const ComponentPlaceholder &placeholder)
+void WorldService::DrawComponentPanel(const ComponentPlaceholder &placeholder)
 {
     ImGuiTreeNodeFlags treeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed;
 
@@ -438,12 +438,12 @@ void InspectorService::DrawComponentPanel(const ComponentPlaceholder &placeholde
     }
 }
 
-void InspectorService::DeselectEntity()
+void WorldService::DeselectEntity()
 {
     selectedEntity = INVALID_ENTITY;
 }
 
-void InspectorService::RemoveEntity()
+void WorldService::RemoveEntity()
 {
     if (selectedEntity != INVALID_ENTITY)
     {
@@ -452,7 +452,7 @@ void InspectorService::RemoveEntity()
     }
 }
 
-void InspectorService::CreateEntity()
+void WorldService::CreateEntity()
 {
     Entity newEntity = world->CreateEntity();
     selectedEntity = newEntity;
@@ -464,7 +464,7 @@ void InspectorService::CreateEntity()
     ImGui::SameLine(140.0f);                                                                                           \
     ImGui::SetNextItemWidth(-1);
 
-template <> void InspectorService::DrawComponent<NameComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<NameComponent>(Entity entity, Elysium::World *world)
 {
     auto &nameComp = world->GetComponent<NameComponent>(entity);
 
@@ -479,7 +479,7 @@ template <> void InspectorService::DrawComponent<NameComponent>(Entity entity, E
     }
 }
 
-template <> void InspectorService::DrawComponent<PositionComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<PositionComponent>(Entity entity, Elysium::World *world)
 {
     auto &pos = world->GetComponent<PositionComponent>(entity);
     FIELD_LABEL("X: ")
@@ -488,7 +488,7 @@ template <> void InspectorService::DrawComponent<PositionComponent>(Entity entit
     ImGui::DragFloat("##Y", &pos.y, 1.0f);
 }
 
-template <> void InspectorService::DrawComponent<LocationComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<LocationComponent>(Entity entity, Elysium::World *world)
 {
     auto &loc = world->GetComponent<LocationComponent>(entity);
     FIELD_LABEL("X: ")
@@ -497,7 +497,7 @@ template <> void InspectorService::DrawComponent<LocationComponent>(Entity entit
     ImGui::DragInt("##Y", &loc.y);
 }
 
-template <> void InspectorService::DrawComponent<MovementComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<MovementComponent>(Entity entity, Elysium::World *world)
 {
     auto &movement = world->GetComponent<MovementComponent>(entity);
     FIELD_LABEL("Speed: ")
@@ -510,7 +510,7 @@ template <> void InspectorService::DrawComponent<MovementComponent>(Entity entit
     ImGui::Text("Current Waypoint: %zu", movement.currentWaypointIndex);
 }
 
-template <> void InspectorService::DrawComponent<AnimationComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<AnimationComponent>(Entity entity, Elysium::World *world)
 {
     auto &anim = world->GetComponent<AnimationComponent>(entity);
 
@@ -538,7 +538,7 @@ template <> void InspectorService::DrawComponent<AnimationComponent>(Entity enti
     ImGui::Checkbox("##Loop", &anim.loop);
 }
 
-template <> void InspectorService::DrawComponent<DirectionComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<DirectionComponent>(Entity entity, Elysium::World *world)
 {
     auto &dir = world->GetComponent<DirectionComponent>(entity);
 
@@ -558,7 +558,7 @@ template <> void InspectorService::DrawComponent<DirectionComponent>(Entity enti
     ImGui::Checkbox("##HasChanged", &dir.hasChanged);
 }
 
-template <> void InspectorService::DrawComponent<LayerComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<LayerComponent>(Entity entity, Elysium::World *world)
 {
     auto &layer = world->GetComponent<LayerComponent>(entity);
 
@@ -608,7 +608,7 @@ template <> void InspectorService::DrawComponent<LayerComponent>(Entity entity, 
     ImGui::DragFloat2("##ParallaxFactor", &layer.parallaxFactor.x, 0.01f, 0.0f, 1.0f);
 }
 
-template <> void InspectorService::DrawComponent<RectangleComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<RectangleComponent>(Entity entity, Elysium::World *world)
 {
     auto &rect = world->GetComponent<RectangleComponent>(entity);
 
@@ -645,7 +645,7 @@ template <> void InspectorService::DrawComponent<RectangleComponent>(Entity enti
     }
 }
 
-template <> void InspectorService::DrawComponent<CircleComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<CircleComponent>(Entity entity, Elysium::World *world)
 {
     auto &circle = world->GetComponent<CircleComponent>(entity);
 
@@ -681,7 +681,7 @@ template <> void InspectorService::DrawComponent<CircleComponent>(Entity entity,
     }
 }
 
-template <> void InspectorService::DrawComponent<LightComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<LightComponent>(Entity entity, Elysium::World *world)
 {
     auto &light = world->GetComponent<LightComponent>(entity);
 
@@ -707,7 +707,7 @@ template <> void InspectorService::DrawComponent<LightComponent>(Entity entity, 
     }
 }
 
-template <> void InspectorService::DrawComponent<SpriteComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Elysium::World *world)
 {
     auto &sprite = world->GetComponent<SpriteComponent>(entity);
 
@@ -739,7 +739,7 @@ template <> void InspectorService::DrawComponent<SpriteComponent>(Entity entity,
     ImGui::DragFloat("##FrameElapsed", &sprite.frameElapsed, 0.01f, 0.0f);
 }
 
-template <> void InspectorService::DrawComponent<TextComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<TextComponent>(Entity entity, Elysium::World *world)
 {
     auto &text = world->GetComponent<TextComponent>(entity);
 
@@ -775,7 +775,7 @@ template <> void InspectorService::DrawComponent<TextComponent>(Entity entity, E
     }
 }
 
-template <> void InspectorService::DrawComponent<CameraComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<CameraComponent>(Entity entity, Elysium::World *world)
 {
     auto &camera = world->GetComponent<CameraComponent>(entity);
 
@@ -789,7 +789,7 @@ template <> void InspectorService::DrawComponent<CameraComponent>(Entity entity,
     ImGui::Checkbox("##IsVisible", &camera.isVisible);
 }
 
-template <> void InspectorService::DrawComponent<FollowComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<FollowComponent>(Entity entity, Elysium::World *world)
 {
     auto &follow = world->GetComponent<FollowComponent>(entity);
 
@@ -808,19 +808,19 @@ template <> void InspectorService::DrawComponent<FollowComponent>(Entity entity,
 
 }
 
-template <> void InspectorService::DrawComponent<TileComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<TileComponent>(Entity entity, Elysium::World *world)
 {
     ImGui::Text("Tile component (no properties)");
 }
 
-template <> void InspectorService::DrawComponent<TeamComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<TeamComponent>(Entity entity, Elysium::World *world)
 {
     auto &team = world->GetComponent<TeamComponent>(entity);
     FIELD_LABEL("Team ID: ")
     ImGui::DragInt("##TeamID", &team.teamId, 1.0f, 0);
 }
 
-template <> void InspectorService::DrawComponent<CooldownComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<CooldownComponent>(Entity entity, Elysium::World *world)
 {
     auto &cooldown = world->GetComponent<CooldownComponent>(entity);
 
@@ -832,14 +832,14 @@ template <> void InspectorService::DrawComponent<CooldownComponent>(Entity entit
     ImGui::Checkbox("##IsOnCooldown", &cooldown.isOnCooldown);
 }
 
-template <> void InspectorService::DrawComponent<CharacterComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<CharacterComponent>(Entity entity, Elysium::World *world)
 {
     auto &character = world->GetComponent<CharacterComponent>(entity);
     FIELD_LABEL("Char ID: ")
     ImGui::DragInt("##CharacterID", &character.id, 1.0f, 0);
 }
 
-template <> void InspectorService::DrawComponent<UnitComponent>(Entity entity, Elysium::World *world)
+template <> void WorldService::DrawComponent<UnitComponent>(Entity entity, Elysium::World *world)
 {
     auto &unit = world->GetComponent<UnitComponent>(entity);
 

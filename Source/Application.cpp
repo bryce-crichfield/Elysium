@@ -43,7 +43,7 @@ bool Application::Initialize(const std::string &configPath)
 
     RegisterService(std::make_unique<Elysium::Services::LogService>());
     RegisterService(std::make_unique<Elysium::Services::AssetService>());
-    RegisterService(std::make_unique<Elysium::Services::InspectorService>());
+    RegisterService(std::make_unique<Elysium::Services::WorldService>());
     RegisterService(std::make_unique<Elysium::Services::LoadingService>());
     RegisterService(std::make_unique<Elysium::Services::SceneService>());
     RegisterService(std::make_unique<Elysium::Services::TimelineService>());
@@ -310,7 +310,7 @@ void Application::ProcessInput()
 
     if (IsKeyPressed(KEY_F3))
     {
-        serviceRegistry_.GetService<Elysium::Services::InspectorService>().ToggleVisibility();
+        serviceRegistry_.GetService<Elysium::Services::WorldService>().ToggleVisibility();
     }
 
     if (IsKeyPressed(KEY_F2))
