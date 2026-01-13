@@ -21,10 +21,6 @@ struct ApplicationConfig {
     int framebufferWidth = 640;
     int framebufferHeight = 480;
 
-    float gravity = 9.81f;
-    float defaultBallRadius = 20.0f;
-    Vector2 defaultBallSpeed = { 5.0f, 4.0f };
-
     bool showDemoWindow = true;
     bool showMetrics = false;
     std::string logLevel = "INFO";

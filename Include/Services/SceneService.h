@@ -7,10 +7,27 @@
 #include <queue>
 #include "Scene.h"
 #include "Asset.h"
-#include "StateMachine.h"
 #include "Service.h"
+#include "SceneRenderer.h"
+#include "SceneTransitionController.h"
+#include "SceneInspector.h"
 
 namespace Elysium::Services {
+    enum class SceneState {
+        NONE,
+        EXITING,
+        LOADING_ASSETS,
+        ASSETS_LOADED,
+        ENTERING,
+        ACTIVE,
+        ACTIVE_RUNNING,
+        ACTIVE_PAUSED
+    };
+
+    // Convert between SceneState enum and string (for StateMachine)
+    const char* SceneStateToString(SceneState state);
+    SceneState StringToSceneState(const std::string& str);
+
     enum class SceneStatus {
         UNLOADED,           // Scene registered but no assets loaded, no instance created
         LOADING_ASSETS,     // Assets are being loaded by LoadingService
@@ -39,6 +56,7 @@ namespace Elysium::Services {
 
 class SceneService : public Elysium::Service {
 public:
+    friend class Elysium::SceneInspector;
 
     // The SceneService manages scene transitions through the SceneStatus FSM.
     // During LOADING_ASSETS, it waits for LoadingService to complete before proceeding.
@@ -63,21 +81,21 @@ public:
     void QueueScene(std::string name);
 
     // Scene lifecycle methods
-    bool IsTransitioning() const;
-    const std::string& GetCurrentState() const { return transitionStateMachine_.GetCurrentState(); }
-    float GetTransitionProgress() const;
-
-    // Debug timeout
-    void StartTimeout();
-    void SetTimeoutMs(float milliseconds) { timeoutDuration_ = milliseconds; }
+    bool IsTransitioning() const { return transitions_.IsTransitioning(); }
+    SceneState GetCurrentState() const { return transitions_.GetCurrentState(); }
+    float GetTransitionProgress() const { return transitions_.GetTransitionProgress(); }
 
     // Asset management for transitions
     const std::vector<Asset>& GetPendingAssets() const { return pendingAssets_; }
     void OnAssetsLoaded(); // Called when asset loading completes
 
 private:
-    // State machine handlers
-    void InitializeStateMachine();
+    // Components
+    Elysium::SceneRenderer renderer_;
+    Elysium::SceneTransitionController transitions_;
+    Elysium::SceneInspector inspector_;
+
+    // State machine handlers (callbacks for transition controller)
     void OnEnterExiting();
     void OnUpdateExiting();
     void OnEnterLoadingAssets();
@@ -100,38 +118,8 @@ private:
     Scene* activeScene_ = nullptr;
     std::vector<Asset> pendingAssets_;
 
-    // State machine for transitions
-    StateMachine transitionStateMachine_;
-
-    // Transition timing
-    float transitionTimer_ = 0.0f;
-    float transitionDuration_ = 1.0f;
-
     // Pause/unpause deltaTime handling
     float cachedDeltaTime_ = 0.016f; // Default 60fps
-
-    // Timeout system
-    float timeoutDuration_ = 100.0f; // Timeout duration in milliseconds
-    float timeoutTimer_ = 0.0f; // Current timeout timer
-    bool isTimingOut_ = false; // Flag for timeout mode
-
-    // Rendering infrastructure
-    RenderTexture2D sceneFramebuffer_;
-    Rectangle letterboxRect_;
-    float scaleX_, scaleY_;
-    Vector2 offset_;
-    void CalculateLetterboxing();
-
-    // Panel management for dual panel UI
-    float leftPanelWidth = 300.0f; // Width of the scenes panel
-    bool isDraggingSplitter = false; // Track splitter drag state
-    int selectedSceneIndex = -1; // Selected scene in the registry
-
-    // Helper methods for dual panel UI
-    void DrawScenesPanel();
-    void DrawCurrentScenePanel();
-    void DrawSystemsDrawer();
-    void DrawAssetsDrawer();
 };
 
 } // namespace Elysium::Services
