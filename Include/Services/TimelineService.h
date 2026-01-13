@@ -70,7 +70,7 @@ public:
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    void OnDebugDraw() override;
+    void ImGui() override;
 
     // Set current scene to edit timelines for
     void SetCurrentScene(Elysium::Scene* scene) { currentScene_ = scene; }

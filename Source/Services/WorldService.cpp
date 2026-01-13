@@ -60,7 +60,7 @@ void WorldService::Update(float deltaTime)
     }
 }
 
-void WorldService::OnDebugDraw()
+void WorldService::ImGui()
 {
     Profile;
     if (!world) {

@@ -1,5 +1,6 @@
 #include "Services/SceneService.h"
 #include "Services/LogService.h"
+#include "Application.h"
 #include "System.h"
 #include "Path.h"
 #include "imgui.h"
@@ -24,6 +25,16 @@ SceneService::SceneService()
 
 void SceneService::Initialize()
 {
+    Profile;
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+
+    // Create scene framebuffer
+    sceneFramebuffer_ = LoadRenderTexture(config.framebufferWidth, config.framebufferHeight);
+
+    // Calculate initial letterboxing
+    CalculateLetterboxing();
+
     InitializeStateMachine();
 }
 
@@ -398,10 +409,116 @@ void SceneService::EnterScene(const std::string &name)
 }
 
 // =============================================================================
+// Rendering
+// =============================================================================
+
+void SceneService::CalculateLetterboxing()
+{
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+
+    int windowWidth = GetScreenWidth();
+    int windowHeight = GetScreenHeight();
+
+    float screenAspect = (float)windowWidth / windowHeight;
+    float framebufferAspect = (float)config.framebufferWidth / config.framebufferHeight;
+
+    if (framebufferAspect > screenAspect)
+    {
+        scaleX_ = scaleY_ = (float)windowWidth / config.framebufferWidth;
+        float scaledHeight = config.framebufferHeight * scaleY_;
+        offset_.x = 0;
+        offset_.y = (windowHeight - scaledHeight) * 0.5f;
+        letterboxRect_ = Rectangle{offset_.x, offset_.y, (float)windowWidth, scaledHeight};
+    }
+    else
+    {
+        scaleX_ = scaleY_ = (float)windowHeight / config.framebufferHeight;
+        float scaledWidth = config.framebufferWidth * scaleX_;
+        offset_.x = (windowWidth - scaledWidth) * 0.5f;
+        offset_.y = 0;
+        letterboxRect_ = Rectangle{offset_.x, offset_.y, scaledWidth, (float)windowHeight};
+    }
+}
+
+void SceneService::Render()
+{
+    Profile;
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+
+    // Recalculate letterboxing if window was resized
+    if (IsWindowResized())
+    {
+        CalculateLetterboxing();
+    }
+
+    auto screenRect = Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
+    Scene* currentScene = GetScene();
+    const std::string& drawState = GetCurrentState();
+
+    if (IsTransitioning())
+    {
+        if (drawState == "LOADING_ASSETS")
+        {
+            // Just show black during asset loading
+            ClearBackground(BLACK);
+        }
+        else
+        {
+            // Render current scene to framebuffer
+            BeginTextureMode(sceneFramebuffer_);
+            ClearBackground(config.backgroundColor);
+            if (currentScene)
+            {
+                currentScene->OnDraw(screenRect);
+            }
+            EndTextureMode();
+
+            // Draw framebuffer with transition alpha
+            float alpha = GetTransitionProgress();
+
+            if (drawState == "EXITING")
+            {
+                Color currentTint = {255, 255, 255, (unsigned char)(255 * (1.0f - alpha))};
+                DrawTexturePro(
+                    sceneFramebuffer_.texture,
+                    Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
+                    letterboxRect_, Vector2{0, 0}, 0.0f, currentTint);
+            }
+            else if (drawState == "ENTERING")
+            {
+                Color pendingTint = {255, 255, 255, (unsigned char)(255 * alpha)};
+                DrawTexturePro(
+                    sceneFramebuffer_.texture,
+                    Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
+                    letterboxRect_, Vector2{0, 0}, 0.0f, pendingTint);
+            }
+        }
+    }
+    else
+    {
+        // Normal rendering
+        BeginTextureMode(sceneFramebuffer_);
+        ClearBackground(config.backgroundColor);
+        if (currentScene)
+        {
+            currentScene->OnDraw(screenRect);
+        }
+        EndTextureMode();
+
+        DrawTexturePro(
+            sceneFramebuffer_.texture,
+            Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
+            letterboxRect_, Vector2{0, 0}, 0.0f, WHITE);
+    }
+}
+
+// =============================================================================
 // Debug & Utility
 // =============================================================================
 
-void SceneService::OnDebugDraw()
+void SceneService::ImGui()
 {
     Profile;
     // Left side header
@@ -488,6 +605,9 @@ void SceneService::OnAssetsLoaded()
 
 void SceneService::Shutdown()
 {
+    Profile;
+    UnloadRenderTexture(sceneFramebuffer_);
+
     if (activeScene_)
     {
         activeScene_->OnExit();

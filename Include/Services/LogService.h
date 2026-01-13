@@ -81,7 +81,7 @@ public:
     }
 
     void Update(float deltaTime) override;
-    void OnDebugDraw() override;
+    void ImGui() override;
 
     void LogMessage(int logLevel, const std::string& message);
     void LogMessage(LogLevel level, const std::string& topic, const std::string& message);

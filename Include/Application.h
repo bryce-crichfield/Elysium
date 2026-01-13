@@ -16,7 +16,7 @@ struct ApplicationConfig {
     bool fullscreen = false;
     bool vsync = true;
     int targetFPS = 60;
-    Color backgroundColor;
+    Color backgroundColor = BLACK;
 
     int framebufferWidth = 640;
     int framebufferHeight = 480;
@@ -31,6 +31,7 @@ struct ApplicationConfig {
 
     static bool FromXML(const std::string& path, ApplicationConfig& out);
 };
+
 
 
 class Application {
@@ -65,21 +66,10 @@ private:
     void ProcessEvents();
 
     void ProcessInput();
-    void CalculateLetterboxing();
-    Vector2 MapScreenToFramebuffer(Vector2 screenPos) const;
 
     ApplicationConfig config_;
 
     ServiceRegistry serviceRegistry_;
-
-    RenderTexture2D frontBuffer_;
-    RenderTexture2D backBuffer_;
-    RenderTexture2D sceneFramebuffer_;
-    RenderTexture2D transitionBuffer_;  
-
-    Rectangle letterboxRect_;
-    float scaleX_, scaleY_;
-    Vector2 offset_;
 
     bool initialized_ = false;
     bool shouldClose_ = false;

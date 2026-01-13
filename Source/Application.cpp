@@ -68,13 +68,6 @@ bool Application::Initialize(const std::string &configPath)
     rlImGuiSetup(true);
     // SetTargetFPS(config_.targetFPS);
 
-    frontBuffer_ = LoadRenderTexture(config_.windowWidth, config_.windowHeight);
-    backBuffer_ = LoadRenderTexture(config_.windowWidth, config_.windowHeight);
-    sceneFramebuffer_ = LoadRenderTexture(config_.framebufferWidth, config_.framebufferHeight);
-    transitionBuffer_ = LoadRenderTexture(config_.framebufferWidth, config_.framebufferHeight);
-
-    CalculateLetterboxing();
-
     for (auto service : serviceRegistry_.GetAllServices()) {
         service->Initialize();
     }
@@ -103,11 +96,6 @@ void Application::Run()
 
         float deltaTime = GetFrameTime();
 
-        if (IsWindowResized())
-        {
-            CalculateLetterboxing();
-        }
-
         ProcessInput();
         ProcessEvents();
         Update(deltaTime);
@@ -129,11 +117,6 @@ void Application::Shutdown()
     for (auto service : serviceRegistry_.GetAllServices()) {
         service->Shutdown();
     }
-
-    UnloadRenderTexture(frontBuffer_);
-    UnloadRenderTexture(backBuffer_);
-    UnloadRenderTexture(sceneFramebuffer_);
-    UnloadRenderTexture(transitionBuffer_);
 
     rlImGuiShutdown();
     CloseAudioDevice();
@@ -200,97 +183,26 @@ void Application::Update(float deltaTime)
 void Application::Draw()
 {
     Profile;
-    auto &loadingService_ = serviceRegistry_.GetService<Elysium::Services::LoadingService>();
-    auto &sceneService_ = serviceRegistry_.GetService<Elysium::Services::SceneService>();
-    auto &assetService_ = serviceRegistry_.GetService<Elysium::Services::AssetService>();
 
-    auto renderStart = std::chrono::high_resolution_clock::now();
-    auto screenRect = Rectangle{0, 0, config_.framebufferWidth, config_.framebufferHeight};
-    Scene *currentScene = sceneService_.GetScene();
+    // Begin frame
+    BeginDrawing();
+    ClearBackground(BLACK);
 
-    const std::string &drawState = sceneService_.GetCurrentState();
-
-    if (sceneService_.IsTransitioning())
+    // Services render their content (SceneService draws scenes, etc.)
+    for (auto& service : serviceRegistry_.GetAllServices())
     {
-        if (drawState == "LOADING_ASSETS")
-        {
-            BeginDrawing();
-            ClearBackground(BLACK);
-            int screenWidth = GetScreenWidth();
-            int screenHeight = GetScreenHeight();
-
-            // Delegate drawing to LoadingService
-            // loadingService_.Draw(screenWidth, screenHeight);
-        }
-        else
-        {
-            // Render current scene to framebuffer
-            BeginTextureMode(sceneFramebuffer_);
-            ClearBackground(config_.backgroundColor);
-            if (currentScene)
-            {
-                currentScene->OnDraw(screenRect);
-            }
-            EndTextureMode();
-
-            BeginDrawing();
-            ClearBackground(BLACK);
-
-            float alpha = sceneService_.GetTransitionProgress();
-
-            if (drawState == "EXITING")
-            {
-                Color currentTint = {255, 255, 255, (unsigned char)(255 * (1.0f - alpha))};
-                DrawTexturePro(
-                    sceneFramebuffer_.texture,
-                    Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
-                    letterboxRect_, Vector2{0, 0}, 0.0f, currentTint);
-            }
-            else if (drawState == "ENTERING")
-            {
-                Color pendingTint = {255, 255, 255, (unsigned char)(255 * alpha)};
-                DrawTexturePro(
-                    sceneFramebuffer_.texture,
-                    Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
-                    letterboxRect_, Vector2{0, 0}, 0.0f, pendingTint);
-            }
-        }
-    }
-    else
-    {
-        BeginTextureMode(sceneFramebuffer_);
-        ClearBackground(config_.backgroundColor);
-        if (currentScene)
-        {
-            currentScene->OnDraw(screenRect);
-        }
-        EndTextureMode();
-
-        BeginDrawing();
-        ClearBackground(BLACK);
-
-        DrawTexturePro(
-            sceneFramebuffer_.texture,
-            Rectangle{0, 0, (float)sceneFramebuffer_.texture.width, -(float)sceneFramebuffer_.texture.height},
-            letterboxRect_, Vector2{0, 0}, 0.0f, WHITE);
+        service->Render();
     }
 
+    // ImGui overlays on top
     rlImGuiBegin();
-
-
-    for (auto &service : serviceRegistry_.GetAllServices())
+    for (auto& service : serviceRegistry_.GetAllServices())
     {
         service->DebugDraw();
     }
-
-    // TODO: Add OnSceneChanged listener so Inspector knows to observe the new scene
-
     rlImGuiEnd();
 
     EndDrawing();
-
-    auto renderEnd = std::chrono::high_resolution_clock::now();
-    float renderTime = std::chrono::duration<float>(renderEnd - renderStart).count();
 }
 
 void Application::ProcessEvents()
@@ -393,37 +305,4 @@ bool ApplicationConfig::FromXML(const std::string &configPath, ApplicationConfig
     return true;
 }
 
-void Application::CalculateLetterboxing()
-{
-    int windowWidth = GetScreenWidth();
-    int windowHeight = GetScreenHeight();
-
-    float screenAspect = (float)windowWidth / windowHeight;
-    float framebufferAspect = (float)config_.framebufferWidth / config_.framebufferHeight;
-
-    if (framebufferAspect > screenAspect)
-    {
-        scaleX_ = scaleY_ = (float)windowWidth / config_.framebufferWidth;
-        float scaledHeight = config_.framebufferHeight * scaleY_;
-        offset_.x = 0;
-        offset_.y = (windowHeight - scaledHeight) * 0.5f;
-        letterboxRect_ = Rectangle{offset_.x, offset_.y, (float)windowWidth, scaledHeight};
-    }
-    else
-    {
-        scaleX_ = scaleY_ = (float)windowHeight / config_.framebufferHeight;
-        float scaledWidth = config_.framebufferWidth * scaleX_;
-        offset_.x = (windowWidth - scaledWidth) * 0.5f;
-        offset_.y = 0;
-        letterboxRect_ = Rectangle{offset_.x, offset_.y, scaledWidth, (float)windowHeight};
-    }
-}
-
-Vector2 Application::MapScreenToFramebuffer(Vector2 screenPos) const
-{
-    Vector2 framebufferPos;
-    framebufferPos.x = (screenPos.x - offset_.x) / scaleX_;
-    framebufferPos.y = (screenPos.y - offset_.y) / scaleY_;
-    return framebufferPos;
-}
 } // namespace Elysium

@@ -16,7 +16,7 @@ public:
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    void OnDebugDraw() override;
+    void ImGui() override;
 
     // Core asset loading - takes Asset object with name, path, type
     void LoadAsset(const Asset& asset);

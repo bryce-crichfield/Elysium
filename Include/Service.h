@@ -19,8 +19,9 @@ namespace Elysium
 
         std::string GetName();
         virtual void Update(float deltaTime) = 0;
+        virtual void Render() {}
         void DebugDraw();
-        virtual void OnDebugDraw();
+        virtual void ImGui();
         void ToggleVisibility();
     protected:
         std::string name_ = "UndefinedService";

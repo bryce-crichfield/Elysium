@@ -41,7 +41,7 @@ void AssetService::Update(float deltaTime) {
     // This method is here to satisfy the Service interface
 }
 
-void AssetService::OnDebugDraw() {
+void AssetService::ImGui() {
     Profile;
     // This sucks, but we've removed this for now.  We do the drawing in the LoadingService
 }

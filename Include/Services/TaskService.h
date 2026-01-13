@@ -101,7 +101,7 @@ namespace Elysium {
             // Can be overridden by derived classes for additional logic
         }
 
-        void OnDebugDraw() override {
+        void ImGui() override {
             
         }
 

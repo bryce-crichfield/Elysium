@@ -53,7 +53,8 @@ public:
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    void OnDebugDraw() override;
+    void Render() override;
+    void ImGui() override;
 
     // Scene management
     void RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory);
@@ -113,6 +114,13 @@ private:
     float timeoutDuration_ = 100.0f; // Timeout duration in milliseconds
     float timeoutTimer_ = 0.0f; // Current timeout timer
     bool isTimingOut_ = false; // Flag for timeout mode
+
+    // Rendering infrastructure
+    RenderTexture2D sceneFramebuffer_;
+    Rectangle letterboxRect_;
+    float scaleX_, scaleY_;
+    Vector2 offset_;
+    void CalculateLetterboxing();
 
     // Panel management for dual panel UI
     float leftPanelWidth = 300.0f; // Width of the scenes panel

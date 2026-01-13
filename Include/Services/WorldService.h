@@ -95,7 +95,7 @@ public:
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    void OnDebugDraw() override;
+    void ImGui() override;
 
     // Service-specific functionality
     void SetCurrentWorld(Elysium::World* world) { currentWorld = world; this->world = world; }

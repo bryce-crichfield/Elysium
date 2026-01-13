@@ -26,12 +26,12 @@ void Service::DebugDraw()
     if (ImGui::Begin(GetName().c_str(), &isVisible_, ImGuiWindowFlags_NoCollapse))
     {
 
-        OnDebugDraw();
+        ImGui();
     }
     ImGui::End();
 }
 
-void Service::OnDebugDraw()
+void Service::ImGui()
 {
     Profile;
 }

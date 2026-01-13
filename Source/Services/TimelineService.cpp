@@ -22,7 +22,7 @@ void TimelineService::Shutdown() {
 void TimelineService::Update(float deltaTime) {
 }
 
-void TimelineService::OnDebugDraw() {
+void TimelineService::ImGui() {
     // Get current scene from SceneService
     auto& sceneService = Elysium::Application::GetInstance().GetService<SceneService>();
     currentScene_ = sceneService.GetScene();

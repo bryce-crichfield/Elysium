@@ -72,7 +72,7 @@ void LogService::Update(float deltaTime) {
     }
 }
 
-void LogService::OnDebugDraw() {
+void LogService::ImGui() {
     Profile;
     DrawHeader();
     ImGui::Separator();
