@@ -33,13 +33,6 @@ void VisitElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func) 
     }
 }
 
-template<typename Func>
-void VisitAttribute(tinyxml2::XMLElement* element, const char* attrName, Func func) {
-    if (const char* value = element->Attribute(attrName)) {
-        func(value);
-    }
-}
-
 // Iterates through child elements with a specific tag name
 template<typename Func>
 void ForEachElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func) {
@@ -47,16 +40,6 @@ void ForEachElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func
          element != nullptr;
          element = element->NextSiblingElement(xmlName)) {
         func(element);
-    }
-}
-
-// Iterates through all attributes of an element
-template<typename Func>
-void ForEachAttribute(tinyxml2::XMLElement* element, Func func) {
-    for (const tinyxml2::XMLAttribute* attr = element->FirstAttribute();
-         attr != nullptr;
-         attr = attr->Next()) {
-        func(attr);
     }
 }
 
