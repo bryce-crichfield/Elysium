@@ -91,7 +91,7 @@ void SceneService::OnEnterExiting()
 void SceneService::OnUpdateExiting()
 {
     Profile;
-    // Timer logic and automatic transition handled by SceneTransitionController
+    // Timer logic and automatic transition handled by SceneController
 }
 
 void SceneService::OnEnterLoadingAssets()
@@ -152,7 +152,7 @@ void SceneService::OnEnterEntering()
 void SceneService::OnUpdateEntering()
 {
     Profile;
-    // Timer logic and automatic transition handled by SceneTransitionController
+    // Timer logic and automatic transition handled by SceneController
 }
 
 void SceneService::OnEnterActive()

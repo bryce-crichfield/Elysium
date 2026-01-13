@@ -144,7 +144,7 @@ void Application::Update(float deltaTime)
 
     if (currentState == Elysium::Services::SceneState::LOADING_ASSETS && !loadingStarted)
     {
-        // Start loading assets when we enter LOADING_ASSETS state
+        // We basically submit a request to the loading service, to load some assets
         const auto &pendingAssets = sceneService_.GetPendingAssets();
         LOG_INFOF("Application", "Application received %zu pending assets from SceneService", pendingAssets.size());
         if (!pendingAssets.empty())
@@ -231,6 +231,11 @@ void Application::ProcessInput()
     if (IsKeyPressed(KEY_F4))
     {
         serviceRegistry_.GetService<Elysium::Services::TimelineService>().ToggleVisibility();
+    }
+
+    if (IsKeyPressed(KEY_F5))
+    {
+        serviceRegistry_.GetService<Elysium::Services::AssetService>().ToggleVisibility();
     }
 }
 

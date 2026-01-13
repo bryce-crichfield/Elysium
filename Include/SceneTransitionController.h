@@ -10,13 +10,13 @@ namespace Services {
     class SceneService;
 }
 
-class SceneTransitionController {
+class SceneController {
 public:
     friend class Services::SceneService;
     friend class SceneInspector;
 
-    SceneTransitionController() = default;
-    ~SceneTransitionController() = default;
+    SceneController() = default;
+    ~SceneController() = default;
 
     void Initialize();
     void Update(float deltaTime);

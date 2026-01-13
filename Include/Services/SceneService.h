@@ -92,7 +92,7 @@ public:
 private:
     // Components
     Elysium::SceneRenderer renderer_;
-    Elysium::SceneTransitionController transitions_;
+    Elysium::SceneController transitions_;
     Elysium::SceneInspector inspector_;
 
     // State machine handlers (callbacks for transition controller)

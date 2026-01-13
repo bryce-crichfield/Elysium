@@ -7,13 +7,13 @@ namespace Elysium {
 
 using namespace Services;
 
-void SceneTransitionController::Initialize()
+void SceneController::Initialize()
 {
     Profile;
     InitializeStateMachine();
 }
 
-void SceneTransitionController::InitializeStateMachine()
+void SceneController::InitializeStateMachine()
 {
     // Scene transition states
     const auto NONE = SceneStateToString(SceneState::NONE);
@@ -74,7 +74,7 @@ void SceneTransitionController::InitializeStateMachine()
     stateMachine_.SetCurrentState(NONE);
 }
 
-void SceneTransitionController::Update(float deltaTime)
+void SceneController::Update(float deltaTime)
 {
     Profile;
 
@@ -117,12 +117,12 @@ void SceneTransitionController::Update(float deltaTime)
     }
 }
 
-SceneState SceneTransitionController::GetCurrentState() const
+SceneState SceneController::GetCurrentState() const
 {
     return StringToSceneState(stateMachine_.GetCurrentState());
 }
 
-bool SceneTransitionController::IsTransitioning() const
+bool SceneController::IsTransitioning() const
 {
     SceneState state = GetCurrentState();
     return state == SceneState::EXITING ||
@@ -131,19 +131,19 @@ bool SceneTransitionController::IsTransitioning() const
            state == SceneState::ENTERING;
 }
 
-float SceneTransitionController::GetTransitionProgress() const
+float SceneController::GetTransitionProgress() const
 {
     if (transitionDuration_ <= 0.0f)
         return 1.0f;
     return transitionTimer_ / transitionDuration_;
 }
 
-void SceneTransitionController::TransitionToExiting()
+void SceneController::TransitionToExiting()
 {
     stateMachine_.TransitionTo(SceneStateToString(SceneState::EXITING));
 }
 
-void SceneTransitionController::OnAssetsLoaded()
+void SceneController::OnAssetsLoaded()
 {
     if (stateMachine_.IsInState(SceneStateToString(SceneState::LOADING_ASSETS)))
     {
@@ -151,7 +151,7 @@ void SceneTransitionController::OnAssetsLoaded()
     }
 }
 
-void SceneTransitionController::StartTimeout()
+void SceneController::StartTimeout()
 {
     if (stateMachine_.IsInState(SceneStateToString(SceneState::ACTIVE_PAUSED)) && !isTimingOut_)
     {

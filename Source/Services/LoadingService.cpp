@@ -20,6 +20,8 @@ LoadTask::LoadTask(Asset asset) : asset_(std::move(asset)) {}
 
 void LoadTask::Execute() {
     ProfileN("Load Asset");
+
+    // TODO: Why call into someone do LoadAsset instead of LoadTask owning this load logic?
     auto &assetService = Application::GetInstance().GetService<AssetService>();
     assetService.LoadAsset(asset_);
 }

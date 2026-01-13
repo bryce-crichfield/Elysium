@@ -1,8 +1,11 @@
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
+#include "Services/LoadingService.h"
+#include "Application.h"
 #include "raylib.h"
 #include "imgui.h"
 #include "Common.h"
+#include <filesystem>
 
 #include "Sprite.h"
 
@@ -10,7 +13,7 @@ namespace Elysium::Services {
 
 AssetService::AssetService() {
     name_ = "AssetService";
-    hasUi_ = false;
+    hasUi_ = true;
 }
 
 void AssetService::Initialize() {
@@ -41,9 +44,200 @@ void AssetService::Update(float deltaTime) {
     // This method is here to satisfy the Service interface
 }
 
+// ----------------------------------------------------------------------------
+// Helper: Convert AssetType enum to string for UI display
+// ----------------------------------------------------------------------------
+static const char* GetAssetTypeString(AssetType type) {
+    switch (type) {
+        case AssetType::TEXTURE: return "Texture";
+        case AssetType::SOUND:   return "Sound";
+        case AssetType::MUSIC:   return "Music";
+        case AssetType::FONT:    return "Font";
+        case AssetType::MODEL:   return "Model";
+        case AssetType::SHADER:  return "Shader";
+        case AssetType::SPRITE:  return "Sprite";
+        default:                 return "Unknown";
+    }
+}
+
+// ----------------------------------------------------------------------------
+// AssetService::ImGui Implementation
+// ----------------------------------------------------------------------------
+namespace fs = std::filesystem;
 void AssetService::ImGui() {
     Profile;
-    // This sucks, but we've removed this for now.  We do the drawing in the LoadingService
+
+    // --- 1. Robust Root Path Detection ---
+    static fs::path rootPath = "";
+    if (rootPath.empty()) {
+        // Try current directory
+        if (fs::exists("./Assets")) {
+            rootPath = fs::canonical("./Assets");
+        } 
+        // Try up one level (common in build/ bin/ setups)
+        else if (fs::exists("../Assets")) {
+            rootPath = fs::canonical("../Assets");
+        }
+        else {
+            // Fallback: If we can't find it, we'll show an error in the UI
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), "FATAL: Could not locate Assets folder!");
+            if (ImGui::Button("Retry Discovery")) rootPath = ""; 
+            return;
+        }
+    }
+
+    static fs::path currentPath = rootPath;
+    static std::string selectedFile = "";
+    static char assetNameBuffer[128] = "NewAsset";
+
+    if (ImGui::Button("Load New Asset")) {
+        ImGui::OpenPopup("AssetFileBrowser");
+    }
+
+    // ... [Maintain your Table code here] ...
+// --- Asset Table Snippet ---
+static ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | 
+                                    ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY | 
+                                    ImGuiTableFlags_SizingStretchProp;
+
+// Adjust height (e.g., 400px) or use 0 for auto-expanding
+if (ImGui::BeginTable("AssetServiceTable", 5, tableFlags, ImVec2(0, 400))) {
+    
+    // Setup Headers
+    ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+    ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+    ImGui::TableSetupColumn("Details", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+    ImGui::TableSetupColumn("Relative Path", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableHeadersRow();
+
+    for (auto& pair : assetsByName_) {
+        const std::string& name = pair.first;
+        Asset& asset = pair.second;
+
+        ImGui::TableNextRow();
+
+        // 1. Name
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted(name.c_str());
+
+        // 2. Type (using your helper or a switch)
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted(GetAssetTypeString(asset.GetType()));
+
+        // 3. Status (Color coded)
+        ImGui::TableSetColumnIndex(2);
+        if (asset.IsLoaded()) {
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "Loaded");
+        } else if (asset.HasImageData() || asset.HasWaveData()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Pending");
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "Error");
+        }
+
+        // 4. Details (Dimensions, IDs, etc.)
+        ImGui::TableSetColumnIndex(3);
+        if (asset.IsLoaded()) {
+            switch (asset.GetType()) {
+                case AssetType::TEXTURE: {
+                    Texture2D tex = asset.GetTexture();
+                    ImGui::Text("%dx%d", tex.width, tex.height);
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::BeginTooltip();
+                        ImGui::Image((void*)(intptr_t)tex.id, ImVec2(128, 128));
+                        ImGui::EndTooltip();
+                    }
+                    break;
+                }
+                case AssetType::SOUND:
+                    ImGui::Text("%u Frames", asset.GetSound().frameCount);
+                    break;
+                case AssetType::SPRITE:
+                    ImGui::Text("Sprite Loaded");
+                    break;
+                case AssetType::SHADER:
+                    ImGui::Text("ID: %u", asset.GetShader().id);
+                    break;
+                default:
+                    ImGui::Text("-");
+                    break;
+            }
+        } else {
+            ImGui::Text("-");
+        }
+
+        // 5. Path
+        ImGui::TableSetColumnIndex(4);
+        ImGui::TextUnformatted(asset.GetPath().c_str());
+    }
+
+    ImGui::EndTable();
+}
+    // File Chooser Modal
+    if (ImGui::BeginPopupModal("AssetFileBrowser", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        
+        // --- 2. Navigation & Path Calculation ---
+        bool isAtRoot = fs::equivalent(currentPath, rootPath);
+        
+        ImGui::BeginDisabled(isAtRoot);
+        if (ImGui::Button("..")) {
+            currentPath = currentPath.parent_path();
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        // Show path relative to the Assets folder for cleanliness
+        ImGui::Text("Location: Assets/%s", fs::relative(currentPath, rootPath).string().c_str());
+        ImGui::Separator();
+
+        // --- 3. File Listing ---
+        ImGui::BeginChild("Files", ImVec2(450, 300), true);
+        for (const auto& entry : fs::directory_iterator(currentPath)) {
+            const auto& path = entry.path();
+            if (entry.is_directory()) {
+                if (ImGui::Selectable(("[DIR] " + path.filename().string()).c_str())) {
+                    currentPath = path;
+                }
+            } else {
+                std::string fileName = path.filename().string();
+                if (ImGui::Selectable(fileName.c_str(), selectedFile == fileName)) {
+                    selectedFile = fileName;
+                    strncpy(assetNameBuffer, path.stem().string().c_str(), 127);
+                }
+            }
+        }
+        ImGui::EndChild();
+
+        // --- 4. Resulting Path (Corrected) ---
+        if (!selectedFile.empty()) {
+            fs::path fullPath = currentPath / selectedFile;
+            
+            // Calculate path relative to the Assets folder itself
+            // e.g. "Sprites/mushroom/idle.png" instead of "Assets/Sprites/..."
+            std::string relativeToAssets = fs::relative(fullPath, rootPath).generic_string();
+            
+            ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "Path: %s", relativeToAssets.c_str());
+
+            if (ImGui::Button("Load", ImVec2(120, 0))) {
+                AssetType type = AssetType::TEXTURE;
+                std::string ext = fullPath.extension().string();
+                if (ext == ".xml") type = AssetType::SPRITE;
+                else if (ext == ".wav") type = AssetType::SOUND;
+                
+                // Pass the clean relative path. 
+                // Note: If your AssetService REQUIRES the "Assets/" prefix, 
+                // change the relativeToAssets line back, but check your working directory!
+                auto &loadingService = Application::GetInstance().GetService<LoadingService>();
+                loadingService.LoadAssets(std::vector<Asset>{Asset(type, assetNameBuffer, relativeToAssets)});
+                
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
 }
 
 void AssetService::LoadAsset(const Asset& unloadedAsset) {
