@@ -74,6 +74,9 @@ public:
     void Render() override;
     void ImGui() override;
 
+    // Event handling - checks mouse input and dispatches to EventService
+    void ProcessInput();
+
     // Scene management
     void RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory);
     Elysium::Scene* GetScene() const;
@@ -94,6 +97,9 @@ private:
     Elysium::SceneRenderer renderer_;
     Elysium::SceneController transitions_;
     Elysium::SceneInspector inspector_;
+
+    // Helper to convert screen coords to framebuffer coords
+    Vector2 ScreenToFramebuffer(Vector2 screenPos) const;
 
     // State machine handlers (callbacks for transition controller)
     void OnEnterExiting();

@@ -1,8 +1,10 @@
 #include "Services/SceneService.h"
 #include "Services/LogService.h"
+#include "Services/EventService.h"
 #include "Application.h"
 #include "System.h"
 #include "Path.h"
+#include "Event.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "tinyxml2.h"
@@ -168,6 +170,10 @@ void SceneService::OnEnterActive()
         {
             activeScene_->OnExit();
             UpdateActiveSceneStatus(SceneStatus::SUSPENDED);
+
+            // Unregister from event service
+            auto& eventService = Application::GetInstance().GetService<EventService>();
+            eventService.UnregisterListener(activeScene_);
         }
 
         // Activate new scene
@@ -176,6 +182,10 @@ void SceneService::OnEnterActive()
         {
             EnterScene(sceneName);
             UpdateSceneStatus(sceneName, SceneStatus::ACTIVE);
+
+            // Register with event service
+            auto& eventService = Application::GetInstance().GetService<EventService>();
+            eventService.RegisterListener(activeScene_);
         }
     }
 
@@ -321,6 +331,12 @@ void SceneService::Update(float deltaTime)
     // Update transition controller (handles state machine and timing)
     transitions_.Update(deltaTime);
 
+    // Process input events when scene is active
+    if (activeScene_ && (currentState == SceneState::ACTIVE_RUNNING || currentState == SceneState::ACTIVE_PAUSED))
+    {
+        ProcessInput();
+    }
+
     // Update active scene when running
     if (activeScene_ && currentState == SceneState::ACTIVE_RUNNING)
     {
@@ -410,6 +426,101 @@ void SceneService::ImGui()
 void SceneService::OnAssetsLoaded()
 {
     transitions_.OnAssetsLoaded();
+}
+
+// =============================================================================
+// Event Handling
+// =============================================================================
+
+Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const
+{
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+    const Rectangle& letterbox = renderer_.GetLetterboxRect();
+
+    // Transform screen coords to framebuffer coords
+    float fbX = (screenPos.x - letterbox.x) / renderer_.GetScaleX();
+    float fbY = (screenPos.y - letterbox.y) / renderer_.GetScaleY();
+
+    return Vector2{fbX, fbY};
+}
+
+void SceneService::ProcessInput()
+{
+    Profile;
+    if (!activeScene_) return;
+
+    // Check if ImGui wants the mouse - if so, don't send events to scene
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) {
+        return; // ImGui is using the mouse, don't pass to scene
+    }
+
+    auto& eventService = Application::GetInstance().GetService<EventService>();
+    Vector2 mousePos = GetMousePosition();
+    const Rectangle& letterbox = renderer_.GetLetterboxRect();
+
+    // Only process events if mouse is inside the framebuffer
+    if (CheckCollisionPointRec(mousePos, letterbox))
+    {
+        Vector2 fbPos = ScreenToFramebuffer(mousePos);
+
+        // Mouse button events
+        for (int button = 0; button < 3; button++) // Left, Right, Middle
+        {
+            if (IsMouseButtonPressed(button))
+            {
+                MouseButtonPressedEvent event(button, fbPos);
+                eventService.Dispatch(event);
+            }
+            else if (IsMouseButtonReleased(button))
+            {
+                MouseButtonReleasedEvent event(button, fbPos);
+                eventService.Dispatch(event);
+            }
+        }
+
+        // Mouse wheel
+        float wheelMove = GetMouseWheelMove();
+        if (wheelMove != 0.0f)
+        {
+            MouseWheelEvent event(wheelMove, fbPos);
+            eventService.Dispatch(event);
+        }
+
+        // Mouse move (only if mouse moved)
+        static Vector2 lastMousePos = mousePos;
+        if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y)
+        {
+            Vector2 delta = {mousePos.x - lastMousePos.x, mousePos.y - lastMousePos.y};
+            MouseMovedEvent event(fbPos, delta);
+            eventService.Dispatch(event);
+            lastMousePos = mousePos;
+        }
+    }
+
+    // Keyboard events (always process, not framebuffer-dependent)
+    // Check common keys
+    const int keysToCheck[] = {
+        KEY_SPACE, KEY_ENTER, KEY_ESCAPE,
+        KEY_W, KEY_A, KEY_S, KEY_D,
+        KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
+        KEY_LEFT_SHIFT, KEY_LEFT_CONTROL, KEY_LEFT_ALT
+    };
+
+    for (int key : keysToCheck)
+    {
+        if (IsKeyPressed(key))
+        {
+            KeyPressedEvent event(key);
+            eventService.Dispatch(event);
+        }
+        else if (IsKeyReleased(key))
+        {
+            KeyReleasedEvent event(key);
+            eventService.Dispatch(event);
+        }
+    }
 }
 
 void SceneService::Shutdown()
