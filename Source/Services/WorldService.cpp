@@ -1,11 +1,13 @@
 #include "Services/WorldService.h"
 #include "Services/SceneService.h"
+#include "Services/AssetService.h"
 #include "Application.h"
 #include "Entity.h"
 #include "raylib.h"
 #include "Common.h"
 #include <algorithm>
 #include <iostream>
+#include <set>
 
 namespace Elysium::Services
 {
@@ -780,14 +782,128 @@ template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Ely
 {
     auto &sprite = world->GetComponent<SpriteComponent>(entity);
 
-    static char markerBuffer[256];
-    strncpy(markerBuffer, sprite.markerName.c_str(), sizeof(markerBuffer) - 1);
-    markerBuffer[sizeof(markerBuffer) - 1] = '\0';
+    // Sprite asset picker
+    FIELD_LABEL("Sprite Asset: ")
+    auto& assetService = Elysium::Application::GetInstance().GetService<AssetService>();
+    const auto& allAssets = assetService.GetAllAssets();
 
-    FIELD_LABEL("Marker Name: ")
-    if (ImGui::InputText("##MarkerName", markerBuffer, sizeof(markerBuffer)))
+    // Build list of sprite assets (non-static to avoid conflicts)
+    std::vector<std::string> spriteAssetNames;
+    spriteAssetNames.push_back("<None>");
+
+    for (const auto& [name, asset] : allAssets)
     {
-        sprite.markerName = std::string(markerBuffer);
+        if (asset.GetType() == AssetType::SPRITE && asset.IsLoaded())
+        {
+            spriteAssetNames.push_back(name);
+        }
+    }
+
+    // Find current selection
+    std::string currentSpriteName = sprite.sprite.name.empty() ? "<None>" : sprite.sprite.name;
+    int currentIndex = 0;
+    for (size_t i = 0; i < spriteAssetNames.size(); ++i)
+    {
+        if (spriteAssetNames[i] == currentSpriteName)
+        {
+            currentIndex = static_cast<int>(i);
+            break;
+        }
+    }
+
+    std::string assetComboId = "##SpriteAsset_" + std::to_string(entity);
+    if (ImGui::BeginCombo(assetComboId.c_str(), currentSpriteName.c_str()))
+    {
+        for (size_t i = 0; i < spriteAssetNames.size(); ++i)
+        {
+            bool isSelected = (currentIndex == static_cast<int>(i));
+            std::string selectableId = spriteAssetNames[i] + "##" + std::to_string(i);
+            if (ImGui::Selectable(selectableId.c_str(), isSelected))
+            {
+                if (i == 0)
+                {
+                    // Clear sprite
+                    sprite.sprite = Sprite();
+                }
+                else
+                {
+                    // Assign sprite from asset service
+                    sprite.sprite = assetService.GetSprite(spriteAssetNames[i]);
+                }
+            }
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    // Marker picker (only if sprite is loaded)
+    FIELD_LABEL("Marker: ")
+    if (!sprite.sprite.name.empty() && !sprite.sprite.sheets.empty())
+    {
+        // Collect unique markers from all sheets (deduplicated)
+        std::vector<std::string> markerNames;
+        markerNames.push_back("<None>");
+
+        std::set<std::string> uniqueMarkers;
+        for (const auto& [sheetName, sheet] : sprite.sprite.sheets)
+        {
+            for (const auto& [markerName, marker] : sheet.markers)
+            {
+                uniqueMarkers.insert(markerName);
+            }
+        }
+
+        for (const auto& markerName : uniqueMarkers)
+        {
+            markerNames.push_back(markerName);
+        }
+
+        // Find current selection
+        std::string currentMarker = sprite.markerName.empty() ? "<None>" : sprite.markerName;
+        int markerIndex = 0;
+        for (size_t i = 0; i < markerNames.size(); ++i)
+        {
+            if (markerNames[i] == currentMarker)
+            {
+                markerIndex = static_cast<int>(i);
+                break;
+            }
+        }
+
+        std::string comboId = "##SpriteMarker_" + std::to_string(entity);
+        if (ImGui::BeginCombo(comboId.c_str(), currentMarker.c_str()))
+        {
+            for (size_t i = 0; i < markerNames.size(); ++i)
+            {
+                bool isSelected = (markerIndex == static_cast<int>(i));
+                std::string selectableId = markerNames[i] + "##" + std::to_string(i);
+                if (ImGui::Selectable(selectableId.c_str(), isSelected))
+                {
+                    sprite.markerName = (i == 0) ? "" : markerNames[i];
+                }
+                if (isSelected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+    }
+    else
+    {
+        // Fallback to text input if no sprite loaded
+        static char markerBuffer[256];
+        strncpy(markerBuffer, sprite.markerName.c_str(), sizeof(markerBuffer) - 1);
+        markerBuffer[sizeof(markerBuffer) - 1] = '\0';
+
+        std::string inputId = "##SpriteMarkerInput_" + std::to_string(entity);
+        if (ImGui::InputText(inputId.c_str(), markerBuffer, sizeof(markerBuffer)))
+        {
+            sprite.markerName = std::string(markerBuffer);
+        }
     }
 
     static char layerBuffer[256];
@@ -795,17 +911,23 @@ template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Ely
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
     FIELD_LABEL("Layer Name: ")
-    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
+    std::string layerInputId = "##SpriteLayerName_" + std::to_string(entity);
+    if (ImGui::InputText(layerInputId.c_str(), layerBuffer, sizeof(layerBuffer)))
     {
         sprite.layerName = std::string(layerBuffer);
     }
 
     FIELD_LABEL("Frame Index: ")
-    ImGui::DragInt("##FrameIndex", &sprite.frameIndex, 1.0f, 0);
+    std::string frameIndexId = "##SpriteFrameIndex_" + std::to_string(entity);
+    ImGui::DragInt(frameIndexId.c_str(), &sprite.frameIndex, 1.0f, 0);
+
     FIELD_LABEL("Duration: ")
-    ImGui::DragFloat("##FrameDuration", &sprite.frameDuration, 0.01f, 0.0f, 10.0f);
+    std::string durationId = "##SpriteFrameDuration_" + std::to_string(entity);
+    ImGui::DragFloat(durationId.c_str(), &sprite.frameDuration, 0.01f, 0.0f, 10.0f);
+
     FIELD_LABEL("Elapsed: ")
-    ImGui::DragFloat("##FrameElapsed", &sprite.frameElapsed, 0.01f, 0.0f);
+    std::string elapsedId = "##SpriteFrameElapsed_" + std::to_string(entity);
+    ImGui::DragFloat(elapsedId.c_str(), &sprite.frameElapsed, 0.01f, 0.0f);
 }
 
 template <> void WorldService::DrawComponent<TextComponent>(Entity entity, Elysium::World *world)
