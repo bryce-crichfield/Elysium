@@ -50,6 +50,11 @@ SpriteComponent::SpriteComponent(const Sprite &sprite, const std::string &marker
 {
 }
 
+TextureComponent::TextureComponent(const std::string &texture, const std::string &layer)
+    : textureName(texture), layerName(layer)
+{
+}
+
 TextComponent::TextComponent(const std::string &text, int size, Color c, const std::string &layer)
     : content(text), fontSize(size), color(c), layerName(layer)
 {

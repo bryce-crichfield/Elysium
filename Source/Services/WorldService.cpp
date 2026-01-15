@@ -31,6 +31,7 @@ void WorldService::RegisterComponentTypes()
 {
     RegisterComponent<NameComponent>("Name");
     RegisterComponent<PositionComponent>("Position");
+    RegisterComponent<ScaleComponent>("Scale");
     RegisterComponent<LocationComponent>("Location");
     RegisterComponent<MovementComponent>("Movement");
     RegisterComponent<AnimationComponent>("Animation");
@@ -40,6 +41,7 @@ void WorldService::RegisterComponentTypes()
     RegisterComponent<CircleComponent>("Circle");
     RegisterComponent<LightComponent>("Light");
     RegisterComponent<SpriteComponent>("Sprite");
+    RegisterComponent<TextureComponent>("Texture");
     RegisterComponent<TextComponent>("Text");
     RegisterComponent<CameraComponent>("Camera");
     RegisterComponent<FollowComponent>("Follow");
@@ -554,9 +556,22 @@ template <> void WorldService::DrawComponent<PositionComponent>(Entity entity, E
 {
     auto &pos = world->GetComponent<PositionComponent>(entity);
     FIELD_LABEL("X: ")
-    ImGui::DragFloat("##X", &pos.x, 1.0f);
+    std::string xId = "##PosX_" + std::to_string(entity);
+    ImGui::DragFloat(xId.c_str(), &pos.x, 1.0f);
     FIELD_LABEL("Y: ")
-    ImGui::DragFloat("##Y", &pos.y, 1.0f);
+    std::string yId = "##PosY_" + std::to_string(entity);
+    ImGui::DragFloat(yId.c_str(), &pos.y, 1.0f);
+}
+
+template <> void WorldService::DrawComponent<ScaleComponent>(Entity entity, Elysium::World *world)
+{
+    auto &scale = world->GetComponent<ScaleComponent>(entity);
+    FIELD_LABEL("X: ")
+    std::string xId = "##ScaleX_" + std::to_string(entity);
+    ImGui::DragFloat(xId.c_str(), &scale.x, 0.01f, 0.0f);
+    FIELD_LABEL("Y: ")
+    std::string yId = "##ScaleY_" + std::to_string(entity);
+    ImGui::DragFloat(yId.c_str(), &scale.y, 0.01f, 0.0f);
 }
 
 template <> void WorldService::DrawComponent<LocationComponent>(Entity entity, Elysium::World *world)
@@ -928,6 +943,114 @@ template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Ely
     FIELD_LABEL("Elapsed: ")
     std::string elapsedId = "##SpriteFrameElapsed_" + std::to_string(entity);
     ImGui::DragFloat(elapsedId.c_str(), &sprite.frameElapsed, 0.01f, 0.0f);
+}
+
+template <> void WorldService::DrawComponent<TextureComponent>(Entity entity, Elysium::World *world)
+{
+    auto &texture = world->GetComponent<TextureComponent>(entity);
+
+    // Texture asset picker
+    FIELD_LABEL("Texture Asset: ")
+    auto& assetService = Elysium::Application::GetInstance().GetService<AssetService>();
+    const auto& allAssets = assetService.GetAllAssets();
+
+    // Build list of texture assets
+    std::vector<std::string> textureAssetNames;
+    textureAssetNames.push_back("<None>");
+
+    for (const auto& [name, asset] : allAssets)
+    {
+        if (asset.GetType() == AssetType::TEXTURE && asset.IsLoaded())
+        {
+            textureAssetNames.push_back(name);
+        }
+    }
+
+    // Find current selection
+    std::string currentTextureName = texture.textureName.empty() ? "<None>" : texture.textureName;
+    int currentIndex = 0;
+    for (size_t i = 0; i < textureAssetNames.size(); ++i)
+    {
+        if (textureAssetNames[i] == currentTextureName)
+        {
+            currentIndex = static_cast<int>(i);
+            break;
+        }
+    }
+
+    std::string assetComboId = "##TextureAsset_" + std::to_string(entity);
+    if (ImGui::BeginCombo(assetComboId.c_str(), currentTextureName.c_str()))
+    {
+        for (size_t i = 0; i < textureAssetNames.size(); ++i)
+        {
+            bool isSelected = (currentIndex == static_cast<int>(i));
+            std::string selectableId = textureAssetNames[i] + "##" + std::to_string(i);
+            if (ImGui::Selectable(selectableId.c_str(), isSelected))
+            {
+                texture.textureName = (i == 0) ? "" : textureAssetNames[i];
+            }
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    static char layerBuffer[256];
+    strncpy(layerBuffer, texture.layerName.c_str(), sizeof(layerBuffer) - 1);
+    layerBuffer[sizeof(layerBuffer) - 1] = '\0';
+
+    FIELD_LABEL("Layer Name: ")
+    std::string layerInputId = "##TextureLayerName_" + std::to_string(entity);
+    if (ImGui::InputText(layerInputId.c_str(), layerBuffer, sizeof(layerBuffer)))
+    {
+        texture.layerName = std::string(layerBuffer);
+    }
+
+    FIELD_LABEL("Clip Rect: ")
+    ImGui::Text("X:");
+    ImGui::SameLine();
+    std::string clipXId = "##TextureClipX_" + std::to_string(entity);
+    ImGui::SetNextItemWidth(60);
+    ImGui::DragFloat(clipXId.c_str(), &texture.clip.x, 1.0f, 0.0f);
+    ImGui::SameLine();
+    ImGui::Text("Y:");
+    ImGui::SameLine();
+    std::string clipYId = "##TextureClipY_" + std::to_string(entity);
+    ImGui::SetNextItemWidth(60);
+    ImGui::DragFloat(clipYId.c_str(), &texture.clip.y, 1.0f, 0.0f);
+    ImGui::Text("W:");
+    ImGui::SameLine();
+    std::string clipWId = "##TextureClipW_" + std::to_string(entity);
+    ImGui::SetNextItemWidth(60);
+    ImGui::DragFloat(clipWId.c_str(), &texture.clip.width, 1.0f, 0.0f);
+    ImGui::SameLine();
+    ImGui::Text("H:");
+    ImGui::SameLine();
+    std::string clipHId = "##TextureClipH_" + std::to_string(entity);
+    ImGui::SetNextItemWidth(60);
+    ImGui::DragFloat(clipHId.c_str(), &texture.clip.height, 1.0f, 0.0f);
+    ImGui::SameLine();
+    ImGui::TextDisabled("(0 = full texture)");
+
+    FIELD_LABEL("Tint: ")
+    std::string tintId = "##TextureTint_" + std::to_string(entity);
+    float tintColor[4] = {
+        texture.tint.r / 255.0f,
+        texture.tint.g / 255.0f,
+        texture.tint.b / 255.0f,
+        texture.tint.a / 255.0f
+    };
+    if (ImGui::ColorEdit4(tintId.c_str(), tintColor))
+    {
+        texture.tint = {
+            static_cast<unsigned char>(tintColor[0] * 255),
+            static_cast<unsigned char>(tintColor[1] * 255),
+            static_cast<unsigned char>(tintColor[2] * 255),
+            static_cast<unsigned char>(tintColor[3] * 255)
+        };
+    }
 }
 
 template <> void WorldService::DrawComponent<TextComponent>(Entity entity, Elysium::World *world)

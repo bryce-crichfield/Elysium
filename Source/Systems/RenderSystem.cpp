@@ -235,6 +235,9 @@ std::optional<Renderable> RenderSystem::GetRenderable(Entity entity) {
     if (world->HasComponent<SpriteComponent>(entity)) {
         return world->GetComponent<SpriteComponent>(entity);
     }
+    if (world->HasComponent<TextureComponent>(entity)) {
+        return world->GetComponent<TextureComponent>(entity);
+    }
     if (world->HasComponent<LightComponent>(entity)) {
         return world->GetComponent<LightComponent>(entity);
     }
@@ -294,17 +297,62 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
                 Texture2D texture = assets.GetTexture(textureName);
 
                 if (texture.id != 0) {
+                    // Get scale (default to 1,1 if no ScaleComponent)
+                    float scaleX = 1.0f, scaleY = 1.0f;
+                    if (world->HasComponent<ScaleComponent>(item.entity)) {
+                        auto& scale = world->GetComponent<ScaleComponent>(item.entity);
+                        scaleX = scale.x;
+                        scaleY = scale.y;
+                    }
 
-                    // For grid alignment, we want sprites to be centered on their tile position
-                    // Since sprites might be larger than tiles, we center them properly
+                    // Apply scale to destination size
+                    float scaledWidth = sourceRect.width * scaleX;
+                    float scaledHeight = sourceRect.height * scaleY;
+
                     Rectangle destRect = {
-                        item.position.x - sourceRect.width * 0.5f,
-                        item.position.y - sourceRect.height * 0.5f,
-                        sourceRect.width,
-                        sourceRect.height
+                        item.position.x - scaledWidth * 0.5f,
+                        item.position.y - scaledHeight * 0.5f,
+                        scaledWidth,
+                        scaledHeight
                     };
                     Vector2 origin = {0, 0};
                     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
+                }
+            }
+        }
+        else if constexpr (std::is_same_v<T, TextureComponent>) {
+            if (!component.textureName.empty()) {
+                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+                Texture2D texture = assets.GetTexture(component.textureName);
+
+                if (texture.id != 0) {
+                    // Source rect: use clip if specified, otherwise full texture
+                    Rectangle sourceRect = component.clip;
+                    if (sourceRect.width <= 0 || sourceRect.height <= 0) {
+                        sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
+                    }
+
+                    // Get scale (default to 1,1 if no ScaleComponent)
+                    float scaleX = 1.0f, scaleY = 1.0f;
+                    if (world->HasComponent<ScaleComponent>(item.entity)) {
+                        auto& scale = world->GetComponent<ScaleComponent>(item.entity);
+                        scaleX = scale.x;
+                        scaleY = scale.y;
+                    }
+
+                    // Apply scale to destination size
+                    float scaledWidth = sourceRect.width * scaleX;
+                    float scaledHeight = sourceRect.height * scaleY;
+
+                    Rectangle destRect = {
+                        item.position.x - scaledWidth * 0.5f,
+                        item.position.y - scaledHeight * 0.5f,
+                        scaledWidth,
+                        scaledHeight
+                    };
+
+                    Vector2 origin = {0, 0};
+                    DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, component.tint);
                 }
             }
         }
@@ -346,12 +394,55 @@ void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
             const std::string& marker = component.markerName;
             Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
 
+            // Get scale (default to 1,1 if no ScaleComponent)
+            float scaleX = 1.0f, scaleY = 1.0f;
+            if (world->HasComponent<ScaleComponent>(entity)) {
+                auto& scale = world->GetComponent<ScaleComponent>(entity);
+                scaleX = scale.x;
+                scaleY = scale.y;
+            }
+
+            float scaledWidth = sourceRect.width * scaleX;
+            float scaledHeight = sourceRect.height * scaleY;
+
             bounds.bounds = {
-                item.position.x - sourceRect.width * 0.5f,
-                item.position.y - sourceRect.height * 0.5f,
-                sourceRect.width,
-                sourceRect.height
+                item.position.x - scaledWidth * 0.5f,
+                item.position.y - scaledHeight * 0.5f,
+                scaledWidth,
+                scaledHeight
             };
+        }
+        else if constexpr (std::is_same_v<T, TextureComponent>) {
+            if (!component.textureName.empty()) {
+                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+                Texture2D texture = assets.GetTexture(component.textureName);
+
+                if (texture.id != 0) {
+                    // Source rect: use clip if specified, otherwise full texture
+                    Rectangle sourceRect = component.clip;
+                    if (sourceRect.width <= 0 || sourceRect.height <= 0) {
+                        sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
+                    }
+
+                    // Get scale (default to 1,1 if no ScaleComponent)
+                    float scaleX = 1.0f, scaleY = 1.0f;
+                    if (world->HasComponent<ScaleComponent>(entity)) {
+                        auto& scale = world->GetComponent<ScaleComponent>(entity);
+                        scaleX = scale.x;
+                        scaleY = scale.y;
+                    }
+
+                    float scaledWidth = sourceRect.width * scaleX;
+                    float scaledHeight = sourceRect.height * scaleY;
+
+                    bounds.bounds = {
+                        item.position.x - scaledWidth * 0.5f,
+                        item.position.y - scaledHeight * 0.5f,
+                        scaledWidth,
+                        scaledHeight
+                    };
+                }
+            }
         }
         else if constexpr (std::is_same_v<T, TextComponent>) {
             int textWidth = MeasureText(component.content.c_str(), component.fontSize);

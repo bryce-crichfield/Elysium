@@ -99,6 +99,7 @@ World::World()
     RegisterComponent<NameComponent>();
     RegisterComponent<LocationComponent>();
     RegisterComponent<PositionComponent>();
+    RegisterComponent<ScaleComponent>();
     RegisterComponent<MovementComponent>();
     RegisterComponent<DirectionComponent>();
     RegisterComponent<AnimationComponent>();
@@ -107,6 +108,7 @@ World::World()
     RegisterComponent<RectangleComponent>();
     RegisterComponent<CircleComponent>();
     RegisterComponent<SpriteComponent>();
+    RegisterComponent<TextureComponent>();
     RegisterComponent<TextComponent>();
     RegisterComponent<CameraComponent>();
     RegisterComponent<FollowComponent>();

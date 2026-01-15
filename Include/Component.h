@@ -22,6 +22,16 @@ struct PositionComponent
     PositionComponent(float x = 0.0f, float y = 0.0f);
 };
 
+struct ScaleComponent
+{
+    float x = 1.0f;
+    float y = 1.0f;
+
+    ScaleComponent() = default;
+    ScaleComponent(float x, float y) : x(x), y(y) {}
+    ScaleComponent(float uniform) : x(uniform), y(uniform) {}
+};
+
 struct LocationComponent
 {
     int x, y;
@@ -160,6 +170,17 @@ struct SpriteComponent
 
     SpriteComponent() = default;
     SpriteComponent(const Sprite& sprite, const std::string& marker, const std::string& layer = "default");
+};
+
+struct TextureComponent
+{
+    std::string textureName;  // Asset name of the texture
+    std::string layerName = "default";
+    Rectangle clip = {0, 0, 0, 0};  // Source clip rect (0,0,0,0 = use full texture)
+    Color tint = WHITE;              // Tint/modulation color
+
+    TextureComponent() = default;
+    TextureComponent(const std::string& texture, const std::string& layer = "default");
 };
 
 struct TextComponent

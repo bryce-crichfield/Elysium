@@ -14,10 +14,10 @@ namespace Elysium::Systems {
 struct RenderItem {
     Entity entity;
     Vector2 position;
-    std::variant<RectangleComponent, CircleComponent, TextComponent, SpriteComponent, LightComponent> renderable;
+    std::variant<RectangleComponent, CircleComponent, TextComponent, SpriteComponent, TextureComponent, LightComponent> renderable;
 };
 
-using Renderable = std::variant<RectangleComponent, CircleComponent, TextComponent, SpriteComponent, LightComponent>;
+using Renderable = std::variant<RectangleComponent, CircleComponent, TextComponent, SpriteComponent, TextureComponent, LightComponent>;
 
 class RenderSystem : public System {
 public:
