@@ -276,10 +276,22 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
             }
         }
         else if constexpr (std::is_same_v<T, TextComponent>) {
-            int textWidth = MeasureText(component.content.c_str(), component.fontSize);
+            // Get scale (default to 1,1 if no ScaleComponent)
+            float scaleX = 1.0f, scaleY = 1.0f;
+            if (world->HasComponent<ScaleComponent>(item.entity)) {
+                auto& scale = world->GetComponent<ScaleComponent>(item.entity);
+                scaleX = scale.x;
+                scaleY = scale.y;
+            }
+
+            // Apply scale to font size (use average of x and y scale for text)
+            float avgScale = (scaleX + scaleY) / 2.0f;
+            int scaledFontSize = component.fontSize * avgScale;
+
+            int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
             int centeredX = item.position.x - textWidth * 0.5f;
-            int centeredY = item.position.y - component.fontSize * 0.5f;
-            DrawText(component.content.c_str(), centeredX, centeredY, component.fontSize, component.color);
+            int centeredY = item.position.y - scaledFontSize * 0.5f;
+            DrawText(component.content.c_str(), centeredX, centeredY, scaledFontSize, component.color);
         }
         else if constexpr (std::is_same_v<T, LightComponent>) {
             DrawCircleV({item.position.x, item.position.y}, component.radius, component.color);
@@ -445,12 +457,24 @@ void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
             }
         }
         else if constexpr (std::is_same_v<T, TextComponent>) {
-            int textWidth = MeasureText(component.content.c_str(), component.fontSize);
+            // Get scale (default to 1,1 if no ScaleComponent)
+            float scaleX = 1.0f, scaleY = 1.0f;
+            if (world->HasComponent<ScaleComponent>(entity)) {
+                auto& scale = world->GetComponent<ScaleComponent>(entity);
+                scaleX = scale.x;
+                scaleY = scale.y;
+            }
+
+            // Apply scale to font size (use average of x and y scale for text)
+            float avgScale = (scaleX + scaleY) / 2.0f;
+            int scaledFontSize = component.fontSize * avgScale;
+
+            int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
             bounds.bounds = {
                 item.position.x - textWidth * 0.5f,
-                item.position.y - component.fontSize * 0.5f,
+                item.position.y - scaledFontSize * 0.5f,
                 (float)textWidth,
-                (float)component.fontSize
+                (float)scaledFontSize
             };
         }
         else if constexpr (std::is_same_v<T, LightComponent>) {
