@@ -12,6 +12,15 @@ void ComponentManager::EntityDestroyed(Entity entity)
     }
 }
 
+void ComponentManager::CloneAllComponents(Entity source, Entity dest)
+{
+    for (auto const &pair : componentArrays)
+    {
+        auto const &component = pair.second;
+        component->CloneComponent(source, dest);
+    }
+}
+
 // EntityManager implementations
 EntityManager::EntityManager()
 {
@@ -112,6 +121,21 @@ World::World()
 Entity World::CreateEntity()
 {
     return entityManager->CreateEntity();
+}
+
+Entity World::CloneEntity(Entity source)
+{
+    // Create new entity
+    Entity newEntity = entityManager->CreateEntity();
+
+    // Copy component mask
+    ComponentMask mask = entityManager->GetComponentMask(source);
+    entityManager->SetComponentMask(newEntity, mask);
+
+    // Clone all components
+    componentManager->CloneAllComponents(source, newEntity);
+
+    return newEntity;
 }
 
 bool World::GetEntityByName(std::string name, Entity* entity) {

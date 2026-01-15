@@ -59,6 +59,15 @@ void WorldService::Update(float deltaTime)
     if (newWorld != world) {
         world = newWorld;
     }
+
+    // Auto-select dragged entities
+    if (world) {
+        world->Query<BoundsComponent>([&](Entity entity, auto& bounds) {
+            if (bounds.isDragging) {
+                selectedEntity = entity;
+            }
+        });
+    }
 }
 
 void WorldService::ImGui()
@@ -237,20 +246,9 @@ void WorldService::DrawEntityToolbar()
         if (canDeselect)
             DeselectEntity();
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Remove"))
-    {
-        if (canDeselect)
-            RemoveEntity();
-    }
     if (!canDeselect)
     {
         ImGui::PopStyleVar();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Create"))
-    {
-        CreateEntity();
     }
 }
 
@@ -326,6 +324,38 @@ void WorldService::DrawEntityList()
                 selectedEntity = entity;
             }
 
+            // Right-click context menu
+            if (ImGui::BeginPopupContextItem(("EntityContextMenu_" + std::to_string(entity)).c_str()))
+            {
+                ImGui::Text("Entity %zu", entity);
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Edit"))
+                {
+                    selectedEntity = entity;
+                    ImGui::CloseCurrentPopup();
+                }
+
+                if (ImGui::MenuItem("Clone"))
+                {
+                    Entity clonedEntity = world->CloneEntity(entity);
+                    selectedEntity = clonedEntity;
+                    ImGui::CloseCurrentPopup();
+                }
+
+                if (ImGui::MenuItem("Delete"))
+                {
+                    world->DestroyEntity(entity);
+                    if (selectedEntity == entity)
+                    {
+                        selectedEntity = INVALID_ENTITY;
+                    }
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            }
+
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%s", entityName.c_str());
         }
@@ -346,8 +376,34 @@ void WorldService::DrawInspectorToolbar()
         }
 
         ImGui::Text("Entity ID: %zu", selectedEntity);
+
+        // Entity name editing
+        ImGui::Text("Name:");
         ImGui::SameLine();
-        ImGui::Text("Name: %s", entityName.c_str());
+        static char nameBuffer[256];
+
+        // Update buffer when entity selection changes or on first frame
+        static Entity lastEditedEntity = INVALID_ENTITY;
+        if (lastEditedEntity != selectedEntity)
+        {
+            strncpy(nameBuffer, entityName.c_str(), sizeof(nameBuffer) - 1);
+            nameBuffer[sizeof(nameBuffer) - 1] = '\0';
+            lastEditedEntity = selectedEntity;
+        }
+
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::InputText("##EntityName", nameBuffer, sizeof(nameBuffer)))
+        {
+            // Update or add NameComponent
+            if (world->HasComponent<NameComponent>(selectedEntity))
+            {
+                world->GetComponent<NameComponent>(selectedEntity).name = nameBuffer;
+            }
+            else
+            {
+                world->AddComponent(selectedEntity, NameComponent(nameBuffer));
+            }
+        }
 
         ImGui::Separator();
 

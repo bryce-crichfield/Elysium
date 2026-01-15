@@ -40,6 +40,7 @@ class ComponentArray
 public:
     virtual ~ComponentArray() = default;
     virtual void EntityDestroyed(Entity entity) = 0;
+    virtual void CloneComponent(Entity source, Entity dest) = 0;
 };
 
 template<typename T>
@@ -57,6 +58,7 @@ public:
     T& GetData(Entity entity);
     bool HasData(Entity entity) const;
     void EntityDestroyed(Entity entity) override;
+    void CloneComponent(Entity source, Entity dest) override;
     std::vector<T>& GetArray();
     const std::vector<T>& GetArray() const;
     std::unordered_map<Entity, size_t>& GetEntityToIndex();
@@ -90,6 +92,7 @@ public:
     bool HasComponent(Entity entity) const;
 
     void EntityDestroyed(Entity entity);
+    void CloneAllComponents(Entity source, Entity dest);
 
     template<typename T>
     std::vector<T>& GetRawComponentArray();
@@ -132,6 +135,7 @@ public:
     World(); // Declaration only
     ~World() = default;
     Entity CreateEntity(); // Declaration only
+    Entity CloneEntity(Entity source); // Declaration only
     void DestroyEntity(Entity entity); // Declaration only
     size_t GetEntityCount() const; // Declaration only
     const std::vector<Entity>& GetLivingEntities() const; // Declaration only
@@ -228,6 +232,16 @@ void TypedComponentArray<T>::EntityDestroyed(Entity entity)
 {
     if (entityToIndex.find(entity) != entityToIndex.end()) {
         RemoveData(entity);
+    }
+}
+
+template<typename T>
+void TypedComponentArray<T>::CloneComponent(Entity source, Entity dest)
+{
+    if (entityToIndex.find(source) != entityToIndex.end()) {
+        // Source has this component, copy it to dest
+        T componentCopy = GetData(source);
+        InsertData(dest, componentCopy);
     }
 }
 
