@@ -361,6 +361,18 @@ void WorldService::DrawEntityList()
         }
 
         ImGui::EndTable();
+
+        // Right-click context menu on empty space (don't open over items)
+        if (ImGui::BeginPopupContextWindow("EntityListContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+        {
+            if (ImGui::MenuItem("Create Entity"))
+            {
+                Entity newEntity = world->CreateEntity();
+                selectedEntity = newEntity;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
     }
 }
 
