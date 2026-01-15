@@ -4,6 +4,7 @@
         <System type="SpriteSystem" />
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
+        <System type="PickSystem" />
         <System type="RenderSystem" />
     </Systems>
 
@@ -60,6 +61,8 @@
             spriteName="mushroom_warrior"
             markerName="idle/down"
             layerName="entity" />
+
+            <BoundsComponent />
         </Entity>
     </Entities>
 </Scene>

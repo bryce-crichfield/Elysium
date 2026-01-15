@@ -256,4 +256,27 @@ struct UnitComponent {
     }
 };
 
+/**
+ * BoundsComponent stores the bounding rectangle for an entity.
+ * Automatically computed by RenderSystem based on the entity's renderable component.
+ * Used by PickSystem for mouse picking and debugging visualization.
+ */
+struct BoundsComponent {
+    Rectangle bounds;           // Bounding box in world space
+    bool isDragging;            // Is this entity currently being dragged
+    Color debugColor;           // Color to draw debug bounds
+
+    BoundsComponent()
+        : bounds({0, 0, 0, 0})
+        , isDragging(false)
+        , debugColor(RED)
+    {}
+
+    BoundsComponent(Rectangle rect, Color color)
+        : bounds(rect)
+        , isDragging(false)
+        , debugColor(color)
+    {}
+};
+
 };

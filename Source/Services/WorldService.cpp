@@ -46,6 +46,7 @@ void WorldService::RegisterComponentTypes()
     RegisterComponent<CooldownComponent>("Cooldown");
     RegisterComponent<CharacterComponent>("Character");
     RegisterComponent<UnitComponent>("Unit");
+    RegisterComponent<BoundsComponent>("Bounds");
 }
 
 void WorldService::Update(float deltaTime)
@@ -863,6 +864,35 @@ template <> void WorldService::DrawComponent<UnitComponent>(Entity entity, Elysi
     {
         unit.EndTurn();
     }
+}
+
+template <> void WorldService::DrawComponent<BoundsComponent>(Entity entity, Elysium::World *world)
+{
+    auto &bounds = world->GetComponent<BoundsComponent>(entity);
+
+    FIELD_LABEL("X: ")
+    ImGui::Text("%.1f", bounds.bounds.x);
+    FIELD_LABEL("Y: ")
+    ImGui::Text("%.1f", bounds.bounds.y);
+    FIELD_LABEL("Width: ")
+    ImGui::Text("%.1f", bounds.bounds.width);
+    FIELD_LABEL("Height: ")
+    ImGui::Text("%.1f", bounds.bounds.height);
+
+    FIELD_LABEL("Is Dragging: ")
+    ImGui::Checkbox("##IsDragging", &bounds.isDragging);
+
+    float color[4] = {bounds.debugColor.r / 255.0f, bounds.debugColor.g / 255.0f,
+                      bounds.debugColor.b / 255.0f, bounds.debugColor.a / 255.0f};
+    FIELD_LABEL("Debug Color: ")
+    if (ImGui::ColorEdit4("##DebugColor", color))
+    {
+        bounds.debugColor = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255),
+                             (unsigned char)(color[2] * 255), (unsigned char)(color[3] * 255)};
+    }
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Bounds are computed automatically by RenderSystem");
 }
 
 } // namespace Elysium::Services

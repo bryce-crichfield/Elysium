@@ -106,6 +106,7 @@ World::World()
     RegisterComponent<CooldownComponent>();
     RegisterComponent<CharacterComponent>();
     RegisterComponent<UnitComponent>();
+    RegisterComponent<BoundsComponent>();
 }
 
 Entity World::CreateEntity()

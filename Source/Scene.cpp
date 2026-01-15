@@ -10,6 +10,7 @@
 #include "Systems/SpriteSystem.h"
 #include "Systems/TimelineSystem.h"
 #include "Timeline.h"
+#include "Event.h"
 #include "tinyxml2.h"
 #include "raylib.h"
 #include <sstream>
@@ -46,6 +47,14 @@ void Scene::OnDraw(Rectangle screen) {
     // Just render all systems - no need for manual camera management
     for (auto& system : systems_) {
         system->Draw();
+    }
+}
+
+void Scene::OnEvent(Event& event) {
+    // Forward events to all systems
+    for (auto& system : systems_) {
+        if (event.handled) break; // Stop propagation if handled
+        system->OnEvent(event);
     }
 }
 

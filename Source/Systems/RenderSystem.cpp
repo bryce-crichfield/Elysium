@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <variant>
 #include <optional>
+
 namespace Elysium::Systems {
 
 void RenderSystem::Draw() {
@@ -119,6 +120,16 @@ void RenderSystem::RenderCamera(Entity cameraEntity, const CameraComponent& came
             RenderLayer(layerIndex, layerItems[layerIndex], cameraEntity, defaultLayer);
         }
     }
+
+    // Draw debug bounds on top of everything with world space transform
+    LayerComponent worldLayer;
+    worldLayer.space = LayerComponent::Space::World;
+    worldLayer.blend = LayerComponent::Blend::Normal;
+    Matrix transform = GetLayerTransform(worldLayer, cameraEntity);
+    rlPushMatrix();
+    rlMultMatrixf(MatrixToFloat(transform));
+    DrawDebugBounds();
+    rlPopMatrix();
 
     EndScissorMode();
 }
@@ -241,6 +252,9 @@ std::string RenderSystem::GetLayerName(const std::optional<Renderable>& renderab
 }
 
 void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent& layer) {
+    // Compute bounds if entity has BoundsComponent
+    ComputeBounds(item.entity, item);
+
     std::visit([&](const auto& component) {
         using T = std::decay_t<decltype(component)>;
 
@@ -296,4 +310,99 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
         }
     }, item.renderable);
 }
+
+void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
+    // Only compute bounds if the entity has a BoundsComponent
+    if (!world->HasComponent<BoundsComponent>(entity)) {
+        return;
+    }
+
+    auto& bounds = world->GetComponent<BoundsComponent>(entity);
+
+    // Compute bounding rectangle based on renderable type
+    std::visit([&](const auto& component) {
+        using T = std::decay_t<decltype(component)>;
+
+        if constexpr (std::is_same_v<T, RectangleComponent>) {
+            float halfWidth = component.width * 0.5f;
+            float halfHeight = component.height * 0.5f;
+            bounds.bounds = {
+                item.position.x - halfWidth,
+                item.position.y - halfHeight,
+                component.width,
+                component.height
+            };
+        }
+        else if constexpr (std::is_same_v<T, CircleComponent>) {
+            bounds.bounds = {
+                item.position.x - component.radius,
+                item.position.y - component.radius,
+                component.radius * 2,
+                component.radius * 2
+            };
+        }
+        else if constexpr (std::is_same_v<T, SpriteComponent>) {
+            const Sprite& sprite = component.sprite;
+            const std::string& marker = component.markerName;
+            Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
+
+            bounds.bounds = {
+                item.position.x - sourceRect.width * 0.5f,
+                item.position.y - sourceRect.height * 0.5f,
+                sourceRect.width,
+                sourceRect.height
+            };
+        }
+        else if constexpr (std::is_same_v<T, TextComponent>) {
+            int textWidth = MeasureText(component.content.c_str(), component.fontSize);
+            bounds.bounds = {
+                item.position.x - textWidth * 0.5f,
+                item.position.y - component.fontSize * 0.5f,
+                (float)textWidth,
+                (float)component.fontSize
+            };
+        }
+        else if constexpr (std::is_same_v<T, LightComponent>) {
+            bounds.bounds = {
+                item.position.x - component.radius,
+                item.position.y - component.radius,
+                component.radius * 2,
+                component.radius * 2
+            };
+        }
+    }, item.renderable);
+}
+
+void RenderSystem::DrawDebugBounds() {
+    // Get scene to check debug flag
+    Scene* scene = GetScene();
+    if (!scene) return;
+
+    // TODO: Add debug flag check to scene once implemented
+    // For now, always draw debug bounds if entity has BoundsComponent
+
+    world->Query<BoundsComponent>([&](Entity entity, auto& bounds) {
+        // Skip if bounds haven't been computed yet (width/height are 0)
+        if (bounds.bounds.width <= 0 || bounds.bounds.height <= 0) {
+            return;
+        }
+
+        // Draw the bounding box
+        DrawRectangleLines(
+            bounds.bounds.x,
+            bounds.bounds.y,
+            bounds.bounds.width,
+            bounds.bounds.height,
+            bounds.debugColor
+        );
+
+        // If dragging, draw a filled semi-transparent overlay
+        if (bounds.isDragging) {
+            Color dragColor = bounds.debugColor;
+            dragColor.a = 50;
+            DrawRectangleRec(bounds.bounds, dragColor);
+        }
+    });
+}
+
 } // namespace Elysium::Systems

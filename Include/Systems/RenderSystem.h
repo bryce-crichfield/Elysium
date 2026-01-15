@@ -36,6 +36,8 @@ private:
     void RenderSingleItem(const RenderItem& item, const LayerComponent& layer);
     void ApplyBlendMode(const LayerComponent::Blend& blend);
     Matrix GetLayerTransform(const LayerComponent& layer, Entity cameraEntity);
+    void ComputeBounds(Entity entity, const RenderItem& item);
+    void DrawDebugBounds();
 };
 
 } // namespace Elysium::Systems

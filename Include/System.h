@@ -33,7 +33,11 @@ class System
 
     virtual void Update(float deltaTime) {}
     virtual void Draw() {}
+    virtual void OnEvent(class Event& event) {} // Override to handle input events
     std::string GetName() const { return typeid(*this).name(); }
+
+    // Helper to get the scene (for systems that need it)
+    Scene* GetScene() const { return scene; }
 };
 
 } // namespace Elysium

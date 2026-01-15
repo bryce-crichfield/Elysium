@@ -9,6 +9,7 @@
 #include "Systems/MovementSystem.h"
 #include "Systems/RenderSystem.h"
 #include "Systems/SpriteSystem.h"
+#include "Systems/PickSystem.h"
 #include "Xml.h"
 #include "raylib.h"
 #include "tinyxml2.h"
@@ -307,6 +308,11 @@ const std::unordered_map<std::string, ComponentLoader> &ComponentLoaders()
         world->AddComponent(entity, TeamComponent(teamId));
     };
 
+    componentLoaders["BoundsComponent"] = [](XMLElement *xmlComponent, World *world, Entity entity) {
+        // BoundsComponent is computed by RenderSystem, but we create it here with default values
+        world->AddComponent(entity, BoundsComponent());
+    };
+
     return componentLoaders;
 }
 
@@ -372,6 +378,10 @@ void LoadSystems(XMLElement *root, Scene &scene)
             else if (systemName == "SpriteSystem")
             {
                 scene.AddSystem(std::make_unique<Elysium::Systems::SpriteSystem>(context));
+            }
+            else if (systemName == "PickSystem")
+            {
+                scene.AddSystem(std::make_unique<Elysium::Systems::PickSystem>(context));
             }
             else
             {
