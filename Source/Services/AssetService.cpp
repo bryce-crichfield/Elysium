@@ -100,8 +100,8 @@ static ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_Ro
                                     ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY | 
                                     ImGuiTableFlags_SizingStretchProp;
 
-// Adjust height (e.g., 400px) or use 0 for auto-expanding
-if (ImGui::BeginTable("AssetServiceTable", 5, tableFlags, ImVec2(0, 400))) {
+// Use -1 for height to fill remaining available space
+if (ImGui::BeginTable("AssetServiceTable", 5, tableFlags, ImVec2(0, -1))) {
     
     // Setup Headers
     ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);

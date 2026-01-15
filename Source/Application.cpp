@@ -141,7 +141,9 @@ void Application::Update(float deltaTime)
 
     // Handle asset loading during transitions
     static bool loadingStarted = false;
+    static bool wasLoadingPrevFrame = false;  // Track if loading service was busy last frame
     Elysium::Services::SceneState currentState = sceneService_.GetCurrentState();
+    bool isLoadingNow = loadingService_.IsProcessing();
 
     if (currentState == Elysium::Services::SceneState::LOADING_ASSETS && !loadingStarted)
     {
@@ -171,12 +173,28 @@ void Application::Update(float deltaTime)
             sceneService_.OnAssetsLoaded();
         }
     }
-    else if (currentState != Elysium::Services::SceneState::LOADING_ASSETS && loadingStarted)
+
+    // Finalize assets when loading completes outside of scene loading
+    // This handles assets loaded manually via AssetService UI
+    if (currentState != Elysium::Services::SceneState::LOADING_ASSETS)
+    {
+        // Detect transition from loading to complete
+        if (wasLoadingPrevFrame && !isLoadingNow && loadingService_.IsComplete())
+        {
+            LOG_INFO("Application", "Manual asset loading complete, finalizing assets");
+            assetService_.FinalizeAssets();
+        }
+    }
+
+    if (currentState != Elysium::Services::SceneState::LOADING_ASSETS && loadingStarted)
     {
         LOG_INFOF("Application", "Resetting loadingStarted flag (state: %s)",
                   Elysium::Services::SceneStateToString(currentState));
         loadingStarted = false;
     }
+
+    // Track loading state for next frame
+    wasLoadingPrevFrame = isLoadingNow;
 }
 
 void Application::Draw()
