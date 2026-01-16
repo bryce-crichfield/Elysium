@@ -29,7 +29,7 @@ void OverworldScene::OnUpdate(float deltaTime) {
 
     if (IsKeyPressed(KEY_BACKSPACE)) {
         auto& sceneService = Elysium::Application::GetInstance().GetService<Elysium::Services::SceneService>();
-        sceneService.SetScene("MenuScene");
+        sceneService.Replace("MenuScene");
     }
 }
 

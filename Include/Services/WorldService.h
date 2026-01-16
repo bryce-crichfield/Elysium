@@ -15,15 +15,9 @@
 #include <string>
 #include <variant>
 
-namespace Elysium::Services {
-
-class Application;
-class Scene;
-
-} // namespace Elysium::Services
-
 namespace Elysium {
 class World;
+class Scene;
 } // namespace Elysium
 
 namespace Elysium::Services {

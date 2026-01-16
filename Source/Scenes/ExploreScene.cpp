@@ -52,7 +52,7 @@ void ExploreScene::OnUpdate(float deltaTime) {
 
     if (IsKeyPressed(KEY_BACKSPACE)) {
         auto& sceneService = Elysium::Application::GetInstance().GetService<Elysium::Services::SceneService>();
-        sceneService.SetScene("MenuScene");
+        sceneService.Replace("MenuScene");
     }
 }
 
@@ -60,14 +60,6 @@ void ExploreScene::OnDraw(Rectangle screen) {
     Scene::OnDraw(screen);
 
     DrawText("EXPLORE_SCENE - Backspace to Menu", 0, 0, 16, WHITE);
-}
-
-std::vector<Asset> ExploreScene::GetAssets() {
-    return {
-        Asset(AssetType::TEXTURE, "mushroom_warrior_idle", "Sprites/mushroom_warrior/mushroom_warrior_idle.png"),
-        Asset(AssetType::TEXTURE, "mushroom_warrior_walk", "Sprites/mushroom_warrior/mushroom_warrior_walk.png"),
-        Asset(AssetType::SPRITE, "mushroom_warrior", "Sprites/mushroom_warrior/sprite.xml")
-    };
 }
 
 } // namespace Elysium::Scenes

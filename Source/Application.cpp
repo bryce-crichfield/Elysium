@@ -135,65 +135,19 @@ void Application::Update(float deltaTime)
         service->Update(deltaTime);
     }
 
-    auto &loadingService_ = serviceRegistry_.GetService<Elysium::Services::LoadingService>();
-    auto &sceneService_ = serviceRegistry_.GetService<Elysium::Services::SceneService>();
-    auto &assetService_ = serviceRegistry_.GetService<Elysium::Services::AssetService>();
+    // Finalize assets when loading completes (for assets loaded manually via AssetService UI)
+    auto& loadingService = serviceRegistry_.GetService<Elysium::Services::LoadingService>();
+    auto& assetService = serviceRegistry_.GetService<Elysium::Services::AssetService>();
 
-    // Handle asset loading during transitions
-    static bool loadingStarted = false;
-    static bool wasLoadingPrevFrame = false;  // Track if loading service was busy last frame
-    Elysium::Services::SceneState currentState = sceneService_.GetCurrentState();
-    bool isLoadingNow = loadingService_.IsProcessing();
+    static bool wasLoadingPrevFrame = false;
+    bool isLoadingNow = loadingService.IsProcessing();
 
-    if (currentState == Elysium::Services::SceneState::LOADING_ASSETS && !loadingStarted)
+    if (wasLoadingPrevFrame && !isLoadingNow && loadingService.IsComplete())
     {
-        // We basically submit a request to the loading service, to load some assets
-        const auto &pendingAssets = sceneService_.GetPendingAssets();
-        LOG_INFOF("Application", "Application received %zu pending assets from SceneService", pendingAssets.size());
-        if (!pendingAssets.empty())
-        {
-            LOG_INFO("Application", "Starting asset loading via LoadingService");
-            loadingService_.LoadAssets(pendingAssets);
-        }
-        else
-        {
-            LOG_WARNING("Application", "No pending assets to load - scene may not have defined any assets");
-        }
-        loadingStarted = true;
-    }
-    else if (currentState == Elysium::Services::SceneState::LOADING_ASSETS)
-    {
-        // Check if we're done loading
-        if (loadingService_.IsComplete())
-        {
-            // Loading complete, finalize GPU resources on main thread
-            assetService_.FinalizeAssets();
-
-            // Signal scene service that loading is complete
-            sceneService_.OnAssetsLoaded();
-        }
+        LOG_INFO("Application", "Asset loading complete, finalizing assets");
+        assetService.FinalizeAssets();
     }
 
-    // Finalize assets when loading completes outside of scene loading
-    // This handles assets loaded manually via AssetService UI
-    if (currentState != Elysium::Services::SceneState::LOADING_ASSETS)
-    {
-        // Detect transition from loading to complete
-        if (wasLoadingPrevFrame && !isLoadingNow && loadingService_.IsComplete())
-        {
-            LOG_INFO("Application", "Manual asset loading complete, finalizing assets");
-            assetService_.FinalizeAssets();
-        }
-    }
-
-    if (currentState != Elysium::Services::SceneState::LOADING_ASSETS && loadingStarted)
-    {
-        LOG_INFOF("Application", "Resetting loadingStarted flag (state: %s)",
-                  Elysium::Services::SceneStateToString(currentState));
-        loadingStarted = false;
-    }
-
-    // Track loading state for next frame
     wasLoadingPrevFrame = isLoadingNow;
 }
 

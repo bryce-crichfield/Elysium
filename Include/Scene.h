@@ -11,7 +11,6 @@ namespace Elysium {
 #include <vector>
 #include <functional>
 #include "Entity.h"
-#include "Asset.h"
 
 namespace Elysium {
 
@@ -26,21 +25,11 @@ public:
     Scene();
     virtual ~Scene();
 
-    // Called during loading, returns Asset objects with name, path, and type
-    // application then passes these to loading service
-    // application waits until loading service is done
-    // loading service calls into asset service to perform the loading
-    // application shows loading screen while processing assets
-    virtual std::vector<Asset> GetAssets() { return {}; }
-
     // Hook methods - can be overridden by subclasses
     virtual void OnUpdate(float deltaTime);
     virtual void OnDraw(Rectangle screen);
     virtual void OnEvent(class Event& event); // Override to handle input events
-
-    virtual void OnEnter() {
-
-    }
+    virtual void OnEnter() {}   
     virtual void OnExit() {}
 
     // Entity and system access
@@ -57,7 +46,6 @@ public:
     // Called during XML loading to create scene-specific systems
     virtual void CreateCustomSystems() {}
 protected:
-
 
     // Core scene components
     std::unique_ptr<World> world_;

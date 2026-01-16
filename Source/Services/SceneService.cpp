@@ -1,6 +1,5 @@
 #include "Services/SceneService.h"
 #include "Services/LogService.h"
-#include "Services/EventService.h"
 #include "Application.h"
 #include "System.h"
 #include "Path.h"
@@ -17,40 +16,7 @@ namespace Elysium::Services
 {
 
 // =============================================================================
-// SceneState Conversion
-// =============================================================================
-
-const char* SceneStateToString(SceneState state)
-{
-    switch (state)
-    {
-        case SceneState::NONE: return "NONE";
-        case SceneState::EXITING: return "EXITING";
-        case SceneState::LOADING_ASSETS: return "LOADING_ASSETS";
-        case SceneState::ASSETS_LOADED: return "ASSETS_LOADED";
-        case SceneState::ENTERING: return "ENTERING";
-        case SceneState::ACTIVE: return "ACTIVE";
-        case SceneState::ACTIVE_RUNNING: return "ACTIVE_RUNNING";
-        case SceneState::ACTIVE_PAUSED: return "ACTIVE_PAUSED";
-        default: return "NONE";
-    }
-}
-
-SceneState StringToSceneState(const std::string& str)
-{
-    if (str == "NONE") return SceneState::NONE;
-    if (str == "EXITING") return SceneState::EXITING;
-    if (str == "LOADING_ASSETS") return SceneState::LOADING_ASSETS;
-    if (str == "ASSETS_LOADED") return SceneState::ASSETS_LOADED;
-    if (str == "ENTERING") return SceneState::ENTERING;
-    if (str == "ACTIVE") return SceneState::ACTIVE;
-    if (str == SceneStateToString(SceneState::ACTIVE_RUNNING)) return SceneState::ACTIVE_RUNNING;
-    if (str == SceneStateToString(SceneState::ACTIVE_PAUSED)) return SceneState::ACTIVE_PAUSED;
-    return SceneState::NONE;
-}
-
-// =============================================================================
-// Constructor & State Machine Setup
+// Constructor
 // =============================================================================
 
 SceneService::SceneService()
@@ -64,291 +30,115 @@ void SceneService::Initialize()
     auto& app = Application::GetInstance();
     const auto& config = app.GetConfig();
 
-    // Initialize components
-    renderer_.Initialize(config.framebufferWidth, config.framebufferHeight);
-    transitions_.Initialize();
-
-    // Wire up state machine callbacks
-    transitions_.onEnterExiting = [this]() { OnEnterExiting(); };
-    transitions_.onUpdateExiting = [this]() { OnUpdateExiting(); };
-    transitions_.onEnterLoadingAssets = [this]() { OnEnterLoadingAssets(); };
-    transitions_.onEnterAssetsLoaded = [this]() { OnEnterAssetsLoaded(); };
-    transitions_.onEnterEntering = [this]() { OnEnterEntering(); };
-    transitions_.onUpdateEntering = [this]() { OnUpdateEntering(); };
-    transitions_.onEnterActive = [this]() { OnEnterActive(); };
-    transitions_.onEnterActiveRunning = [this]() { OnEnterActiveRunning(); };
-    transitions_.onEnterActivePaused = [this]() { OnEnterActivePaused(); };
+    framebuffer_ = LoadRenderTexture(config.framebufferWidth, config.framebufferHeight);
+    CalculateLetterboxing();
 }
 
 // =============================================================================
-// State Machine Event Handlers
+// Stack Operations
 // =============================================================================
 
-void SceneService::OnEnterExiting()
+void SceneService::Push(const std::string& sceneName)
 {
     Profile;
-    transitions_.SetTransitionDuration((sceneQueue_.size() > 1) ? 0.1f : 1.0f);
-}
-
-void SceneService::OnUpdateExiting()
-{
-    Profile;
-    // Timer logic and automatic transition handled by SceneController
-}
-
-void SceneService::OnEnterLoadingAssets()
-{
-    Profile;
-
-    if (!sceneQueue_.empty())
-    {
-        const std::string &sceneName = sceneQueue_.front();
-        UpdateSceneStatus(sceneName, SceneStatus::LOADING_ASSETS);
-
-        Scene *scene = CreateOrGetScene(sceneName);
-        if (scene)
-        {
-            pendingAssets_ = scene->GetAssets();
-            LOG_INFOF("SceneService", "Scene '%s' requested %zu assets for loading", sceneName.c_str(),
-                      pendingAssets_.size());
-            for (const auto &asset : pendingAssets_)
-            {
-                LOG_DEBUGF("SceneService", "Asset requested: %s (%s) -> %s", asset.GetName().c_str(),
-                           asset.GetType() == AssetType::TEXTURE  ? "TEXTURE"
-                           : asset.GetType() == AssetType::SOUND  ? "SOUND"
-                           : asset.GetType() == AssetType::MUSIC  ? "MUSIC"
-                           : asset.GetType() == AssetType::FONT   ? "FONT"
-                           : asset.GetType() == AssetType::MODEL  ? "MODEL"
-                           : asset.GetType() == AssetType::SHADER ? "SHADER"
-                           : asset.GetType() == AssetType::SPRITE ? "SPRITE"
-                                                                  : "UNKNOWN",
-                           asset.GetPath().c_str());
-            }
-        }
-        else
-        {
-            LOG_ERRORF("SceneService", "Failed to create/get scene '%s' for asset loading", sceneName.c_str());
-        }
-    }
-}
-
-void SceneService::OnEnterAssetsLoaded()
-{
-    Profile;
-    if (!sceneQueue_.empty())
-    {
-        UpdateSceneStatus(sceneQueue_.front(), SceneStatus::ASSETS_LOADED);
-    }
-    transitions_.stateMachine_.TransitionTo(SceneStateToString(SceneState::ENTERING));
-}
-
-void SceneService::OnEnterEntering()
-{
-    Profile;
-    if (!sceneQueue_.empty())
-    {
-        UpdateSceneStatus(sceneQueue_.front(), SceneStatus::ENTERING);
-    }
-}
-
-void SceneService::OnUpdateEntering()
-{
-    Profile;
-    // Timer logic and automatic transition handled by SceneController
-}
-
-void SceneService::OnEnterActive()
-{
-    Profile;
-    if (!sceneQueue_.empty())
-    {
-        const std::string sceneName = sceneQueue_.front();
-        sceneQueue_.pop();
-
-        // Cleanup old scene
-        if (activeScene_)
-        {
-            activeScene_->OnExit();
-            UpdateActiveSceneStatus(SceneStatus::SUSPENDED);
-
-            // Unregister from event service
-            auto& eventService = Application::GetInstance().GetService<EventService>();
-            eventService.UnregisterListener(activeScene_);
-        }
-
-        // Activate new scene
-        activeScene_ = CreateOrGetScene(sceneName);
-        if (activeScene_)
-        {
-            EnterScene(sceneName);
-            UpdateSceneStatus(sceneName, SceneStatus::ACTIVE);
-
-            // Register with event service
-            auto& eventService = Application::GetInstance().GetService<EventService>();
-            eventService.RegisterListener(activeScene_);
-        }
-    }
-
-    // Automatically transition to ACTIVE_RUNNING
-    transitions_.stateMachine_.TransitionTo(SceneStateToString(SceneState::ACTIVE_RUNNING));
-}
-
-void SceneService::OnEnterActiveRunning()
-{
-    // Scene is now running - updates will be called
-}
-
-void SceneService::OnEnterActivePaused()
-{
-    // Scene is paused - updates will not be called, but rendering continues
-}
-
-// =============================================================================
-// Helper Methods
-// =============================================================================
-
-void SceneService::UpdateSceneStatus(const std::string &name, SceneStatus status)
-{
-    Profile;
-    auto it = scenes_.find(name);
-    if (it != scenes_.end())
-    {
-        it->second.status = status;
-    }
-}
-
-void SceneService::UpdateActiveSceneStatus(SceneStatus status)
-{
-    for (auto &[name, data] : scenes_)
-    {
-        if (data.scene == activeScene_)
-        {
-            data.status = status;
-            break;
-        }
-    }
-}
-
-std::string PrintSceneStatus(SceneStatus status)
-{
-    switch (status)
-    {
-    case SceneStatus::UNLOADED:
-        return "UNLOADED";
-    case SceneStatus::LOADING_ASSETS:
-        return "LOADING_ASSETS";
-    case SceneStatus::ASSETS_LOADED:
-        return "ASSETS_LOADED";
-    case SceneStatus::INITIALIZING:
-        return "INITIALIZING";
-    case SceneStatus::ENTERING:
-        return "ENTERING";
-    case SceneStatus::ACTIVE:
-        return "ACTIVE";
-    case SceneStatus::EXITING:
-        return "EXITING";
-    case SceneStatus::SUSPENDED:
-        return "SUSPENDED";
-    }
-    return "UNKNOWN";
-}
-
-// =============================================================================
-// Public Interface
-// =============================================================================
-
-Elysium::Scene *SceneService::GetScene() const
-{
-    return activeScene_;
-}
-
-void SceneService::SetScene(std::string name)
-{
-    // Clear queue and force immediate scene transition
-    while (!sceneQueue_.empty())
-    {
-        sceneQueue_.pop();
-    }
-
-    sceneQueue_.push(name);
-    transitions_.SetTransitionDuration(0.0f); // Immediate transition
-
-    if (activeScene_)
-    {
-        transitions_.stateMachine_.TransitionTo(SceneStateToString(SceneState::EXITING));
-    }
-    else
-    {
-        transitions_.stateMachine_.TransitionTo(SceneStateToString(SceneState::LOADING_ASSETS));
-    }
-}
-
-void SceneService::RegisterScene(const std::string &name, std::string xmlPath, SceneFactory factory)
-{
-    SceneData data{name, nullptr, factory, {}, xmlPath, false, SceneStatus::UNLOADED};
-    scenes_.emplace(name, data);
-    LOG_INFOF("SceneService", "Registered scene: %s", name.c_str());
-}
-
-void SceneService::QueueScene(std::string name)
-{
-    auto it = scenes_.find(name);
+    auto it = scenes_.find(sceneName);
     if (it == scenes_.end())
     {
-        LOG_ERRORF("SceneService", "Scene not found: %s", name.c_str());
+        LOG_ERRORF("SceneService", "Cannot push scene. Scene not found: %s", sceneName.c_str());
         return;
     }
 
-    sceneQueue_.push(name);
-    LOG_INFOF("SceneService", "Queued scene: %s", name.c_str());
+    // Check if scene is already in stack
+    Scene* scene = CreateOrGetScene(sceneName);
+    if (!scene)
+    {
+        LOG_ERRORF("SceneService", "Failed to create scene: %s", sceneName.c_str());
+        return;
+    }
+
+    for (Scene* s : sceneStack_)
+    {
+        if (s == scene)
+        {
+            LOG_WARNINGF("SceneService", "Scene '%s' is already in the stack", sceneName.c_str());
+            return;
+        }
+    }
+
+    sceneStack_.push_back(scene);
+    EnterScene(scene, sceneName);
+    LOG_INFOF("SceneService", "Pushed scene: %s (stack size: %zu)", sceneName.c_str(), sceneStack_.size());
 }
 
-void SceneService::Update(float deltaTime)
+void SceneService::Pop()
 {
     Profile;
-    // Cache deltaTime for smooth pause/unpause transitions
-    if (deltaTime > 0.0f && deltaTime < 0.1f)
-    { // Reasonable deltaTime bounds
-        cachedDeltaTime_ = deltaTime;
+    if (sceneStack_.empty())
+    {
+        LOG_WARNING("SceneService", "Cannot pop. Scene stack is empty");
+        return;
     }
 
-    SceneState currentState = transitions_.GetCurrentState();
+    Scene* scene = sceneStack_.back();
+    sceneStack_.pop_back();
 
-    // Start transition if we have queued scenes and can transition
-    if (!sceneQueue_.empty() &&
-        (currentState == SceneState::NONE || currentState == SceneState::ACTIVE_RUNNING || currentState == SceneState::ACTIVE_PAUSED))
+    if (scene)
     {
-        if (activeScene_ && (currentState == SceneState::ACTIVE_RUNNING || currentState == SceneState::ACTIVE_PAUSED))
+        scene->OnExit();
+    }
+
+    LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
+}
+
+void SceneService::Replace(const std::string& sceneName)
+{
+    Profile;
+    if (!sceneStack_.empty())
+    {
+        Scene* oldScene = sceneStack_.back();
+        sceneStack_.pop_back();
+        if (oldScene)
         {
-            transitions_.stateMachine_.TransitionTo(SceneStateToString(SceneState::EXITING));
+            oldScene->OnExit();
         }
-        else if (!activeScene_ && currentState == SceneState::NONE)
+    }
+
+    Push(sceneName);
+    LOG_INFOF("SceneService", "Replaced top scene with: %s", sceneName.c_str());
+}
+
+void SceneService::Clear()
+{
+    Profile;
+    while (!sceneStack_.empty())
+    {
+        Scene* scene = sceneStack_.back();
+        sceneStack_.pop_back();
+        if (scene)
         {
-            transitions_.stateMachine_.TransitionTo(SceneStateToString(SceneState::LOADING_ASSETS));
+            scene->OnExit();
         }
     }
+    LOG_INFO("SceneService", "Cleared scene stack");
+}
 
-    // Update transition controller (handles state machine and timing)
-    transitions_.Update(deltaTime);
-
-    // Process input events when scene is active
-    if (activeScene_ && (currentState == SceneState::ACTIVE_RUNNING || currentState == SceneState::ACTIVE_PAUSED))
-    {
-        ProcessInput();
-    }
-
-    // Update active scene when running
-    if (activeScene_ && currentState == SceneState::ACTIVE_RUNNING)
-    {
-        activeScene_->OnUpdate(cachedDeltaTime_);
-    }
+Scene* SceneService::GetTopScene() const
+{
+    return sceneStack_.empty() ? nullptr : sceneStack_.back();
 }
 
 // =============================================================================
 // Scene Management
 // =============================================================================
 
-Scene *SceneService::CreateOrGetScene(const std::string &name)
+void SceneService::RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory)
+{
+    SceneRegistration data{name, nullptr, factory, xmlPath, false};
+    scenes_.emplace(name, data);
+    LOG_INFOF("SceneService", "Registered scene: %s", name.c_str());
+}
+
+Scene* SceneService::CreateOrGetScene(const std::string& name)
 {
     auto it = scenes_.find(name);
     if (it == scenes_.end())
@@ -357,7 +147,7 @@ Scene *SceneService::CreateOrGetScene(const std::string &name)
         return nullptr;
     }
 
-    SceneData &sceneData = it->second;
+    SceneRegistration& sceneData = it->second;
     if (!sceneData.scene)
     {
         sceneData.scene = sceneData.factory();
@@ -366,7 +156,7 @@ Scene *SceneService::CreateOrGetScene(const std::string &name)
     return sceneData.scene;
 }
 
-void SceneService::EnterScene(const std::string &name)
+void SceneService::EnterScene(Scene* scene, const std::string& name)
 {
     auto it = scenes_.find(name);
     if (it == scenes_.end())
@@ -375,28 +165,74 @@ void SceneService::EnterScene(const std::string &name)
         return;
     }
 
-    SceneData &sceneData = it->second;
-    Scene *scene = CreateOrGetScene(name);
+    SceneRegistration& sceneData = it->second;
 
-    if (!scene)
-    {
-        LOG_ERRORF("SceneService", "Cannot enter scene. Scene not found: %s", name.c_str());
-        return;
-    }
-
-    sceneData.status = SceneStatus::INITIALIZING;
+    // Load XML if needed
     if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded)
     {
-        LoadScene(*sceneData.scene, Path(sceneData.xmlPath).GetFullPath());
+        LoadScene(*scene, Path(sceneData.xmlPath).GetFullPath());
         sceneData.xmlLoaded = true;
     }
-    sceneData.status = SceneStatus::ENTERING;
+
     scene->OnEnter();
+}
+
+// =============================================================================
+// Update Loop
+// =============================================================================
+
+void SceneService::Update(float deltaTime)
+{
+    Profile;
+
+    // Cache deltaTime for systems that need it
+    if (deltaTime > 0.0f && deltaTime < 0.1f)
+    {
+        cachedDeltaTime_ = deltaTime;
+    }
+
+    // Process input events (dispatches to scenes top-down)
+    ProcessInput();
+
+    // Update ALL scenes in the stack (bottom to top)
+    for (Scene* scene : sceneStack_)
+    {
+        scene->OnUpdate(cachedDeltaTime_);
+    }
 }
 
 // =============================================================================
 // Rendering
 // =============================================================================
+
+void SceneService::CalculateLetterboxing()
+{
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+
+    int windowWidth = GetScreenWidth();
+    int windowHeight = GetScreenHeight();
+
+    float screenAspect = (float)windowWidth / windowHeight;
+    float framebufferAspect = (float)config.framebufferWidth / config.framebufferHeight;
+
+    if (framebufferAspect > screenAspect)
+    {
+        scaleX_ = scaleY_ = (float)windowWidth / config.framebufferWidth;
+        float scaledHeight = config.framebufferHeight * scaleY_;
+        offset_.x = 0;
+        offset_.y = (windowHeight - scaledHeight) * 0.5f;
+        letterboxRect_ = Rectangle{offset_.x, offset_.y, (float)windowWidth, scaledHeight};
+    }
+    else
+    {
+        scaleX_ = scaleY_ = (float)windowHeight / config.framebufferHeight;
+        float scaledWidth = config.framebufferWidth * scaleX_;
+        offset_.x = (windowWidth - scaledWidth) * 0.5f;
+        offset_.y = 0;
+        letterboxRect_ = Rectangle{offset_.x, offset_.y, scaledWidth, (float)windowHeight};
+    }
+}
 
 void SceneService::Render()
 {
@@ -404,28 +240,33 @@ void SceneService::Render()
     auto& app = Application::GetInstance();
     const auto& config = app.GetConfig();
 
-    renderer_.Render(
-        GetScene(),
-        transitions_.GetCurrentState(),
-        transitions_.GetTransitionProgress(),
-        transitions_.IsTransitioning(),
-        config.backgroundColor
-    );
-}
+    // Recalculate letterboxing if window was resized
+    if (IsWindowResized())
+    {
+        CalculateLetterboxing();
+    }
 
-// =============================================================================
-// Debug & Utility
-// =============================================================================
+    auto screenRect = Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
 
-void SceneService::ImGui()
-{
-    Profile;
-    inspector_.DrawUI(*this);
-}
+    // Render all scenes to framebuffer (bottom-to-top)
+    BeginTextureMode(framebuffer_);
+    ClearBackground(config.backgroundColor);
 
-void SceneService::OnAssetsLoaded()
-{
-    transitions_.OnAssetsLoaded();
+    for (Scene* scene : sceneStack_)
+    {
+        if (scene)
+        {
+            scene->OnDraw(screenRect);
+        }
+    }
+
+    EndTextureMode();
+
+    // Draw framebuffer to screen with letterboxing
+    DrawTexturePro(
+        framebuffer_.texture,
+        Rectangle{0, 0, (float)framebuffer_.texture.width, -(float)framebuffer_.texture.height},
+        letterboxRect_, Vector2{0, 0}, 0.0f, WHITE);
 }
 
 // =============================================================================
@@ -434,13 +275,9 @@ void SceneService::OnAssetsLoaded()
 
 Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const
 {
-    auto& app = Application::GetInstance();
-    const auto& config = app.GetConfig();
-    const Rectangle& letterbox = renderer_.GetLetterboxRect();
-
     // Transform screen coords to framebuffer coords
-    float fbX = (screenPos.x - letterbox.x) / renderer_.GetScaleX();
-    float fbY = (screenPos.y - letterbox.y) / renderer_.GetScaleY();
+    float fbX = (screenPos.x - letterboxRect_.x) / scaleX_;
+    float fbY = (screenPos.y - letterboxRect_.y) / scaleY_;
 
     return Vector2{fbX, fbY};
 }
@@ -448,35 +285,43 @@ Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const
 void SceneService::ProcessInput()
 {
     Profile;
-    if (!activeScene_) return;
+    if (sceneStack_.empty()) return;
 
     // Check if ImGui wants the mouse - if so, don't send events to scene
     ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse) {
-        return; // ImGui is using the mouse, don't pass to scene
+    if (io.WantCaptureMouse)
+    {
+        return;
     }
 
-    auto& eventService = Application::GetInstance().GetService<EventService>();
     Vector2 mousePos = GetMousePosition();
-    const Rectangle& letterbox = renderer_.GetLetterboxRect();
 
-    // Only process events if mouse is inside the framebuffer
-    if (CheckCollisionPointRec(mousePos, letterbox))
+    // Only process mouse events if mouse is inside the framebuffer
+    if (CheckCollisionPointRec(mousePos, letterboxRect_))
     {
         Vector2 fbPos = ScreenToFramebuffer(mousePos);
 
         // Mouse button events
-        for (int button = 0; button < 3; button++) // Left, Right, Middle
+        for (int button = 0; button < 3; button++)
         {
             if (IsMouseButtonPressed(button))
             {
                 MouseButtonPressedEvent event(button, fbPos);
-                eventService.Dispatch(event);
+                // Dispatch top-down through stack
+                for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
+                {
+                    (*it)->OnEvent(event);
+                    if (event.handled) break;
+                }
             }
             else if (IsMouseButtonReleased(button))
             {
                 MouseButtonReleasedEvent event(button, fbPos);
-                eventService.Dispatch(event);
+                for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
+                {
+                    (*it)->OnEvent(event);
+                    if (event.handled) break;
+                }
             }
         }
 
@@ -485,22 +330,29 @@ void SceneService::ProcessInput()
         if (wheelMove != 0.0f)
         {
             MouseWheelEvent event(wheelMove, fbPos);
-            eventService.Dispatch(event);
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
+            {
+                (*it)->OnEvent(event);
+                if (event.handled) break;
+            }
         }
 
-        // Mouse move (only if mouse moved)
+        // Mouse move
         static Vector2 lastMousePos = mousePos;
         if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y)
         {
             Vector2 delta = {mousePos.x - lastMousePos.x, mousePos.y - lastMousePos.y};
             MouseMovedEvent event(fbPos, delta);
-            eventService.Dispatch(event);
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
+            {
+                (*it)->OnEvent(event);
+                if (event.handled) break;
+            }
             lastMousePos = mousePos;
         }
     }
 
-    // Keyboard events (always process, not framebuffer-dependent)
-    // Check common keys
+    // Keyboard events
     const int keysToCheck[] = {
         KEY_SPACE, KEY_ENTER, KEY_ESCAPE,
         KEY_W, KEY_A, KEY_S, KEY_D,
@@ -513,39 +365,56 @@ void SceneService::ProcessInput()
         if (IsKeyPressed(key))
         {
             KeyPressedEvent event(key);
-            eventService.Dispatch(event);
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
+            {
+                (*it)->OnEvent(event);
+                if (event.handled) break;
+            }
         }
         else if (IsKeyReleased(key))
         {
             KeyReleasedEvent event(key);
-            eventService.Dispatch(event);
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
+            {
+                (*it)->OnEvent(event);
+                if (event.handled) break;
+            }
         }
     }
 }
 
+// =============================================================================
+// Debug & Utility
+// =============================================================================
+
+void SceneService::ImGui()
+{
+    Profile;
+    inspector_.DrawUI(*this);
+}
+
+// =============================================================================
+// Shutdown
+// =============================================================================
+
 void SceneService::Shutdown()
 {
     Profile;
-    renderer_.Shutdown();
+    UnloadRenderTexture(framebuffer_);
 
-    if (activeScene_)
+    // Exit all scenes in stack
+    for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
     {
-        activeScene_->OnExit();
-        activeScene_ = nullptr;
+        (*it)->OnExit();
     }
+    sceneStack_.clear();
 
-    while (!sceneQueue_.empty())
-    {
-        sceneQueue_.pop();
-    }
-
-    for (auto &[name, data] : scenes_)
+    // Delete all scene instances
+    for (auto& [name, data] : scenes_)
     {
         delete data.scene;
     }
-
     scenes_.clear();
-    pendingAssets_.clear();
 }
 
 } // namespace Elysium::Services

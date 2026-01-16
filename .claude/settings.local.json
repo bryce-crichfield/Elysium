@@ -26,7 +26,8 @@
       "Bash(find:*)",
       "Bash(msbuild:*)",
       "Bash(where mingw32-make)",
-      "Bash(pwsh -Command \".\\\\elysium.ps1 --Build\")"
+      "Bash(pwsh -Command \".\\\\elysium.ps1 --Build\")",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
