@@ -6,7 +6,7 @@
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
-
+#include <thread>
 #include "Common.h"
 
 namespace Elysium
@@ -40,6 +40,7 @@ bool Application::Initialize(const std::string &configPath)
 
     RegisterService(std::make_unique<Elysium::Services::LogService>());
     RegisterService(std::make_unique<Elysium::Services::EventService>());
+    RegisterService(std::make_unique<Elysium::Services::MessageService>());
     RegisterService(std::make_unique<Elysium::Services::AssetService>());
     RegisterService(std::make_unique<Elysium::Services::WorldService>());
     RegisterService(std::make_unique<Elysium::Services::LoadingService>());

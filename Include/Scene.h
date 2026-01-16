@@ -28,7 +28,8 @@ public:
     // Hook methods - can be overridden by subclasses
     virtual void OnUpdate(float deltaTime);
     virtual void OnDraw(Rectangle screen);
-    virtual void OnEvent(class Event& event); // Override to handle input events
+    virtual void OnEvent(class Event& event);
+    virtual void OnMessage(class Message& message);
     virtual void OnEnter() {}   
     virtual void OnExit() {}
 

@@ -8,6 +8,7 @@
 #include "Service.h"
 #include "SceneInspector.h"
 #include "raylib.h"
+#include "Message.h"
 
 namespace Elysium::Services {
 
@@ -31,6 +32,7 @@ public:
     // Service interface
     void Initialize() override;
     void Shutdown() override;
+    void OnMessage(const Message& message);
     void Update(float deltaTime) override;
     void Render() override;
     void ImGui() override;

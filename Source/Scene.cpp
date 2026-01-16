@@ -58,6 +58,13 @@ void Scene::OnEvent(Event& event) {
     }
 }
 
+void Scene::OnMessage(Message& message) {
+    // Forward messages to all systems
+    for (auto& system : systems_) {
+        system->OnMessage(message);
+    }
+}
+
 void Scene::AddSystem(std::unique_ptr<System> system) {
     systems_.emplace_back(std::move(system));
     LOG_DEBUGF("Scene", "Added system: %s", typeid(*systems_.back()).name());

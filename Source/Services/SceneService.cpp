@@ -181,6 +181,18 @@ void SceneService::EnterScene(Scene* scene, const std::string& name)
 // Update Loop
 // =============================================================================
 
+void SceneService::OnMessage(const Message& message)
+{
+    Profile;
+
+    // Dispatch message to all scenes in the stack (bottom to top)
+    for (Scene* scene : sceneStack_)
+    {
+        LOG_INFOF("SceneService", "Dispatching message of type %s to scene", typeid(message).name());
+        scene->OnMessage(const_cast<Message&>(message));
+    }
+}
+
 void SceneService::Update(float deltaTime)
 {
     Profile;
