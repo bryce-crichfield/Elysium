@@ -22,8 +22,9 @@ file(GLOB_RECURSE SOURCE_FILES
 add_subdirectory(Vendor/raylib)
 add_subdirectory(Vendor/tinyxml2)
 add_subdirectory(Vendor/SQLiteCpp)
+add_subdirectory(Vendor/enet)
 
-# ImGui library
+# ImGui library, since it doesn't have a CMakeLists.txt, we have to build it ourselves
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/imgui)
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
@@ -39,7 +40,7 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_DIR}/backends
 )
 
-# rlImGui library 
+# rlImGui library, since it's header only it's a bit more complicated
 set(RLIMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/rlImGui)
 add_library(rlimgui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
 target_include_directories(rlimgui PUBLIC
@@ -48,7 +49,6 @@ target_include_directories(rlimgui PUBLIC
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
 )
-
 target_link_libraries(rlimgui PUBLIC raylib imgui)
 
 # Create executable
@@ -58,6 +58,7 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 option(TRACY_ENABLE "Enable Tracy profiler" OFF)
 if(TRACY_ENABLE)
     set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
+    set(TRACY_NO_SYSTEM_TRACING ON CACHE BOOL "Disable ETW for MinGW compatibility" FORCE)
     add_subdirectory(Vendor/tracy)
     target_compile_definitions(${PROJECT_NAME} PRIVATE TRACY_ENABLE)
     message(STATUS "Tracy profiler enabled")
@@ -70,6 +71,7 @@ target_link_libraries(${PROJECT_NAME}
     imgui
     tinyxml2
     SQLiteCpp
+    enet
 )
 
 # Add Tracy if enabled
@@ -87,6 +89,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/imgui/backends
     ${CMAKE_SOURCE_DIR}/Vendor/tinyxml2
     ${CMAKE_SOURCE_DIR}/Vendor/SQLiteCpp/include
+    ${CMAKE_SOURCE_DIR}/Vendor/enet/include
 )
 
 if(TRACY_ENABLE)

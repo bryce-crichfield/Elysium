@@ -106,7 +106,7 @@ void LogService::LogMessage(int logLevel, const std::string& message) {
         case 2: level = LogLevel::DEBUG; break;   // LOG_DEBUG
         case 3: level = LogLevel::INFO; break;    // LOG_INFO
         case 4: level = LogLevel::WARNING; break; // LOG_WARNING
-        case 5: level = LogLevel::ERROR; break;   // LOG_ERROR
+        case 5: level = LogLevel::Error; break;   // LOG_ERROR
         default: level = LogLevel::INFO; break;
     }
 
@@ -228,7 +228,7 @@ const char* LogService::GetLogLevelName(LogLevel level) const {
         case LogLevel::DEBUG:   return "DEBUG";
         case LogLevel::INFO:    return "INFO";
         case LogLevel::WARNING: return "WARNING";
-        case LogLevel::ERROR:   return "ERROR";
+        case LogLevel::Error:   return "ERROR";
         default:                return "UNKNOWN";
     }
 }
@@ -238,7 +238,7 @@ const char* LogService::GetLogLevelColor(LogLevel level) const {
         case LogLevel::DEBUG:   return "\033[37m";  // Light gray
         case LogLevel::INFO:    return "\033[37m";  // White
         case LogLevel::WARNING: return "\033[93m";  // Yellow
-        case LogLevel::ERROR:   return "\033[91m";  // Red
+        case LogLevel::Error:   return "\033[91m";  // Red
         default:                return "\033[37m";
     }
 }
@@ -248,7 +248,7 @@ unsigned int LogService::GetImGuiColor(LogLevel level) const {
         case LogLevel::DEBUG:   return IM_COL32(173, 216, 230, 255); // Light blue
         case LogLevel::INFO:    return IM_COL32(255, 255, 255, 255); // White
         case LogLevel::WARNING: return IM_COL32(255, 255, 0, 255);   // Yellow
-        case LogLevel::ERROR:   return IM_COL32(255, 100, 100, 255); // Red
+        case LogLevel::Error:   return IM_COL32(255, 100, 100, 255); // Red
         default:                return IM_COL32(255, 255, 255, 255);
     }
 }
@@ -291,7 +291,7 @@ void LogService::InitializeFilters() {
     levelFilters_[LogLevel::DEBUG] = true;
     levelFilters_[LogLevel::INFO] = true;
     levelFilters_[LogLevel::WARNING] = true;
-    levelFilters_[LogLevel::ERROR] = true;
+    levelFilters_[LogLevel::Error] = true;
 }
 
 std::vector<std::string> LogService::GetAllTopics() const {
@@ -375,7 +375,7 @@ void LogService::DrawLevelFilters() {
             {LogLevel::DEBUG, "DEBUG", IM_COL32(173, 216, 230, 255)},
             {LogLevel::INFO, "INFO", IM_COL32(255, 255, 255, 255)},
             {LogLevel::WARNING, "WARNING", IM_COL32(255, 255, 0, 255)},
-            {LogLevel::ERROR, "ERROR", IM_COL32(255, 100, 100, 255)}
+            {LogLevel::Error, "ERROR", IM_COL32(255, 100, 100, 255)}
         };
 
         for (const auto& levelFilter : levels) {

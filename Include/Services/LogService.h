@@ -13,13 +13,18 @@
 #include <unordered_map>
 #include <unordered_set>
 
+// Undefine Windows ERROR macro to avoid conflict with LogLevel::Error
+#ifdef ERROR
+#undef ERROR
+#endif
+
 namespace Elysium::Services {
 
 enum class LogLevel {
     DEBUG = 0,
     INFO = 1,
     WARNING = 2,
-    ERROR = 3
+    Error = 3
 };
 
 struct LogEntry {
