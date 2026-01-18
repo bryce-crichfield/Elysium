@@ -19,9 +19,13 @@
 #include "Application.h"
 #include "Services/NetworkService.h"
 #include "Services/MessageService.h"
+#include "Services/SceneService.h"
 #include "Services/LogService.h"
 
 #include "Messages/NetworkMessages.h"
+#include "Messages/SceneMessages.h"
+#include "Network/NetworkProtocol.h"
+#include "Network/ByteBuffer.h"
 
 #include <tracy/Tracy.hpp>
 
@@ -42,11 +46,26 @@ void NetworkService::Initialize() {
         LOG_ERROR("Network", "Failed to initialize ENet");
         return;
     }
+
+    // Subscribe to scene changes to broadcast to clients (server mode)
+    auto& messageService = Application::GetInstance().GetService<MessageService>();
+    messageService.Subscribe<SceneChangedMessage>(this, [this](const SceneChangedMessage& msg) {
+        OnSceneChanged(msg);
+    });
+
+    // Subscribe to network data to handle scene changes (client mode)
+    messageService.Subscribe<NetworkDataReceivedMessage>(this, [this](const NetworkDataReceivedMessage& msg) {
+        OnNetworkDataReceived(msg);
+    });
 }
 
 void NetworkService::Shutdown() {
+    // Unsubscribe from messages
+    auto& messageService = Application::GetInstance().GetService<MessageService>();
+    messageService.UnsubscribeAll(this);
+
     Stop();
-    
+
     if (host_) {
         enet_host_destroy(host_);
         host_ = nullptr;
@@ -289,6 +308,87 @@ void NetworkService::BroadcastToClients(const void* data, size_t length, bool re
     
     packetsSent_++;
     bytesSent_ += length;
+}
+
+void NetworkService::OnSceneChanged(const SceneChangedMessage& msg) {
+    LOG_INFO("Network", "OnSceneChanged");
+    // Only broadcast if we're the server
+    if (config_.mode != NetworkMode::Server || !isRunning_) {
+        return;
+    }
+
+    Network::ByteBuffer buffer(128);
+
+    // Packet header
+    Network::PacketHeader header;
+    header.packetType = static_cast<uint8_t>(Network::PacketType::SceneChange);
+    header.flags = 0;
+    header.tick = 0;  // Scene changes aren't tick-sensitive
+    header.Write(buffer);
+
+    // Scene change packet
+    Network::SceneChangePacket packet;
+    packet.operation = msg.operation;
+    packet.SetSceneName(msg.sceneName);
+    packet.Write(buffer);
+
+    // Broadcast reliably to all clients
+    BroadcastToClients(buffer.Data(), buffer.Size(), true);
+
+    LOG_INFOF("Network", "Broadcast scene change: %s (op=%d)",
+              msg.sceneName.c_str(), static_cast<int>(msg.operation));
+}
+
+void NetworkService::OnNetworkDataReceived(const NetworkDataReceivedMessage& msg) {
+    // Only handle on client
+    if (config_.mode != NetworkMode::Client) {
+        return;
+    }
+
+    // Parse packet header to check for scene change
+    Network::ByteBuffer buffer(msg.data);
+
+    if (buffer.Size() < Network::PacketHeader::SIZE) {
+        return;
+    }
+
+    Network::PacketHeader header;
+    header.Read(buffer);
+
+    // Only handle SceneChange packets - let other packets pass through to systems
+    if (static_cast<Network::PacketType>(header.packetType) != Network::PacketType::SceneChange) {
+        return;
+    }
+
+    Network::SceneChangePacket packet;
+    packet.Read(buffer);
+
+    std::string sceneName = packet.GetSceneName();
+    LOG_INFOF("Network", "Server requested scene change: %s (op=%d)",
+              sceneName.c_str(), static_cast<int>(packet.operation));
+
+    auto& sceneService = Application::GetInstance().GetService<SceneService>();
+
+    switch (packet.operation) {
+        case Network::SceneChangeOp::Push:
+            sceneService.Push(sceneName);
+            break;
+
+        case Network::SceneChangeOp::Pop:
+            sceneService.Pop();
+            break;
+
+        case Network::SceneChangeOp::Replace:
+            sceneService.Replace(sceneName);
+            break;
+
+        case Network::SceneChangeOp::Clear:
+            sceneService.Clear();
+            if (!sceneName.empty()) {
+                sceneService.Push(sceneName);
+            }
+            break;
+    }
 }
 
 void NetworkService::ImGui() {

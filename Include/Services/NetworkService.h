@@ -55,6 +55,9 @@ public:
     NetworkMode GetMode() const { return config_.mode; }
 
 private:
+    // Scene change handling
+    void OnSceneChanged(const struct SceneChangedMessage& msg);  // Server: broadcast to clients
+    void OnNetworkDataReceived(const struct NetworkDataReceivedMessage& msg);  // Client: handle incoming scene changes
     void NetworkThread();
     void ProcessServerEvents();
     void ProcessClientEvents();

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
+#include <string>
+#include <algorithm>
 #include "ByteBuffer.h"
 
 namespace Elysium::Network {
@@ -28,6 +31,9 @@ enum class PacketType : uint8_t {
     SyncPacket         = 0x20,  // S -> C: Dirty component updates
     EntityCreated      = 0x21,  // S -> C: New entity notification
     EntityDestroyed    = 0x22,  // S -> C: Entity removal notification
+
+    // Scene Control
+    SceneChange        = 0x23,  // S -> C: Server tells client to change scene
 
     // Utility
     Ping               = 0x30,  // Bidirectional: Latency measurement
@@ -180,6 +186,57 @@ struct EntityDestroyedPacket {
 
     void Read(ByteBuffer& buffer) {
         entityId = buffer.ReadU32();
+    }
+};
+
+/**
+ * Scene Change Operation
+ */
+enum class SceneChangeOp : uint8_t {
+    Push    = 0,  // Push scene onto stack
+    Pop     = 1,  // Pop current scene
+    Replace = 2,  // Replace current scene
+    Clear   = 3,  // Clear stack and push
+};
+
+/**
+ * Scene Change Packet
+ * Server -> Client: Tells client to change scene
+ * Scene name is a fixed-length string (max 64 chars)
+ */
+struct SceneChangePacket {
+    static constexpr size_t MAX_SCENE_NAME_LENGTH = 64;
+
+    SceneChangeOp operation;
+    uint8_t sceneNameLength;
+    char sceneName[MAX_SCENE_NAME_LENGTH];
+
+    void Write(ByteBuffer& buffer) const {
+        buffer.WriteU8(static_cast<uint8_t>(operation));
+        buffer.WriteU8(sceneNameLength);
+        buffer.WriteBytes(reinterpret_cast<const uint8_t*>(sceneName), sceneNameLength);
+    }
+
+    void Read(ByteBuffer& buffer) {
+        operation = static_cast<SceneChangeOp>(buffer.ReadU8());
+        sceneNameLength = buffer.ReadU8();
+        if (sceneNameLength > MAX_SCENE_NAME_LENGTH) {
+            sceneNameLength = MAX_SCENE_NAME_LENGTH;
+        }
+        std::memset(sceneName, 0, MAX_SCENE_NAME_LENGTH);
+        buffer.ReadBytes(reinterpret_cast<uint8_t*>(sceneName), sceneNameLength);
+    }
+
+    std::string GetSceneName() const {
+        return std::string(sceneName, sceneNameLength);
+    }
+
+    void SetSceneName(const std::string& name) {
+        sceneNameLength = static_cast<uint8_t>(
+            std::min(name.size(), MAX_SCENE_NAME_LENGTH - 1)
+        );
+        std::memcpy(sceneName, name.c_str(), sceneNameLength);
+        sceneName[sceneNameLength] = '\0';
     }
 };
 

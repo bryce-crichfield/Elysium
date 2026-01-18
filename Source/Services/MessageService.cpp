@@ -1,8 +1,7 @@
-#pragma once
-
 #include "Services/MessageService.h"
 #include "Services/SceneService.h"
 #include "Application.h"
+#include <typeindex>
 
 namespace Elysium::Services {
 
@@ -27,10 +26,25 @@ void MessageService::Update(float deltaTime) {
 
     if (messages.empty()) return;
 
+    messagesProcessedThisFrame_ = messages.size();
+    totalMessagesProcessed_ += messages.size();
+
     auto &scenes = Application::GetInstance().GetService<SceneService>();
 
     for (auto &msg : messages) {
+        // Dispatch to SceneService (existing behavior)
         scenes.OnMessage(*msg);
+
+        // Dispatch to subscribed handlers
+        {
+            std::lock_guard<std::mutex> lock(handlersMutex_);
+            auto it = handlers_.find(std::type_index(typeid(*msg)));
+            if (it != handlers_.end()) {
+                for (const auto& entry : it->second) {
+                    entry.handler(*msg);
+                }
+            }
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 #include "Services/SceneService.h"
 #include "Services/LogService.h"
+#include "Services/MessageService.h"
+#include "Messages/SceneMessages.h"
 #include "Application.h"
 #include "System.h"
 #include "Path.h"
@@ -68,6 +70,10 @@ void SceneService::Push(const std::string& sceneName)
     sceneStack_.push_back(scene);
     EnterScene(scene, sceneName);
     LOG_INFOF("SceneService", "Pushed scene: %s (stack size: %zu)", sceneName.c_str(), sceneStack_.size());
+
+    // Publish scene change message
+    auto& messageService = Application::GetInstance().GetService<MessageService>();
+    messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Push, sceneName);
 }
 
 void SceneService::Pop()
@@ -88,6 +94,10 @@ void SceneService::Pop()
     }
 
     LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
+
+    // Publish scene change message
+    auto& messageService = Application::GetInstance().GetService<MessageService>();
+    messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Pop, "");
 }
 
 void SceneService::Replace(const std::string& sceneName)
@@ -103,8 +113,28 @@ void SceneService::Replace(const std::string& sceneName)
         }
     }
 
-    Push(sceneName);
+    // Do push logic inline (don't call Push to avoid double message)
+    auto it = scenes_.find(sceneName);
+    if (it == scenes_.end())
+    {
+        LOG_ERRORF("SceneService", "Cannot replace with scene. Scene not found: %s", sceneName.c_str());
+        return;
+    }
+
+    Scene* scene = CreateOrGetScene(sceneName);
+    if (!scene)
+    {
+        LOG_ERRORF("SceneService", "Failed to create scene: %s", sceneName.c_str());
+        return;
+    }
+
+    sceneStack_.push_back(scene);
+    EnterScene(scene, sceneName);
     LOG_INFOF("SceneService", "Replaced top scene with: %s", sceneName.c_str());
+
+    // Publish scene change message as Replace
+    auto& messageService = Application::GetInstance().GetService<MessageService>();
+    messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Replace, sceneName);
 }
 
 void SceneService::Clear()
@@ -120,6 +150,10 @@ void SceneService::Clear()
         }
     }
     LOG_INFO("SceneService", "Cleared scene stack");
+
+    // Publish scene change message
+    auto& messageService = Application::GetInstance().GetService<MessageService>();
+    messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Clear, "");
 }
 
 Scene* SceneService::GetTopScene() const
