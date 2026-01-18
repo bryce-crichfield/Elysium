@@ -188,7 +188,6 @@ void SceneService::OnMessage(const Message& message)
     // Dispatch message to all scenes in the stack (bottom to top)
     for (Scene* scene : sceneStack_)
     {
-        LOG_INFOF("SceneService", "Dispatching message of type %s to scene", typeid(message).name());
         scene->OnMessage(const_cast<Message&>(message));
     }
 }

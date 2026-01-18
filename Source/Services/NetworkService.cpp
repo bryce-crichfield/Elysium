@@ -23,6 +23,8 @@
 
 #include "Messages/NetworkMessages.h"
 
+#include <tracy/Tracy.hpp>
+
 namespace Elysium::Services {
 
 NetworkService::NetworkService()
@@ -159,67 +161,73 @@ void NetworkService::Stop() {
 }
 
 void NetworkService::NetworkThread() {
+    tracy::SetThreadName("Network Thread");
     ENetEvent event;
 
     while (!shouldStop_) {
         auto& messageService = Application::GetInstance().GetService<Elysium::Services::MessageService>();
 
-        std::lock_guard<std::mutex> lock(hostMutex_);
-        
-        if (!host_) break;
+        {
+            ZoneScopedN("NetworkService::Poll");
+            std::lock_guard<std::mutex> lock(hostMutex_);
+            
+            if (!host_) break;
 
-        while (enet_host_service(host_, &event, 10) > 0) {
-            if (config_.mode == NetworkMode::Server) {
-                ProcessServerEvents();
-            } else {
-                ProcessClientEvents();
-            }
+            while (enet_host_service(host_, &event, 0) > 0) {
+                if (config_.mode == NetworkMode::Server) {
+                    ProcessServerEvents();
+                } else {
+                    ProcessClientEvents();
+                }
 
-            switch (event.type) {
-                case ENET_EVENT_TYPE_CONNECT:
-                    if (config_.mode == NetworkMode::Server) {
-                        connectedPeers_++;
-                        messageService.Post<ClientConnectedMessage>(event.peer);
-                        LOG_INFOF("Network", "Client connected from %u:%u",
-                                  event.peer->address.host, event.peer->address.port);
-                    } else {
-                        connectedPeers_ = 1;
-                        messageService.Post<ServerConnectedMessage>();
-                        LOG_INFO("Network", "Connected to server");
-                    }
-                    break;
+                switch (event.type) {
+                    case ENET_EVENT_TYPE_CONNECT:
+                        if (config_.mode == NetworkMode::Server) {
+                            connectedPeers_++;
+                            messageService.Post<ClientConnectedMessage>(event.peer);
+                            LOG_INFOF("Network", "Client connected from %u:%u",
+                                    event.peer->address.host, event.peer->address.port);
+                        } else {
+                            connectedPeers_ = 1;
+                            messageService.Post<ServerConnectedMessage>();
+                            LOG_INFO("Network", "Connected to server");
+                        }
+                        break;
 
-                case ENET_EVENT_TYPE_RECEIVE:
-                    packetsReceived_++;
-                    bytesReceived_ += event.packet->dataLength;
+                    case ENET_EVENT_TYPE_RECEIVE:
+                        packetsReceived_++;
+                        bytesReceived_ += event.packet->dataLength;
 
-                    messageService.Post<NetworkDataReceivedMessage>(
-                        event.peer,
-                        event.packet->data,
-                        event.packet->dataLength,
-                        event.channelID
-                    );
+                        messageService.Post<NetworkDataReceivedMessage>(
+                            event.peer,
+                            event.packet->data,
+                            event.packet->dataLength,
+                            event.channelID
+                        );
 
-                    enet_packet_destroy(event.packet);
-                    break;
+                        enet_packet_destroy(event.packet);
+                        break;
 
-                case ENET_EVENT_TYPE_DISCONNECT:
-                    if (config_.mode == NetworkMode::Server) {
-                        connectedPeers_--;
-                        messageService.Post<ClientDisconnectedMessage>(event.peer);
-                        LOG_INFO("Network", "Client disconnected");
-                    } else {
-                        connectedPeers_ = 0;
-                        messageService.Post<ServerDisconnectedMessage>();
-                        LOG_INFO("Network", "Disconnected from server");
-                    }
-                    event.peer->data = nullptr;
-                    break;
+                    case ENET_EVENT_TYPE_DISCONNECT:
+                        if (config_.mode == NetworkMode::Server) {
+                            connectedPeers_--;
+                            messageService.Post<ClientDisconnectedMessage>(event.peer);
+                            LOG_INFO("Network", "Client disconnected");
+                        } else {
+                            connectedPeers_ = 0;
+                            messageService.Post<ServerDisconnectedMessage>();
+                            LOG_INFO("Network", "Disconnected from server");
+                        }
+                        event.peer->data = nullptr;
+                        break;
 
-                case ENET_EVENT_TYPE_NONE:
-                    break;
+                    case ENET_EVENT_TYPE_NONE:
+                        break;
+                }
             }
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
@@ -234,6 +242,7 @@ void NetworkService::ProcessClientEvents() {
 void NetworkService::SendToServer(const void* data, size_t length, bool reliable) {
     if (config_.mode != NetworkMode::Client || !serverPeer_) return;
 
+
     std::lock_guard<std::mutex> lock(hostMutex_);
     
     ENetPacket* packet = enet_packet_create(
@@ -246,8 +255,6 @@ void NetworkService::SendToServer(const void* data, size_t length, bool reliable
         packetsSent_++;
         bytesSent_ += length;
     }
-    
-    enet_host_flush(host_);
 }
 
 void NetworkService::SendToClient(ENetPeer* peer, const void* data, size_t length, bool reliable) {
@@ -265,8 +272,6 @@ void NetworkService::SendToClient(ENetPeer* peer, const void* data, size_t lengt
         packetsSent_++;
         bytesSent_ += length;
     }
-    
-    enet_host_flush(host_);
 }
 
 void NetworkService::BroadcastToClients(const void* data, size_t length, bool reliable) {
@@ -284,8 +289,6 @@ void NetworkService::BroadcastToClients(const void* data, size_t length, bool re
     
     packetsSent_++;
     bytesSent_ += length;
-    
-    enet_host_flush(host_);
 }
 
 void NetworkService::ImGui() {

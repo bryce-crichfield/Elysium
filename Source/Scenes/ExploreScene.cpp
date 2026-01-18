@@ -1,17 +1,46 @@
 #include "Scenes/ExploreScene.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
+#include "Services/NetworkService.h"
 #include "Scenes/MenuScene.h"
 #include "Application.h"
+#include "Systems/ServerNetworkSystem.h"
+#include "Systems/ClientNetworkSystem.h"
 
 namespace Elysium::Scenes {
 
 ExploreScene::ExploreScene() : Scene() {
 }
 
+void ExploreScene::SetupNetworkSystems() {
+    auto& networkService = Application::GetInstance().GetService<Services::NetworkService>();
+    auto mode = networkService.GetMode();
+
+    Context context;
+    context.application = &Application::GetInstance();
+    context.scene = this;
+    context.world = world_.get();
+
+    if (mode == Services::NetworkMode::Server) {
+        auto serverSystem = std::make_unique<ServerNetworkSystem>(context);
+        serverNetworkSystem_ = serverSystem.get();
+        AddSystem(std::move(serverSystem));
+        LOG_INFO("ExploreScene", "Added ServerNetworkSystem");
+    }
+    else if (mode == Services::NetworkMode::Client) {
+        auto clientSystem = std::make_unique<ClientNetworkSystem>(context);
+        clientNetworkSystem_ = clientSystem.get();
+        AddSystem(std::move(clientSystem));
+        LOG_INFO("ExploreScene", "Added ClientNetworkSystem");
+    }
+}
+
 void ExploreScene::OnEnter() {
     Scene::OnEnter();
     LOG_INFO("ExploreScene", "Entering scene");
+
+    // Setup network systems based on current network mode
+    SetupNetworkSystems();
 
     Entity patrolEntity;
     if (world_->GetEntityByName("ENTITY_0", &patrolEntity)) {
@@ -34,6 +63,11 @@ void ExploreScene::OnEnter() {
         sprite.markerName = markerName;
         sprite.frameIndex = anim.currentFrame;
     }
+}
+
+void ExploreScene::OnMessage(Message& message) {
+    // Forward to base class which dispatches to all systems
+    Scene::OnMessage(message);
 }
 
 void ExploreScene::OnExit() {
