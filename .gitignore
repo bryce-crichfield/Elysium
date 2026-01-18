@@ -23,7 +23,6 @@ Makefile
 !CMakeLists.txt
 
 # IDE files
-.vscode/
 .vs/
 *.vcxproj*
 *.sln
