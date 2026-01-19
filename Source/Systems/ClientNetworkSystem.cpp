@@ -14,7 +14,7 @@ namespace Elysium {
 ClientNetworkSystem::ClientNetworkSystem(Context context)
     : System(context)
 {
-    serializer_.Initialize();
+    // No initialization needed - using free functions now
 }
 
 void ClientNetworkSystem::Update(float deltaTime) {
@@ -250,7 +250,7 @@ void ClientNetworkSystem::HandleHandshakeResponse(Network::ByteBuffer& buffer) {
         entityHeader.Read(buffer);
 
         Entity entity = GetOrCreateEntity(entityHeader.entityId);
-        serializer_.DeserializeComponents(entityHeader.componentMask, entity, world, buffer);
+        Network::DeserializeComponentsByMask(entityHeader.componentMask, entity, world, buffer);
     }
 
     isSynced_ = true;
@@ -271,7 +271,7 @@ void ClientNetworkSystem::HandleSyncPacket(Network::ByteBuffer& buffer) {
         entityHeader.Read(buffer);
 
         Entity entity = GetOrCreateEntity(entityHeader.entityId);
-        serializer_.DeserializeComponents(entityHeader.componentMask, entity, world, buffer);
+        Network::DeserializeComponentsByMask(entityHeader.componentMask, entity, world, buffer);
     }
 }
 
@@ -280,7 +280,7 @@ void ClientNetworkSystem::HandleEntityCreated(Network::ByteBuffer& buffer) {
     packet.Read(buffer);
 
     Entity entity = GetOrCreateEntity(packet.entityId);
-    serializer_.DeserializeComponents(packet.componentMask, entity, world, buffer);
+    Network::DeserializeComponentsByMask(packet.componentMask, entity, world, buffer);
 }
 
 void ClientNetworkSystem::HandleEntityDestroyed(Network::ByteBuffer& buffer) {

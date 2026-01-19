@@ -71,9 +71,6 @@ private:
     Entity GetOrCreateEntity(uint32_t networkId);
     void DestroyEntity(uint32_t networkId);
 
-    // State
-    Network::ComponentSerializer serializer_;
-
     // Input buffering
     std::queue<Network::NetworkInput> pendingInputs_;
     uint32_t nextInputSequence_ = 1;

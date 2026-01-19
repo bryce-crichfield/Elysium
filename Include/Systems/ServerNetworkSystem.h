@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../System.h"
-#include "../Network/DirtyTracker.h"
+#include "../Network/EntitySyncManager.h"
 #include "../Network/ComponentSerializer.h"
 #include "../Network/NetworkProtocol.h"
 #include "../Network/NetworkInput.h"
@@ -20,7 +20,7 @@ namespace Elysium {
  * Responsibilities:
  * - Tick accumulator for 50ms server tick rate (20 Hz)
  * - Process buffered client inputs and replay as Events
- * - Track dirty entities via DirtyTracker
+ * - Track dirty entities via EntitySyncManager
  * - Broadcast SyncPackets to all connected clients
  * - Handle client connect/disconnect lifecycle
  *
@@ -80,13 +80,11 @@ private:
     void BroadcastEntityCreated(Entity entity);
     void BroadcastEntityDestroyed(Entity entity);
 
-    // Auto-tracking and dirty detection
+    // Auto-tracking
     void ScanAndTrackEntities();
-    void DetectPositionChanges();
 
     // State
-    Network::DirtyTracker dirtyTracker_;
-    Network::ComponentSerializer serializer_;
+    Network::EntitySyncManager syncManager_;
 
     // Timing
     float tickAccumulator_ = 0.0f;

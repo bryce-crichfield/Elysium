@@ -111,6 +111,7 @@ struct HandshakeResponsePacket {
 /**
  * Sync Packet Header
  * Server -> Client (every tick with dirty entities)
+ * Server sends [PacketHeader, SyncPacketHeader, EntitySyncHeader, ComponentData ..., EntitySyncHeader, ComponentData ...]
  */
 struct SyncPacketHeader {
     uint32_t serverTick;

@@ -12,7 +12,7 @@ namespace Elysium {
 ServerNetworkSystem::ServerNetworkSystem(Context context)
     : System(context)
 {
-    serializer_.Initialize();
+    // No initialization needed - using free functions now
 }
 
 void ServerNetworkSystem::Update(float deltaTime) {
@@ -46,10 +46,7 @@ void ServerNetworkSystem::ProcessTick() {
     // 2. Process buffered inputs from clients
     ReplayInputsAsEvents();
 
-    // 3. Detect position changes (auto dirty marking)
-    DetectPositionChanges();
-
-    // 4. Send full state to clients that need it
+    // 3. Send full state to clients that need it
     for (auto& [peer, client] : clients_) {
         if (client.needsFullSync) {
             BroadcastFullState(peer);
@@ -57,18 +54,8 @@ void ServerNetworkSystem::ProcessTick() {
         }
     }
 
-    // 5. Broadcast dirty state to all clients
+    // 4. Broadcast dirty state to all clients
     SendSyncPacket();
-}
-
-void ServerNetworkSystem::DetectPositionChanges() {
-    // Check all tracked entities for position changes
-    for (Entity entity : dirtyTracker_.GetTrackedEntities()) {
-        if (world->HasComponent<PositionComponent>(entity)) {
-            const auto& pos = world->GetComponent<PositionComponent>(entity);
-            dirtyTracker_.CheckAndUpdatePosition(entity, pos.x, pos.y);
-        }
-    }
 }
 
 void ServerNetworkSystem::ReplayInputsAsEvents() {
@@ -97,7 +84,7 @@ void ServerNetworkSystem::SendSyncPacket() {
     }
 
     // Get dirty entities
-    auto dirtyEntities = dirtyTracker_.GetDirtyEntities();
+    auto dirtyEntities = syncManager_.GetDirtyEntities();
     if (dirtyEntities.empty()) {
         return;
     }
@@ -133,7 +120,7 @@ void ServerNetworkSystem::SendSyncPacket() {
         }
 
         // Get component mask for this entity
-        uint32_t componentMask = serializer_.GetNetworkComponentMask(entity, world);
+        uint32_t componentMask = Network::GetNetworkComponentMask(entity, world);
         if (componentMask == 0) {
             continue;  // No networked components
         }
@@ -144,17 +131,10 @@ void ServerNetworkSystem::SendSyncPacket() {
         entityHeader.componentMask = componentMask;
         entityHeader.Write(buffer);
 
-        // Serialize components
-        for (uint8_t i = 0; i <= static_cast<uint8_t>(Network::NetworkComponentId::MAX_COMPONENT); ++i) {
-            if (componentMask & (1u << i)) {
-                serializer_.SerializeComponent(
-                    static_cast<Network::NetworkComponentId>(i),
-                    entity, world, buffer
-                );
-            }
-        }
+        // Serialize components using the new helper
+        Network::SerializeComponentsByMask(componentMask, entity, world, buffer);
 
-        dirtyTracker_.MarkSynced(entity, currentTick_);
+        syncManager_.MarkSynced(entity, currentTick_, componentMask);
         entitiesSerialized++;
     }
 
@@ -164,7 +144,7 @@ void ServerNetworkSystem::SendSyncPacket() {
 }
 
 void ServerNetworkSystem::BroadcastFullState(ENetPeer* peer) {
-    auto trackedEntities = dirtyTracker_.GetTrackedEntities();
+    auto trackedEntities = syncManager_.GetTrackedEntities();
 
     Network::ByteBuffer buffer(4096);
 
@@ -184,22 +164,15 @@ void ServerNetworkSystem::BroadcastFullState(ENetPeer* peer) {
 
     // Serialize all tracked entities
     for (Entity entity : trackedEntities) {
-        uint32_t componentMask = serializer_.GetNetworkComponentMask(entity, world);
+        uint32_t componentMask = Network::GetNetworkComponentMask(entity, world);
 
         Network::EntitySyncHeader entityHeader;
         entityHeader.entityId = static_cast<uint32_t>(entity);
         entityHeader.componentMask = componentMask;
         entityHeader.Write(buffer);
 
-        // Serialize components
-        for (uint8_t i = 0; i <= static_cast<uint8_t>(Network::NetworkComponentId::MAX_COMPONENT); ++i) {
-            if (componentMask & (1u << i)) {
-                serializer_.SerializeComponent(
-                    static_cast<Network::NetworkComponentId>(i),
-                    entity, world, buffer
-                );
-            }
-        }
+        // Serialize components using the new helper
+        Network::SerializeComponentsByMask(componentMask, entity, world, buffer);
     }
 
     // Send to specific client (reliable)
@@ -207,7 +180,7 @@ void ServerNetworkSystem::BroadcastFullState(ENetPeer* peer) {
     networkService.SendToClient(peer, buffer.Data(), buffer.Size(), true);
 
     // Mark all entities as synced for this tick
-    dirtyTracker_.MarkAllSynced(currentTick_);
+    syncManager_.MarkAllSynced(currentTick_);
 }
 
 void ServerNetworkSystem::OnMessage(Message& message) {
@@ -297,11 +270,11 @@ void ServerNetworkSystem::OnClientDisconnected(ENetPeer* peer) {
 }
 
 void ServerNetworkSystem::MarkEntityDirty(Entity entity) {
-    dirtyTracker_.MarkDirty(entity);
+    syncManager_.MarkDirty(entity);
 }
 
 void ServerNetworkSystem::TrackEntity(Entity entity) {
-    dirtyTracker_.TrackEntity(entity);
+    syncManager_.TrackEntity(entity);
 }
 
 void ServerNetworkSystem::UntrackEntity(Entity entity) {
@@ -309,7 +282,7 @@ void ServerNetworkSystem::UntrackEntity(Entity entity) {
     if (!clients_.empty()) {
         BroadcastEntityDestroyed(entity);
     }
-    dirtyTracker_.UntrackEntity(entity);
+    syncManager_.UntrackEntity(entity);
 }
 
 void ServerNetworkSystem::BroadcastEntityCreated(Entity entity) {
@@ -321,22 +294,15 @@ void ServerNetworkSystem::BroadcastEntityCreated(Entity entity) {
     header.tick = currentTick_;
     header.Write(buffer);
 
-    uint32_t componentMask = serializer_.GetNetworkComponentMask(entity, world);
+    uint32_t componentMask = Network::GetNetworkComponentMask(entity, world);
 
     Network::EntityCreatedPacket packet;
     packet.entityId = static_cast<uint32_t>(entity);
     packet.componentMask = componentMask;
     packet.Write(buffer);
 
-    // Serialize initial component state
-    for (uint8_t i = 0; i <= static_cast<uint8_t>(Network::NetworkComponentId::MAX_COMPONENT); ++i) {
-        if (componentMask & (1u << i)) {
-            serializer_.SerializeComponent(
-                static_cast<Network::NetworkComponentId>(i),
-                entity, world, buffer
-            );
-        }
-    }
+    // Serialize initial component state using the new helper
+    Network::SerializeComponentsByMask(componentMask, entity, world, buffer);
 
     auto& networkService = Application::GetInstance().GetService<Services::NetworkService>();
     networkService.BroadcastToClients(buffer.Data(), buffer.Size(), true);  // Reliable
@@ -360,9 +326,9 @@ void ServerNetworkSystem::BroadcastEntityDestroyed(Entity entity) {
 }
 
 void ServerNetworkSystem::ScanAndTrackEntities() {
-    // Auto-track entities with PositionComponent
+    // Auto-track entities with PositionComponent (the base requirement for networked entities)
     world->Query<PositionComponent>([this](Entity entity, auto& pos) {
-        if (!dirtyTracker_.IsTracked(entity)) {
+        if (!syncManager_.IsTracked(entity)) {
             TrackEntity(entity);
             // Notify clients of new entity
             if (!clients_.empty()) {
