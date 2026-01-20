@@ -3,8 +3,16 @@
 #ifdef TRACY_ENABLE
     #include <tracy/Tracy.hpp>
     
+    #if defined(_MSC_VER)
+        #define FUNCTION_SIGNATURE __FUNCSIG__
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define FUNCTION_SIGNATURE __PRETTY_FUNCTION__
+    #else
+        #define FUNCTION_SIGNATURE __func__  // C++11 standard fallback
+    #endif
+
     // Convenient Tracy profiling macros
-    #define Profile         ZoneScopedN(__PRETTY_FUNCTION__)
+    #define Profile         ZoneScopedN(FUNCTION_SIGNATURE)
     #define ProfileN(name)  ZoneScopedN(name)
     #define ProfileC(color) ZoneScopedC(color)
     #define ProfileNC(name, color) ZoneScopedNC(name, color)
