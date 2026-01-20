@@ -1,6 +1,6 @@
-#include "../../Include/Network/ComponentSerializer.h"
-#include "../../Include/Component.h"
-#include "../../Include/Entity.h"
+#include "Network/ComponentSerializer.h"
+#include "Component.h"
+#include "Entity.h"
 
 namespace Elysium::Network {
 

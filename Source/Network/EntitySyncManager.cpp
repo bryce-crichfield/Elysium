@@ -1,4 +1,4 @@
-#include "../../Include/Network/EntitySyncManager.h"
+#include "Network/EntitySyncManager.h"
 
 namespace Elysium::Network {
 
