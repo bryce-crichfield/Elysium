@@ -1,15 +1,14 @@
 #pragma once
 
-#include "raylib.h"
 #include <string>
 #include <variant>
-#include "Sprite.h"
 #include "Path.h"
+#include "Sprite.h"
+#include "raylib.h"
 
 #ifndef ASSETS_PATH
 #define ASSETS_PATH "./Assets/"
 #endif
-
 
 namespace Elysium {
 
@@ -26,15 +25,16 @@ enum class AssetType {
 };
 
 class Asset {
-public:
+   public:
     Asset() = default;
     Asset(AssetType type, const AssetName& name, const std::string& path);
     ~Asset() = default;
 
     AssetType GetType() const { return type_; }
     const AssetName& GetName() const { return name_; }
-    std::string GetPath() const { 
-        return path_.GetFullPath(); }
+    std::string GetPath() const {
+        return path_.GetFullPath();
+    }
     const Path& GetAssetPath() const { return path_; }
     bool IsLoaded() const { return loaded_; }
     bool HasImageData() const { return hasImageData_; }
@@ -62,7 +62,7 @@ public:
 
     void Unload();
 
-private:
+   private:
     AssetType type_;
     std::string name_;
     Path path_;
@@ -75,4 +75,4 @@ private:
     Wave waveData_{};
 };
 
-} // namespace Elysium
+}  // namespace Elysium

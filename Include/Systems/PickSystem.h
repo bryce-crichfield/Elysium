@@ -1,8 +1,8 @@
 #pragma once
 
-#include "System.h"
-#include "Event.h"
 #include "Entity.h"
+#include "Event.h"
+#include "System.h"
 
 namespace Elysium::Systems {
 
@@ -11,13 +11,13 @@ namespace Elysium::Systems {
  * It listens to mouse events and updates entity positions during drag operations.
  */
 class PickSystem : public System {
-public:
+   public:
     PickSystem(Context context);
 
     void Update(float deltaTime) override;
     void OnEvent(Event& event);
 
-private:
+   private:
     Entity draggedEntity_ = 0;
     bool isDragging_ = false;
     Vector2 dragOffset_ = {0, 0};  // Offset from entity position to mouse position
@@ -33,4 +33,4 @@ private:
     Vector2 FramebufferToWorld(Vector2 fbPos);
 };
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

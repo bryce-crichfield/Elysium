@@ -1,9 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <string>
-#include <algorithm>
 #include "ByteBuffer.h"
 
 namespace Elysium::Network {
@@ -21,23 +21,23 @@ constexpr uint32_t MAX_ENTITIES_PER_SYNC = 128;
  */
 enum class PacketType : uint8_t {
     // Connection Management
-    HandshakeRequest   = 0x01,  // C -> S: Client requests connection
-    HandshakeResponse  = 0x02,  // S -> C: Server accepts, sends full state
+    HandshakeRequest = 0x01,   // C -> S: Client requests connection
+    HandshakeResponse = 0x02,  // S -> C: Server accepts, sends full state
 
     // Input Forwarding
-    InputPacket        = 0x10,  // C -> S: Client inputs (batched)
+    InputPacket = 0x10,  // C -> S: Client inputs (batched)
 
     // State Synchronization
-    SyncPacket         = 0x20,  // S -> C: Dirty component updates
-    EntityCreated      = 0x21,  // S -> C: New entity notification
-    EntityDestroyed    = 0x22,  // S -> C: Entity removal notification
+    SyncPacket = 0x20,       // S -> C: Dirty component updates
+    EntityCreated = 0x21,    // S -> C: New entity notification
+    EntityDestroyed = 0x22,  // S -> C: Entity removal notification
 
     // Scene Control
-    SceneChange        = 0x23,  // S -> C: Server tells client to change scene
+    SceneChange = 0x23,  // S -> C: Server tells client to change scene
 
     // Utility
-    Ping               = 0x30,  // Bidirectional: Latency measurement
-    Pong               = 0x31,  // Response to Ping
+    Ping = 0x30,  // Bidirectional: Latency measurement
+    Pong = 0x31,  // Response to Ping
 };
 
 /**
@@ -45,10 +45,10 @@ enum class PacketType : uint8_t {
  * Total size: 8 bytes
  */
 struct PacketHeader {
-    uint8_t packetType;       // PacketType enum
-    uint8_t flags;            // Reserved for future use
-    uint16_t payloadSize;     // Size of payload after header
-    uint32_t tick;            // Server tick number
+    uint8_t packetType;    // PacketType enum
+    uint8_t flags;         // Reserved for future use
+    uint16_t payloadSize;  // Size of payload after header
+    uint32_t tick;         // Server tick number
 
     void Write(ByteBuffer& buffer) const {
         buffer.WriteU8(packetType);
@@ -138,8 +138,8 @@ struct SyncPacketHeader {
  * Describes which entity and what components follow
  */
 struct EntitySyncHeader {
-    uint32_t entityId;        // Entity ID (size_t cast to u32)
-    uint32_t componentMask;   // Bitmask of which components follow
+    uint32_t entityId;       // Entity ID (size_t cast to u32)
+    uint32_t componentMask;  // Bitmask of which components follow
 
     void Write(ByteBuffer& buffer) const {
         buffer.WriteU32(entityId);
@@ -194,10 +194,10 @@ struct EntityDestroyedPacket {
  * Scene Change Operation
  */
 enum class SceneChangeOp : uint8_t {
-    Push    = 0,  // Push scene onto stack
-    Pop     = 1,  // Pop current scene
+    Push = 0,     // Push scene onto stack
+    Pop = 1,      // Pop current scene
     Replace = 2,  // Replace current scene
-    Clear   = 3,  // Clear stack and push
+    Clear = 3,    // Clear stack and push
 };
 
 /**
@@ -234,8 +234,7 @@ struct SceneChangePacket {
 
     void SetSceneName(const std::string& name) {
         sceneNameLength = static_cast<uint8_t>(
-            std::min(name.size(), MAX_SCENE_NAME_LENGTH - 1)
-        );
+            std::min(name.size(), MAX_SCENE_NAME_LENGTH - 1));
         std::memcpy(sceneName, name.c_str(), sceneNameLength);
         sceneName[sceneNameLength] = '\0';
     }
@@ -265,4 +264,4 @@ enum class NetworkChannel : uint8_t {
     Unreliable = 1,  // Position updates, inputs (can be dropped)
 };
 
-} // namespace Elysium::Network
+}  // namespace Elysium::Network

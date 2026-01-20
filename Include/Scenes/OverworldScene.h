@@ -6,7 +6,7 @@
 namespace Elysium::Scenes {
 
 class OverworldScene : public Scene {
-public:
+   public:
     OverworldScene();
     virtual ~OverworldScene() = default;
 
@@ -16,4 +16,4 @@ public:
     void OnExit() override;
 };
 
-} // namespace Elysium::Scenes
+}  // namespace Elysium::Scenes

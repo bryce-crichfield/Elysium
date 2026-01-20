@@ -1,7 +1,7 @@
 #include "StateMachine.h"
-#include "Services/LogService.h"
 #include <algorithm>
 #include "Common.h"
+#include "Services/LogService.h"
 
 namespace Elysium {
 
@@ -24,8 +24,8 @@ void StateMachine::SetCurrentState(const std::string& state) {
         enterIt->second();
     }
 
-    LOG_DEBUGF("StateMachine", "State changed: %s -> %s", 
-               previousState_.empty() ? "NONE" : previousState_.c_str(), 
+    LOG_DEBUGF("StateMachine", "State changed: %s -> %s",
+               previousState_.empty() ? "NONE" : previousState_.c_str(),
                currentState_.c_str());
 }
 
@@ -63,7 +63,7 @@ bool StateMachine::CanTransition(const std::string& from, const std::string& to)
 bool StateMachine::TransitionTo(const std::string& newState) {
     Profile;
     if (currentState_ == newState) {
-        return true; // Already in target state
+        return true;  // Already in target state
     }
 
     if (!currentState_.empty() && !CanTransition(currentState_, newState)) {
@@ -112,4 +112,4 @@ std::string StateMachine::MakeTransitionKey(const std::string& from, const std::
     return from + "->" + to;
 }
 
-} // namespace Elysium
+}  // namespace Elysium

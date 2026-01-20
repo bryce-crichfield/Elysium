@@ -25,4 +25,4 @@ const char* Path::c_str() const {
     return cachedFullPath_.c_str();
 }
 
-}
+}  // namespace Elysium

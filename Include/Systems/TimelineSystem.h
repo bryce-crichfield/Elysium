@@ -1,12 +1,12 @@
 #pragma once
 
-#include "System.h"
-#include "Timeline.h"
-#include "Component.h"
 #include <functional>
-#include <vector>
 #include <string>
 #include <typeindex>
+#include <vector>
+#include "Component.h"
+#include "System.h"
+#include "Timeline.h"
 
 namespace Elysium::Systems {
 
@@ -23,16 +23,15 @@ struct PropertyAccessor {
 };
 
 class TimelineSystem : public System {
-private:
+   private:
     std::vector<PropertyAccessor> accessors_;
 
     // Register a property accessor
-    template<typename ComponentType, typename ValueType>
+    template <typename ComponentType, typename ValueType>
     void RegisterProperty(
         const std::string& componentName,
         const std::string& propertyName,
-        std::function<void(ComponentType&, const ValueType&)> setter
-    ) {
+        std::function<void(ComponentType&, const ValueType&)> setter) {
         PropertyAccessor accessor(componentName, propertyName, std::type_index(typeid(ValueType)));
 
         accessor.applyFunc = [setter](Entity entity, World* world, const void* valuePtr) {
@@ -51,7 +50,7 @@ private:
     // Find and bind an accessor to a track
     void BindTrackAccessor(TrackBase* track);
 
-public:
+   public:
     TimelineSystem(Context context);
 
     void Update(float deltaTime) override;
@@ -60,4 +59,4 @@ public:
     std::vector<std::string> GetPropertiesForComponent(const std::string& componentName) const;
 };
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

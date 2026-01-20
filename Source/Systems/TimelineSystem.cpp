@@ -1,6 +1,6 @@
 #include "Systems/TimelineSystem.h"
-#include "Scene.h"
 #include "Component.h"
+#include "Scene.h"
 
 namespace Elysium::Systems {
 
@@ -8,14 +8,12 @@ TimelineSystem::TimelineSystem(Context context) : System(context) {
     // Register PositionComponent.x
     RegisterProperty<PositionComponent, float>(
         "PositionComponent", "x",
-        [](PositionComponent& c, const float& v) { c.x = v; }
-    );
+        [](PositionComponent& c, const float& v) { c.x = v; });
 
     // Register PositionComponent.y
     RegisterProperty<PositionComponent, float>(
         "PositionComponent", "y",
-        [](PositionComponent& c, const float& v) { c.y = v; }
-    );
+        [](PositionComponent& c, const float& v) { c.y = v; });
 }
 
 void TimelineSystem::Update(float deltaTime) {
@@ -37,7 +35,6 @@ void TimelineSystem::BindTrackAccessor(TrackBase* track) {
     for (auto& accessor : accessors_) {
         if (accessor.componentName == track->GetComponentName() &&
             accessor.propertyName == track->GetPropertyName()) {
-
             // Check if entity has the component
             if (!accessor.hasComponentFunc(track->GetTargetEntity(), world)) {
                 // Log warning or skip
@@ -52,8 +49,7 @@ void TimelineSystem::BindTrackAccessor(TrackBase* track) {
                     floatTrack->SetPropertySetter(
                         [accessor](Entity entity, World* world, const float& value) {
                             accessor.applyFunc(entity, world, &value);
-                        }
-                    );
+                        });
                 }
             }
             return;
@@ -71,4 +67,4 @@ std::vector<std::string> TimelineSystem::GetPropertiesForComponent(const std::st
     return properties;
 }
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

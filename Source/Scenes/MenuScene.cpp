@@ -1,9 +1,9 @@
 #include "Scenes/MenuScene.h"
-#include "Services/LogService.h"
+#include <memory>
+#include "Application.h"
 #include "Scenes/ExploreScene.h"
 #include "Scenes/OverworldScene.h"
-#include "Application.h"
-#include <memory>
+#include "Services/LogService.h"
 
 namespace Elysium::Scenes {
 
@@ -22,10 +22,11 @@ void MenuScene::OnExit() {
 
 void MenuScene::OnUpdate(float deltaTime) {
     rotation_ += deltaTime * 30.0f;
-    if (rotation_ >= 360.0f) rotation_ -= 360.0f;
+    if (rotation_ >= 360.0f)
+        rotation_ -= 360.0f;
 
     // Update click effects
-    for (auto it = clickEffects_.begin(); it != clickEffects_.end(); ) {
+    for (auto it = clickEffects_.begin(); it != clickEffects_.end();) {
         it->lifetime -= deltaTime;
         if (it->lifetime <= 0.0f) {
             it = clickEffects_.erase(it);
@@ -46,11 +47,10 @@ void MenuScene::OnDraw(Rectangle screen) {
             (unsigned char)(100 + i * 30),
             (unsigned char)(50 + i * 20),
             (unsigned char)(150 + i * 10),
-            100
-        };
+            100};
 
-        Vector2 origin = { size / 2, size / 2 };
-        Rectangle rect = { centerX - size/2, centerY - size/2, size, size };
+        Vector2 origin = {size / 2, size / 2};
+        Rectangle rect = {centerX - size / 2, centerY - size / 2, size, size};
         DrawRectanglePro(rect, origin, rotation_ + i * 45.0f, color);
     }
 
@@ -60,8 +60,8 @@ void MenuScene::OnDraw(Rectangle screen) {
 
     // Draw click effects
     for (const auto& effect : clickEffects_) {
-        float alpha = effect.lifetime / 1.0f; // Fade out over 1 second
-        float radius = (1.0f - alpha) * 30.0f; // Expand outward
+        float alpha = effect.lifetime / 1.0f;   // Fade out over 1 second
+        float radius = (1.0f - alpha) * 30.0f;  // Expand outward
         Color color = effect.color;
         color.a = (unsigned char)(alpha * 255);
         DrawCircleV(effect.position, radius, color);
@@ -88,9 +88,9 @@ void MenuScene::OnEvent(Event& event) {
         clickEffects_.push_back({pos, 1.0f, color});
 
         LOG_INFOF("MenuScene", "Mouse clicked at (%.1f, %.1f), button %d",
-                 pos.x, pos.y, mouseEvent->GetButton());
+                  pos.x, pos.y, mouseEvent->GetButton());
 
-        event.handled = true; // Mark as handled
+        event.handled = true;  // Mark as handled
     }
 
     // Handle key pressed
@@ -100,4 +100,4 @@ void MenuScene::OnEvent(Event& event) {
     }
 }
 
-} // namespace Elysium::Scenes
+}  // namespace Elysium::Scenes

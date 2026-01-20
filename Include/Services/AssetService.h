@@ -1,17 +1,17 @@
 #pragma once
 
+#include <string>
+#include <unordered_map>
 #include "../Asset.h"
 #include "../Service.h"
 #include "raylib.h"
-#include <string>
-#include <unordered_map>
 
 namespace Elysium::Services {
 
 class AssetService : public Elysium::Service {
-public:
+   public:
     AssetService();
-    
+
     // Service interface
     void Initialize() override;
     void Shutdown() override;
@@ -20,7 +20,7 @@ public:
 
     // Core asset loading - takes Asset object with name, path, type
     void LoadAsset(const Asset& asset);
-    void FinalizeAssets(); // Convert raw data to GPU resources on main thread
+    void FinalizeAssets();  // Convert raw data to GPU resources on main thread
     bool IsAssetLoaded(const AssetName& name) const;
 
     // Get assets by name
@@ -36,7 +36,7 @@ public:
     // Asset enumeration
     const std::unordered_map<AssetName, Asset>& GetAllAssets() const { return assetsByName_; }
 
-private:
+   private:
     void LoadAssetByType(Asset& asset);
 
     // Asset storage by name
@@ -46,4 +46,4 @@ private:
     std::unordered_map<std::string, AssetName> pathToName_;
 };
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

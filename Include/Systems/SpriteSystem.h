@@ -5,9 +5,9 @@
 namespace Elysium::Systems {
 
 class SpriteSystem : public System {
-public:
+   public:
     SpriteSystem(Context context);
     void Update(float deltaTime) override;
 };
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

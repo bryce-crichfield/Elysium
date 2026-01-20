@@ -1,14 +1,14 @@
 #pragma once
 
-#include "../Scene.h"
-#include "../Event.h"
-#include "raylib.h"
 #include <vector>
+#include "../Event.h"
+#include "../Scene.h"
+#include "raylib.h"
 
 namespace Elysium::Scenes {
 
 class MenuScene : public Scene {
-public:
+   public:
     MenuScene();
     virtual ~MenuScene() = default;
 
@@ -18,7 +18,7 @@ public:
     void OnExit() override;
     void OnEvent(Event& event) override;
 
-private:
+   private:
     float rotation_;
     Color backgroundColor_;
 
@@ -31,4 +31,4 @@ private:
     std::vector<ClickEffect> clickEffects_;
 };
 
-} // namespace Elysium::Scenes
+}  // namespace Elysium::Scenes

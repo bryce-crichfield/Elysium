@@ -3,17 +3,17 @@
 namespace Elysium {
 
 namespace Services {
-    class SceneService;
+class SceneService;
 }
 
 class SceneInspector {
-public:
+   public:
     SceneInspector() = default;
     ~SceneInspector() = default;
 
     void DrawUI(Services::SceneService& service);
 
-private:
+   private:
     void DrawScenesPanel(Services::SceneService& service);
     void DrawCurrentScenePanel(Services::SceneService& service);
     void DrawSystemsDrawer(Services::SceneService& service);
@@ -25,4 +25,4 @@ private:
     int selectedSceneIndex_ = -1;
 };
 
-} // namespace Elysium
+}  // namespace Elysium

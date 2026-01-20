@@ -1,17 +1,17 @@
 #pragma once
 
-#include "Service.h"
-#include "raylib.h"
-#include <string>
-#include <vector>
+#include <atomic>
+#include <chrono>
 #include <fstream>
 #include <mutex>
-#include <thread>
-#include <atomic>
 #include <queue>
-#include <chrono>
+#include <string>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
+#include "Service.h"
+#include "raylib.h"
 
 // Undefine Windows ERROR macro to avoid conflict with LogLevel::Error
 #ifdef ERROR
@@ -42,7 +42,7 @@ struct LogEntry {
 };
 
 class LogService : public Elysium::Service {
-public:
+   public:
     LogService();
     ~LogService();
 
@@ -57,28 +57,28 @@ public:
     static void LogDebug(const std::string& topic, const std::string& message);
 
     // Formatted logging with printf-style arguments
-    template<typename... Args>
+    template <typename... Args>
     static void LogInfoF(const std::string& topic, const char* format, Args... args) {
         char buffer[1024];
         snprintf(buffer, sizeof(buffer), format, args...);
         LogInfo(topic, std::string(buffer));
     }
 
-    template<typename... Args>
+    template <typename... Args>
     static void LogWarningF(const std::string& topic, const char* format, Args... args) {
         char buffer[1024];
         snprintf(buffer, sizeof(buffer), format, args...);
         LogWarning(topic, std::string(buffer));
     }
 
-    template<typename... Args>
+    template <typename... Args>
     static void LogErrorF(const std::string& topic, const char* format, Args... args) {
         char buffer[1024];
         snprintf(buffer, sizeof(buffer), format, args...);
         LogError(topic, std::string(buffer));
     }
 
-    template<typename... Args>
+    template <typename... Args>
     static void LogDebugF(const std::string& topic, const char* format, Args... args) {
         char buffer[1024];
         snprintf(buffer, sizeof(buffer), format, args...);
@@ -94,7 +94,7 @@ public:
     // Get all discovered topics for filtering
     std::vector<std::string> GetAllTopics() const;
 
-private:
+   private:
     // Core state
     bool initialized_;
     std::atomic<bool> shouldStop_;
@@ -149,7 +149,7 @@ private:
     unsigned int GetImGuiColor(LogLevel level) const;
 };
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services
 
 // Convenience macros for consistent logging
 #define LOG_INFO(topic, message) Elysium::Services::LogService::LogInfo(topic, message)

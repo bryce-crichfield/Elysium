@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Message.h"
-#include <vector>
 #include <cstdint>
+#include <vector>
+#include "Message.h"
 
 // Forward declaration for ENet type (defined in enet/enet.h)
 typedef struct _ENetPeer ENetPeer;
@@ -34,9 +34,9 @@ struct NetworkDataReceivedMessage : public Message {
     ENetPeer* peer;
     std::vector<uint8_t> data;
     uint8_t channelID;
-    
+
     NetworkDataReceivedMessage(ENetPeer* p, const void* d, size_t len, uint8_t ch)
         : peer(p), data(static_cast<const uint8_t*>(d), static_cast<const uint8_t*>(d) + len), channelID(ch) {}
 };
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

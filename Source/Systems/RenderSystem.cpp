@@ -1,16 +1,16 @@
 #include "Systems/RenderSystem.h"
+#include <algorithm>
+#include <optional>
+#include <stdexcept>
+#include <variant>
+#include <vector>
+#include "Application.h"
+#include "Entity.h"
+#include "Scene.h"
+#include "Services/AssetService.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
-#include "Application.h"
-#include "Scene.h"
-#include "Entity.h"
-#include "Services/AssetService.h"
-#include <vector>
-#include <algorithm>
-#include <stdexcept>
-#include <variant>
-#include <optional>
 
 namespace Elysium::Systems {
 
@@ -63,8 +63,7 @@ void RenderSystem::RenderCamera(Entity cameraEntity, const CameraComponent& came
         camera.viewport.x,
         camera.viewport.y,
         camera.viewport.width,
-        camera.viewport.height
-    );
+        camera.viewport.height);
 
     // Collects and group renderable entities by layer;
     std::unordered_map<int, std::vector<RenderItem>> layerItems;
@@ -105,7 +104,7 @@ void RenderSystem::RenderCamera(Entity cameraEntity, const CameraComponent& came
 
     // Render layers in order
     std::vector<int> sortedLayers;
-    for (const auto& [layerIndex, items]: layerItems) {
+    for (const auto& [layerIndex, items] : layerItems) {
         sortedLayers.push_back(layerIndex);
     }
     std::sort(sortedLayers.begin(), sortedLayers.end());
@@ -114,7 +113,7 @@ void RenderSystem::RenderCamera(Entity cameraEntity, const CameraComponent& came
         auto layerIt = layers.find(layerIndex);
         if (layerIt != layers.end()) {
             RenderLayer(layerIndex, layerItems[layerIndex],
-                cameraEntity, *layerIt->second.second);
+                        cameraEntity, *layerIt->second.second);
         } else {
             LayerComponent defaultLayer;
             RenderLayer(layerIndex, layerItems[layerIndex], cameraEntity, defaultLayer);
@@ -140,8 +139,7 @@ bool RenderSystem::CanCameraSeeLayer(Entity entity, const CameraComponent& camer
     return true;
 }
 
-void RenderSystem::RenderLayer(int index, const std::vector<RenderItem>& items, Entity cameraEntity, const LayerComponent& layer)
-{
+void RenderSystem::RenderLayer(int index, const std::vector<RenderItem>& items, Entity cameraEntity, const LayerComponent& layer) {
     ApplyBlendMode(layer.blend);
 
     Matrix transform = GetLayerTransform(layer, cameraEntity);
@@ -156,34 +154,29 @@ void RenderSystem::RenderLayer(int index, const std::vector<RenderItem>& items, 
     rlPopMatrix();
 }
 
-void RenderSystem::ApplyBlendMode(const LayerComponent::Blend& blend)
-{
-    switch (blend)
-    {
-    case LayerComponent::Blend::Normal:
-        BeginBlendMode(BLEND_ALPHA);
-        break;
-    case LayerComponent::Blend::Additive:
-        BeginBlendMode(BLEND_ADDITIVE);
-        break;
-    case LayerComponent::Blend::Multiply:
-        BeginBlendMode(BLEND_MULTIPLIED);
-        break;
-    case LayerComponent::Blend::Alpha:
-        BeginBlendMode(BLEND_ALPHA);
-        break;
-    default:
-        BeginBlendMode(BLEND_ALPHA);
-        break;
+void RenderSystem::ApplyBlendMode(const LayerComponent::Blend& blend) {
+    switch (blend) {
+        case LayerComponent::Blend::Normal:
+            BeginBlendMode(BLEND_ALPHA);
+            break;
+        case LayerComponent::Blend::Additive:
+            BeginBlendMode(BLEND_ADDITIVE);
+            break;
+        case LayerComponent::Blend::Multiply:
+            BeginBlendMode(BLEND_MULTIPLIED);
+            break;
+        case LayerComponent::Blend::Alpha:
+            BeginBlendMode(BLEND_ALPHA);
+            break;
+        default:
+            BeginBlendMode(BLEND_ALPHA);
+            break;
     }
 }
 
-Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, Entity cameraEntity)
-{
-    auto &cameraPosition = world->GetComponent<PositionComponent>(cameraEntity);
-    auto &camera = world->GetComponent<CameraComponent>(cameraEntity);
-
-
+Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, Entity cameraEntity) {
+    auto& cameraPosition = world->GetComponent<PositionComponent>(cameraEntity);
+    auto& camera = world->GetComponent<CameraComponent>(cameraEntity);
 
     switch (layer.space) {
         case LayerComponent::Space::Screen: {
@@ -193,8 +186,7 @@ Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, Entity camer
             // Center the viewport - translate to center of camera viewport
             Vector2 viewportCenter = {
                 camera.viewport.width * 0.5f,
-                camera.viewport.height * 0.5f
-            };
+                camera.viewport.height * 0.5f};
 
             Matrix centerTranslation = MatrixTranslate(viewportCenter.x, viewportCenter.y, 0);
             Matrix scale = MatrixScale(camera.zoom, camera.zoom, 1.0f);
@@ -206,8 +198,7 @@ Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, Entity camer
         case LayerComponent::Space::Parallax: {
             Vector2 parallaxOffset = {
                 -cameraPosition.x * layer.parallaxFactor.x,
-                -cameraPosition.y * layer.parallaxFactor.y
-            };
+                -cameraPosition.y * layer.parallaxFactor.y};
 
             Matrix translation = MatrixTranslate(parallaxOffset.x, parallaxOffset.y, 0);
 
@@ -251,7 +242,8 @@ std::string RenderSystem::GetLayerName(const std::optional<Renderable>& renderab
 
     return std::visit([](const auto& component) -> std::string {
         return component.layerName;
-    }, renderable.value());
+    },
+                      renderable.value());
 }
 
 void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent& layer) {
@@ -268,14 +260,12 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
             if (component.border.a > 0) {
                 DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
             }
-        }
-        else if constexpr (std::is_same_v<T, CircleComponent>) {
+        } else if constexpr (std::is_same_v<T, CircleComponent>) {
             DrawCircleV({item.position.x, item.position.y}, component.radius, component.background);
             if (component.border.a > 0) {
                 DrawCircleLinesV({item.position.x, item.position.y}, component.radius, component.border);
             }
-        }
-        else if constexpr (std::is_same_v<T, TextComponent>) {
+        } else if constexpr (std::is_same_v<T, TextComponent>) {
             // Get scale (default to 1,1 if no ScaleComponent)
             float scaleX = 1.0f, scaleY = 1.0f;
             if (world->HasComponent<ScaleComponent>(item.entity)) {
@@ -292,11 +282,9 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
             int centeredX = item.position.x - textWidth * 0.5f;
             int centeredY = item.position.y - scaledFontSize * 0.5f;
             DrawText(component.content.c_str(), centeredX, centeredY, scaledFontSize, component.color);
-        }
-        else if constexpr (std::is_same_v<T, LightComponent>) {
+        } else if constexpr (std::is_same_v<T, LightComponent>) {
             DrawCircleV({item.position.x, item.position.y}, component.radius, component.color);
-        }
-        else if constexpr (std::is_same_v<T, SpriteComponent>) {
+        } else if constexpr (std::is_same_v<T, SpriteComponent>) {
             const Sprite& sprite = component.sprite;
             const std::string& marker = component.markerName;
 
@@ -325,14 +313,12 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
                         item.position.x - scaledWidth * 0.5f,
                         item.position.y - scaledHeight * 0.5f,
                         scaledWidth,
-                        scaledHeight
-                    };
+                        scaledHeight};
                     Vector2 origin = {0, 0};
                     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
                 }
             }
-        }
-        else if constexpr (std::is_same_v<T, TextureComponent>) {
+        } else if constexpr (std::is_same_v<T, TextureComponent>) {
             if (!component.textureName.empty()) {
                 auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
                 Texture2D texture = assets.GetTexture(component.textureName);
@@ -341,7 +327,7 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
                     // Source rect: use clip if specified, otherwise full texture
                     Rectangle sourceRect = component.clip;
                     if (sourceRect.width <= 0 || sourceRect.height <= 0) {
-                        sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
+                        sourceRect = {0, 0, (float)texture.width, (float)texture.height};
                     }
 
                     // Get scale (default to 1,1 if no ScaleComponent)
@@ -360,15 +346,15 @@ void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent
                         item.position.x - scaledWidth * 0.5f,
                         item.position.y - scaledHeight * 0.5f,
                         scaledWidth,
-                        scaledHeight
-                    };
+                        scaledHeight};
 
                     Vector2 origin = {0, 0};
                     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, component.tint);
                 }
             }
         }
-    }, item.renderable);
+    },
+               item.renderable);
 }
 
 void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
@@ -390,18 +376,14 @@ void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
                 item.position.x - halfWidth,
                 item.position.y - halfHeight,
                 component.width,
-                component.height
-            };
-        }
-        else if constexpr (std::is_same_v<T, CircleComponent>) {
+                component.height};
+        } else if constexpr (std::is_same_v<T, CircleComponent>) {
             bounds.bounds = {
                 item.position.x - component.radius,
                 item.position.y - component.radius,
                 component.radius * 2,
-                component.radius * 2
-            };
-        }
-        else if constexpr (std::is_same_v<T, SpriteComponent>) {
+                component.radius * 2};
+        } else if constexpr (std::is_same_v<T, SpriteComponent>) {
             const Sprite& sprite = component.sprite;
             const std::string& marker = component.markerName;
             Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
@@ -421,10 +403,8 @@ void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
                 item.position.x - scaledWidth * 0.5f,
                 item.position.y - scaledHeight * 0.5f,
                 scaledWidth,
-                scaledHeight
-            };
-        }
-        else if constexpr (std::is_same_v<T, TextureComponent>) {
+                scaledHeight};
+        } else if constexpr (std::is_same_v<T, TextureComponent>) {
             if (!component.textureName.empty()) {
                 auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
                 Texture2D texture = assets.GetTexture(component.textureName);
@@ -433,7 +413,7 @@ void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
                     // Source rect: use clip if specified, otherwise full texture
                     Rectangle sourceRect = component.clip;
                     if (sourceRect.width <= 0 || sourceRect.height <= 0) {
-                        sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
+                        sourceRect = {0, 0, (float)texture.width, (float)texture.height};
                     }
 
                     // Get scale (default to 1,1 if no ScaleComponent)
@@ -451,12 +431,10 @@ void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
                         item.position.x - scaledWidth * 0.5f,
                         item.position.y - scaledHeight * 0.5f,
                         scaledWidth,
-                        scaledHeight
-                    };
+                        scaledHeight};
                 }
             }
-        }
-        else if constexpr (std::is_same_v<T, TextComponent>) {
+        } else if constexpr (std::is_same_v<T, TextComponent>) {
             // Get scale (default to 1,1 if no ScaleComponent)
             float scaleX = 1.0f, scaleY = 1.0f;
             if (world->HasComponent<ScaleComponent>(entity)) {
@@ -474,24 +452,23 @@ void RenderSystem::ComputeBounds(Entity entity, const RenderItem& item) {
                 item.position.x - textWidth * 0.5f,
                 item.position.y - scaledFontSize * 0.5f,
                 (float)textWidth,
-                (float)scaledFontSize
-            };
-        }
-        else if constexpr (std::is_same_v<T, LightComponent>) {
+                (float)scaledFontSize};
+        } else if constexpr (std::is_same_v<T, LightComponent>) {
             bounds.bounds = {
                 item.position.x - component.radius,
                 item.position.y - component.radius,
                 component.radius * 2,
-                component.radius * 2
-            };
+                component.radius * 2};
         }
-    }, item.renderable);
+    },
+               item.renderable);
 }
 
 void RenderSystem::DrawDebugBounds() {
     // Get scene to check debug flag
     Scene* scene = GetScene();
-    if (!scene) return;
+    if (!scene)
+        return;
 
     // TODO: Add debug flag check to scene once implemented
     // For now, always draw debug bounds if entity has BoundsComponent
@@ -508,8 +485,7 @@ void RenderSystem::DrawDebugBounds() {
             bounds.bounds.y,
             bounds.bounds.width,
             bounds.bounds.height,
-            bounds.debugColor
-        );
+            bounds.debugColor);
 
         // If dragging, draw a filled semi-transparent overlay
         if (bounds.isDragging) {
@@ -520,4 +496,4 @@ void RenderSystem::DrawDebugBounds() {
     });
 }
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

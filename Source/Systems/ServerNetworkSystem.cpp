@@ -1,17 +1,16 @@
 #include "../../Include/Systems/ServerNetworkSystem.h"
 #include "../../Include/Application.h"
-#include "../../Include/Scene.h"
-#include "../../Include/Entity.h"
 #include "../../Include/Component.h"
-#include "../../Include/Services/NetworkService.h"
+#include "../../Include/Entity.h"
 #include "../../Include/Messages/NetworkMessages.h"
 #include "../../Include/Network/ByteBuffer.h"
+#include "../../Include/Scene.h"
+#include "../../Include/Services/NetworkService.h"
 
 namespace Elysium {
 
 ServerNetworkSystem::ServerNetworkSystem(Context context)
-    : System(context)
-{
+    : System(context) {
     // No initialization needed - using free functions now
 }
 
@@ -108,8 +107,7 @@ void ServerNetworkSystem::SendSyncPacket() {
     syncHeader.serverTick = currentTick_;
     syncHeader.lastProcessedInput = 0;  // Per-client value handled below
     syncHeader.entityCount = static_cast<uint16_t>(
-        std::min(dirtyEntities.size(), static_cast<size_t>(Network::MAX_ENTITIES_PER_SYNC))
-    );
+        std::min(dirtyEntities.size(), static_cast<size_t>(Network::MAX_ENTITIES_PER_SYNC)));
     syncHeader.Write(buffer);
 
     // Serialize dirty entities
@@ -188,11 +186,9 @@ void ServerNetworkSystem::OnMessage(Message& message) {
 
     if (auto* connected = message.As<ClientConnectedMessage>()) {
         OnClientConnected(connected->peer);
-    }
-    else if (auto* disconnected = message.As<ClientDisconnectedMessage>()) {
+    } else if (auto* disconnected = message.As<ClientDisconnectedMessage>()) {
         OnClientDisconnected(disconnected->peer);
-    }
-    else if (auto* data = message.As<NetworkDataReceivedMessage>()) {
+    } else if (auto* data = message.As<NetworkDataReceivedMessage>()) {
         // Parse and handle incoming data
         Network::ByteBuffer buffer(data->data);
 
@@ -338,4 +334,4 @@ void ServerNetworkSystem::ScanAndTrackEntities() {
     });
 }
 
-} // namespace Elysium
+}  // namespace Elysium

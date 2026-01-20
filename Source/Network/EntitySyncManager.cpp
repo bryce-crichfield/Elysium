@@ -50,7 +50,7 @@ void EntitySyncManager::MarkAllSynced(uint32_t tick) {
 void EntitySyncManager::TrackEntity(Entity entity) {
     if (entityStates_.find(entity) == entityStates_.end()) {
         EntitySyncState state;
-        state.version = 1;        // Start dirty so it gets synced
+        state.version = 1;  // Start dirty so it gets synced
         state.lastSentVersion = 0;
         state.lastSyncTick = 0;
         state.lastSentComponentMask = 0;
@@ -103,4 +103,4 @@ uint32_t EntitySyncManager::GetLastSentComponentMask(Entity entity) const {
     return 0;
 }
 
-} // namespace Elysium::Network
+}  // namespace Elysium::Network

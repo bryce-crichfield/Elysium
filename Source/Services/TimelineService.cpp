@@ -1,11 +1,11 @@
 #include "Services/TimelineService.h"
-#include "Services/SceneService.h"
-#include "Scene.h"
-#include "Application.h"
-#include "imgui.h"
-#include "rlImGui.h"
 #include <algorithm>
 #include <cmath>
+#include "Application.h"
+#include "Scene.h"
+#include "Services/SceneService.h"
+#include "imgui.h"
+#include "rlImGui.h"
 
 namespace Elysium::Services {
 
@@ -400,8 +400,7 @@ void TimelineService::DrawRightPanel() {
                         trackNameBuffer_,
                         entity,
                         componentName,
-                        propertyName
-                    );
+                        propertyName);
                     selectedTrack_ = newTrack;
                     selectionType_ = SelectionType::Track;
                 }
@@ -422,7 +421,8 @@ void TimelineService::DrawRightPanel() {
 }
 
 void TimelineService::DrawTimelineSettings() {
-    if (!selectedTimeline_) return;
+    if (!selectedTimeline_)
+        return;
 
     DrawPlaybackControls();
 
@@ -468,9 +468,8 @@ void TimelineService::DrawTimelineSettings() {
                     auto& keyframes = floatTrack->GetKeyframes();
                     keyframes.erase(
                         std::remove_if(keyframes.begin(), keyframes.end(),
-                            [this](const Keyframe<float>& kf) { return kf.time > pendingDuration_; }),
-                        keyframes.end()
-                    );
+                                       [this](const Keyframe<float>& kf) { return kf.time > pendingDuration_; }),
+                        keyframes.end());
                 }
             }
 
@@ -498,7 +497,8 @@ void TimelineService::DrawTimelineSettings() {
 }
 
 void TimelineService::DrawPlaybackControls() {
-    if (!selectedTimeline_) return;
+    if (!selectedTimeline_)
+        return;
 
     // Playback buttons
     if (ImGui::Button("Play##PlayBtn")) {
@@ -550,7 +550,8 @@ void TimelineService::DrawPlaybackControls() {
 }
 
 void TimelineService::DrawGraphicalKeyframeEditor() {
-    if (!selectedTrack_) return;
+    if (!selectedTrack_)
+        return;
 
     // Try to cast to float track (only type we support)
     auto* floatTrack = dynamic_cast<Track<float>*>(selectedTrack_);
@@ -581,7 +582,8 @@ void TimelineService::DrawGraphicalKeyframeEditor() {
             }
             // Add 10% padding
             float range = graphMaxValue_ - graphMinValue_;
-            if (range < 0.001f) range = 10.0f;
+            if (range < 0.001f)
+                range = 10.0f;
             graphMinValue_ -= range * 0.1f;
             graphMaxValue_ += range * 0.1f;
         }
@@ -596,7 +598,7 @@ void TimelineService::DrawGraphicalKeyframeEditor() {
 
     // Graph area
     ImVec2 graphSize = ImGui::GetContentRegionAvail();
-    graphSize.y = std::max(graphSize.y - 50.0f, 200.0f); // Leave space for instructions
+    graphSize.y = std::max(graphSize.y - 50.0f, 200.0f);  // Leave space for instructions
 
     ImVec2 graphMin = ImGui::GetCursorScreenPos();
 
@@ -625,7 +627,8 @@ void TimelineService::DrawGraph(Elysium::Track<float>* track, const ImVec2& grap
 
     // Get timeline duration
     float duration = selectedTimeline_ ? selectedTimeline_->GetDuration() : 10.0f;
-    if (duration < 0.001f) duration = 10.0f;
+    if (duration < 0.001f)
+        duration = 10.0f;
 
     // Draw grid
     int numVerticalLines = 10;
@@ -709,7 +712,8 @@ bool TimelineService::HandleGraphInput(Elysium::Track<float>* track, const ImVec
     }
 
     float duration = selectedTimeline_ ? selectedTimeline_->GetDuration() : 10.0f;
-    if (duration < 0.001f) duration = 10.0f;
+    if (duration < 0.001f)
+        duration = 10.0f;
 
     auto& keyframes = track->GetKeyframes();
 
@@ -759,7 +763,7 @@ bool TimelineService::HandleGraphInput(Elysium::Track<float>* track, const ImVec
 
             // Re-sort keyframes by time
             std::sort(keyframes.begin(), keyframes.end(),
-                [](const Keyframe<float>& a, const Keyframe<float>& b) { return a.time < b.time; });
+                      [](const Keyframe<float>& a, const Keyframe<float>& b) { return a.time < b.time; });
         }
     }
 
@@ -793,7 +797,8 @@ bool TimelineService::HandleGraphInput(Elysium::Track<float>* track, const ImVec
 }
 
 int TimelineService::CountKeyframesOutsideDuration(float duration) {
-    if (!selectedTimeline_) return 0;
+    if (!selectedTimeline_)
+        return 0;
 
     int count = 0;
     for (const auto& trackPtr : selectedTimeline_->GetTracks()) {
@@ -809,4 +814,4 @@ int TimelineService::CountKeyframesOutsideDuration(float duration) {
     return count;
 }
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

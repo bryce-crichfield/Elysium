@@ -1,16 +1,15 @@
 #include "SceneInspector.h"
+#include <typeinfo>
+#include "Common.h"
 #include "Services/SceneService.h"
 #include "System.h"
-#include "Common.h"
 #include "imgui.h"
-#include <typeinfo>
 
 namespace Elysium {
 
 using namespace Services;
 
-void SceneInspector::DrawUI(SceneService& service)
-{
+void SceneInspector::DrawUI(SceneService& service) {
     Profile;
 
     // Left side header
@@ -31,28 +30,21 @@ void SceneInspector::DrawUI(SceneService& service)
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
     ImGui::Button("##splitter", ImVec2(4.0f, -1));
 
-    if (ImGui::IsItemActive())
-    {
-        if (!isDraggingSplitter_)
-        {
+    if (ImGui::IsItemActive()) {
+        if (!isDraggingSplitter_) {
             isDraggingSplitter_ = true;
-        }
-        else
-        {
+        } else {
             leftPanelWidth_ += ImGui::GetIO().MouseDelta.x;
             if (leftPanelWidth_ < 200.0f)
                 leftPanelWidth_ = 200.0f;
             if (leftPanelWidth_ > ImGui::GetWindowWidth() - 200.0f)
                 leftPanelWidth_ = ImGui::GetWindowWidth() - 200.0f;
         }
-    }
-    else
-    {
+    } else {
         isDraggingSplitter_ = false;
     }
 
-    if (ImGui::IsItemHovered())
-    {
+    if (ImGui::IsItemHovered()) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
     }
     ImGui::PopStyleColor(3);
@@ -64,47 +56,39 @@ void SceneInspector::DrawUI(SceneService& service)
     ImGui::EndChild();
 }
 
-void SceneInspector::DrawScenesPanel(SceneService& service)
-{
+void SceneInspector::DrawScenesPanel(SceneService& service) {
     // Scene Management Buttons
     bool hasSelection = selectedSceneIndex_ >= 0 && selectedSceneIndex_ < (int)service.scenes_.size();
 
-    if (ImGui::Button("Push") && hasSelection)
-    {
+    if (ImGui::Button("Push") && hasSelection) {
         auto it = service.scenes_.begin();
         std::advance(it, selectedSceneIndex_);
         service.Push(it->first);
     }
-    if (!hasSelection)
-    {
+    if (!hasSelection) {
         ImGui::SetItemTooltip("Select a scene to push onto stack");
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Replace") && hasSelection)
-    {
+    if (ImGui::Button("Replace") && hasSelection) {
         auto it = service.scenes_.begin();
         std::advance(it, selectedSceneIndex_);
         service.Replace(it->first);
     }
-    if (!hasSelection)
-    {
+    if (!hasSelection) {
         ImGui::SetItemTooltip("Select a scene to replace top of stack");
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Pop"))
-    {
+    if (ImGui::Button("Pop")) {
         service.Pop();
     }
-    if (service.IsEmpty())
-    {
+    if (service.IsEmpty()) {
         ImGui::SetItemTooltip("Stack is empty");
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Clear"))
-    {
+    if (ImGui::Button("Clear")) {
         service.Clear();
     }
 
@@ -115,8 +99,7 @@ void SceneInspector::DrawScenesPanel(SceneService& service)
     if (ImGui::BeginTable("SceneTable", 3,
                           ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
                               ImGuiTableFlags_ScrollY,
-                          ImVec2(0, -80)))
-    {
+                          ImVec2(0, -80))) {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 120);
         ImGui::TableSetupColumn("XML Path", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("In Stack", ImGuiTableColumnFlags_WidthFixed, 60);
@@ -124,14 +107,12 @@ void SceneInspector::DrawScenesPanel(SceneService& service)
         ImGui::TableHeadersRow();
 
         int index = 0;
-        for (const auto& [name, sceneData] : service.scenes_)
-        {
+        for (const auto& [name, sceneData] : service.scenes_) {
             ImGui::TableNextRow();
 
             // Name column with selection
             ImGui::TableSetColumnIndex(0);
-            if (ImGui::Selectable(name.c_str(), selectedSceneIndex_ == index, ImGuiSelectableFlags_SpanAllColumns))
-            {
+            if (ImGui::Selectable(name.c_str(), selectedSceneIndex_ == index, ImGuiSelectableFlags_SpanAllColumns)) {
                 selectedSceneIndex_ = index;
             }
 
@@ -142,10 +123,8 @@ void SceneInspector::DrawScenesPanel(SceneService& service)
             // In Stack column
             ImGui::TableSetColumnIndex(2);
             bool inStack = false;
-            for (Scene* s : service.sceneStack_)
-            {
-                if (s == sceneData.scene)
-                {
+            for (Scene* s : service.sceneStack_) {
+                if (s == sceneData.scene) {
                     inStack = true;
                     break;
                 }
@@ -161,38 +140,29 @@ void SceneInspector::DrawScenesPanel(SceneService& service)
 
     // Scene Stack Table
     ImGui::Text("Scene Stack (top to bottom):");
-    if (ImGui::BeginTable("StackTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg, ImVec2(0, 0)))
-    {
+    if (ImGui::BeginTable("StackTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg, ImVec2(0, 0))) {
         ImGui::TableSetupColumn("Position", ImGuiTableColumnFlags_WidthFixed, 60);
         ImGui::TableSetupColumn("Scene Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
         // Display stack from top to bottom (reverse order)
         const auto& stack = service.sceneStack_;
-        for (int i = (int)stack.size() - 1; i >= 0; --i)
-        {
+        for (int i = (int)stack.size() - 1; i >= 0; --i) {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            if (i == (int)stack.size() - 1)
-            {
+            if (i == (int)stack.size() - 1) {
                 ImGui::Text("TOP");
-            }
-            else if (i == 0)
-            {
+            } else if (i == 0) {
                 ImGui::Text("BOTTOM");
-            }
-            else
-            {
+            } else {
                 ImGui::Text("%d", i);
             }
 
             ImGui::TableSetColumnIndex(1);
             // Find scene name
             std::string sceneName = "Unknown";
-            for (const auto& [name, data] : service.scenes_)
-            {
-                if (data.scene == stack[i])
-                {
+            for (const auto& [name, data] : service.scenes_) {
+                if (data.scene == stack[i]) {
                     sceneName = name;
                     break;
                 }
@@ -200,8 +170,7 @@ void SceneInspector::DrawScenesPanel(SceneService& service)
             ImGui::Text("%s", sceneName.c_str());
         }
 
-        if (stack.empty())
-        {
+        if (stack.empty()) {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("-");
@@ -213,17 +182,13 @@ void SceneInspector::DrawScenesPanel(SceneService& service)
     }
 }
 
-void SceneInspector::DrawCurrentScenePanel(SceneService& service)
-{
+void SceneInspector::DrawCurrentScenePanel(SceneService& service) {
     Scene* topScene = service.GetTopScene();
 
-    if (topScene)
-    {
+    if (topScene) {
         std::string topSceneName = "Unknown";
-        for (const auto& [name, data] : service.scenes_)
-        {
-            if (data.scene == topScene)
-            {
+        for (const auto& [name, data] : service.scenes_) {
+            if (data.scene == topScene) {
                 topSceneName = name;
                 break;
             }
@@ -236,29 +201,23 @@ void SceneInspector::DrawCurrentScenePanel(SceneService& service)
 
         // Systems drawer
         DrawSystemsDrawer(service);
-    }
-    else
-    {
+    } else {
         ImGui::Text("No scenes in stack");
         ImGui::Text("Select a scene from the left panel and click 'Push' to begin.");
     }
 }
 
-void SceneInspector::DrawSystemsDrawer(SceneService& service)
-{
+void SceneInspector::DrawSystemsDrawer(SceneService& service) {
     static bool systemsOpen = true;
-    if (ImGui::CollapsingHeader("Systems", systemsOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0))
-    {
+    if (ImGui::CollapsingHeader("Systems", systemsOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
         Scene* topScene = service.GetTopScene();
-        if (!topScene)
-        {
+        if (!topScene) {
             ImGui::Text("No active scene");
             return;
         }
 
         const auto& systems = topScene->GetSystems();
-        if (systems.empty())
-        {
+        if (systems.empty()) {
             ImGui::Text("No systems in current scene");
             return;
         }
@@ -266,16 +225,14 @@ void SceneInspector::DrawSystemsDrawer(SceneService& service)
         if (ImGui::BeginTable("SystemsTable", 3,
                               ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
                                   ImGuiTableFlags_ScrollY,
-                              ImVec2(0, 150)))
-        {
+                              ImVec2(0, 150))) {
             ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 40);
             ImGui::TableSetupColumn("System Type", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 60);
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableHeadersRow();
 
-            for (size_t i = 0; i < systems.size(); ++i)
-            {
+            for (size_t i = 0; i < systems.size(); ++i) {
                 ImGui::TableNextRow();
 
                 ImGui::TableSetColumnIndex(0);
@@ -286,8 +243,7 @@ void SceneInspector::DrawSystemsDrawer(SceneService& service)
                 std::string systemName = typeInfo.name();
 
                 size_t lastColon = systemName.find_last_of(':');
-                if (lastColon != std::string::npos && lastColon < systemName.length() - 1)
-                {
+                if (lastColon != std::string::npos && lastColon < systemName.length() - 1) {
                     systemName = systemName.substr(lastColon + 1);
                 }
 
@@ -304,10 +260,9 @@ void SceneInspector::DrawSystemsDrawer(SceneService& service)
     }
 }
 
-void SceneInspector::DrawAssetsDrawer(SceneService& service)
-{
+void SceneInspector::DrawAssetsDrawer(SceneService& service) {
     // Assets drawer removed - GetAssets() no longer exists
     // Assets are now managed globally through AssetService
 }
 
-} // namespace Elysium
+}  // namespace Elysium

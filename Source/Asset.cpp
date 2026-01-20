@@ -152,4 +152,4 @@ void Asset::Unload() {
     }
 }
 
-} // namespace Elysium
+}  // namespace Elysium

@@ -15,11 +15,9 @@ void PickSystem::Update(float deltaTime) {
 void PickSystem::OnEvent(Event& event) {
     if (event.Is<MouseButtonPressedEvent>()) {
         HandleMousePressed(*event.As<MouseButtonPressedEvent>());
-    }
-    else if (event.Is<MouseMovedEvent>()) {
+    } else if (event.Is<MouseMovedEvent>()) {
         HandleMouseMoved(*event.As<MouseMovedEvent>());
-    }
-    else if (event.Is<MouseButtonReleasedEvent>()) {
+    } else if (event.Is<MouseButtonReleasedEvent>()) {
         HandleMouseReleased(*event.As<MouseButtonReleasedEvent>());
     }
 }
@@ -122,28 +120,24 @@ Vector2 PickSystem::FramebufferToWorld(Vector2 fbPos) {
 
     Vector2 viewportCenter = {
         camera->viewport.width * 0.5f,
-        camera->viewport.height * 0.5f
-    };
+        camera->viewport.height * 0.5f};
 
     // 1. Subtract viewport center (uncenter)
     Vector2 centered = {
         fbPos.x - viewportCenter.x,
-        fbPos.y - viewportCenter.y
-    };
+        fbPos.y - viewportCenter.y};
 
     // 2. Divide by zoom (unscale)
     Vector2 unscaled = {
         centered.x / camera->zoom,
-        centered.y / camera->zoom
-    };
+        centered.y / camera->zoom};
 
     // 3. Add camera position (uncamera translation)
     Vector2 worldPos = {
         unscaled.x + cameraPos.x,
-        unscaled.y + cameraPos.y
-    };
+        unscaled.y + cameraPos.y};
 
     return worldPos;
 }
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../System.h"
-#include "../Network/ComponentSerializer.h"
-#include "../Network/NetworkProtocol.h"
-#include "../Network/NetworkInput.h"
-#include <vector>
 #include <queue>
 #include <unordered_set>
+#include <vector>
+#include "../Network/ComponentSerializer.h"
+#include "../Network/NetworkInput.h"
+#include "../Network/NetworkProtocol.h"
+#include "../System.h"
 
 namespace Elysium {
 
@@ -26,7 +26,7 @@ namespace Elysium {
  *   scene->AddSystem(std::make_unique<ClientNetworkSystem>(context));
  */
 class ClientNetworkSystem : public System {
-public:
+   public:
     explicit ClientNetworkSystem(Context context);
     ~ClientNetworkSystem() override = default;
 
@@ -55,7 +55,7 @@ public:
      */
     uint32_t GetLatency() const { return latencyMs_; }
 
-private:
+   private:
     // Packet handlers
     void HandleHandshakeResponse(Network::ByteBuffer& buffer);
     void HandleSyncPacket(Network::ByteBuffer& buffer);
@@ -95,4 +95,4 @@ private:
     static constexpr float PING_INTERVAL_MS = 1000.0f;       // 1 Hz ping rate
 };
 
-} // namespace Elysium
+}  // namespace Elysium

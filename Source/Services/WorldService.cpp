@@ -1,34 +1,29 @@
 #include "Services/WorldService.h"
-#include "Services/SceneService.h"
-#include "Services/AssetService.h"
-#include "Application.h"
-#include "Entity.h"
-#include "raylib.h"
-#include "Common.h"
 #include <algorithm>
 #include <iostream>
 #include <set>
+#include "Application.h"
+#include "Common.h"
+#include "Entity.h"
+#include "Services/AssetService.h"
+#include "Services/SceneService.h"
+#include "raylib.h"
 
-namespace Elysium::Services
-{
+namespace Elysium::Services {
 
-WorldService::WorldService()
-{
+WorldService::WorldService() {
     name_ = "WorldService";
 }
 
-void WorldService::Initialize()
-{
+void WorldService::Initialize() {
     RegisterComponentTypes();
 }
 
-void WorldService::Shutdown()
-{
+void WorldService::Shutdown() {
     // Service cleanup if needed
 }
 
-void WorldService::RegisterComponentTypes()
-{
+void WorldService::RegisterComponentTypes() {
     RegisterComponent<NameComponent>("Name");
     RegisterComponent<PositionComponent>("Position");
     RegisterComponent<ScaleComponent>("Scale");
@@ -53,8 +48,7 @@ void WorldService::RegisterComponentTypes()
     RegisterComponent<BoundsComponent>("Bounds");
 }
 
-void WorldService::Update(float deltaTime)
-{
+void WorldService::Update(float deltaTime) {
     Profile;
     auto& app = Elysium::Application::GetInstance();
     auto& sceneService = app.GetService<SceneService>();
@@ -74,8 +68,7 @@ void WorldService::Update(float deltaTime)
     }
 }
 
-void WorldService::ImGui()
-{
+void WorldService::ImGui() {
     Profile;
     if (!world) {
         ImGui::Text("No World Loaded");
@@ -84,7 +77,7 @@ void WorldService::ImGui()
 
     // Left side header
     ImGui::Text("Entities");
-    ImGui::SameLine(leftPanelWidth + 10); // Position right side header
+    ImGui::SameLine(leftPanelWidth + 10);  // Position right side header
     ImGui::Text("Inspector");
 
     // Left panel - Entity List
@@ -106,15 +99,11 @@ void WorldService::ImGui()
     ImGui::Button("##splitter", ImVec2(4.0f, -1));
 
     // Handle dragging - only use mouse delta when already dragging
-    if (ImGui::IsItemActive())
-    {
-        if (!isDraggingSplitter)
-        {
+    if (ImGui::IsItemActive()) {
+        if (!isDraggingSplitter) {
             // First frame of dragging - don't apply delta yet, just mark as dragging
             isDraggingSplitter = true;
-        }
-        else
-        {
+        } else {
             // Subsequent frames - apply mouse delta
             leftPanelWidth += ImGui::GetIO().MouseDelta.x;
             if (leftPanelWidth < 200.0f)
@@ -122,14 +111,11 @@ void WorldService::ImGui()
             if (leftPanelWidth > ImGui::GetWindowWidth() - 200.0f)
                 leftPanelWidth = ImGui::GetWindowWidth() - 200.0f;
         }
-    }
-    else
-    {
+    } else {
         isDraggingSplitter = false;
     }
 
-    if (ImGui::IsItemHovered())
-    {
+    if (ImGui::IsItemHovered()) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
     }
     ImGui::PopStyleColor(3);
@@ -142,37 +128,31 @@ void WorldService::ImGui()
     ImGui::EndChild();
 }
 
-void WorldService::DrawEntityToolbar()
-{
+void WorldService::DrawEntityToolbar() {
     ImGui::Text("Search: ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-1);
     static char searchBuffer[256] = "";
-    if (ImGui::InputText("##Search", searchBuffer, sizeof(searchBuffer)))
-    {
+    if (ImGui::InputText("##Search", searchBuffer, sizeof(searchBuffer))) {
         searchFilter = std::string(searchBuffer);
     }
     ImGui::Separator();
 
     // Filter panel
-    if (ImGui::CollapsingHeader("Filters", filtersCollapsed ? 0 : ImGuiTreeNodeFlags_DefaultOpen))
-    {
+    if (ImGui::CollapsingHeader("Filters", filtersCollapsed ? 0 : ImGuiTreeNodeFlags_DefaultOpen)) {
         // Clear button at the top
-        if (ImGui::Button("Clear All Filters"))
-        {
+        if (ImGui::Button("Clear All Filters")) {
             filters.clear();
         }
 
         // Filter table
-        if (!filters.empty() && ImGui::BeginTable("Filters", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
-        {
+        if (!filters.empty() && ImGui::BeginTable("Filters", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn("NOT", ImGuiTableColumnFlags_WidthFixed, 40.0f);
             ImGui::TableSetupColumn("Component", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Op", ImGuiTableColumnFlags_WidthFixed, 60.0f);
             ImGui::TableHeadersRow();
 
-            for (size_t i = 0; i < filters.size(); ++i)
-            {
+            for (size_t i = 0; i < filters.size(); ++i) {
                 ImGui::PushID(static_cast<int>(i));
                 ImGui::TableNextRow();
 
@@ -183,21 +163,17 @@ void WorldService::DrawEntityToolbar()
                 // Component dropdown
                 ImGui::TableSetColumnIndex(1);
                 ImGui::SetNextItemWidth(-1);
-                std::vector<const char *> componentNames;
+                std::vector<const char*> componentNames;
                 int currentSelection = -1;
-                for (size_t j = 0; j < componentPlaceholders.size(); ++j)
-                {
+                for (size_t j = 0; j < componentPlaceholders.size(); ++j) {
                     componentNames.push_back(componentPlaceholders[j].name.c_str());
-                    if (componentPlaceholders[j].name == filters[i].componentName)
-                    {
+                    if (componentPlaceholders[j].name == filters[i].componentName) {
                         currentSelection = static_cast<int>(j);
                     }
                 }
 
-                if (ImGui::Combo("##component", &currentSelection, componentNames.data(), componentNames.size()))
-                {
-                    if (currentSelection >= 0)
-                    {
+                if (ImGui::Combo("##component", &currentSelection, componentNames.data(), componentNames.size())) {
+                    if (currentSelection >= 0) {
                         filters[i].componentName = componentPlaceholders[currentSelection].name;
                         filters[i].predicate = componentPlaceholders[currentSelection].hasComponentFunc;
                     }
@@ -205,17 +181,13 @@ void WorldService::DrawEntityToolbar()
 
                 // Operator dropdown (skip for first filter)
                 ImGui::TableSetColumnIndex(2);
-                if (i > 0)
-                {
-                    const char *operators[] = {"AND", "OR"};
+                if (i > 0) {
+                    const char* operators[] = {"AND", "OR"};
                     int currentOp = static_cast<int>(filters[i].logicalOperator);
-                    if (ImGui::Combo("##operator", &currentOp, operators, IM_ARRAYSIZE(operators)))
-                    {
+                    if (ImGui::Combo("##operator", &currentOp, operators, IM_ARRAYSIZE(operators))) {
                         filters[i].logicalOperator = static_cast<FilterLogicalOperator>(currentOp);
                     }
-                }
-                else
-                {
+                } else {
                     ImGui::Text("-");
                 }
 
@@ -226,13 +198,11 @@ void WorldService::DrawEntityToolbar()
         }
 
         // Add/Remove buttons at the bottom
-        if (ImGui::Button("Add Filter"))
-        {
+        if (ImGui::Button("Add Filter")) {
             filters.emplace_back();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Remove Filter") && !filters.empty())
-        {
+        if (ImGui::Button("Remove Filter") && !filters.empty()) {
             filters.pop_back();
         }
     }
@@ -241,54 +211,42 @@ void WorldService::DrawEntityToolbar()
 
     // Entity management buttons
     bool canDeselect = selectedEntity != INVALID_ENTITY;
-    if (!canDeselect)
-    {
+    if (!canDeselect) {
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
     }
-    if (ImGui::Button("Deselect"))
-    {
+    if (ImGui::Button("Deselect")) {
         if (canDeselect)
             DeselectEntity();
     }
-    if (!canDeselect)
-    {
+    if (!canDeselect) {
         ImGui::PopStyleVar();
     }
 }
 
-void WorldService::DrawEntityList()
-{
-    if (ImGui::BeginTable("Entities", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
-    {
+void WorldService::DrawEntityList() {
+    if (ImGui::BeginTable("Entities", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
         ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 60.0f);
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
-        const auto &livingEntities = world->GetEntitiesWithComponents<>();
+        const auto& livingEntities = world->GetEntitiesWithComponents<>();
 
-        for (Entity entity : livingEntities)
-        {
+        for (Entity entity : livingEntities) {
             bool shouldDraw = true;
-            if (!filters.empty())
-            {
+            if (!filters.empty()) {
                 // Evaluate first filter (only if it has a valid predicate)
-                if (filters[0].predicate)
-                {
+                if (filters[0].predicate) {
                     shouldDraw = filters[0].Evaluate(entity, world);
                 }
 
                 // Evaluate remaining filters in order
-                for (size_t i = 1; i < filters.size(); ++i)
-                {
-                    if (filters[i].predicate)
-                    {
+                for (size_t i = 1; i < filters.size(); ++i) {
+                    if (filters[i].predicate) {
                         bool filterResult = filters[i].Evaluate(entity, world);
 
-                        if (filters[i].logicalOperator == FilterLogicalOperator::AND)
-                        {
+                        if (filters[i].logicalOperator == FilterLogicalOperator::AND) {
                             shouldDraw = shouldDraw && filterResult;
-                        }
-                        else // OR
+                        } else  // OR
                         {
                             shouldDraw = shouldDraw || filterResult;
                         }
@@ -301,20 +259,17 @@ void WorldService::DrawEntityList()
 
             // Get the actual entity name if it exists, otherwise use generic name
             std::string entityName = world->GetEntityName(entity);
-            if (entityName.empty())
-            {
+            if (entityName.empty()) {
                 entityName = "Entity " + std::to_string(entity);
             }
 
-            if (!searchFilter.empty())
-            {
+            if (!searchFilter.empty()) {
                 std::string lowerName = entityName;
                 std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
                 std::string lowerFilter = searchFilter;
                 std::transform(lowerFilter.begin(), lowerFilter.end(), lowerFilter.begin(), ::tolower);
 
-                if (lowerName.find(lowerFilter) == std::string::npos)
-                {
+                if (lowerName.find(lowerFilter) == std::string::npos) {
                     continue;
                 }
             }
@@ -323,35 +278,29 @@ void WorldService::DrawEntityList()
             ImGui::TableSetColumnIndex(0);
 
             bool isSelected = (entity == selectedEntity);
-            if (ImGui::Selectable(std::to_string(entity).c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
-            {
+            if (ImGui::Selectable(std::to_string(entity).c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
                 selectedEntity = entity;
             }
 
             // Right-click context menu
-            if (ImGui::BeginPopupContextItem(("EntityContextMenu_" + std::to_string(entity)).c_str()))
-            {
+            if (ImGui::BeginPopupContextItem(("EntityContextMenu_" + std::to_string(entity)).c_str())) {
                 ImGui::Text("Entity %zu", entity);
                 ImGui::Separator();
 
-                if (ImGui::MenuItem("Edit"))
-                {
+                if (ImGui::MenuItem("Edit")) {
                     selectedEntity = entity;
                     ImGui::CloseCurrentPopup();
                 }
 
-                if (ImGui::MenuItem("Clone"))
-                {
+                if (ImGui::MenuItem("Clone")) {
                     Entity clonedEntity = world->CloneEntity(entity);
                     selectedEntity = clonedEntity;
                     ImGui::CloseCurrentPopup();
                 }
 
-                if (ImGui::MenuItem("Delete"))
-                {
+                if (ImGui::MenuItem("Delete")) {
                     world->DestroyEntity(entity);
-                    if (selectedEntity == entity)
-                    {
+                    if (selectedEntity == entity) {
                         selectedEntity = INVALID_ENTITY;
                     }
                     ImGui::CloseCurrentPopup();
@@ -367,10 +316,8 @@ void WorldService::DrawEntityList()
         ImGui::EndTable();
 
         // Right-click context menu on empty space (don't open over items)
-        if (ImGui::BeginPopupContextWindow("EntityListContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
-        {
-            if (ImGui::MenuItem("Create Entity"))
-            {
+        if (ImGui::BeginPopupContextWindow("EntityListContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+            if (ImGui::MenuItem("Create Entity")) {
                 Entity newEntity = world->CreateEntity();
                 selectedEntity = newEntity;
                 ImGui::CloseCurrentPopup();
@@ -380,14 +327,11 @@ void WorldService::DrawEntityList()
     }
 }
 
-void WorldService::DrawInspectorToolbar()
-{
-    if (selectedEntity != INVALID_ENTITY)
-    {
+void WorldService::DrawInspectorToolbar() {
+    if (selectedEntity != INVALID_ENTITY) {
         // Get the actual entity name if it exists, otherwise use generic name
         std::string entityName = world->GetEntityName(selectedEntity);
-        if (entityName.empty())
-        {
+        if (entityName.empty()) {
             entityName = "Entity " + std::to_string(selectedEntity);
         }
 
@@ -400,42 +344,32 @@ void WorldService::DrawInspectorToolbar()
 
         // Update buffer when entity selection changes or on first frame
         static Entity lastEditedEntity = INVALID_ENTITY;
-        if (lastEditedEntity != selectedEntity)
-        {
+        if (lastEditedEntity != selectedEntity) {
             strncpy(nameBuffer, entityName.c_str(), sizeof(nameBuffer) - 1);
             nameBuffer[sizeof(nameBuffer) - 1] = '\0';
             lastEditedEntity = selectedEntity;
         }
 
         ImGui::SetNextItemWidth(-1);
-        if (ImGui::InputText("##EntityName", nameBuffer, sizeof(nameBuffer)))
-        {
+        if (ImGui::InputText("##EntityName", nameBuffer, sizeof(nameBuffer))) {
             // Update or add NameComponent
-            if (world->HasComponent<NameComponent>(selectedEntity))
-            {
+            if (world->HasComponent<NameComponent>(selectedEntity)) {
                 world->GetComponent<NameComponent>(selectedEntity).name = nameBuffer;
-            }
-            else
-            {
+            } else {
                 world->AddComponent(selectedEntity, NameComponent(nameBuffer));
             }
         }
 
         ImGui::Separator();
 
-        if (ImGui::Button("Add Component"))
-        {
+        if (ImGui::Button("Add Component")) {
             ImGui::OpenPopup("AddComponentPopup");
         }
 
-        if (ImGui::BeginPopup("AddComponentPopup"))
-        {
-            for (const auto &placeholder : componentPlaceholders)
-            {
-                if (!placeholder.hasComponentFunc(selectedEntity, world))
-                {
-                    if (ImGui::MenuItem(placeholder.name.c_str()))
-                    {
+        if (ImGui::BeginPopup("AddComponentPopup")) {
+            for (const auto& placeholder : componentPlaceholders) {
+                if (!placeholder.hasComponentFunc(selectedEntity, world)) {
+                    if (ImGui::MenuItem(placeholder.name.c_str())) {
                         placeholder.addComponentFunc(selectedEntity, world);
                         ImGui::CloseCurrentPopup();
                     }
@@ -443,36 +377,28 @@ void WorldService::DrawInspectorToolbar()
             }
             ImGui::EndPopup();
         }
-    }
-    else
-    {
+    } else {
         ImGui::Text("No entity selected");
     }
 }
 
-void WorldService::DrawInspectorPanel()
-{
+void WorldService::DrawInspectorPanel() {
     if (selectedEntity == INVALID_ENTITY)
         return;
 
     // Clear any previous deletion request
     componentToDelete = "";
 
-    for (const auto &placeholder : componentPlaceholders)
-    {
-        if (placeholder.hasComponentFunc(selectedEntity, world))
-        {
+    for (const auto& placeholder : componentPlaceholders) {
+        if (placeholder.hasComponentFunc(selectedEntity, world)) {
             DrawComponentPanel(placeholder);
         }
     }
 
     // Process deletion after the loop to avoid iterator invalidation
-    if (!componentToDelete.empty())
-    {
-        for (const auto &placeholder : componentPlaceholders)
-        {
-            if (placeholder.name == componentToDelete)
-            {
+    if (!componentToDelete.empty()) {
+        for (const auto& placeholder : componentPlaceholders) {
+            if (placeholder.name == componentToDelete) {
                 placeholder.removeComponentFunc(selectedEntity, world);
                 break;
             }
@@ -481,8 +407,7 @@ void WorldService::DrawInspectorPanel()
     }
 }
 
-void WorldService::DrawComponentPanel(const ComponentPlaceholder &placeholder)
-{
+void WorldService::DrawComponentPanel(const ComponentPlaceholder& placeholder) {
     ImGuiTreeNodeFlags treeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed;
 
     bool nodeOpen = ImGui::TreeNodeEx(placeholder.name.c_str(), treeFlags);
@@ -491,16 +416,13 @@ void WorldService::DrawComponentPanel(const ComponentPlaceholder &placeholder)
     ImGui::PushID(placeholder.name.c_str());
     ImGui::PopID();
 
-    if (nodeOpen)
-    {
-        if (ImGui::SmallButton("Delete"))
-        {
+    if (nodeOpen) {
+        if (ImGui::SmallButton("Delete")) {
             componentToDelete = placeholder.name;
         }
 
         ImGui::SameLine();
-        if (ImGui::SmallButton("Reset"))
-        {
+        if (ImGui::SmallButton("Reset")) {
             placeholder.resetComponentFunc(selectedEntity, world);
         }
 
@@ -511,50 +433,45 @@ void WorldService::DrawComponentPanel(const ComponentPlaceholder &placeholder)
     }
 }
 
-void WorldService::DeselectEntity()
-{
+void WorldService::DeselectEntity() {
     selectedEntity = INVALID_ENTITY;
 }
 
-void WorldService::RemoveEntity()
-{
-    if (selectedEntity != INVALID_ENTITY)
-    {
+void WorldService::RemoveEntity() {
+    if (selectedEntity != INVALID_ENTITY) {
         world->DestroyEntity(selectedEntity);
         selectedEntity = INVALID_ENTITY;
     }
 }
 
-void WorldService::CreateEntity()
-{
+void WorldService::CreateEntity() {
     Entity newEntity = world->CreateEntity();
     selectedEntity = newEntity;
 }
 
-#define FIELD_LABEL(text)                                                                                              \
-    ImGui::AlignTextToFramePadding();                                                                                  \
-    ImGui::Text(text);                                                                                                 \
-    ImGui::SameLine(140.0f);                                                                                           \
+#define FIELD_LABEL(text)             \
+    ImGui::AlignTextToFramePadding(); \
+    ImGui::Text(text);                \
+    ImGui::SameLine(140.0f);          \
     ImGui::SetNextItemWidth(-1);
 
-template <> void WorldService::DrawComponent<NameComponent>(Entity entity, Elysium::World *world)
-{
-    auto &nameComp = world->GetComponent<NameComponent>(entity);
+template <>
+void WorldService::DrawComponent<NameComponent>(Entity entity, Elysium::World* world) {
+    auto& nameComp = world->GetComponent<NameComponent>(entity);
 
     static char nameBuffer[256];
     strncpy(nameBuffer, nameComp.name.c_str(), sizeof(nameBuffer) - 1);
     nameBuffer[sizeof(nameBuffer) - 1] = '\0';
 
     FIELD_LABEL("Name: ")
-    if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer)))
-    {
+    if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer))) {
         nameComp.name = std::string(nameBuffer);
     }
 }
 
-template <> void WorldService::DrawComponent<PositionComponent>(Entity entity, Elysium::World *world)
-{
-    auto &pos = world->GetComponent<PositionComponent>(entity);
+template <>
+void WorldService::DrawComponent<PositionComponent>(Entity entity, Elysium::World* world) {
+    auto& pos = world->GetComponent<PositionComponent>(entity);
     FIELD_LABEL("X: ")
     std::string xId = "##PosX_" + std::to_string(entity);
     ImGui::DragFloat(xId.c_str(), &pos.x, 1.0f);
@@ -563,9 +480,9 @@ template <> void WorldService::DrawComponent<PositionComponent>(Entity entity, E
     ImGui::DragFloat(yId.c_str(), &pos.y, 1.0f);
 }
 
-template <> void WorldService::DrawComponent<ScaleComponent>(Entity entity, Elysium::World *world)
-{
-    auto &scale = world->GetComponent<ScaleComponent>(entity);
+template <>
+void WorldService::DrawComponent<ScaleComponent>(Entity entity, Elysium::World* world) {
+    auto& scale = world->GetComponent<ScaleComponent>(entity);
     FIELD_LABEL("X: ")
     std::string xId = "##ScaleX_" + std::to_string(entity);
     ImGui::DragFloat(xId.c_str(), &scale.x, 0.01f, 0.0f);
@@ -574,18 +491,18 @@ template <> void WorldService::DrawComponent<ScaleComponent>(Entity entity, Elys
     ImGui::DragFloat(yId.c_str(), &scale.y, 0.01f, 0.0f);
 }
 
-template <> void WorldService::DrawComponent<LocationComponent>(Entity entity, Elysium::World *world)
-{
-    auto &loc = world->GetComponent<LocationComponent>(entity);
+template <>
+void WorldService::DrawComponent<LocationComponent>(Entity entity, Elysium::World* world) {
+    auto& loc = world->GetComponent<LocationComponent>(entity);
     FIELD_LABEL("X: ")
     ImGui::DragInt("##X", &loc.x);
     FIELD_LABEL("Y: ")
     ImGui::DragInt("##Y", &loc.y);
 }
 
-template <> void WorldService::DrawComponent<MovementComponent>(Entity entity, Elysium::World *world)
-{
-    auto &movement = world->GetComponent<MovementComponent>(entity);
+template <>
+void WorldService::DrawComponent<MovementComponent>(Entity entity, Elysium::World* world) {
+    auto& movement = world->GetComponent<MovementComponent>(entity);
     FIELD_LABEL("Speed: ")
     ImGui::DragFloat("##Speed", &movement.speed, 1.0f, 0.0f, 1000.0f);
     FIELD_LABEL("Is Moving: ")
@@ -596,17 +513,16 @@ template <> void WorldService::DrawComponent<MovementComponent>(Entity entity, E
     ImGui::Text("Current Waypoint: %zu", movement.currentWaypointIndex);
 }
 
-template <> void WorldService::DrawComponent<AnimationComponent>(Entity entity, Elysium::World *world)
-{
-    auto &anim = world->GetComponent<AnimationComponent>(entity);
+template <>
+void WorldService::DrawComponent<AnimationComponent>(Entity entity, Elysium::World* world) {
+    auto& anim = world->GetComponent<AnimationComponent>(entity);
 
     static char markerBuffer[256];
     strncpy(markerBuffer, anim.marker.c_str(), sizeof(markerBuffer) - 1);
     markerBuffer[sizeof(markerBuffer) - 1] = '\0';
 
     FIELD_LABEL("Marker: ")
-    if (ImGui::InputText("##Marker", markerBuffer, sizeof(markerBuffer)))
-    {
+    if (ImGui::InputText("##Marker", markerBuffer, sizeof(markerBuffer))) {
         anim.marker = std::string(markerBuffer);
     }
 
@@ -624,17 +540,16 @@ template <> void WorldService::DrawComponent<AnimationComponent>(Entity entity, 
     ImGui::Checkbox("##Loop", &anim.loop);
 }
 
-template <> void WorldService::DrawComponent<DirectionComponent>(Entity entity, Elysium::World *world)
-{
-    auto &dir = world->GetComponent<DirectionComponent>(entity);
+template <>
+void WorldService::DrawComponent<DirectionComponent>(Entity entity, Elysium::World* world) {
+    auto& dir = world->GetComponent<DirectionComponent>(entity);
 
-    const char *directions[] = {"NONE", "UP", "DOWN", "LEFT", "RIGHT"};
+    const char* directions[] = {"NONE", "UP", "DOWN", "LEFT", "RIGHT"};
     int currentDir = static_cast<int>(dir.currentDirection);
     int previousDir = static_cast<int>(dir.previousDirection);
 
     FIELD_LABEL("Current Dir: ")
-    if (ImGui::Combo("##CurrentDirection", &currentDir, directions, IM_ARRAYSIZE(directions)))
-    {
+    if (ImGui::Combo("##CurrentDirection", &currentDir, directions, IM_ARRAYSIZE(directions))) {
         dir.SetDirection(static_cast<Direction>(currentDir));
     }
 
@@ -644,34 +559,31 @@ template <> void WorldService::DrawComponent<DirectionComponent>(Entity entity, 
     ImGui::Checkbox("##HasChanged", &dir.hasChanged);
 }
 
-template <> void WorldService::DrawComponent<LayerComponent>(Entity entity, Elysium::World *world)
-{
-    auto &layer = world->GetComponent<LayerComponent>(entity);
+template <>
+void WorldService::DrawComponent<LayerComponent>(Entity entity, Elysium::World* world) {
+    auto& layer = world->GetComponent<LayerComponent>(entity);
 
     FIELD_LABEL("Z Index: ")
     ImGui::DragInt("##ZIndex", &layer.zIndex);
 
-    const char *types[] = {"Background", "World", "Lighting", "Overlay"};
+    const char* types[] = {"Background", "World", "Lighting", "Overlay"};
     int typeIndex = static_cast<int>(layer.type);
     FIELD_LABEL("Type: ")
-    if (ImGui::Combo("##Type", &typeIndex, types, IM_ARRAYSIZE(types)))
-    {
+    if (ImGui::Combo("##Type", &typeIndex, types, IM_ARRAYSIZE(types))) {
         layer.type = static_cast<LayerComponent::Type>(typeIndex);
     }
 
-    const char *spaces[] = {"World", "Screen", "Parallax"};
+    const char* spaces[] = {"World", "Screen", "Parallax"};
     int spaceIndex = static_cast<int>(layer.space);
     FIELD_LABEL("Space: ")
-    if (ImGui::Combo("##Space", &spaceIndex, spaces, IM_ARRAYSIZE(spaces)))
-    {
+    if (ImGui::Combo("##Space", &spaceIndex, spaces, IM_ARRAYSIZE(spaces))) {
         layer.space = static_cast<LayerComponent::Space>(spaceIndex);
     }
 
-    const char *blends[] = {"Normal", "Additive", "Multiply", "Alpha"};
+    const char* blends[] = {"Normal", "Additive", "Multiply", "Alpha"};
     int blendIndex = static_cast<int>(layer.blend);
     FIELD_LABEL("Blend: ")
-    if (ImGui::Combo("##Blend", &blendIndex, blends, IM_ARRAYSIZE(blends)))
-    {
+    if (ImGui::Combo("##Blend", &blendIndex, blends, IM_ARRAYSIZE(blends))) {
         layer.blend = static_cast<LayerComponent::Blend>(blendIndex);
     }
 
@@ -685,8 +597,7 @@ template <> void WorldService::DrawComponent<LayerComponent>(Entity entity, Elys
     nameBuffer[sizeof(nameBuffer) - 1] = '\0';
 
     FIELD_LABEL("Name: ")
-    if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer)))
-    {
+    if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer))) {
         layer.name = std::string(nameBuffer);
     }
 
@@ -694,9 +605,9 @@ template <> void WorldService::DrawComponent<LayerComponent>(Entity entity, Elys
     ImGui::DragFloat2("##ParallaxFactor", &layer.parallaxFactor.x, 0.01f, 0.0f, 1.0f);
 }
 
-template <> void WorldService::DrawComponent<RectangleComponent>(Entity entity, Elysium::World *world)
-{
-    auto &rect = world->GetComponent<RectangleComponent>(entity);
+template <>
+void WorldService::DrawComponent<RectangleComponent>(Entity entity, Elysium::World* world) {
+    auto& rect = world->GetComponent<RectangleComponent>(entity);
 
     FIELD_LABEL("Width: ")
     ImGui::DragFloat("##Width", &rect.width, 1.0f, 1.0f, 1000.0f);
@@ -706,16 +617,14 @@ template <> void WorldService::DrawComponent<RectangleComponent>(Entity entity, 
     float bg[4] = {rect.background.r / 255.0f, rect.background.g / 255.0f, rect.background.b / 255.0f,
                    rect.background.a / 255.0f};
     FIELD_LABEL("Background: ")
-    if (ImGui::ColorEdit4("##Background", bg))
-    {
+    if (ImGui::ColorEdit4("##Background", bg)) {
         rect.background = {(unsigned char)(bg[0] * 255), (unsigned char)(bg[1] * 255), (unsigned char)(bg[2] * 255),
                            (unsigned char)(bg[3] * 255)};
     }
 
     float border[4] = {rect.border.r / 255.0f, rect.border.g / 255.0f, rect.border.b / 255.0f, rect.border.a / 255.0f};
     FIELD_LABEL("Border: ")
-    if (ImGui::ColorEdit4("##Border", border))
-    {
+    if (ImGui::ColorEdit4("##Border", border)) {
         rect.border = {(unsigned char)(border[0] * 255), (unsigned char)(border[1] * 255),
                        (unsigned char)(border[2] * 255), (unsigned char)(border[3] * 255)};
     }
@@ -725,15 +634,14 @@ template <> void WorldService::DrawComponent<RectangleComponent>(Entity entity, 
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
     FIELD_LABEL("Layer Name: ")
-    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
-    {
+    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer))) {
         rect.layerName = std::string(layerBuffer);
     }
 }
 
-template <> void WorldService::DrawComponent<CircleComponent>(Entity entity, Elysium::World *world)
-{
-    auto &circle = world->GetComponent<CircleComponent>(entity);
+template <>
+void WorldService::DrawComponent<CircleComponent>(Entity entity, Elysium::World* world) {
+    auto& circle = world->GetComponent<CircleComponent>(entity);
 
     FIELD_LABEL("Radius: ")
     ImGui::DragFloat("##Radius", &circle.radius, 1.0f, 1.0f, 1000.0f);
@@ -741,8 +649,7 @@ template <> void WorldService::DrawComponent<CircleComponent>(Entity entity, Ely
     float bg[4] = {circle.background.r / 255.0f, circle.background.g / 255.0f, circle.background.b / 255.0f,
                    circle.background.a / 255.0f};
     FIELD_LABEL("Background: ")
-    if (ImGui::ColorEdit4("##Background", bg))
-    {
+    if (ImGui::ColorEdit4("##Background", bg)) {
         circle.background = {(unsigned char)(bg[0] * 255), (unsigned char)(bg[1] * 255), (unsigned char)(bg[2] * 255),
                              (unsigned char)(bg[3] * 255)};
     }
@@ -750,8 +657,7 @@ template <> void WorldService::DrawComponent<CircleComponent>(Entity entity, Ely
     float border[4] = {circle.border.r / 255.0f, circle.border.g / 255.0f, circle.border.b / 255.0f,
                        circle.border.a / 255.0f};
     FIELD_LABEL("Border: ")
-    if (ImGui::ColorEdit4("##Border", border))
-    {
+    if (ImGui::ColorEdit4("##Border", border)) {
         circle.border = {(unsigned char)(border[0] * 255), (unsigned char)(border[1] * 255),
                          (unsigned char)(border[2] * 255), (unsigned char)(border[3] * 255)};
     }
@@ -761,20 +667,18 @@ template <> void WorldService::DrawComponent<CircleComponent>(Entity entity, Ely
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
     FIELD_LABEL("Layer Name: ")
-    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
-    {
+    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer))) {
         circle.layerName = std::string(layerBuffer);
     }
 }
 
-template <> void WorldService::DrawComponent<LightComponent>(Entity entity, Elysium::World *world)
-{
-    auto &light = world->GetComponent<LightComponent>(entity);
+template <>
+void WorldService::DrawComponent<LightComponent>(Entity entity, Elysium::World* world) {
+    auto& light = world->GetComponent<LightComponent>(entity);
 
     float color[4] = {light.color.r / 255.0f, light.color.g / 255.0f, light.color.b / 255.0f, light.color.a / 255.0f};
     FIELD_LABEL("Color: ")
-    if (ImGui::ColorEdit4("##Color", color))
-    {
+    if (ImGui::ColorEdit4("##Color", color)) {
         light.color = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255),
                        (unsigned char)(color[2] * 255), (unsigned char)(color[3] * 255)};
     }
@@ -787,15 +691,14 @@ template <> void WorldService::DrawComponent<LightComponent>(Entity entity, Elys
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
     FIELD_LABEL("Layer Name: ")
-    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
-    {
+    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer))) {
         light.layerName = std::string(layerBuffer);
     }
 }
 
-template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Elysium::World *world)
-{
-    auto &sprite = world->GetComponent<SpriteComponent>(entity);
+template <>
+void WorldService::DrawComponent<SpriteComponent>(Entity entity, Elysium::World* world) {
+    auto& sprite = world->GetComponent<SpriteComponent>(entity);
 
     // Sprite asset picker
     FIELD_LABEL("Sprite Asset: ")
@@ -806,10 +709,8 @@ template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Ely
     std::vector<std::string> spriteAssetNames;
     spriteAssetNames.push_back("<None>");
 
-    for (const auto& [name, asset] : allAssets)
-    {
-        if (asset.GetType() == AssetType::SPRITE && asset.IsLoaded())
-        {
+    for (const auto& [name, asset] : allAssets) {
+        if (asset.GetType() == AssetType::SPRITE && asset.IsLoaded()) {
             spriteAssetNames.push_back(name);
         }
     }
@@ -817,37 +718,28 @@ template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Ely
     // Find current selection
     std::string currentSpriteName = sprite.sprite.name.empty() ? "<None>" : sprite.sprite.name;
     int currentIndex = 0;
-    for (size_t i = 0; i < spriteAssetNames.size(); ++i)
-    {
-        if (spriteAssetNames[i] == currentSpriteName)
-        {
+    for (size_t i = 0; i < spriteAssetNames.size(); ++i) {
+        if (spriteAssetNames[i] == currentSpriteName) {
             currentIndex = static_cast<int>(i);
             break;
         }
     }
 
     std::string assetComboId = "##SpriteAsset_" + std::to_string(entity);
-    if (ImGui::BeginCombo(assetComboId.c_str(), currentSpriteName.c_str()))
-    {
-        for (size_t i = 0; i < spriteAssetNames.size(); ++i)
-        {
+    if (ImGui::BeginCombo(assetComboId.c_str(), currentSpriteName.c_str())) {
+        for (size_t i = 0; i < spriteAssetNames.size(); ++i) {
             bool isSelected = (currentIndex == static_cast<int>(i));
             std::string selectableId = spriteAssetNames[i] + "##" + std::to_string(i);
-            if (ImGui::Selectable(selectableId.c_str(), isSelected))
-            {
-                if (i == 0)
-                {
+            if (ImGui::Selectable(selectableId.c_str(), isSelected)) {
+                if (i == 0) {
                     // Clear sprite
                     sprite.sprite = Sprite();
-                }
-                else
-                {
+                } else {
                     // Assign sprite from asset service
                     sprite.sprite = assetService.GetSprite(spriteAssetNames[i]);
                 }
             }
-            if (isSelected)
-            {
+            if (isSelected) {
                 ImGui::SetItemDefaultFocus();
             }
         }
@@ -856,67 +748,54 @@ template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Ely
 
     // Marker picker (only if sprite is loaded)
     FIELD_LABEL("Marker: ")
-    if (!sprite.sprite.name.empty() && !sprite.sprite.sheets.empty())
-    {
+    if (!sprite.sprite.name.empty() && !sprite.sprite.sheets.empty()) {
         // Collect unique markers from all sheets (deduplicated)
         std::vector<std::string> markerNames;
         markerNames.push_back("<None>");
 
         std::set<std::string> uniqueMarkers;
-        for (const auto& [sheetName, sheet] : sprite.sprite.sheets)
-        {
-            for (const auto& [markerName, marker] : sheet.markers)
-            {
+        for (const auto& [sheetName, sheet] : sprite.sprite.sheets) {
+            for (const auto& [markerName, marker] : sheet.markers) {
                 uniqueMarkers.insert(markerName);
             }
         }
 
-        for (const auto& markerName : uniqueMarkers)
-        {
+        for (const auto& markerName : uniqueMarkers) {
             markerNames.push_back(markerName);
         }
 
         // Find current selection
         std::string currentMarker = sprite.markerName.empty() ? "<None>" : sprite.markerName;
         int markerIndex = 0;
-        for (size_t i = 0; i < markerNames.size(); ++i)
-        {
-            if (markerNames[i] == currentMarker)
-            {
+        for (size_t i = 0; i < markerNames.size(); ++i) {
+            if (markerNames[i] == currentMarker) {
                 markerIndex = static_cast<int>(i);
                 break;
             }
         }
 
         std::string comboId = "##SpriteMarker_" + std::to_string(entity);
-        if (ImGui::BeginCombo(comboId.c_str(), currentMarker.c_str()))
-        {
-            for (size_t i = 0; i < markerNames.size(); ++i)
-            {
+        if (ImGui::BeginCombo(comboId.c_str(), currentMarker.c_str())) {
+            for (size_t i = 0; i < markerNames.size(); ++i) {
                 bool isSelected = (markerIndex == static_cast<int>(i));
                 std::string selectableId = markerNames[i] + "##" + std::to_string(i);
-                if (ImGui::Selectable(selectableId.c_str(), isSelected))
-                {
+                if (ImGui::Selectable(selectableId.c_str(), isSelected)) {
                     sprite.markerName = (i == 0) ? "" : markerNames[i];
                 }
-                if (isSelected)
-                {
+                if (isSelected) {
                     ImGui::SetItemDefaultFocus();
                 }
             }
             ImGui::EndCombo();
         }
-    }
-    else
-    {
+    } else {
         // Fallback to text input if no sprite loaded
         static char markerBuffer[256];
         strncpy(markerBuffer, sprite.markerName.c_str(), sizeof(markerBuffer) - 1);
         markerBuffer[sizeof(markerBuffer) - 1] = '\0';
 
         std::string inputId = "##SpriteMarkerInput_" + std::to_string(entity);
-        if (ImGui::InputText(inputId.c_str(), markerBuffer, sizeof(markerBuffer)))
-        {
+        if (ImGui::InputText(inputId.c_str(), markerBuffer, sizeof(markerBuffer))) {
             sprite.markerName = std::string(markerBuffer);
         }
     }
@@ -927,8 +806,7 @@ template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Ely
 
     FIELD_LABEL("Layer Name: ")
     std::string layerInputId = "##SpriteLayerName_" + std::to_string(entity);
-    if (ImGui::InputText(layerInputId.c_str(), layerBuffer, sizeof(layerBuffer)))
-    {
+    if (ImGui::InputText(layerInputId.c_str(), layerBuffer, sizeof(layerBuffer))) {
         sprite.layerName = std::string(layerBuffer);
     }
 
@@ -945,9 +823,9 @@ template <> void WorldService::DrawComponent<SpriteComponent>(Entity entity, Ely
     ImGui::DragFloat(elapsedId.c_str(), &sprite.frameElapsed, 0.01f, 0.0f);
 }
 
-template <> void WorldService::DrawComponent<TextureComponent>(Entity entity, Elysium::World *world)
-{
-    auto &texture = world->GetComponent<TextureComponent>(entity);
+template <>
+void WorldService::DrawComponent<TextureComponent>(Entity entity, Elysium::World* world) {
+    auto& texture = world->GetComponent<TextureComponent>(entity);
 
     // Texture asset picker
     FIELD_LABEL("Texture Asset: ")
@@ -958,10 +836,8 @@ template <> void WorldService::DrawComponent<TextureComponent>(Entity entity, El
     std::vector<std::string> textureAssetNames;
     textureAssetNames.push_back("<None>");
 
-    for (const auto& [name, asset] : allAssets)
-    {
-        if (asset.GetType() == AssetType::TEXTURE && asset.IsLoaded())
-        {
+    for (const auto& [name, asset] : allAssets) {
+        if (asset.GetType() == AssetType::TEXTURE && asset.IsLoaded()) {
             textureAssetNames.push_back(name);
         }
     }
@@ -969,28 +845,22 @@ template <> void WorldService::DrawComponent<TextureComponent>(Entity entity, El
     // Find current selection
     std::string currentTextureName = texture.textureName.empty() ? "<None>" : texture.textureName;
     int currentIndex = 0;
-    for (size_t i = 0; i < textureAssetNames.size(); ++i)
-    {
-        if (textureAssetNames[i] == currentTextureName)
-        {
+    for (size_t i = 0; i < textureAssetNames.size(); ++i) {
+        if (textureAssetNames[i] == currentTextureName) {
             currentIndex = static_cast<int>(i);
             break;
         }
     }
 
     std::string assetComboId = "##TextureAsset_" + std::to_string(entity);
-    if (ImGui::BeginCombo(assetComboId.c_str(), currentTextureName.c_str()))
-    {
-        for (size_t i = 0; i < textureAssetNames.size(); ++i)
-        {
+    if (ImGui::BeginCombo(assetComboId.c_str(), currentTextureName.c_str())) {
+        for (size_t i = 0; i < textureAssetNames.size(); ++i) {
             bool isSelected = (currentIndex == static_cast<int>(i));
             std::string selectableId = textureAssetNames[i] + "##" + std::to_string(i);
-            if (ImGui::Selectable(selectableId.c_str(), isSelected))
-            {
+            if (ImGui::Selectable(selectableId.c_str(), isSelected)) {
                 texture.textureName = (i == 0) ? "" : textureAssetNames[i];
             }
-            if (isSelected)
-            {
+            if (isSelected) {
                 ImGui::SetItemDefaultFocus();
             }
         }
@@ -1003,8 +873,7 @@ template <> void WorldService::DrawComponent<TextureComponent>(Entity entity, El
 
     FIELD_LABEL("Layer Name: ")
     std::string layerInputId = "##TextureLayerName_" + std::to_string(entity);
-    if (ImGui::InputText(layerInputId.c_str(), layerBuffer, sizeof(layerBuffer)))
-    {
+    if (ImGui::InputText(layerInputId.c_str(), layerBuffer, sizeof(layerBuffer))) {
         texture.layerName = std::string(layerBuffer);
     }
 
@@ -1040,30 +909,26 @@ template <> void WorldService::DrawComponent<TextureComponent>(Entity entity, El
         texture.tint.r / 255.0f,
         texture.tint.g / 255.0f,
         texture.tint.b / 255.0f,
-        texture.tint.a / 255.0f
-    };
-    if (ImGui::ColorEdit4(tintId.c_str(), tintColor))
-    {
+        texture.tint.a / 255.0f};
+    if (ImGui::ColorEdit4(tintId.c_str(), tintColor)) {
         texture.tint = {
             static_cast<unsigned char>(tintColor[0] * 255),
             static_cast<unsigned char>(tintColor[1] * 255),
             static_cast<unsigned char>(tintColor[2] * 255),
-            static_cast<unsigned char>(tintColor[3] * 255)
-        };
+            static_cast<unsigned char>(tintColor[3] * 255)};
     }
 }
 
-template <> void WorldService::DrawComponent<TextComponent>(Entity entity, Elysium::World *world)
-{
-    auto &text = world->GetComponent<TextComponent>(entity);
+template <>
+void WorldService::DrawComponent<TextComponent>(Entity entity, Elysium::World* world) {
+    auto& text = world->GetComponent<TextComponent>(entity);
 
     static char contentBuffer[1024];
     strncpy(contentBuffer, text.content.c_str(), sizeof(contentBuffer) - 1);
     contentBuffer[sizeof(contentBuffer) - 1] = '\0';
 
     FIELD_LABEL("Content: ")
-    if (ImGui::InputTextMultiline("##Content", contentBuffer, sizeof(contentBuffer)))
-    {
+    if (ImGui::InputTextMultiline("##Content", contentBuffer, sizeof(contentBuffer))) {
         text.content = std::string(contentBuffer);
     }
 
@@ -1072,8 +937,7 @@ template <> void WorldService::DrawComponent<TextComponent>(Entity entity, Elysi
 
     float color[4] = {text.color.r / 255.0f, text.color.g / 255.0f, text.color.b / 255.0f, text.color.a / 255.0f};
     FIELD_LABEL("Color: ")
-    if (ImGui::ColorEdit4("##Color", color))
-    {
+    if (ImGui::ColorEdit4("##Color", color)) {
         text.color = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255), (unsigned char)(color[2] * 255),
                       (unsigned char)(color[3] * 255)};
     }
@@ -1083,15 +947,14 @@ template <> void WorldService::DrawComponent<TextComponent>(Entity entity, Elysi
     layerBuffer[sizeof(layerBuffer) - 1] = '\0';
 
     FIELD_LABEL("Layer Name: ")
-    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer)))
-    {
+    if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer))) {
         text.layerName = std::string(layerBuffer);
     }
 }
 
-template <> void WorldService::DrawComponent<CameraComponent>(Entity entity, Elysium::World *world)
-{
-    auto &camera = world->GetComponent<CameraComponent>(entity);
+template <>
+void WorldService::DrawComponent<CameraComponent>(Entity entity, Elysium::World* world) {
+    auto& camera = world->GetComponent<CameraComponent>(entity);
 
     FIELD_LABEL("Zoom: ")
     ImGui::DragFloat("##Zoom", &camera.zoom, 0.01f, 0.1f, 10.0f);
@@ -1103,9 +966,9 @@ template <> void WorldService::DrawComponent<CameraComponent>(Entity entity, Ely
     ImGui::Checkbox("##IsVisible", &camera.isVisible);
 }
 
-template <> void WorldService::DrawComponent<FollowComponent>(Entity entity, Elysium::World *world)
-{
-    auto &follow = world->GetComponent<FollowComponent>(entity);
+template <>
+void WorldService::DrawComponent<FollowComponent>(Entity entity, Elysium::World* world) {
+    auto& follow = world->GetComponent<FollowComponent>(entity);
 
     static char targetBuffer[256];
     strncpy(targetBuffer, follow.targetEntityName.c_str(), sizeof(targetBuffer) - 1);
@@ -1115,28 +978,26 @@ template <> void WorldService::DrawComponent<FollowComponent>(Entity entity, Ely
     ImGui::DragFloat("##FollowSpeed", &follow.speed, 0.1f, 0.0f);
 
     FIELD_LABEL("Target: ")
-    if (ImGui::InputText("##TargetEntityName", targetBuffer, sizeof(targetBuffer)))
-    {
+    if (ImGui::InputText("##TargetEntityName", targetBuffer, sizeof(targetBuffer))) {
         follow.targetEntityName = std::string(targetBuffer);
     }
-
 }
 
-template <> void WorldService::DrawComponent<TileComponent>(Entity entity, Elysium::World *world)
-{
+template <>
+void WorldService::DrawComponent<TileComponent>(Entity entity, Elysium::World* world) {
     ImGui::Text("Tile component (no properties)");
 }
 
-template <> void WorldService::DrawComponent<TeamComponent>(Entity entity, Elysium::World *world)
-{
-    auto &team = world->GetComponent<TeamComponent>(entity);
+template <>
+void WorldService::DrawComponent<TeamComponent>(Entity entity, Elysium::World* world) {
+    auto& team = world->GetComponent<TeamComponent>(entity);
     FIELD_LABEL("Team ID: ")
     ImGui::DragInt("##TeamID", &team.teamId, 1.0f, 0);
 }
 
-template <> void WorldService::DrawComponent<CooldownComponent>(Entity entity, Elysium::World *world)
-{
-    auto &cooldown = world->GetComponent<CooldownComponent>(entity);
+template <>
+void WorldService::DrawComponent<CooldownComponent>(Entity entity, Elysium::World* world) {
+    auto& cooldown = world->GetComponent<CooldownComponent>(entity);
 
     FIELD_LABEL("Cooldown Time: ")
     ImGui::DragFloat("##CooldownTime", &cooldown.cooldownTime, 0.1f, 0.0f, 60.0f);
@@ -1146,16 +1007,16 @@ template <> void WorldService::DrawComponent<CooldownComponent>(Entity entity, E
     ImGui::Checkbox("##IsOnCooldown", &cooldown.isOnCooldown);
 }
 
-template <> void WorldService::DrawComponent<CharacterComponent>(Entity entity, Elysium::World *world)
-{
-    auto &character = world->GetComponent<CharacterComponent>(entity);
+template <>
+void WorldService::DrawComponent<CharacterComponent>(Entity entity, Elysium::World* world) {
+    auto& character = world->GetComponent<CharacterComponent>(entity);
     FIELD_LABEL("Char ID: ")
     ImGui::DragInt("##CharacterID", &character.id, 1.0f, 0);
 }
 
-template <> void WorldService::DrawComponent<UnitComponent>(Entity entity, Elysium::World *world)
-{
-    auto &unit = world->GetComponent<UnitComponent>(entity);
+template <>
+void WorldService::DrawComponent<UnitComponent>(Entity entity, Elysium::World* world) {
+    auto& unit = world->GetComponent<UnitComponent>(entity);
 
     FIELD_LABEL("Acted: ")
     ImGui::Checkbox("##HasActedThisTurn", &unit.hasActedThisTurn);
@@ -1168,20 +1029,18 @@ template <> void WorldService::DrawComponent<UnitComponent>(Entity entity, Elysi
     FIELD_LABEL("Can Use Items: ")
     ImGui::Checkbox("##CanUseItems", &unit.canUseItems);
 
-    if (ImGui::Button("Start Turn"))
-    {
+    if (ImGui::Button("Start Turn")) {
         unit.StartTurn();
     }
     ImGui::SameLine();
-    if (ImGui::Button("End Turn"))
-    {
+    if (ImGui::Button("End Turn")) {
         unit.EndTurn();
     }
 }
 
-template <> void WorldService::DrawComponent<BoundsComponent>(Entity entity, Elysium::World *world)
-{
-    auto &bounds = world->GetComponent<BoundsComponent>(entity);
+template <>
+void WorldService::DrawComponent<BoundsComponent>(Entity entity, Elysium::World* world) {
+    auto& bounds = world->GetComponent<BoundsComponent>(entity);
 
     FIELD_LABEL("X: ")
     ImGui::Text("%.1f", bounds.bounds.x);
@@ -1198,8 +1057,7 @@ template <> void WorldService::DrawComponent<BoundsComponent>(Entity entity, Ely
     float color[4] = {bounds.debugColor.r / 255.0f, bounds.debugColor.g / 255.0f,
                       bounds.debugColor.b / 255.0f, bounds.debugColor.a / 255.0f};
     FIELD_LABEL("Debug Color: ")
-    if (ImGui::ColorEdit4("##DebugColor", color))
-    {
+    if (ImGui::ColorEdit4("##DebugColor", color)) {
         bounds.debugColor = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255),
                              (unsigned char)(color[2] * 255), (unsigned char)(color[3] * 255)};
     }
@@ -1208,4 +1066,4 @@ template <> void WorldService::DrawComponent<BoundsComponent>(Entity entity, Ely
     ImGui::TextDisabled("Bounds are computed automatically by RenderSystem");
 }
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

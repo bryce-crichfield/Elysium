@@ -2,8 +2,8 @@
 
 #include <cstdint>
 #include <memory>
-#include "ByteBuffer.h"
 #include "../Event.h"
+#include "ByteBuffer.h"
 
 namespace Elysium::Network {
 
@@ -11,12 +11,12 @@ namespace Elysium::Network {
  * Network Input Types - mirrors local Event types
  */
 enum class NetworkInputType : uint8_t {
-    MouseButtonPressed  = 1,
+    MouseButtonPressed = 1,
     MouseButtonReleased = 2,
-    MouseMoved          = 3,
-    MouseWheel          = 4,
-    KeyPressed          = 5,
-    KeyReleased         = 6,
+    MouseMoved = 3,
+    MouseWheel = 4,
+    KeyPressed = 5,
+    KeyReleased = 6,
 };
 
 /**
@@ -28,7 +28,7 @@ enum class NetworkInputType : uint8_t {
  */
 struct NetworkInput {
     NetworkInputType type;
-    uint32_t sequence;    // For ordering and acknowledgment
+    uint32_t sequence;  // For ordering and acknowledgment
 
     // Union of input data based on type
     union {
@@ -43,17 +43,17 @@ struct NetworkInput {
             float y;
             float dx;
             float dy;
-        } mouseMove;    // MouseMoved
+        } mouseMove;  // MouseMoved
 
         struct {
             float delta;
             float x;
             float y;
-        } mouseWheel;   // MouseWheel
+        } mouseWheel;  // MouseWheel
 
         struct {
             int32_t key;
-        } keyboard;     // KeyPressed, KeyReleased
+        } keyboard;  // KeyPressed, KeyReleased
     };
 
     NetworkInput() : type(NetworkInputType::KeyPressed), sequence(0) {
@@ -192,26 +192,22 @@ struct NetworkInput {
             case NetworkInputType::MouseButtonPressed:
                 return std::make_unique<MouseButtonPressedEvent>(
                     mouseButton.button,
-                    Vector2{mouseButton.x, mouseButton.y}
-                );
+                    Vector2{mouseButton.x, mouseButton.y});
 
             case NetworkInputType::MouseButtonReleased:
                 return std::make_unique<MouseButtonReleasedEvent>(
                     mouseButton.button,
-                    Vector2{mouseButton.x, mouseButton.y}
-                );
+                    Vector2{mouseButton.x, mouseButton.y});
 
             case NetworkInputType::MouseMoved:
                 return std::make_unique<MouseMovedEvent>(
                     Vector2{mouseMove.x, mouseMove.y},
-                    Vector2{mouseMove.dx, mouseMove.dy}
-                );
+                    Vector2{mouseMove.dx, mouseMove.dy});
 
             case NetworkInputType::MouseWheel:
                 return std::make_unique<MouseWheelEvent>(
                     mouseWheel.delta,
-                    Vector2{mouseWheel.x, mouseWheel.y}
-                );
+                    Vector2{mouseWheel.x, mouseWheel.y});
 
             case NetworkInputType::KeyPressed:
                 return std::make_unique<KeyPressedEvent>(keyboard.key);
@@ -228,8 +224,8 @@ struct NetworkInput {
  * Client -> Server
  */
 struct InputPacketData {
-    uint32_t clientTick;       // Client's local tick when inputs were generated
-    uint8_t inputCount;        // Number of inputs in this packet
+    uint32_t clientTick;  // Client's local tick when inputs were generated
+    uint8_t inputCount;   // Number of inputs in this packet
 
     void Write(ByteBuffer& buffer) const {
         buffer.WriteU32(clientTick);
@@ -242,4 +238,4 @@ struct InputPacketData {
     }
 };
 
-} // namespace Elysium::Network
+}  // namespace Elysium::Network

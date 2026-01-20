@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../System.h"
-#include "../Network/EntitySyncManager.h"
-#include "../Network/ComponentSerializer.h"
-#include "../Network/NetworkProtocol.h"
-#include "../Network/NetworkInput.h"
-#include <vector>
-#include <unordered_map>
 #include <queue>
+#include <unordered_map>
+#include <vector>
+#include "../Network/ComponentSerializer.h"
+#include "../Network/EntitySyncManager.h"
+#include "../Network/NetworkInput.h"
+#include "../Network/NetworkProtocol.h"
+#include "../System.h"
 
 // Forward declarations
 typedef struct _ENetPeer ENetPeer;
@@ -29,7 +29,7 @@ namespace Elysium {
  *   scene->AddSystem(std::make_unique<ServerNetworkSystem>(context));
  */
 class ServerNetworkSystem : public System {
-public:
+   public:
     explicit ServerNetworkSystem(Context context);
     ~ServerNetworkSystem() override = default;
 
@@ -58,7 +58,7 @@ public:
      */
     uint32_t GetCurrentTick() const { return currentTick_; }
 
-private:
+   private:
     // Tick management
     void ProcessTick();
     void AccumulateDeltaTime(float deltaTime);
@@ -106,4 +106,4 @@ private:
     std::queue<BufferedInput> inputBuffer_;
 };
 
-} // namespace Elysium
+}  // namespace Elysium

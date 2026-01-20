@@ -1,17 +1,16 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
-#include <memory>
-#include <vector>
-#include <queue>
-#include <typeindex>
-#include <bitset>
-#include "raylib.h"
-#include <stdexcept>
 #include <algorithm>
-#include "raylib.h"
+#include <bitset>
+#include <memory>
+#include <queue>
+#include <stdexcept>
+#include <string>
+#include <typeindex>
+#include <unordered_map>
+#include <vector>
 #include "Component.h"
+#include "raylib.h"
 
 // Entity-Component-System (ECS) Storage Layout:
 //
@@ -26,8 +25,7 @@
 // World: Top-level API that orchestrates EntityManager + ComponentManager.
 // Provides Query<Components...>() for efficient iteration over entities with specific components.
 
-namespace Elysium
-{
+namespace Elysium {
 using Entity = size_t;
 constexpr size_t MAX_ENTITIES = 10000;
 constexpr size_t MAX_COMPONENTS = 32;
@@ -35,24 +33,22 @@ constexpr Entity INVALID_ENTITY = MAX_ENTITIES;
 
 using ComponentMask = std::bitset<MAX_COMPONENTS>;
 
-class ComponentArray
-{
-public:
+class ComponentArray {
+   public:
     virtual ~ComponentArray() = default;
     virtual void EntityDestroyed(Entity entity) = 0;
     virtual void CloneComponent(Entity source, Entity dest) = 0;
 };
 
-template<typename T>
-class TypedComponentArray : public ComponentArray
-{
-private:
+template <typename T>
+class TypedComponentArray : public ComponentArray {
+   private:
     std::vector<T> componentArray;
     std::unordered_map<Entity, size_t> entityToIndex;
     std::unordered_map<size_t, Entity> indexToEntity;
     size_t size = 0;
 
-public:
+   public:
     void InsertData(Entity entity, T component);
     void RemoveData(Entity entity);
     T& GetData(Entity entity);
@@ -65,57 +61,55 @@ public:
     const std::unordered_map<Entity, size_t>& GetEntityToIndex() const;
 };
 
-class ComponentManager
-{
-private:
+class ComponentManager {
+   private:
     std::unordered_map<std::type_index, std::shared_ptr<ComponentArray>> componentArrays;
     std::unordered_map<std::type_index, size_t> componentTypes;
     size_t nextComponentType = 0;
 
-public:
-    template<typename T>
+   public:
+    template <typename T>
     void RegisterComponent();
 
-    template<typename T>
+    template <typename T>
     size_t GetComponentType() const;
 
-    template<typename T>
+    template <typename T>
     void AddComponent(Entity entity, T component);
 
-    template<typename T>
+    template <typename T>
     void RemoveComponent(Entity entity);
 
-    template<typename T>
+    template <typename T>
     T& GetComponent(Entity entity);
 
-    template<typename T>
+    template <typename T>
     bool HasComponent(Entity entity) const;
 
     void EntityDestroyed(Entity entity);
     void CloneAllComponents(Entity source, Entity dest);
 
-    template<typename T>
+    template <typename T>
     std::vector<T>& GetRawComponentArray();
 
-    template<typename T>
+    template <typename T>
     std::unordered_map<Entity, size_t>& GetEntityToIndexMap();
 
-    template<typename T>
+    template <typename T>
     std::shared_ptr<TypedComponentArray<T>> GetComponentArray();
 
-    template<typename T>
+    template <typename T>
     std::shared_ptr<const TypedComponentArray<T>> GetComponentArray() const;
 };
 
-class EntityManager
-{
-private:
+class EntityManager {
+   private:
     std::queue<Entity, std::deque<Entity>> availableEntities;
     std::vector<ComponentMask> componentMasks;
     std::vector<Entity> livingEntities;
     size_t livingEntityCount = 0;
 
-public:
+   public:
     EntityManager();
     Entity CreateEntity();
     void DestroyEntity(Entity entity);
@@ -125,59 +119,57 @@ public:
     const std::vector<Entity>& GetLivingEntities() const;
 };
 
-class World
-{
-private:
+class World {
+   private:
     std::unique_ptr<ComponentManager> componentManager;
     std::unique_ptr<EntityManager> entityManager;
 
-public:
-    World(); // Declaration only
+   public:
+    World();  // Declaration only
     ~World() = default;
-    Entity CreateEntity(); // Declaration only
-    Entity CloneEntity(Entity source); // Declaration only
-    void DestroyEntity(Entity entity); // Declaration only
-    size_t GetEntityCount() const; // Declaration only
-    const std::vector<Entity>& GetLivingEntities() const; // Declaration only
+    Entity CreateEntity();                                 // Declaration only
+    Entity CloneEntity(Entity source);                     // Declaration only
+    void DestroyEntity(Entity entity);                     // Declaration only
+    size_t GetEntityCount() const;                         // Declaration only
+    const std::vector<Entity>& GetLivingEntities() const;  // Declaration only
 
     // Template methods remain in the header
-    template<typename T>
+    template <typename T>
     void RegisterComponent();
 
-    template<typename T>
+    template <typename T>
     void AddComponent(Entity entity, T component);
 
-    template<typename T>
+    template <typename T>
     void RemoveComponent(Entity entity);
 
-    template<typename T>
+    template <typename T>
     T& GetComponent(Entity entity);
 
-    template<typename T>
+    template <typename T>
     const T& GetComponent(Entity entity) const;
 
-    template<typename T>
+    template <typename T>
     bool HasComponent(Entity entity) const;
 
-    template<typename T>
+    template <typename T>
     size_t GetComponentType() const;
 
-    template<typename... ComponentTypes>
+    template <typename... ComponentTypes>
     const std::vector<Entity>& GetEntitiesWithComponents() const;
 
-    template<typename... ComponentTypes, typename Func>
+    template <typename... ComponentTypes, typename Func>
     void Query(Func&& func);
 
-    bool GetEntityByName(std::string name, Entity *entity);
+    bool GetEntityByName(std::string name, Entity* entity);
     std::string GetEntityName(Entity entity) const;
 };
 
 // TypedComponentArray implementations
-template<typename T>
-void TypedComponentArray<T>::InsertData(Entity entity, T component)
-{
+template <typename T>
+void TypedComponentArray<T>::InsertData(Entity entity, T component) {
     if (entityToIndex.find(entity) != entityToIndex.end()) {
-        return; // Component already exists
+        return;  // Component already exists
     }
 
     size_t newIndex = size;
@@ -191,11 +183,10 @@ void TypedComponentArray<T>::InsertData(Entity entity, T component)
     ++size;
 }
 
-template<typename T>
-void TypedComponentArray<T>::RemoveData(Entity entity)
-{
+template <typename T>
+void TypedComponentArray<T>::RemoveData(Entity entity) {
     if (entityToIndex.find(entity) == entityToIndex.end()) {
-        return; // Component doesn't exist
+        return;  // Component doesn't exist
     }
 
     size_t indexOfRemovedEntity = entityToIndex[entity];
@@ -211,9 +202,8 @@ void TypedComponentArray<T>::RemoveData(Entity entity)
     --size;
 }
 
-template<typename T>
-T& TypedComponentArray<T>::GetData(Entity entity)
-{
+template <typename T>
+T& TypedComponentArray<T>::GetData(Entity entity) {
     auto it = entityToIndex.find(entity);
     if (it == entityToIndex.end()) {
         throw std::runtime_error("Entity does not have this component");
@@ -221,23 +211,20 @@ T& TypedComponentArray<T>::GetData(Entity entity)
     return componentArray[it->second];
 }
 
-template<typename T>
-bool TypedComponentArray<T>::HasData(Entity entity) const
-{
+template <typename T>
+bool TypedComponentArray<T>::HasData(Entity entity) const {
     return entityToIndex.find(entity) != entityToIndex.end();
 }
 
-template<typename T>
-void TypedComponentArray<T>::EntityDestroyed(Entity entity)
-{
+template <typename T>
+void TypedComponentArray<T>::EntityDestroyed(Entity entity) {
     if (entityToIndex.find(entity) != entityToIndex.end()) {
         RemoveData(entity);
     }
 }
 
-template<typename T>
-void TypedComponentArray<T>::CloneComponent(Entity source, Entity dest)
-{
+template <typename T>
+void TypedComponentArray<T>::CloneComponent(Entity source, Entity dest) {
     if (entityToIndex.find(source) != entityToIndex.end()) {
         // Source has this component, copy it to dest
         T componentCopy = GetData(source);
@@ -245,40 +232,34 @@ void TypedComponentArray<T>::CloneComponent(Entity source, Entity dest)
     }
 }
 
-template<typename T>
-std::vector<T>& TypedComponentArray<T>::GetArray()
-{
+template <typename T>
+std::vector<T>& TypedComponentArray<T>::GetArray() {
     return componentArray;
 }
 
-template<typename T>
-const std::vector<T>& TypedComponentArray<T>::GetArray() const
-{
+template <typename T>
+const std::vector<T>& TypedComponentArray<T>::GetArray() const {
     return componentArray;
 }
 
-template<typename T>
-std::unordered_map<Entity, size_t>& TypedComponentArray<T>::GetEntityToIndex()
-{
+template <typename T>
+std::unordered_map<Entity, size_t>& TypedComponentArray<T>::GetEntityToIndex() {
     return entityToIndex;
 }
 
-template<typename T>
-const std::unordered_map<Entity, size_t>& TypedComponentArray<T>::GetEntityToIndex() const
-{
+template <typename T>
+const std::unordered_map<Entity, size_t>& TypedComponentArray<T>::GetEntityToIndex() const {
     return entityToIndex;
 }
 
-template<typename T>
-std::shared_ptr<TypedComponentArray<T>> ComponentManager::GetComponentArray()
-{
+template <typename T>
+std::shared_ptr<TypedComponentArray<T>> ComponentManager::GetComponentArray() {
     std::type_index typeName = std::type_index(typeid(T));
     return std::static_pointer_cast<TypedComponentArray<T>>(componentArrays[typeName]);
 }
 
-template<typename T>
-std::shared_ptr<const TypedComponentArray<T>> ComponentManager::GetComponentArray() const
-{
+template <typename T>
+std::shared_ptr<const TypedComponentArray<T>> ComponentManager::GetComponentArray() const {
     std::type_index typeName = std::type_index(typeid(T));
     auto it = componentArrays.find(typeName);
     if (it == componentArrays.end()) {
@@ -287,67 +268,57 @@ std::shared_ptr<const TypedComponentArray<T>> ComponentManager::GetComponentArra
     return std::static_pointer_cast<const TypedComponentArray<T>>(it->second);
 }
 
-template<typename T>
-void ComponentManager::RegisterComponent()
-{
+template <typename T>
+void ComponentManager::RegisterComponent() {
     std::type_index typeName = std::type_index(typeid(T));
     componentTypes[typeName] = nextComponentType;
     componentArrays[typeName] = std::make_shared<TypedComponentArray<T>>();
     ++nextComponentType;
 }
 
-template<typename T>
-size_t ComponentManager::GetComponentType() const
-{
+template <typename T>
+size_t ComponentManager::GetComponentType() const {
     std::type_index typeName = std::type_index(typeid(T));
     return componentTypes.at(typeName);
 }
 
-template<typename T>
-void ComponentManager::AddComponent(Entity entity, T component)
-{
+template <typename T>
+void ComponentManager::AddComponent(Entity entity, T component) {
     GetComponentArray<T>()->InsertData(entity, component);
 }
 
-template<typename T>
-void ComponentManager::RemoveComponent(Entity entity)
-{
+template <typename T>
+void ComponentManager::RemoveComponent(Entity entity) {
     GetComponentArray<T>()->RemoveData(entity);
 }
 
-template<typename T>
-T& ComponentManager::GetComponent(Entity entity)
-{
+template <typename T>
+T& ComponentManager::GetComponent(Entity entity) {
     return GetComponentArray<T>()->GetData(entity);
 }
 
-template<typename T>
-bool ComponentManager::HasComponent(Entity entity) const
-{
+template <typename T>
+bool ComponentManager::HasComponent(Entity entity) const {
     return GetComponentArray<T>()->HasData(entity);
 }
 
-template<typename T>
-std::vector<T>& ComponentManager::GetRawComponentArray()
-{
+template <typename T>
+std::vector<T>& ComponentManager::GetRawComponentArray() {
     return GetComponentArray<T>()->GetArray();
 }
 
-template<typename T>
-std::unordered_map<Entity, size_t>& ComponentManager::GetEntityToIndexMap()
-{
+template <typename T>
+std::unordered_map<Entity, size_t>& ComponentManager::GetEntityToIndexMap() {
     return GetComponentArray<T>()->GetEntityToIndex();
 }
 
-template<typename T>
-void World::RegisterComponent()
-{
+template <typename T>
+void World::RegisterComponent() {
     componentManager->RegisterComponent<T>();
 }
 
-template<typename T>
-void World::AddComponent(Entity entity, T component)
-{
+template <typename T>
+void World::AddComponent(Entity entity, T component) {
     componentManager->AddComponent<T>(entity, component);
 
     auto mask = entityManager->GetComponentMask(entity);
@@ -355,9 +326,8 @@ void World::AddComponent(Entity entity, T component)
     entityManager->SetComponentMask(entity, mask);
 }
 
-template<typename T>
-void World::RemoveComponent(Entity entity)
-{
+template <typename T>
+void World::RemoveComponent(Entity entity) {
     componentManager->RemoveComponent<T>(entity);
 
     auto mask = entityManager->GetComponentMask(entity);
@@ -365,15 +335,13 @@ void World::RemoveComponent(Entity entity)
     entityManager->SetComponentMask(entity, mask);
 }
 
-template<typename T>
-T& World::GetComponent(Entity entity)
-{
+template <typename T>
+T& World::GetComponent(Entity entity) {
     return componentManager->GetComponent<T>(entity);
 }
 
-template<typename T>
-const T& World::GetComponent(Entity entity) const
-{
+template <typename T>
+const T& World::GetComponent(Entity entity) const {
     auto componentArray = componentManager->GetComponentArray<T>();
     auto it = componentArray->GetEntityToIndex().find(entity);
     if (it == componentArray->GetEntityToIndex().end()) {
@@ -382,21 +350,18 @@ const T& World::GetComponent(Entity entity) const
     return componentArray->GetArray()[it->second];
 }
 
-template<typename T>
-bool World::HasComponent(Entity entity) const
-{
+template <typename T>
+bool World::HasComponent(Entity entity) const {
     return componentManager->HasComponent<T>(entity);
 }
 
-template<typename T>
-size_t World::GetComponentType() const
-{
+template <typename T>
+size_t World::GetComponentType() const {
     return componentManager->GetComponentType<T>();
 }
 
-template<typename... ComponentTypes>
-const std::vector<Entity>& World::GetEntitiesWithComponents() const
-{
+template <typename... ComponentTypes>
+const std::vector<Entity>& World::GetEntitiesWithComponents() const {
     ComponentMask mask;
     (mask.set(GetComponentType<ComponentTypes>()), ...);
 
@@ -415,9 +380,8 @@ const std::vector<Entity>& World::GetEntitiesWithComponents() const
     return entities;
 }
 
-template<typename... ComponentTypes, typename Func>
-void World::Query(Func&& func)
-{
+template <typename... ComponentTypes, typename Func>
+void World::Query(Func&& func) {
     ComponentMask mask;
     (mask.set(GetComponentType<ComponentTypes>()), ...);
 
@@ -431,4 +395,4 @@ void World::Query(Func&& func)
         }
     }
 }
-};
+};  // namespace Elysium

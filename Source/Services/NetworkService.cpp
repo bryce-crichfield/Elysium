@@ -4,8 +4,8 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#define NOGDI       // Prevents Rectangle declaration in wingdi.h
-#define NOUSER      // Prevents CloseWindow, ShowCursor in winuser.h
+#define NOGDI   // Prevents Rectangle declaration in wingdi.h
+#define NOUSER  // Prevents CloseWindow, ShowCursor in winuser.h
 #endif
 
 #include <enet/enet.h>
@@ -17,22 +17,21 @@
 
 // Now include raylib via Application.h
 #include "Application.h"
-#include "Services/NetworkService.h"
-#include "Services/MessageService.h"
-#include "Services/SceneService.h"
 #include "Services/LogService.h"
+#include "Services/MessageService.h"
+#include "Services/NetworkService.h"
+#include "Services/SceneService.h"
 
 #include "Messages/NetworkMessages.h"
 #include "Messages/SceneMessages.h"
-#include "Network/NetworkProtocol.h"
 #include "Network/ByteBuffer.h"
+#include "Network/NetworkProtocol.h"
 
 #include <tracy/Tracy.hpp>
 
 namespace Elysium::Services {
 
-NetworkService::NetworkService()
-{
+NetworkService::NetworkService() {
     name_ = "NetworkService";
     hasUi_ = true;
 }
@@ -149,22 +148,23 @@ void NetworkService::StartClient(const std::string& address, uint16_t port) {
 }
 
 void NetworkService::Stop() {
-    if (!isRunning_) return;
+    if (!isRunning_)
+        return;
 
     shouldStop_ = true;
-    
+
     if (networkThread_.joinable()) {
         networkThread_.join();
     }
 
     {
         std::lock_guard<std::mutex> lock(hostMutex_);
-        
+
         if (config_.mode == NetworkMode::Client && serverPeer_) {
             enet_peer_disconnect(serverPeer_, 0);
             serverPeer_ = nullptr;
         }
-        
+
         if (host_) {
             enet_host_destroy(host_);
             host_ = nullptr;
@@ -189,8 +189,9 @@ void NetworkService::NetworkThread() {
         {
             ZoneScopedN("NetworkService::Poll");
             std::lock_guard<std::mutex> lock(hostMutex_);
-            
-            if (!host_) break;
+
+            if (!host_)
+                break;
 
             while (enet_host_service(host_, &event, 0) > 0) {
                 if (config_.mode == NetworkMode::Server) {
@@ -205,7 +206,7 @@ void NetworkService::NetworkThread() {
                             connectedPeers_++;
                             messageService.Post<ClientConnectedMessage>(event.peer);
                             LOG_INFOF("Network", "Client connected from %u:%u",
-                                    event.peer->address.host, event.peer->address.port);
+                                      event.peer->address.host, event.peer->address.port);
                         } else {
                             connectedPeers_ = 1;
                             messageService.Post<ServerConnectedMessage>();
@@ -221,8 +222,7 @@ void NetworkService::NetworkThread() {
                             event.peer,
                             event.packet->data,
                             event.packet->dataLength,
-                            event.channelID
-                        );
+                            event.channelID);
 
                         enet_packet_destroy(event.packet);
                         break;
@@ -259,16 +259,15 @@ void NetworkService::ProcessClientEvents() {
 }
 
 void NetworkService::SendToServer(const void* data, size_t length, bool reliable) {
-    if (config_.mode != NetworkMode::Client || !serverPeer_) return;
-
+    if (config_.mode != NetworkMode::Client || !serverPeer_)
+        return;
 
     std::lock_guard<std::mutex> lock(hostMutex_);
-    
+
     ENetPacket* packet = enet_packet_create(
         data,
         length,
-        reliable ? ENET_PACKET_FLAG_RELIABLE : 0
-    );
+        reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
 
     if (enet_peer_send(serverPeer_, 0, packet) == 0) {
         packetsSent_++;
@@ -277,15 +276,15 @@ void NetworkService::SendToServer(const void* data, size_t length, bool reliable
 }
 
 void NetworkService::SendToClient(ENetPeer* peer, const void* data, size_t length, bool reliable) {
-    if (config_.mode != NetworkMode::Server || !peer) return;
+    if (config_.mode != NetworkMode::Server || !peer)
+        return;
 
     std::lock_guard<std::mutex> lock(hostMutex_);
-    
+
     ENetPacket* packet = enet_packet_create(
         data,
         length,
-        reliable ? ENET_PACKET_FLAG_RELIABLE : 0
-    );
+        reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
 
     if (enet_peer_send(peer, 0, packet) == 0) {
         packetsSent_++;
@@ -294,18 +293,18 @@ void NetworkService::SendToClient(ENetPeer* peer, const void* data, size_t lengt
 }
 
 void NetworkService::BroadcastToClients(const void* data, size_t length, bool reliable) {
-    if (config_.mode != NetworkMode::Server) return;
+    if (config_.mode != NetworkMode::Server)
+        return;
 
     std::lock_guard<std::mutex> lock(hostMutex_);
-    
+
     ENetPacket* packet = enet_packet_create(
         data,
         length,
-        reliable ? ENET_PACKET_FLAG_RELIABLE : 0
-    );
+        reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
 
     enet_host_broadcast(host_, 0, packet);
-    
+
     packetsSent_++;
     bytesSent_ += length;
 }
@@ -392,14 +391,15 @@ void NetworkService::OnNetworkDataReceived(const NetworkDataReceivedMessage& msg
 }
 
 void NetworkService::ImGui() {
-    if (!isVisible_) return;
+    if (!isVisible_)
+        return;
 
     ImGui::Begin(name_.c_str(), &isVisible_);
 
     // Status
-    ImGui::Text("Mode: %s", 
-        config_.mode == NetworkMode::Server ? "Server" :
-        config_.mode == NetworkMode::Client ? "Client" : "None");
+    ImGui::Text("Mode: %s",
+                config_.mode == NetworkMode::Server ? "Server" : config_.mode == NetworkMode::Client ? "Client"
+                                                                                                     : "None");
     ImGui::Text("Running: %s", isRunning_.load() ? "Yes" : "No");
     ImGui::Text("Connected Peers: %u", connectedPeers_.load());
 
@@ -437,4 +437,4 @@ void NetworkService::ImGui() {
     ImGui::End();
 }
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

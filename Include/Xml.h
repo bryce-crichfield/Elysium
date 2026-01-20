@@ -1,23 +1,18 @@
 #pragma once
 
 #include <tinyxml2.h>
-#include "System.h"
-#include "raylib.h"
+#include <any>
 #include <functional>
 #include <memory>
 #include <queue>
 #include <string>
-#include <variant>
-#include <vector>
-#include <unordered_map>
-#include <tinyxml2.h>
-#include <functional>
-#include <memory>
-#include <string>
-#include <unordered_map>
 #include <typeindex>
 #include <typeinfo>
-#include <any>
+#include <unordered_map>
+#include <variant>
+#include <vector>
+#include "System.h"
+#include "raylib.h"
 
 namespace Elysium {
 
@@ -26,7 +21,7 @@ Color ParseHexColor(const std::string& hex, Color defaultColor = BLANK);
 // Processes XML '<Include src="path" />' tags by loading and merging referenced files into main document
 bool ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath);
 
-template<typename Func>
+template <typename Func>
 void VisitElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func) {
     if (tinyxml2::XMLElement* element = parent->FirstChildElement(xmlName)) {
         func(element);
@@ -34,7 +29,7 @@ void VisitElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func) 
 }
 
 // Iterates through child elements with a specific tag name
-template<typename Func>
+template <typename Func>
 void ForEachElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func) {
     for (tinyxml2::XMLElement* element = parent->FirstChildElement(xmlName);
          element != nullptr;
@@ -44,7 +39,7 @@ void ForEachElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func
 }
 
 // Iterates through ALL child elements (regardless of tag name)
-template<typename Func>
+template <typename Func>
 void ForEachChild(tinyxml2::XMLElement* parent, Func func) {
     for (tinyxml2::XMLElement* child = parent->FirstChildElement();
          child != nullptr;
@@ -58,11 +53,11 @@ bool LoadXml(const std::string& filePath, tinyxml2::XMLDocument& doc);
 bool SaveXml(const std::string& filePath, tinyxml2::XMLDocument& doc);
 
 class XMLBuilder {
-private:
+   private:
     tinyxml2::XMLDocument* doc;
     tinyxml2::XMLElement* current;
 
-public:
+   public:
     XMLBuilder(tinyxml2::XMLDocument* document, tinyxml2::XMLElement* parent) : doc(document), current(parent) {}
 
     XMLBuilder AddElement(const char* name) {
@@ -86,4 +81,4 @@ public:
     }
 };
 
-};
+};  // namespace Elysium

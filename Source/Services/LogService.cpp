@@ -1,11 +1,11 @@
 #include "Services/LogService.h"
-#include "imgui.h"
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include "Common.h"
+#include "imgui.h"
 
 namespace Elysium::Services {
 
@@ -25,7 +25,8 @@ void LogService::Initialize() {
 }
 
 void LogService::Initialize(const std::string& logFilePath) {
-    if (initialized_) return;
+    if (initialized_)
+        return;
 
     logFilePath_ = logFilePath;
 
@@ -44,7 +45,8 @@ void LogService::Initialize(const std::string& logFilePath) {
 }
 
 void LogService::Shutdown() {
-    if (!initialized_) return;
+    if (!initialized_)
+        return;
 
     shouldStop_ = true;
     if (writerThread_.joinable()) {
@@ -103,11 +105,21 @@ void LogService::LogMessage(int logLevel, const std::string& message) {
     // Convert raylib log level to our LogLevel enum
     LogLevel level;
     switch (logLevel) {
-        case 2: level = LogLevel::DEBUG; break;   // LOG_DEBUG
-        case 3: level = LogLevel::INFO; break;    // LOG_INFO
-        case 4: level = LogLevel::WARNING; break; // LOG_WARNING
-        case 5: level = LogLevel::Error; break;   // LOG_ERROR
-        default: level = LogLevel::INFO; break;
+        case 2:
+            level = LogLevel::DEBUG;
+            break;  // LOG_DEBUG
+        case 3:
+            level = LogLevel::INFO;
+            break;  // LOG_INFO
+        case 4:
+            level = LogLevel::WARNING;
+            break;  // LOG_WARNING
+        case 5:
+            level = LogLevel::Error;
+            break;  // LOG_ERROR
+        default:
+            level = LogLevel::INFO;
+            break;
     }
 
     LogEntry entry(level, topic, cleanMessage);
@@ -174,7 +186,8 @@ void LogService::WriterThreadFunction() {
 }
 
 void LogService::WriteLogToFile(const LogEntry& entry) {
-    if (!logFile_.is_open()) return;
+    if (!logFile_.is_open())
+        return;
 
     std::string timeStr = FormatTimestamp(entry.timestamp);
     std::string levelStr = GetLogLevelName(entry.level);
@@ -191,11 +204,11 @@ void LogService::WriteLogToStdout(const LogEntry& entry) {
     printf("%s[%s] [%s] %s%s\n", levelColor, levelName, entry.topic.c_str(), entry.message.c_str(), resetColor);
 }
 
-
 std::string LogService::FormatTimestamp(const std::chrono::system_clock::time_point& timestamp) const {
     auto time_t = std::chrono::system_clock::to_time_t(timestamp);
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        timestamp.time_since_epoch()) % 1000;
+                  timestamp.time_since_epoch()) %
+              1000;
 
     std::stringstream ss;
     ss << std::put_time(std::localtime(&time_t), "%H:%M:%S");
@@ -221,35 +234,49 @@ void LogService::LogDebug(const std::string& topic, const std::string& message) 
     TraceLog(LOG_DEBUG, "[%s] - %s", topic.c_str(), message.c_str());
 }
 
-
 // Enhanced LogLevel-based methods
 const char* LogService::GetLogLevelName(LogLevel level) const {
     switch (level) {
-        case LogLevel::DEBUG:   return "DEBUG";
-        case LogLevel::INFO:    return "INFO";
-        case LogLevel::WARNING: return "WARNING";
-        case LogLevel::Error:   return "ERROR";
-        default:                return "UNKNOWN";
+        case LogLevel::DEBUG:
+            return "DEBUG";
+        case LogLevel::INFO:
+            return "INFO";
+        case LogLevel::WARNING:
+            return "WARNING";
+        case LogLevel::Error:
+            return "ERROR";
+        default:
+            return "UNKNOWN";
     }
 }
 
 const char* LogService::GetLogLevelColor(LogLevel level) const {
     switch (level) {
-        case LogLevel::DEBUG:   return "\033[37m";  // Light gray
-        case LogLevel::INFO:    return "\033[37m";  // White
-        case LogLevel::WARNING: return "\033[93m";  // Yellow
-        case LogLevel::Error:   return "\033[91m";  // Red
-        default:                return "\033[37m";
+        case LogLevel::DEBUG:
+            return "\033[37m";  // Light gray
+        case LogLevel::INFO:
+            return "\033[37m";  // White
+        case LogLevel::WARNING:
+            return "\033[93m";  // Yellow
+        case LogLevel::Error:
+            return "\033[91m";  // Red
+        default:
+            return "\033[37m";
     }
 }
 
 unsigned int LogService::GetImGuiColor(LogLevel level) const {
     switch (level) {
-        case LogLevel::DEBUG:   return IM_COL32(173, 216, 230, 255); // Light blue
-        case LogLevel::INFO:    return IM_COL32(255, 255, 255, 255); // White
-        case LogLevel::WARNING: return IM_COL32(255, 255, 0, 255);   // Yellow
-        case LogLevel::Error:   return IM_COL32(255, 100, 100, 255); // Red
-        default:                return IM_COL32(255, 255, 255, 255);
+        case LogLevel::DEBUG:
+            return IM_COL32(173, 216, 230, 255);  // Light blue
+        case LogLevel::INFO:
+            return IM_COL32(255, 255, 255, 255);  // White
+        case LogLevel::WARNING:
+            return IM_COL32(255, 255, 0, 255);  // Yellow
+        case LogLevel::Error:
+            return IM_COL32(255, 100, 100, 255);  // Red
+        default:
+            return IM_COL32(255, 255, 255, 255);
     }
 }
 
@@ -370,13 +397,16 @@ void LogService::DrawLevelFilters() {
         ImGui::Separator();
 
         // Color-coded level checkboxes
-        struct LevelFilter { LogLevel level; const char* name; ImU32 color; };
+        struct LevelFilter {
+            LogLevel level;
+            const char* name;
+            ImU32 color;
+        };
         const LevelFilter levels[] = {
             {LogLevel::DEBUG, "DEBUG", IM_COL32(173, 216, 230, 255)},
             {LogLevel::INFO, "INFO", IM_COL32(255, 255, 255, 255)},
             {LogLevel::WARNING, "WARNING", IM_COL32(255, 255, 0, 255)},
-            {LogLevel::Error, "ERROR", IM_COL32(255, 100, 100, 255)}
-        };
+            {LogLevel::Error, "ERROR", IM_COL32(255, 100, 100, 255)}};
 
         for (const auto& levelFilter : levels) {
             ImGui::PushStyleColor(ImGuiCol_Text, levelFilter.color);
@@ -388,11 +418,13 @@ void LogService::DrawLevelFilters() {
 
         // Quick toggle buttons
         if (ImGui::SmallButton("All Levels")) {
-            for (auto& pair : levelFilters_) pair.second = true;
+            for (auto& pair : levelFilters_)
+                pair.second = true;
         }
         ImGui::SameLine();
         if (ImGui::SmallButton("Clear Levels")) {
-            for (auto& pair : levelFilters_) pair.second = false;
+            for (auto& pair : levelFilters_)
+                pair.second = false;
         }
     }
     ImGui::EndChild();
@@ -406,11 +438,13 @@ void LogService::DrawTopicFilters() {
         ImGui::SameLine();
 
         if (ImGui::SmallButton("All Topics")) {
-            for (auto& pair : topicFilters_) pair.second = true;
+            for (auto& pair : topicFilters_)
+                pair.second = true;
         }
         ImGui::SameLine();
         if (ImGui::SmallButton("Clear Topics")) {
-            for (auto& pair : topicFilters_) pair.second = false;
+            for (auto& pair : topicFilters_)
+                pair.second = false;
         }
         ImGui::Separator();
 
@@ -438,8 +472,7 @@ void LogService::DrawLogEntries() {
         std::lock_guard<std::mutex> lock(logMutex_);
 
         // Collect visible log indices
-        size_t startIdx = logBuffer_.size() > MAX_DISPLAY_LOGS ?
-                         logBuffer_.size() - MAX_DISPLAY_LOGS : 0;
+        size_t startIdx = logBuffer_.size() > MAX_DISPLAY_LOGS ? logBuffer_.size() - MAX_DISPLAY_LOGS : 0;
 
         std::vector<int> visibleIndices;
         for (size_t i = startIdx; i < logBuffer_.size(); ++i) {
@@ -570,4 +603,4 @@ std::string LogService::FormatLogEntry(const LogEntry& entry) const {
     return "[" + timeStr + "] [" + levelStr + "] [" + entry.topic + "] " + entry.message;
 }
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

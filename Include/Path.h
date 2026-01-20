@@ -8,20 +8,20 @@
 namespace Elysium {
 
 class Path {
-public:
+   public:
     Path() = default;
     explicit Path(const std::string& relativePath);
     explicit Path(const char* relativePath);
-    
+
     std::string GetFullPath() const;
     const char* c_str() const;
 
-private:
+   private:
     std::string relativePath_;
     mutable std::string cachedFullPath_;
     mutable bool fullPathCached_ = false;
-    
+
     void UpdateFullPath() const;
 };
 
-}
+}  // namespace Elysium

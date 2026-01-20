@@ -6,14 +6,14 @@
 namespace Elysium::Systems {
 
 class CameraSystem : public System {
-public:
+   public:
     CameraSystem(Context context) : System(context) {}
 
     void Update(float deltaTime) override;
 
-private:
+   private:
     // Helper function to lerp between two Vector2 values
     Vector2 LerpVector2(Vector2 start, Vector2 end, float t);
 };
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

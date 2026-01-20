@@ -12,10 +12,10 @@ namespace Elysium::Network {
  * Stored per-entity, not per-component, to keep components simple POD types
  */
 struct EntitySyncState {
-    uint16_t version = 0;             // Incremented on any networked state change
-    uint32_t lastSentVersion = 0;     // Version number when last synced to clients
-    uint32_t lastSyncTick = 0;        // Server tick when last synced
-    uint32_t lastSentComponentMask = 0; // Component mask at last sync (for add/remove detection)
+    uint16_t version = 0;                // Incremented on any networked state change
+    uint32_t lastSentVersion = 0;        // Version number when last synced to clients
+    uint32_t lastSyncTick = 0;           // Server tick when last synced
+    uint32_t lastSentComponentMask = 0;  // Component mask at last sync (for add/remove detection)
 };
 
 /**
@@ -32,7 +32,7 @@ struct EntitySyncState {
  * 3. After sending sync packet, call MarkSynced() with the component mask
  */
 class EntitySyncManager {
-public:
+   public:
     EntitySyncManager() = default;
 
     void Clear();
@@ -50,8 +50,8 @@ public:
     void TrackEntity(Entity entity);
     void UntrackEntity(Entity entity);
 
-private:
+   private:
     std::unordered_map<Entity, EntitySyncState> entityStates_;
 };
 
-} // namespace Elysium::Network
+}  // namespace Elysium::Network

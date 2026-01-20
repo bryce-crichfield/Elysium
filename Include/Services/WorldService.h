@@ -1,28 +1,27 @@
 #pragma once
 
-#include "Service.h"
-#include "Entity.h"
+#include <functional>
+#include <memory>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <variant>
+#include <vector>
 #include "Component.h"
+#include "Entity.h"
+#include "Service.h"
 #include "imgui.h"
 #include "rlImGui.h"
-#include <string>
-#include <memory>
-#include <vector>
-#include <unordered_map>
-#include <functional>
-#include <set>
-#include <unordered_map>
-#include <string>
-#include <variant>
 
 namespace Elysium {
 class World;
 class Scene;
-} // namespace Elysium
+}  // namespace Elysium
 
 namespace Elysium::Services {
 
-enum class FilterLogicalOperator { AND, OR };
+enum class FilterLogicalOperator { AND,
+                                   OR };
 
 struct EntityFilter {
     std::string componentName;
@@ -39,10 +38,8 @@ struct EntityFilter {
     }
 };
 
-
-class WorldService : public Elysium::Service
-{
-private:
+class WorldService : public Elysium::Service {
+   private:
     Entity selectedEntity = INVALID_ENTITY;
     std::string searchFilter = "";
     Elysium::World* currentWorld = nullptr;
@@ -61,7 +58,7 @@ private:
     std::vector<ComponentPlaceholder> componentPlaceholders;
     std::vector<EntityFilter> filters;
     bool filtersCollapsed = true;
-    float leftPanelWidth = 240.0f; // 2/5 of 600px default width
+    float leftPanelWidth = 240.0f;  // 2/5 of 600px default width
     bool isDraggingSplitter = false;
 
     void RegisterComponentTypes();
@@ -75,13 +72,13 @@ private:
     void RemoveEntity();
     void CreateEntity();
 
-    template<typename T>
+    template <typename T>
     void RegisterComponent(const std::string& name);
 
-    template<typename T>
+    template <typename T>
     void DrawComponent(Entity entity, Elysium::World* world);
 
-public:
+   public:
     WorldService();
     ~WorldService() = default;
 
@@ -92,14 +89,16 @@ public:
     void ImGui() override;
 
     // Service-specific functionality
-    void SetCurrentWorld(Elysium::World* world) { currentWorld = world; this->world = world; }
+    void SetCurrentWorld(Elysium::World* world) {
+        currentWorld = world;
+        this->world = world;
+    }
     void SetSelectedEntity(Entity entity) { selectedEntity = entity; }
     Entity GetSelectedEntity() const { return selectedEntity; }
 };
 
-template<typename T>
-void WorldService::RegisterComponent(const std::string& name)
-{
+template <typename T>
+void WorldService::RegisterComponent(const std::string& name) {
     ComponentPlaceholder placeholder;
     placeholder.name = name;
 
@@ -115,4 +114,4 @@ void WorldService::RegisterComponent(const std::string& name)
     componentPlaceholders.push_back(placeholder);
 }
 
-} // namespace Elysium
+}  // namespace Elysium::Services

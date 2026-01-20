@@ -1,24 +1,28 @@
 #pragma once
 
+#include <memory>
+#include <string>
+#include "Entity.h"
 #include "Service.h"
 #include "Timeline.h"
-#include "Entity.h"
-#include <string>
-#include <memory>
 
 namespace Elysium {
-    class Scene;
+class Scene;
 }
 
 namespace Elysium::Services {
 
 class TimelineService : public Elysium::Service {
-private:
+   private:
     Elysium::Scene* currentScene_ = nullptr;
     Elysium::Timeline* selectedTimeline_ = nullptr;
     Elysium::TrackBase* selectedTrack_ = nullptr;
 
-    enum class SelectionType { None, Timeline, Track, CreateTimeline, CreateTrack };
+    enum class SelectionType { None,
+                               Timeline,
+                               Track,
+                               CreateTimeline,
+                               CreateTrack };
     SelectionType selectionType_ = SelectionType::None;
 
     // Panel layout
@@ -62,7 +66,7 @@ private:
     // Helper to count keyframes outside duration
     int CountKeyframesOutsideDuration(float duration);
 
-public:
+   public:
     TimelineService();
     ~TimelineService() = default;
 
@@ -76,4 +80,4 @@ public:
     void SetCurrentScene(Elysium::Scene* scene) { currentScene_ = scene; }
 };
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

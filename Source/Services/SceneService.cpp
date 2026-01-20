@@ -1,33 +1,30 @@
 #include "Services/SceneService.h"
+#include <typeinfo>
+#include "Application.h"
+#include "Common.h"
+#include "Event.h"
+#include "Messages/SceneMessages.h"
+#include "Path.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
-#include "Messages/SceneMessages.h"
-#include "Application.h"
 #include "System.h"
-#include "Path.h"
-#include "Event.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "tinyxml2.h"
-#include <typeinfo>
-#include "Common.h"
 
 using namespace tinyxml2;
 
-namespace Elysium::Services
-{
+namespace Elysium::Services {
 
 // =============================================================================
 // Constructor
 // =============================================================================
 
-SceneService::SceneService()
-{
+SceneService::SceneService() {
     name_ = "SceneService";
 }
 
-void SceneService::Initialize()
-{
+void SceneService::Initialize() {
     Profile;
     auto& app = Application::GetInstance();
     const auto& config = app.GetConfig();
@@ -40,28 +37,23 @@ void SceneService::Initialize()
 // Stack Operations
 // =============================================================================
 
-void SceneService::Push(const std::string& sceneName)
-{
+void SceneService::Push(const std::string& sceneName) {
     Profile;
     auto it = scenes_.find(sceneName);
-    if (it == scenes_.end())
-    {
+    if (it == scenes_.end()) {
         LOG_ERRORF("SceneService", "Cannot push scene. Scene not found: %s", sceneName.c_str());
         return;
     }
 
     // Check if scene is already in stack
     Scene* scene = CreateOrGetScene(sceneName);
-    if (!scene)
-    {
+    if (!scene) {
         LOG_ERRORF("SceneService", "Failed to create scene: %s", sceneName.c_str());
         return;
     }
 
-    for (Scene* s : sceneStack_)
-    {
-        if (s == scene)
-        {
+    for (Scene* s : sceneStack_) {
+        if (s == scene) {
             LOG_WARNINGF("SceneService", "Scene '%s' is already in the stack", sceneName.c_str());
             return;
         }
@@ -76,11 +68,9 @@ void SceneService::Push(const std::string& sceneName)
     messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Push, sceneName);
 }
 
-void SceneService::Pop()
-{
+void SceneService::Pop() {
     Profile;
-    if (sceneStack_.empty())
-    {
+    if (sceneStack_.empty()) {
         LOG_WARNING("SceneService", "Cannot pop. Scene stack is empty");
         return;
     }
@@ -88,8 +78,7 @@ void SceneService::Pop()
     Scene* scene = sceneStack_.back();
     sceneStack_.pop_back();
 
-    if (scene)
-    {
+    if (scene) {
         scene->OnExit();
     }
 
@@ -100,30 +89,25 @@ void SceneService::Pop()
     messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Pop, "");
 }
 
-void SceneService::Replace(const std::string& sceneName)
-{
+void SceneService::Replace(const std::string& sceneName) {
     Profile;
-    if (!sceneStack_.empty())
-    {
+    if (!sceneStack_.empty()) {
         Scene* oldScene = sceneStack_.back();
         sceneStack_.pop_back();
-        if (oldScene)
-        {
+        if (oldScene) {
             oldScene->OnExit();
         }
     }
 
     // Do push logic inline (don't call Push to avoid double message)
     auto it = scenes_.find(sceneName);
-    if (it == scenes_.end())
-    {
+    if (it == scenes_.end()) {
         LOG_ERRORF("SceneService", "Cannot replace with scene. Scene not found: %s", sceneName.c_str());
         return;
     }
 
     Scene* scene = CreateOrGetScene(sceneName);
-    if (!scene)
-    {
+    if (!scene) {
         LOG_ERRORF("SceneService", "Failed to create scene: %s", sceneName.c_str());
         return;
     }
@@ -137,15 +121,12 @@ void SceneService::Replace(const std::string& sceneName)
     messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Replace, sceneName);
 }
 
-void SceneService::Clear()
-{
+void SceneService::Clear() {
     Profile;
-    while (!sceneStack_.empty())
-    {
+    while (!sceneStack_.empty()) {
         Scene* scene = sceneStack_.back();
         sceneStack_.pop_back();
-        if (scene)
-        {
+        if (scene) {
             scene->OnExit();
         }
     }
@@ -156,8 +137,7 @@ void SceneService::Clear()
     messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Clear, "");
 }
 
-Scene* SceneService::GetTopScene() const
-{
+Scene* SceneService::GetTopScene() const {
     return sceneStack_.empty() ? nullptr : sceneStack_.back();
 }
 
@@ -165,36 +145,30 @@ Scene* SceneService::GetTopScene() const
 // Scene Management
 // =============================================================================
 
-void SceneService::RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory)
-{
+void SceneService::RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory) {
     SceneRegistration data{name, nullptr, factory, xmlPath, false};
     scenes_.emplace(name, data);
     LOG_INFOF("SceneService", "Registered scene: %s", name.c_str());
 }
 
-Scene* SceneService::CreateOrGetScene(const std::string& name)
-{
+Scene* SceneService::CreateOrGetScene(const std::string& name) {
     auto it = scenes_.find(name);
-    if (it == scenes_.end())
-    {
+    if (it == scenes_.end()) {
         LOG_ERRORF("SceneService", "Scene not found: %s", name.c_str());
         return nullptr;
     }
 
     SceneRegistration& sceneData = it->second;
-    if (!sceneData.scene)
-    {
+    if (!sceneData.scene) {
         sceneData.scene = sceneData.factory();
     }
 
     return sceneData.scene;
 }
 
-void SceneService::EnterScene(Scene* scene, const std::string& name)
-{
+void SceneService::EnterScene(Scene* scene, const std::string& name) {
     auto it = scenes_.find(name);
-    if (it == scenes_.end())
-    {
+    if (it == scenes_.end()) {
         LOG_ERRORF("SceneService", "Cannot enter scene. Scene not found: %s", name.c_str());
         return;
     }
@@ -202,8 +176,7 @@ void SceneService::EnterScene(Scene* scene, const std::string& name)
     SceneRegistration& sceneData = it->second;
 
     // Load XML if needed
-    if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded)
-    {
+    if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded) {
         LoadScene(*scene, Path(sceneData.xmlPath).GetFullPath());
         sceneData.xmlLoaded = true;
     }
@@ -215,24 +188,20 @@ void SceneService::EnterScene(Scene* scene, const std::string& name)
 // Update Loop
 // =============================================================================
 
-void SceneService::OnMessage(const Message& message)
-{
+void SceneService::OnMessage(const Message& message) {
     Profile;
 
     // Dispatch message to all scenes in the stack (bottom to top)
-    for (Scene* scene : sceneStack_)
-    {
+    for (Scene* scene : sceneStack_) {
         scene->OnMessage(const_cast<Message&>(message));
     }
 }
 
-void SceneService::Update(float deltaTime)
-{
+void SceneService::Update(float deltaTime) {
     Profile;
 
     // Cache deltaTime for systems that need it
-    if (deltaTime > 0.0f && deltaTime < 0.1f)
-    {
+    if (deltaTime > 0.0f && deltaTime < 0.1f) {
         cachedDeltaTime_ = deltaTime;
     }
 
@@ -240,8 +209,7 @@ void SceneService::Update(float deltaTime)
     ProcessInput();
 
     // Update ALL scenes in the stack (bottom to top)
-    for (Scene* scene : sceneStack_)
-    {
+    for (Scene* scene : sceneStack_) {
         scene->OnUpdate(cachedDeltaTime_);
     }
 }
@@ -250,8 +218,7 @@ void SceneService::Update(float deltaTime)
 // Rendering
 // =============================================================================
 
-void SceneService::CalculateLetterboxing()
-{
+void SceneService::CalculateLetterboxing() {
     auto& app = Application::GetInstance();
     const auto& config = app.GetConfig();
 
@@ -261,16 +228,13 @@ void SceneService::CalculateLetterboxing()
     float screenAspect = (float)windowWidth / windowHeight;
     float framebufferAspect = (float)config.framebufferWidth / config.framebufferHeight;
 
-    if (framebufferAspect > screenAspect)
-    {
+    if (framebufferAspect > screenAspect) {
         scaleX_ = scaleY_ = (float)windowWidth / config.framebufferWidth;
         float scaledHeight = config.framebufferHeight * scaleY_;
         offset_.x = 0;
         offset_.y = (windowHeight - scaledHeight) * 0.5f;
         letterboxRect_ = Rectangle{offset_.x, offset_.y, (float)windowWidth, scaledHeight};
-    }
-    else
-    {
+    } else {
         scaleX_ = scaleY_ = (float)windowHeight / config.framebufferHeight;
         float scaledWidth = config.framebufferWidth * scaleX_;
         offset_.x = (windowWidth - scaledWidth) * 0.5f;
@@ -279,15 +243,13 @@ void SceneService::CalculateLetterboxing()
     }
 }
 
-void SceneService::Render()
-{
+void SceneService::Render() {
     Profile;
     auto& app = Application::GetInstance();
     const auto& config = app.GetConfig();
 
     // Recalculate letterboxing if window was resized
-    if (IsWindowResized())
-    {
+    if (IsWindowResized()) {
         CalculateLetterboxing();
     }
 
@@ -297,10 +259,8 @@ void SceneService::Render()
     BeginTextureMode(framebuffer_);
     ClearBackground(config.backgroundColor);
 
-    for (Scene* scene : sceneStack_)
-    {
-        if (scene)
-        {
+    for (Scene* scene : sceneStack_) {
+        if (scene) {
             scene->OnDraw(screenRect);
         }
     }
@@ -318,8 +278,7 @@ void SceneService::Render()
 // Event Handling
 // =============================================================================
 
-Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const
-{
+Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const {
     // Transform screen coords to framebuffer coords
     float fbX = (screenPos.x - letterboxRect_.x) / scaleX_;
     float fbY = (screenPos.y - letterboxRect_.y) / scaleY_;
@@ -327,71 +286,63 @@ Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const
     return Vector2{fbX, fbY};
 }
 
-void SceneService::ProcessInput()
-{
+void SceneService::ProcessInput() {
     Profile;
-    if (sceneStack_.empty()) return;
+    if (sceneStack_.empty())
+        return;
 
     // Check if ImGui wants the mouse - if so, don't send events to scene
     ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse)
-    {
+    if (io.WantCaptureMouse) {
         return;
     }
 
     Vector2 mousePos = GetMousePosition();
 
     // Only process mouse events if mouse is inside the framebuffer
-    if (CheckCollisionPointRec(mousePos, letterboxRect_))
-    {
+    if (CheckCollisionPointRec(mousePos, letterboxRect_)) {
         Vector2 fbPos = ScreenToFramebuffer(mousePos);
 
         // Mouse button events
-        for (int button = 0; button < 3; button++)
-        {
-            if (IsMouseButtonPressed(button))
-            {
+        for (int button = 0; button < 3; button++) {
+            if (IsMouseButtonPressed(button)) {
                 MouseButtonPressedEvent event(button, fbPos);
                 // Dispatch top-down through stack
-                for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
-                {
+                for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                     (*it)->OnEvent(event);
-                    if (event.handled) break;
+                    if (event.handled)
+                        break;
                 }
-            }
-            else if (IsMouseButtonReleased(button))
-            {
+            } else if (IsMouseButtonReleased(button)) {
                 MouseButtonReleasedEvent event(button, fbPos);
-                for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
-                {
+                for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                     (*it)->OnEvent(event);
-                    if (event.handled) break;
+                    if (event.handled)
+                        break;
                 }
             }
         }
 
         // Mouse wheel
         float wheelMove = GetMouseWheelMove();
-        if (wheelMove != 0.0f)
-        {
+        if (wheelMove != 0.0f) {
             MouseWheelEvent event(wheelMove, fbPos);
-            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
-            {
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                 (*it)->OnEvent(event);
-                if (event.handled) break;
+                if (event.handled)
+                    break;
             }
         }
 
         // Mouse move
         static Vector2 lastMousePos = mousePos;
-        if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y)
-        {
+        if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y) {
             Vector2 delta = {mousePos.x - lastMousePos.x, mousePos.y - lastMousePos.y};
             MouseMovedEvent event(fbPos, delta);
-            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
-            {
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                 (*it)->OnEvent(event);
-                if (event.handled) break;
+                if (event.handled)
+                    break;
             }
             lastMousePos = mousePos;
         }
@@ -402,27 +353,22 @@ void SceneService::ProcessInput()
         KEY_SPACE, KEY_ENTER, KEY_ESCAPE,
         KEY_W, KEY_A, KEY_S, KEY_D,
         KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
-        KEY_LEFT_SHIFT, KEY_LEFT_CONTROL, KEY_LEFT_ALT
-    };
+        KEY_LEFT_SHIFT, KEY_LEFT_CONTROL, KEY_LEFT_ALT};
 
-    for (int key : keysToCheck)
-    {
-        if (IsKeyPressed(key))
-        {
+    for (int key : keysToCheck) {
+        if (IsKeyPressed(key)) {
             KeyPressedEvent event(key);
-            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
-            {
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                 (*it)->OnEvent(event);
-                if (event.handled) break;
+                if (event.handled)
+                    break;
             }
-        }
-        else if (IsKeyReleased(key))
-        {
+        } else if (IsKeyReleased(key)) {
             KeyReleasedEvent event(key);
-            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
-            {
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                 (*it)->OnEvent(event);
-                if (event.handled) break;
+                if (event.handled)
+                    break;
             }
         }
     }
@@ -432,8 +378,7 @@ void SceneService::ProcessInput()
 // Debug & Utility
 // =============================================================================
 
-void SceneService::ImGui()
-{
+void SceneService::ImGui() {
     Profile;
     inspector_.DrawUI(*this);
 }
@@ -442,24 +387,21 @@ void SceneService::ImGui()
 // Shutdown
 // =============================================================================
 
-void SceneService::Shutdown()
-{
+void SceneService::Shutdown() {
     Profile;
     UnloadRenderTexture(framebuffer_);
 
     // Exit all scenes in stack
-    for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it)
-    {
+    for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
         (*it)->OnExit();
     }
     sceneStack_.clear();
 
     // Delete all scene instances
-    for (auto& [name, data] : scenes_)
-    {
+    for (auto& [name, data] : scenes_) {
         delete data.scene;
     }
     scenes_.clear();
 }
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

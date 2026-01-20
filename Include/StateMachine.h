@@ -1,14 +1,14 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <unordered_map>
-#include <functional>
 #include <vector>
 
 namespace Elysium {
 
 class StateMachine {
-public:
+   public:
     using StateHandler = std::function<void()>;
     using TransitionHandler = std::function<void(const std::string& from, const std::string& to)>;
 
@@ -40,7 +40,7 @@ public:
     std::vector<std::string> GetValidTransitionsFrom(const std::string& state) const;
     bool IsValidState(const std::string& state) const;
 
-private:
+   private:
     std::string currentState_;
     std::string previousState_;
 
@@ -58,4 +58,4 @@ private:
     std::string MakeTransitionKey(const std::string& from, const std::string& to) const;
 };
 
-} // namespace Elysium
+}  // namespace Elysium

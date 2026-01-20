@@ -1,10 +1,10 @@
 #pragma once
 
-#include <vector>
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace Elysium::Network {
 
@@ -14,7 +14,7 @@ namespace Elysium::Network {
  * Header-only implementation.
  */
 class ByteBuffer {
-public:
+   public:
     ByteBuffer() = default;
 
     explicit ByteBuffer(size_t initialCapacity) {
@@ -73,7 +73,7 @@ public:
     uint16_t ReadU16() {
         EnsureReadable(2);
         uint16_t value = static_cast<uint16_t>(buffer_[readPos_]) |
-                        (static_cast<uint16_t>(buffer_[readPos_ + 1]) << 8);
+                         (static_cast<uint16_t>(buffer_[readPos_ + 1]) << 8);
         readPos_ += 2;
         return value;
     }
@@ -81,9 +81,9 @@ public:
     uint32_t ReadU32() {
         EnsureReadable(4);
         uint32_t value = static_cast<uint32_t>(buffer_[readPos_]) |
-                        (static_cast<uint32_t>(buffer_[readPos_ + 1]) << 8) |
-                        (static_cast<uint32_t>(buffer_[readPos_ + 2]) << 16) |
-                        (static_cast<uint32_t>(buffer_[readPos_ + 3]) << 24);
+                         (static_cast<uint32_t>(buffer_[readPos_ + 1]) << 8) |
+                         (static_cast<uint32_t>(buffer_[readPos_ + 2]) << 16) |
+                         (static_cast<uint32_t>(buffer_[readPos_ + 3]) << 24);
         readPos_ += 4;
         return value;
     }
@@ -150,12 +150,12 @@ public:
         return buffer_[readPos_];
     }
 
-private:
+   private:
     void EnsureReadable(size_t bytes) const {
         if (readPos_ + bytes > buffer_.size()) {
             throw std::out_of_range("ByteBuffer underflow: need " +
-                std::to_string(bytes) + " bytes, have " +
-                std::to_string(buffer_.size() - readPos_));
+                                    std::to_string(bytes) + " bytes, have " +
+                                    std::to_string(buffer_.size() - readPos_));
         }
     }
 
@@ -163,4 +163,4 @@ private:
     size_t readPos_ = 0;
 };
 
-} // namespace Elysium::Network
+}  // namespace Elysium::Network

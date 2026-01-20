@@ -1,15 +1,15 @@
 #pragma once
 
-#include "Service.h"
-#include "Message.h"
 #include <functional>
-#include <unordered_map>
 #include <typeindex>
+#include <unordered_map>
+#include "Message.h"
+#include "Service.h"
 
 namespace Elysium::Services {
 
 class MessageService : public Service {
-public:
+   public:
     MessageService();
     ~MessageService() = default;
 
@@ -20,17 +20,17 @@ public:
     void ImGui() override;
 
     // Thread-safe: post a message from any thread
-    template<typename T, typename... Args>
+    template <typename T, typename... Args>
     void Post(Args&&... args);
 
     // Subscribe to a message type with owner for lifecycle management
-    template<typename T>
+    template <typename T>
     void Subscribe(void* owner, std::function<void(const T&)> handler);
 
     // Remove all subscriptions for an owner (call in OnExit/Shutdown)
     void UnsubscribeAll(void* owner);
 
-private:
+   private:
     // Type-erased handler that can be called with a Message*
     struct HandlerEntry {
         void* owner;
@@ -39,7 +39,7 @@ private:
 
     MessageQueue queue_;
     std::unordered_map<std::type_index, std::vector<HandlerEntry>> handlers_;
-    std::mutex handlersMutex_; // Protects handlers_ map
+    std::mutex handlersMutex_;  // Protects handlers_ map
 
     // Stats for ImGui
     size_t messagesProcessedThisFrame_ = 0;
@@ -47,12 +47,12 @@ private:
 };
 
 // Template implementations
-template<typename T, typename... Args>
+template <typename T, typename... Args>
 void MessageService::Post(Args&&... args) {
     queue_.Push(std::make_unique<T>(std::forward<Args>(args)...));
 }
 
-template<typename T>
+template <typename T>
 void MessageService::Subscribe(void* owner, std::function<void(const T&)> handler) {
     std::lock_guard<std::mutex> lock(handlersMutex_);
 
@@ -64,4 +64,4 @@ void MessageService::Subscribe(void* owner, std::function<void(const T&)> handle
     handlers_[std::type_index(typeid(T))].push_back({owner, wrapper});
 }
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

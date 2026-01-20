@@ -1,16 +1,15 @@
 #include "Systems/MovementSystem.h"
 #include "Component.h"
 #include "Entity.h"
-#include "raymath.h"
 #include "Scene.h"
+#include "raymath.h"
 
 namespace Elysium::Systems {
-    void MovementSystem::Update(float deltaTime) {
-
-        world->Query<MovementComponent, PositionComponent>(
-            [&](Entity e, auto& movement, auto& pos) {
-
-            if (!movement.isMoving || movement.waypoints.empty()) return;
+void MovementSystem::Update(float deltaTime) {
+    world->Query<MovementComponent, PositionComponent>(
+        [&](Entity e, auto& movement, auto& pos) {
+            if (!movement.isMoving || movement.waypoints.empty())
+                return;
 
             // Get current target waypoint
             if (movement.currentWaypointIndex >= movement.waypoints.size()) {
@@ -67,5 +66,5 @@ namespace Elysium::Systems {
                 }
             }
         });
-    }
 }
+}  // namespace Elysium::Systems

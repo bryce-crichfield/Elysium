@@ -1,19 +1,18 @@
 #include "../../Include/Systems/ClientNetworkSystem.h"
+#include <tracy/Tracy.hpp>
 #include "../../Include/Application.h"
-#include "../../Include/Scene.h"
-#include "../../Include/Entity.h"
 #include "../../Include/Component.h"
-#include "../../Include/Services/NetworkService.h"
+#include "../../Include/Entity.h"
 #include "../../Include/Messages/NetworkMessages.h"
 #include "../../Include/Network/ByteBuffer.h"
+#include "../../Include/Scene.h"
+#include "../../Include/Services/NetworkService.h"
 #include "raylib.h"
-#include <tracy/Tracy.hpp>
 
 namespace Elysium {
 
 ClientNetworkSystem::ClientNetworkSystem(Context context)
-    : System(context)
-{
+    : System(context) {
     // No initialization needed - using free functions now
 }
 
@@ -60,24 +59,19 @@ void ClientNetworkSystem::OnEvent(Event& event) {
     if (auto* e = event.As<MouseButtonPressedEvent>()) {
         input = Network::NetworkInput::FromMouseButtonPressed(*e, nextInputSequence_++);
         QueueInput(input);
-    }
-    else if (auto* e = event.As<MouseButtonReleasedEvent>()) {
+    } else if (auto* e = event.As<MouseButtonReleasedEvent>()) {
         input = Network::NetworkInput::FromMouseButtonReleased(*e, nextInputSequence_++);
         QueueInput(input);
-    }
-    else if (auto* e = event.As<MouseMovedEvent>()) {
+    } else if (auto* e = event.As<MouseMovedEvent>()) {
         input = Network::NetworkInput::FromMouseMoved(*e, nextInputSequence_++);
         QueueInput(input);
-    }
-    else if (auto* e = event.As<MouseWheelEvent>()) {
+    } else if (auto* e = event.As<MouseWheelEvent>()) {
         input = Network::NetworkInput::FromMouseWheel(*e, nextInputSequence_++);
         QueueInput(input);
-    }
-    else if (auto* e = event.As<KeyPressedEvent>()) {
+    } else if (auto* e = event.As<KeyPressedEvent>()) {
         input = Network::NetworkInput::FromKeyPressed(*e, nextInputSequence_++);
         QueueInput(input);
-    }
-    else if (auto* e = event.As<KeyReleasedEvent>()) {
+    } else if (auto* e = event.As<KeyReleasedEvent>()) {
         input = Network::NetworkInput::FromKeyReleased(*e, nextInputSequence_++);
         QueueInput(input);
     }
@@ -107,8 +101,7 @@ void ClientNetworkSystem::OnMessage(Message& message) {
         networkService.SendToServer(buffer.Data(), buffer.Size(), true);
 
         isSynced_ = false;
-    }
-    else if (auto* disconnected = message.As<ServerDisconnectedMessage>()) {
+    } else if (auto* disconnected = message.As<ServerDisconnectedMessage>()) {
         ZoneScopedN("Server Disconnected");
 
         isSynced_ = false;
@@ -118,8 +111,7 @@ void ClientNetworkSystem::OnMessage(Message& message) {
         }
         serverOwnedEntities_.clear();
         networkToLocalEntity_.clear();
-    }
-    else if (auto* data = message.As<NetworkDataReceivedMessage>()) {
+    } else if (auto* data = message.As<NetworkDataReceivedMessage>()) {
         ZoneScopedN("Data Received");
 
         // Parse incoming data
@@ -189,8 +181,7 @@ void ClientNetworkSystem::FlushInputs() {
     Network::InputPacketData packetData;
     packetData.clientTick = GetTime() * 1000;  // Local timestamp
     packetData.inputCount = static_cast<uint8_t>(
-        std::min(pendingInputs_.size(), static_cast<size_t>(Network::MAX_INPUTS_PER_PACKET))
-    );
+        std::min(pendingInputs_.size(), static_cast<size_t>(Network::MAX_INPUTS_PER_PACKET)));
     packetData.Write(buffer);
 
     // Serialize inputs
@@ -339,4 +330,4 @@ void ClientNetworkSystem::DestroyEntity(uint32_t networkId) {
     world->DestroyEntity(entity);
 }
 
-} // namespace Elysium
+}  // namespace Elysium

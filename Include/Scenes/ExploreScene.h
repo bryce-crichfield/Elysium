@@ -5,14 +5,14 @@
 
 // Forward declarations
 namespace Elysium {
-    class ServerNetworkSystem;
-    class ClientNetworkSystem;
-}
+class ServerNetworkSystem;
+class ClientNetworkSystem;
+}  // namespace Elysium
 
 namespace Elysium::Scenes {
 
 class ExploreScene : public Scene {
-public:
+   public:
     ExploreScene();
     virtual ~ExploreScene() = default;
 
@@ -22,7 +22,7 @@ public:
     void OnExit() override;
     void OnMessage(Message& message) override;
 
-private:
+   private:
     void SetupNetworkSystems();
 
     // Cached pointers to network systems (owned by systems_ vector)
@@ -30,4 +30,4 @@ private:
     ClientNetworkSystem* clientNetworkSystem_ = nullptr;
 };
 
-} // namespace Elysium::Scenes
+}  // namespace Elysium::Scenes

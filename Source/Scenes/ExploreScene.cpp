@@ -1,11 +1,11 @@
 #include "Scenes/ExploreScene.h"
-#include "Services/LogService.h"
-#include "Services/SceneService.h"
-#include "Services/NetworkService.h"
-#include "Scenes/MenuScene.h"
 #include "Application.h"
-#include "Systems/ServerNetworkSystem.h"
+#include "Scenes/MenuScene.h"
+#include "Services/LogService.h"
+#include "Services/NetworkService.h"
+#include "Services/SceneService.h"
 #include "Systems/ClientNetworkSystem.h"
+#include "Systems/ServerNetworkSystem.h"
 
 namespace Elysium::Scenes {
 
@@ -26,8 +26,7 @@ void ExploreScene::SetupNetworkSystems() {
         serverNetworkSystem_ = serverSystem.get();
         AddSystem(std::move(serverSystem));
         LOG_INFO("ExploreScene", "Added ServerNetworkSystem");
-    }
-    else if (mode == Services::NetworkMode::Client) {
+    } else if (mode == Services::NetworkMode::Client) {
         auto clientSystem = std::make_unique<ClientNetworkSystem>(context);
         clientNetworkSystem_ = clientSystem.get();
         AddSystem(std::move(clientSystem));
@@ -55,7 +54,7 @@ void ExploreScene::OnEnter() {
         anim.start = frameRange.first;
         anim.end = frameRange.second;
         anim.currentFrame = anim.start;
-        anim.frameDuration = 0.5f; // 300ms per frame
+        anim.frameDuration = 0.5f;  // 300ms per frame
         anim.loop = true;
         anim.elapsed = 0;
 
@@ -96,4 +95,4 @@ void ExploreScene::OnDraw(Rectangle screen) {
     DrawText("EXPLORE_SCENE - Backspace to Menu", 0, 0, 16, WHITE);
 }
 
-} // namespace Elysium::Scenes
+}  // namespace Elysium::Scenes

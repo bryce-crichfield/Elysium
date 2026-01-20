@@ -1,13 +1,13 @@
 #pragma once
 
-#include "System.h"
-#include "Component.h"
-#include "raylib.h"
-#include <unordered_map>
-#include <vector>
 #include <optional>
-#include <variant>
 #include <string>
+#include <unordered_map>
+#include <variant>
+#include <vector>
+#include "Component.h"
+#include "System.h"
+#include "raylib.h"
 
 namespace Elysium::Systems {
 
@@ -20,14 +20,15 @@ struct RenderItem {
 using Renderable = std::variant<RectangleComponent, CircleComponent, TextComponent, SpriteComponent, TextureComponent, LightComponent>;
 
 class RenderSystem : public System {
-public:
+   public:
     using Layers = std::unordered_map<int, std::pair<Entity, LayerComponent*>>;
     using CameraEntity = std::pair<Entity, CameraComponent>;
 
     RenderSystem(Context context) : System(context) {}
 
     void Draw() override;
-private:
+
+   private:
     void RenderCamera(Entity entity, const CameraComponent& camera, const Layers& layers);
     bool CanCameraSeeLayer(Entity entity, const CameraComponent& camera, const std::string& layerName, const Layers& layers);
     void RenderLayer(int index, const std::vector<RenderItem>& items, Entity cameraEntity, const LayerComponent& layer);
@@ -40,4 +41,4 @@ private:
     void DrawDebugBounds();
 };
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

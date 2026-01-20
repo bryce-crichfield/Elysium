@@ -6,7 +6,7 @@
 namespace Elysium::Scenes {
 
 class LoadingScene : public Scene {
-public:
+   public:
     LoadingScene();
     virtual ~LoadingScene() = default;
 
@@ -16,4 +16,4 @@ public:
     void OnExit() override;
 };
 
-} // namespace Elysium::Scenes
+}  // namespace Elysium::Scenes

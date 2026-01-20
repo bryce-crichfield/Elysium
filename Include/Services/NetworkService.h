@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Service.h"
-#include <thread>
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <string>
-#include <cstdint>
+#include <thread>
+#include "Service.h"
 
 // Forward declarations for ENet types (defined in enet/enet.h)
 typedef struct _ENetHost ENetHost;
@@ -30,7 +30,7 @@ struct NetworkConfig {
 };
 
 class NetworkService : public Service {
-public:
+   public:
     NetworkService();
     ~NetworkService() override;
 
@@ -54,9 +54,9 @@ public:
     bool IsRunning() const { return isRunning_; }
     NetworkMode GetMode() const { return config_.mode; }
 
-private:
+   private:
     // Scene change handling
-    void OnSceneChanged(const struct SceneChangedMessage& msg);  // Server: broadcast to clients
+    void OnSceneChanged(const struct SceneChangedMessage& msg);                // Server: broadcast to clients
     void OnNetworkDataReceived(const struct NetworkDataReceivedMessage& msg);  // Client: handle incoming scene changes
     void NetworkThread();
     void ProcessServerEvents();
@@ -65,13 +65,13 @@ private:
     NetworkConfig config_;
 
     ENetHost* host_ = nullptr;
-    ENetPeer* serverPeer_ = nullptr; // For client mode
+    ENetPeer* serverPeer_ = nullptr;  // For client mode
 
     std::thread networkThread_;
     std::atomic<bool> isRunning_{false};
     std::atomic<bool> shouldStop_{false};
-    
-    mutable std::mutex hostMutex_; // Protects ENet host operations
+
+    mutable std::mutex hostMutex_;  // Protects ENet host operations
 
     // Stats for ImGui
     std::atomic<uint64_t> bytesSent_{0};
@@ -81,4 +81,4 @@ private:
     std::atomic<uint32_t> connectedPeers_{0};
 };
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

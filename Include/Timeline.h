@@ -1,9 +1,9 @@
 #pragma once
 
+#include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
-#include <functional>
-#include <algorithm>
 #include "Entity.h"
 #include "raylib.h"
 
@@ -13,11 +13,11 @@ namespace Elysium {
 class World;
 
 enum class Interpolation {
-    Step,        // Instant jump to value at keyframe time
-    Linear       // Linear interpolation (lerp)
+    Step,   // Instant jump to value at keyframe time
+    Linear  // Linear interpolation (lerp)
 };
 
-template<typename T>
+template <typename T>
 struct Keyframe {
     float time;
     T value;
@@ -29,14 +29,14 @@ struct Keyframe {
 };
 
 class TrackBase {
-protected:
+   protected:
     std::string name_;
     Entity targetEntity_;
     std::string componentName_;
     std::string propertyName_;
     bool enabled_ = true;
 
-public:
+   public:
     TrackBase(const std::string& name, Entity target, const std::string& component, const std::string& property)
         : name_(name), targetEntity_(target), componentName_(component), propertyName_(property) {}
 
@@ -56,13 +56,13 @@ public:
 template <typename T>
 using PropertySetter = std::function<void(Entity, World*, const T&)>;
 
-template<typename T>
+template <typename T>
 class Track : public TrackBase {
-private:
+   private:
     std::vector<Keyframe<T>> keyframes_;
     PropertySetter<T> setterFunc_;
 
-public:
+   public:
     Track(const std::string& name, Entity target, const std::string& component, const std::string& property)
         : TrackBase(name, target, component, property) {}
 
@@ -72,7 +72,7 @@ public:
 
         // Find insertion point to maintain sorted order
         auto it = std::lower_bound(keyframes_.begin(), keyframes_.end(), kf,
-            [](const Keyframe<T>& a, const Keyframe<T>& b) { return a.time < b.time; });
+                                   [](const Keyframe<T>& a, const Keyframe<T>& b) { return a.time < b.time; });
 
         keyframes_.insert(it, kf);
     }
@@ -129,7 +129,8 @@ public:
     }
 
     void ApplyAtTime(float time, World* world) override {
-        if (!enabled_ || !setterFunc_) return;
+        if (!enabled_ || !setterFunc_)
+            return;
         T value = GetValueAtTime(time);
         setterFunc_(targetEntity_, world, value);
     }
@@ -143,14 +144,14 @@ public:
     std::vector<Keyframe<T>>& GetKeyframes() { return keyframes_; }
     const std::vector<Keyframe<T>>& GetKeyframes() const { return keyframes_; }
 
-private:
+   private:
     // Lerp specializations
     static float Lerp(float a, float b, float t) {
         return a + (b - a) * t;
     }
 
     static Vector2 Lerp(const Vector2& a, const Vector2& b, float t) {
-        return { a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t };
+        return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t};
     }
 };
 
@@ -172,7 +173,7 @@ struct TimelineAction {
 };
 
 class Timeline {
-private:
+   private:
     std::string name_;
     TimelineState state_ = TimelineState::Stopped;
     float currentTime_ = 0.0f;
@@ -185,7 +186,7 @@ private:
     mutable float cachedDuration_ = -1.0f;
     float manualDuration_ = 0.0f;  // User-set duration override
 
-public:
+   public:
     Timeline(const std::string& name = "Untitled") : name_(name) {}
 
     void Play() {
@@ -258,7 +259,8 @@ public:
     }
 
     void Update(float deltaTime, World* world) {
-        if (state_ != TimelineState::Playing) return;
+        if (state_ != TimelineState::Playing)
+            return;
 
         currentTime_ += deltaTime * playbackSpeed_;
         float duration = GetDuration();
@@ -291,23 +293,22 @@ public:
         }
     }
 
-    template<typename T>
+    template <typename T>
     Track<T>* AddTrack(const std::string& name, Entity entity, const std::string& component, const std::string& property) {
         auto track = std::make_unique<Track<T>>(name, entity, component, property);
         Track<T>* ptr = track.get();
         tracks_.push_back(std::move(track));
-        cachedDuration_ = -1.0f; // Invalidate cache
+        cachedDuration_ = -1.0f;  // Invalidate cache
         return ptr;
     }
 
     void RemoveTrack(const std::string& name) {
         tracks_.erase(
             std::remove_if(tracks_.begin(), tracks_.end(),
-                [&name](const std::unique_ptr<TrackBase>& track) {
-                    return track->GetName() == name;
-                }),
-            tracks_.end()
-        );
+                           [&name](const std::unique_ptr<TrackBase>& track) {
+                               return track->GetName() == name;
+                           }),
+            tracks_.end());
         cachedDuration_ = -1.0f;
     }
 
@@ -330,4 +331,4 @@ public:
     const std::vector<TimelineAction>& GetActions() const { return actions_; }
 };
 
-} // namespace Elysium
+}  // namespace Elysium

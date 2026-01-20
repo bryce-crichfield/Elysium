@@ -1,6 +1,6 @@
 #include "../../Include/Network/ComponentSerializer.h"
-#include "../../Include/Entity.h"
 #include "../../Include/Component.h"
+#include "../../Include/Entity.h"
 
 namespace Elysium::Network {
 
@@ -11,7 +11,8 @@ namespace Elysium::Network {
 const std::unordered_map<NetworkComponentId, NetworkSerializer>& NetworkSerializers() {
     static std::unordered_map<NetworkComponentId, NetworkSerializer> serializers;
 
-    if (!serializers.empty()) return serializers;
+    if (!serializers.empty())
+        return serializers;
 
     // PositionComponent
     serializers[NetworkComponentId::Position] = [](Entity entity, World* world, ByteBuffer& buffer) {
@@ -46,7 +47,8 @@ const std::unordered_map<NetworkComponentId, NetworkSerializer>& NetworkSerializ
 const std::unordered_map<NetworkComponentId, NetworkDeserializer>& NetworkDeserializers() {
     static std::unordered_map<NetworkComponentId, NetworkDeserializer> deserializers;
 
-    if (!deserializers.empty()) return deserializers;
+    if (!deserializers.empty())
+        return deserializers;
 
     // PositionComponent
     deserializers[NetworkComponentId::Position] = [](Entity entity, World* world, ByteBuffer& buffer) {
@@ -97,7 +99,8 @@ const std::unordered_map<NetworkComponentId, NetworkDeserializer>& NetworkDeseri
 const std::unordered_map<NetworkComponentId, NetworkHasComponent>& NetworkHasComponents() {
     static std::unordered_map<NetworkComponentId, NetworkHasComponent> hasComponents;
 
-    if (!hasComponents.empty()) return hasComponents;
+    if (!hasComponents.empty())
+        return hasComponents;
 
     hasComponents[NetworkComponentId::Position] = [](Entity entity, World* world) {
         return world->HasComponent<PositionComponent>(entity);
@@ -189,4 +192,4 @@ void DeserializeComponentsByMask(uint32_t componentMask, Entity entity, World* w
     }
 }
 
-} // namespace Elysium::Network
+}  // namespace Elysium::Network

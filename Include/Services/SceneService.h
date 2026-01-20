@@ -1,14 +1,14 @@
 #pragma once
 
-#include <unordered_map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
-#include "Scene.h"
-#include "Service.h"
-#include "SceneInspector.h"
-#include "raylib.h"
 #include "Message.h"
+#include "Scene.h"
+#include "SceneInspector.h"
+#include "Service.h"
+#include "raylib.h"
 
 namespace Elysium::Services {
 
@@ -21,7 +21,7 @@ struct SceneRegistration {
 };
 
 class SceneService : public Elysium::Service {
-public:
+   public:
     friend class Elysium::SceneInspector;
 
     SceneService();
@@ -60,7 +60,7 @@ public:
     float GetScaleX() const { return scaleX_; }
     float GetScaleY() const { return scaleY_; }
 
-private:
+   private:
     void ProcessInput();
     Scene* CreateOrGetScene(const std::string& name);
     void EnterScene(Scene* scene, const std::string& name);
@@ -89,4 +89,4 @@ private:
     float cachedDeltaTime_ = 0.016f;
 };
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

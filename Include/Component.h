@@ -1,10 +1,10 @@
 #pragma once
 
-#include "raylib.h"
-#include "Sprite.h"
-#include <queue>
 #include <memory>
+#include <queue>
 #include <string>
+#include "Sprite.h"
+#include "raylib.h"
 namespace Elysium {
 
 // Forward declarations
@@ -16,14 +16,12 @@ struct NameComponent {
 };
 
 // Component structs
-struct PositionComponent
-{
+struct PositionComponent {
     float x, y;
     PositionComponent(float x = 0.0f, float y = 0.0f);
 };
 
-struct ScaleComponent
-{
+struct ScaleComponent {
     float x = 1.0f;
     float y = 1.0f;
 
@@ -32,20 +30,18 @@ struct ScaleComponent
     ScaleComponent(float uniform) : x(uniform), y(uniform) {}
 };
 
-struct LocationComponent
-{
+struct LocationComponent {
     int x, y;
 
     LocationComponent(int x = 0, int y = 0);
 };
 
-struct MovementComponent
-{
+struct MovementComponent {
     std::vector<Vector2> waypoints;
     size_t currentWaypointIndex = 0;
     float speed = 100.0f;
     bool isMoving = false;
-    bool loop = true;              // should it loop back to start when done?
+    bool loop = true;  // should it loop back to start when done?
 
     void AddWaypoint(const Vector2& waypoint);
     void ClearWaypoints();
@@ -104,7 +100,8 @@ struct LayerComponent {
         World,
         Screen,
         Parallax
-    };;
+    };
+    ;
 
     enum class Blend {
         Normal,
@@ -123,16 +120,15 @@ struct LayerComponent {
 
     std::string name;
 
-    Vector2 parallaxFactor = {0.0f, 0.0f};      // 0 = no movement, 1 = full camera movement
+    Vector2 parallaxFactor = {0.0f, 0.0f};  // 0 = no movement, 1 = full camera movement
 
-    std::vector<Entity> allowedCameras;         // which camera entities can see this layer (empty = all)
+    std::vector<Entity> allowedCameras;  // which camera entities can see this layer (empty = all)
 
-    RenderTexture2D* framebuffer = nullptr;     // optional framebuffer to draw this layer to
+    RenderTexture2D* framebuffer = nullptr;  // optional framebuffer to draw this layer to
     LayerComponent(int z = 0);
 };
 
-struct RectangleComponent
-{
+struct RectangleComponent {
     float width, height;
     Color background;
     Color border;
@@ -141,8 +137,7 @@ struct RectangleComponent
     RectangleComponent(float width = 1, float height = 1, Color background = {}, Color border = {}, const std::string& layer = "default");
 };
 
-struct CircleComponent
-{
+struct CircleComponent {
     float radius;
     Color background;
     Color border;
@@ -159,12 +154,11 @@ struct LightComponent {
     LightComponent(Color c = WHITE, float r = 50.0f, const std::string& layer = "default") : color(c), radius(r), layerName(layer) {}
 };
 
-struct SpriteComponent
-{
+struct SpriteComponent {
     Sprite sprite;
     std::string markerName;
     std::string layerName = "default";
-    int frameIndex = 0;  // Current frame within the marker
+    int frameIndex = 0;          // Current frame within the marker
     float frameDuration = 0.2f;  // Time per frame in seconds
     float frameElapsed = 0.0f;   // Time elapsed on current frame
 
@@ -172,19 +166,17 @@ struct SpriteComponent
     SpriteComponent(const Sprite& sprite, const std::string& marker, const std::string& layer = "default");
 };
 
-struct TextureComponent
-{
+struct TextureComponent {
     std::string textureName;  // Asset name of the texture
     std::string layerName = "default";
     Rectangle clip = {0, 0, 0, 0};  // Source clip rect (0,0,0,0 = use full texture)
-    Color tint = WHITE;              // Tint/modulation color
+    Color tint = WHITE;             // Tint/modulation color
 
     TextureComponent() = default;
     TextureComponent(const std::string& texture, const std::string& layer = "default");
 };
 
-struct TextComponent
-{
+struct TextComponent {
     std::string content;
     int fontSize;
     Color color;
@@ -193,43 +185,38 @@ struct TextComponent
     TextComponent(const std::string& text = "", int size = 20, Color c = {}, const std::string& layer = "default");
 };
 
-struct CameraComponent
-{
+struct CameraComponent {
     // Expects PositionComponent
     Rectangle viewport;
     float zoom = 1.0f;
-    std::vector<int> layerMask;         // which layers this camera renders
-    int renderOrder = 0;                // for multi-camera setups
+    std::vector<int> layerMask;  // which layers this camera renders
+    int renderOrder = 0;         // for multi-camera setups
     bool isVisible = true;
 
     CameraComponent();
 };
 
-struct FollowComponent
-{
+struct FollowComponent {
     float speed = 1.0f;
     std::string targetEntityName;
 };
 
-struct TileComponent
-{
+struct TileComponent {
     // ACTS LIKE A TYPE FLAG
     TileComponent() = default;
 };
 
-struct TeamComponent
-{
+struct TeamComponent {
     int teamId;
 
     TeamComponent();
     TeamComponent(int teamId);
 };
 
-struct CooldownComponent
-{
-    float cooldownTime = 0.0f;          // Time in seconds
-    float elapsedTime = 0.0f;           // Time elapsed since last action
-    bool isOnCooldown = false;           // Is the action currently on cooldown
+struct CooldownComponent {
+    float cooldownTime = 0.0f;  // Time in seconds
+    float elapsedTime = 0.0f;   // Time elapsed since last action
+    bool isOnCooldown = false;  // Is the action currently on cooldown
 
     void SetCooldown(float duration);
 
@@ -261,12 +248,7 @@ struct UnitComponent {
     bool canUseItems;
 
     UnitComponent()
-        : hasActedThisTurn(false)
-        , canMove(true)
-        , canAttack(true)
-        , canCastSpells(true)
-        , canUseItems(true)
-        {}
+        : hasActedThisTurn(false), canMove(true), canAttack(true), canCastSpells(true), canUseItems(true) {}
 
     void StartTurn() {
         hasActedThisTurn = false;
@@ -283,21 +265,15 @@ struct UnitComponent {
  * Used by PickSystem for mouse picking and debugging visualization.
  */
 struct BoundsComponent {
-    Rectangle bounds;           // Bounding box in world space
-    bool isDragging;            // Is this entity currently being dragged
-    Color debugColor;           // Color to draw debug bounds
+    Rectangle bounds;  // Bounding box in world space
+    bool isDragging;   // Is this entity currently being dragged
+    Color debugColor;  // Color to draw debug bounds
 
     BoundsComponent()
-        : bounds({0, 0, 0, 0})
-        , isDragging(false)
-        , debugColor(RED)
-    {}
+        : bounds({0, 0, 0, 0}), isDragging(false), debugColor(RED) {}
 
     BoundsComponent(Rectangle rect, Color color)
-        : bounds(rect)
-        , isDragging(false)
-        , debugColor(color)
-    {}
+        : bounds(rect), isDragging(false), debugColor(color) {}
 };
 
-};
+};  // namespace Elysium

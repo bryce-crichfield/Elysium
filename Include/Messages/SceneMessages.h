@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Message.h"
-#include "../Network/NetworkProtocol.h"
 #include <string>
+#include "../Network/NetworkProtocol.h"
+#include "Message.h"
 
 namespace Elysium::Services {
 
@@ -20,4 +20,4 @@ struct SceneChangedMessage : public Message {
         : operation(op), sceneName(name) {}
 };
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

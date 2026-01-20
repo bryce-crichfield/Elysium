@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Service.h"
-#include "Event.h"
-#include <vector>
 #include <functional>
+#include <vector>
+#include "Event.h"
+#include "Service.h"
 
 namespace Elysium {
-    class Scene;
+class Scene;
 }
 
 namespace Elysium::Services {
@@ -15,7 +15,7 @@ namespace Elysium::Services {
 using EventListener = std::function<void(Event&)>;
 
 class EventService : public Elysium::Service {
-public:
+   public:
     EventService();
     ~EventService() = default;
 
@@ -31,8 +31,8 @@ public:
     // Dispatch event to all listeners
     void Dispatch(Event& event);
 
-private:
+   private:
     std::vector<Scene*> listeners_;
 };
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

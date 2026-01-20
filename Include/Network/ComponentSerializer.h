@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <functional>
 #include <unordered_map>
-#include "ByteBuffer.h"
 #include "../Entity.h"
+#include "ByteBuffer.h"
 
 namespace Elysium::Network {
 
@@ -84,4 +84,4 @@ void SerializeComponentsByMask(uint32_t componentMask, Entity entity, World* wor
  */
 void DeserializeComponentsByMask(uint32_t componentMask, Entity entity, World* world, ByteBuffer& buffer);
 
-} // namespace Elysium::Network
+}  // namespace Elysium::Network

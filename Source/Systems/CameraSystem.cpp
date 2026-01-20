@@ -1,8 +1,8 @@
 #include "Systems/CameraSystem.h"
 
 #include "Application.h"
-#include "Scene.h"
 #include "Entity.h"
+#include "Scene.h"
 
 #include "raylib.h"
 
@@ -11,7 +11,6 @@ namespace Elysium::Systems {
 void CameraSystem::Update(float deltaTime) {
     // Update camera components that have follow behavior
     world->Query<PositionComponent, CameraComponent, FollowComponent>([&](Entity entity, auto& positionComp, auto& cameraComp, auto& followComp) {
-
         // Find the target entity by name
         Entity targetEntity;
         if (world->GetEntityByName(followComp.targetEntityName, &targetEntity)) {
@@ -36,12 +35,12 @@ void CameraSystem::Update(float deltaTime) {
 
 Vector2 CameraSystem::LerpVector2(Vector2 start, Vector2 end, float t) {
     // Clamp t between 0 and 1
-    t = (t < 0.0f) ? 0.0f : (t > 1.0f) ? 1.0f : t;
+    t = (t < 0.0f) ? 0.0f : (t > 1.0f) ? 1.0f
+                                       : t;
 
     return {
         start.x + (end.x - start.x) * t,
-        start.y + (end.y - start.y) * t
-    };
+        start.y + (end.y - start.y) * t};
 }
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems

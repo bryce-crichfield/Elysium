@@ -1,8 +1,8 @@
 #include "Scenes/OverworldScene.h"
+#include "Application.h"
+#include "Scenes/MenuScene.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
-#include "Scenes/MenuScene.h"
-#include "Application.h"
 #include "imgui.h"
 
 namespace Elysium::Scenes {
@@ -39,4 +39,4 @@ void OverworldScene::OnDraw(Rectangle screen) {
     DrawText("Backspace to Menu", 0, 0, 16, WHITE);
 }
 
-} // namespace Elysium::Scenes
+}  // namespace Elysium::Scenes

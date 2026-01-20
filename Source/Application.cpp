@@ -1,40 +1,34 @@
 #include "Application.h"
-#include "Services/Services.h"
-#include "Path.h"
-#include "imgui.h"
-#include "rlImGui.h"
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
 #include <thread>
 #include "Common.h"
+#include "Path.h"
+#include "Services/Services.h"
+#include "imgui.h"
+#include "rlImGui.h"
 
-namespace Elysium
-{
+namespace Elysium {
 
-Application &Application::GetInstance()
-{
+Application& Application::GetInstance() {
     static Application instance;
     return instance;
 }
 
-static Application *g_appInstance = nullptr;
+static Application* g_appInstance = nullptr;
 
-void CustomTraceLogCallback(int logLevel, const char *text, va_list args)
-{
-    if (g_appInstance)
-    {
+void CustomTraceLogCallback(int logLevel, const char* text, va_list args) {
+    if (g_appInstance) {
         char buffer[1024];
         vsnprintf(buffer, sizeof(buffer), text, args);
         g_appInstance->GetService<Elysium::Services::LogService>().LogMessage(logLevel, std::string(buffer));
     }
 }
 
-bool Application::Initialize(const std::string &configPath)
-{
+bool Application::Initialize(const std::string& configPath) {
     Profile;
-    if (initialized_)
-    {
+    if (initialized_) {
         return true;
     }
 
@@ -52,8 +46,7 @@ bool Application::Initialize(const std::string &configPath)
     SetTraceLogCallback(CustomTraceLogCallback);
     SetTraceLogLevel(LOG_DEBUG);
 
-    if (!ApplicationConfig::FromXML(configPath, config_))
-    {
+    if (!ApplicationConfig::FromXML(configPath, config_)) {
         LOG_ERROR("Application", "Failed to load ApplicationConfig.xml");
         return false;
     }
@@ -77,21 +70,18 @@ bool Application::Initialize(const std::string &configPath)
     return true;
 }
 
-void Application::Run()
-{
+void Application::Run() {
     Profile;
-    if (!initialized_)
-    {
+    if (!initialized_) {
         TraceLog(LOG_ERROR, "Application not initialized!");
         return;
     }
 
-    while (!WindowShouldClose() && !shouldClose_)
-    {
-        #ifdef TRACY_ENABLE
-            FrameMark;
-        #endif
-        
+    while (!WindowShouldClose() && !shouldClose_) {
+#ifdef TRACY_ENABLE
+        FrameMark;
+#endif
+
         ProfileN("Frame");
 
         float deltaTime = GetFrameTime();
@@ -104,11 +94,9 @@ void Application::Run()
     Shutdown();
 }
 
-void Application::Shutdown()
-{
+void Application::Shutdown() {
     Profile;
-    if (!initialized_)
-    {
+    if (!initialized_) {
         return;
     }
 
@@ -125,13 +113,11 @@ void Application::Shutdown()
     initialized_ = false;
 }
 
-bool Application::ShouldClose() const
-{
+bool Application::ShouldClose() const {
     return shouldClose_ || WindowShouldClose();
 }
 
-void Application::Update(float deltaTime)
-{
+void Application::Update(float deltaTime) {
     Profile;
     for (auto service : serviceRegistry_.GetAllServices()) {
         service->Update(deltaTime);
@@ -144,8 +130,7 @@ void Application::Update(float deltaTime)
     static bool wasLoadingPrevFrame = false;
     bool isLoadingNow = loadingService.IsProcessing();
 
-    if (wasLoadingPrevFrame && !isLoadingNow && loadingService.IsComplete())
-    {
+    if (wasLoadingPrevFrame && !isLoadingNow && loadingService.IsComplete()) {
         LOG_INFO("Application", "Asset loading complete, finalizing assets");
         assetService.FinalizeAssets();
     }
@@ -153,8 +138,7 @@ void Application::Update(float deltaTime)
     wasLoadingPrevFrame = isLoadingNow;
 }
 
-void Application::Draw()
-{
+void Application::Draw() {
     Profile;
 
     // Begin frame
@@ -162,15 +146,13 @@ void Application::Draw()
     ClearBackground(BLACK);
 
     // Services render their content (SceneService draws scenes, etc.)
-    for (auto& service : serviceRegistry_.GetAllServices())
-    {
+    for (auto& service : serviceRegistry_.GetAllServices()) {
         service->Render();
     }
 
     // ImGui overlays on top
     rlImGuiBegin();
-    for (auto& service : serviceRegistry_.GetAllServices())
-    {
+    for (auto& service : serviceRegistry_.GetAllServices()) {
         service->DebugDraw();
     }
     rlImGuiEnd();
@@ -178,45 +160,37 @@ void Application::Draw()
     EndDrawing();
 }
 
-void Application::ProcessEvents()
-{
+void Application::ProcessEvents() {
     Profile;
 }
 
-void Application::ProcessInput()
-{
+void Application::ProcessInput() {
     Profile;
-    ImGuiIO &io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
 
-    if (IsKeyPressed(KEY_F1))
-    {
+    if (IsKeyPressed(KEY_F1)) {
         serviceRegistry_.GetService<Elysium::Services::SceneService>().ToggleVisibility();
     }
 
-    if (IsKeyPressed(KEY_F3))
-    {
+    if (IsKeyPressed(KEY_F3)) {
         serviceRegistry_.GetService<Elysium::Services::WorldService>().ToggleVisibility();
     }
 
-    if (IsKeyPressed(KEY_F2))
-    {
+    if (IsKeyPressed(KEY_F2)) {
         serviceRegistry_.GetService<Elysium::Services::LogService>().ToggleVisibility();
     }
 
-    if (IsKeyPressed(KEY_F4))
-    {
+    if (IsKeyPressed(KEY_F4)) {
         serviceRegistry_.GetService<Elysium::Services::TimelineService>().ToggleVisibility();
     }
 
-    if (IsKeyPressed(KEY_F5))
-    {
+    if (IsKeyPressed(KEY_F5)) {
         serviceRegistry_.GetService<Elysium::Services::AssetService>().ToggleVisibility();
     }
 
-    if (IsKeyPressed(KEY_F6))
-    {
+    if (IsKeyPressed(KEY_F6)) {
         serviceRegistry_.GetService<Elysium::Services::NetworkService>().ToggleVisibility();
     }
 }
 
-} // namespace Elysium
+}  // namespace Elysium

@@ -1,15 +1,15 @@
 #pragma once
 
 namespace Elysium {
-    class System; // This tells the compiler that the class System exists.
-    class Timeline; // Forward declaration for Timeline
-}
+class System;    // This tells the compiler that the class System exists.
+class Timeline;  // Forward declaration for Timeline
+}  // namespace Elysium
 
 #include <cstddef>
-#include <string>
-#include <memory>
-#include <vector>
 #include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 #include "Entity.h"
 
 namespace Elysium {
@@ -21,7 +21,7 @@ constexpr float TILE_HEIGHT = 32.0f;
 struct Application;
 
 class Scene {
-public:
+   public:
     Scene();
     virtual ~Scene();
 
@@ -30,7 +30,7 @@ public:
     virtual void OnDraw(Rectangle screen);
     virtual void OnEvent(class Event& event);
     virtual void OnMessage(class Message& message);
-    virtual void OnEnter() {}   
+    virtual void OnEnter() {}
     virtual void OnExit() {}
 
     // Entity and system access
@@ -46,8 +46,8 @@ public:
 
     // Called during XML loading to create scene-specific systems
     virtual void CreateCustomSystems() {}
-protected:
 
+   protected:
     // Core scene components
     std::unique_ptr<World> world_;
     std::vector<std::unique_ptr<System>> systems_;
@@ -60,4 +60,4 @@ using SceneFactory = std::function<Scene*()>;
 bool LoadScene(Scene& scene, const std::string& path);
 bool SaveScene(Scene& scene, const std::string& path);
 
-} // namespace Elysium
+}  // namespace Elysium

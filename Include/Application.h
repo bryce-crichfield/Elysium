@@ -2,10 +2,10 @@
 
 #include "Service.h"
 
-#include "raylib.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include "raylib.h"
 
 namespace Elysium {
 
@@ -28,10 +28,8 @@ struct ApplicationConfig {
     static bool FromXML(const std::string& path, ApplicationConfig& out);
 };
 
-
-
 class Application {
-public:
+   public:
     static Application& GetInstance();
 
     bool Initialize(const std::string& configPath = "Config/ApplicationConfig.xml");
@@ -51,7 +49,8 @@ public:
     }
 
     bool ShouldClose() const;
-private:
+
+   private:
     Application() = default;
     ~Application() = default;
     Application(const Application&) = delete;
@@ -71,4 +70,4 @@ private:
     bool shouldClose_ = false;
 };
 
-} // namespace Elysium
+}  // namespace Elysium

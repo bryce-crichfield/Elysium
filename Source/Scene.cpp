@@ -1,23 +1,22 @@
 #include "Scene.h"
-#include "Services/LogService.h"
-#include "Services/AssetService.h"
+#include <sstream>
+#include <string>
+#include "Application.h"
 #include "Entity.h"
+#include "Event.h"
+#include "Services/AssetService.h"
+#include "Services/LogService.h"
 #include "System.h"
-#include "Systems/RenderSystem.h"
-#include "Systems/MovementSystem.h"
 #include "Systems/AnimationSystem.h"
 #include "Systems/CameraSystem.h"
+#include "Systems/MovementSystem.h"
+#include "Systems/RenderSystem.h"
 #include "Systems/SpriteSystem.h"
 #include "Systems/TimelineSystem.h"
 #include "Timeline.h"
-#include "Event.h"
-#include "tinyxml2.h"
-#include "raylib.h"
-#include <sstream>
-#include <string>
 #include "Xml.h"
-#include "Application.h"
-
+#include "raylib.h"
+#include "tinyxml2.h"
 
 namespace Elysium {
 
@@ -33,7 +32,6 @@ Scene::Scene() {
 }
 
 Scene::~Scene() {
-
 }
 
 void Scene::OnUpdate(float deltaTime) {
@@ -53,7 +51,8 @@ void Scene::OnDraw(Rectangle screen) {
 void Scene::OnEvent(Event& event) {
     // Forward events to all systems
     for (auto& system : systems_) {
-        if (event.handled) break; // Stop propagation if handled
+        if (event.handled)
+            break;  // Stop propagation if handled
         system->OnEvent(event);
     }
 }
@@ -90,12 +89,11 @@ Timeline* Scene::GetTimeline(const std::string& name) {
 void Scene::RemoveTimeline(const std::string& name) {
     timelines_.erase(
         std::remove_if(timelines_.begin(), timelines_.end(),
-            [&name](const std::unique_ptr<Timeline>& timeline) {
-                return timeline->GetName() == name;
-            }),
-        timelines_.end()
-    );
+                       [&name](const std::unique_ptr<Timeline>& timeline) {
+                           return timeline->GetName() == name;
+                       }),
+        timelines_.end());
     LOG_DEBUGF("Scene", "Removed timeline: %s", name.c_str());
 }
 
-} // namespace Elysium
+}  // namespace Elysium

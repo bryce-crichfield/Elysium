@@ -1,11 +1,11 @@
 #include "Services/AssetService.h"
-#include "Services/LogService.h"
-#include "Services/LoadingService.h"
-#include "Application.h"
-#include "raylib.h"
-#include "imgui.h"
-#include "Common.h"
 #include <filesystem>
+#include "Application.h"
+#include "Common.h"
+#include "Services/LoadingService.h"
+#include "Services/LogService.h"
+#include "imgui.h"
+#include "raylib.h"
 
 #include "Sprite.h"
 
@@ -49,14 +49,22 @@ void AssetService::Update(float deltaTime) {
 // ----------------------------------------------------------------------------
 static const char* GetAssetTypeString(AssetType type) {
     switch (type) {
-        case AssetType::TEXTURE: return "Texture";
-        case AssetType::SOUND:   return "Sound";
-        case AssetType::MUSIC:   return "Music";
-        case AssetType::FONT:    return "Font";
-        case AssetType::MODEL:   return "Model";
-        case AssetType::SHADER:  return "Shader";
-        case AssetType::SPRITE:  return "Sprite";
-        default:                 return "Unknown";
+        case AssetType::TEXTURE:
+            return "Texture";
+        case AssetType::SOUND:
+            return "Sound";
+        case AssetType::MUSIC:
+            return "Music";
+        case AssetType::FONT:
+            return "Font";
+        case AssetType::MODEL:
+            return "Model";
+        case AssetType::SHADER:
+            return "Shader";
+        case AssetType::SPRITE:
+            return "Sprite";
+        default:
+            return "Unknown";
     }
 }
 
@@ -73,15 +81,15 @@ void AssetService::ImGui() {
         // Try current directory
         if (fs::exists("./Assets")) {
             rootPath = fs::canonical("./Assets");
-        } 
+        }
         // Try up one level (common in build/ bin/ setups)
         else if (fs::exists("../Assets")) {
             rootPath = fs::canonical("../Assets");
-        }
-        else {
+        } else {
             // Fallback: If we can't find it, we'll show an error in the UI
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "FATAL: Could not locate Assets folder!");
-            if (ImGui::Button("Retry Discovery")) rootPath = ""; 
+            if (ImGui::Button("Retry Discovery"))
+                rootPath = "";
             return;
         }
     }
@@ -95,90 +103,88 @@ void AssetService::ImGui() {
     }
 
     // ... [Maintain your Table code here] ...
-// --- Asset Table Snippet ---
-static ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | 
-                                    ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY | 
-                                    ImGuiTableFlags_SizingStretchProp;
+    // --- Asset Table Snippet ---
+    static ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                                        ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY |
+                                        ImGuiTableFlags_SizingStretchProp;
 
-// Use -1 for height to fill remaining available space
-if (ImGui::BeginTable("AssetServiceTable", 5, tableFlags, ImVec2(0, -1))) {
-    
-    // Setup Headers
-    ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-    ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-    ImGui::TableSetupColumn("Details", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-    ImGui::TableSetupColumn("Relative Path", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableHeadersRow();
+    // Use -1 for height to fill remaining available space
+    if (ImGui::BeginTable("AssetServiceTable", 5, tableFlags, ImVec2(0, -1))) {
+        // Setup Headers
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+        ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Details", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+        ImGui::TableSetupColumn("Relative Path", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableHeadersRow();
 
-    for (auto& pair : assetsByName_) {
-        const std::string& name = pair.first;
-        Asset& asset = pair.second;
+        for (auto& pair : assetsByName_) {
+            const std::string& name = pair.first;
+            Asset& asset = pair.second;
 
-        ImGui::TableNextRow();
+            ImGui::TableNextRow();
 
-        // 1. Name
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextUnformatted(name.c_str());
+            // 1. Name
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(name.c_str());
 
-        // 2. Type (using your helper or a switch)
-        ImGui::TableSetColumnIndex(1);
-        ImGui::TextUnformatted(GetAssetTypeString(asset.GetType()));
+            // 2. Type (using your helper or a switch)
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextUnformatted(GetAssetTypeString(asset.GetType()));
 
-        // 3. Status (Color coded)
-        ImGui::TableSetColumnIndex(2);
-        if (asset.IsLoaded()) {
-            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "Loaded");
-        } else if (asset.HasImageData() || asset.HasWaveData()) {
-            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Pending");
-        } else {
-            ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "Error");
-        }
-
-        // 4. Details (Dimensions, IDs, etc.)
-        ImGui::TableSetColumnIndex(3);
-        if (asset.IsLoaded()) {
-            switch (asset.GetType()) {
-                case AssetType::TEXTURE: {
-                    Texture2D tex = asset.GetTexture();
-                    ImGui::Text("%dx%d", tex.width, tex.height);
-                    if (ImGui::IsItemHovered()) {
-                        ImGui::BeginTooltip();
-                        ImGui::Image((void*)(intptr_t)tex.id, ImVec2(128, 128));
-                        ImGui::EndTooltip();
-                    }
-                    break;
-                }
-                case AssetType::SOUND:
-                    ImGui::Text("%u Frames", asset.GetSound().frameCount);
-                    break;
-                case AssetType::SPRITE:
-                    ImGui::Text("Sprite Loaded");
-                    break;
-                case AssetType::SHADER:
-                    ImGui::Text("ID: %u", asset.GetShader().id);
-                    break;
-                default:
-                    ImGui::Text("-");
-                    break;
+            // 3. Status (Color coded)
+            ImGui::TableSetColumnIndex(2);
+            if (asset.IsLoaded()) {
+                ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "Loaded");
+            } else if (asset.HasImageData() || asset.HasWaveData()) {
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Pending");
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "Error");
             }
-        } else {
-            ImGui::Text("-");
+
+            // 4. Details (Dimensions, IDs, etc.)
+            ImGui::TableSetColumnIndex(3);
+            if (asset.IsLoaded()) {
+                switch (asset.GetType()) {
+                    case AssetType::TEXTURE: {
+                        Texture2D tex = asset.GetTexture();
+                        ImGui::Text("%dx%d", tex.width, tex.height);
+                        if (ImGui::IsItemHovered()) {
+                            ImGui::BeginTooltip();
+                            ImGui::Image((void*)(intptr_t)tex.id, ImVec2(128, 128));
+                            ImGui::EndTooltip();
+                        }
+                        break;
+                    }
+                    case AssetType::SOUND:
+                        ImGui::Text("%u Frames", asset.GetSound().frameCount);
+                        break;
+                    case AssetType::SPRITE:
+                        ImGui::Text("Sprite Loaded");
+                        break;
+                    case AssetType::SHADER:
+                        ImGui::Text("ID: %u", asset.GetShader().id);
+                        break;
+                    default:
+                        ImGui::Text("-");
+                        break;
+                }
+            } else {
+                ImGui::Text("-");
+            }
+
+            // 5. Path
+            ImGui::TableSetColumnIndex(4);
+            ImGui::TextUnformatted(asset.GetPath().c_str());
         }
 
-        // 5. Path
-        ImGui::TableSetColumnIndex(4);
-        ImGui::TextUnformatted(asset.GetPath().c_str());
+        ImGui::EndTable();
     }
-
-    ImGui::EndTable();
-}
     // File Chooser Modal
     if (ImGui::BeginPopupModal("AssetFileBrowser", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        
         // --- 2. Navigation & Path Calculation ---
         bool isAtRoot = fs::equivalent(currentPath, rootPath);
-        
+
         ImGui::BeginDisabled(isAtRoot);
         if (ImGui::Button("..")) {
             currentPath = currentPath.parent_path();
@@ -211,31 +217,34 @@ if (ImGui::BeginTable("AssetServiceTable", 5, tableFlags, ImVec2(0, -1))) {
         // --- 4. Resulting Path (Corrected) ---
         if (!selectedFile.empty()) {
             fs::path fullPath = currentPath / selectedFile;
-            
+
             // Calculate path relative to the Assets folder itself
             // e.g. "Sprites/mushroom/idle.png" instead of "Assets/Sprites/..."
             std::string relativeToAssets = fs::relative(fullPath, rootPath).generic_string();
-            
+
             ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "Path: %s", relativeToAssets.c_str());
 
             if (ImGui::Button("Load", ImVec2(120, 0))) {
                 AssetType type = AssetType::TEXTURE;
                 std::string ext = fullPath.extension().string();
-                if (ext == ".xml") type = AssetType::SPRITE;
-                else if (ext == ".wav") type = AssetType::SOUND;
-                
-                // Pass the clean relative path. 
-                // Note: If your AssetService REQUIRES the "Assets/" prefix, 
+                if (ext == ".xml")
+                    type = AssetType::SPRITE;
+                else if (ext == ".wav")
+                    type = AssetType::SOUND;
+
+                // Pass the clean relative path.
+                // Note: If your AssetService REQUIRES the "Assets/" prefix,
                 // change the relativeToAssets line back, but check your working directory!
-                auto &loadingService = Application::GetInstance().GetService<LoadingService>();
+                auto& loadingService = Application::GetInstance().GetService<LoadingService>();
                 loadingService.LoadAssets(std::vector<Asset>{Asset(type, assetNameBuffer, relativeToAssets)});
-                
+
                 ImGui::CloseCurrentPopup();
             }
         }
 
         ImGui::SameLine();
-        if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
+        if (ImGui::Button("Cancel"))
+            ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
 }
@@ -265,7 +274,6 @@ void AssetService::LoadAsset(const Asset& unloadedAsset) {
         // Store the asset (either loaded or with raw data)
         assetsByName_[name] = asset;
         pathToName_[path] = name;
-
 
         if (asset.IsLoaded()) {
             LOG_INFOF("AssetService", "Successfully loaded asset: %s -> %s", name.c_str(), path.c_str());
@@ -373,7 +381,7 @@ void AssetService::LoadAssetByType(Asset& asset) {
             Image image = ::LoadImage(path.c_str());
             if (image.data != nullptr) {
                 LOG_DEBUGF("AssetService", "Image data loaded: %dx%d, format: %d, mipmaps: %d",
-                    image.width, image.height, image.format, image.mipmaps);
+                           image.width, image.height, image.format, image.mipmaps);
 
                 // Store image data for later texture creation on main thread
                 asset.SetImageData(image);
@@ -398,7 +406,7 @@ void AssetService::LoadAssetByType(Asset& asset) {
                 Wave wave = ::LoadWave(path.c_str());
                 if (wave.frameCount > 0) {
                     LOG_DEBUGF("AssetService", "Wave data loaded: %d frames, %d Hz, %d channels",
-                             wave.frameCount, wave.sampleRate, wave.channels);
+                               wave.frameCount, wave.sampleRate, wave.channels);
 
                     // Store wave data for later sound creation on main thread
                     asset.SetWaveData(wave);
@@ -489,7 +497,7 @@ void AssetService::FinalizeAssets() {
             if (texture.id != 0) {
                 asset.SetTexture(texture);
                 LOG_DEBUGF("AssetService", "Finalized texture: %s (ID: %d, %dx%d)",
-                         asset.GetName().c_str(), texture.id, texture.width, texture.height);
+                           asset.GetName().c_str(), texture.id, texture.width, texture.height);
             } else {
                 LOG_ERRORF("AssetService", "Failed to finalize texture: %s", asset.GetName().c_str());
             }
@@ -500,7 +508,7 @@ void AssetService::FinalizeAssets() {
             Wave waveData = asset.GetWaveData();
 
             LOG_INFOF("AssetService", "Creating sound from wave: %s (%d frames, %d Hz, %d channels)",
-                     asset.GetName().c_str(), waveData.frameCount, waveData.sampleRate, waveData.channels);
+                      asset.GetName().c_str(), waveData.frameCount, waveData.sampleRate, waveData.channels);
 
             // Try converting to mono if stereo
             Wave processedWave = waveData;
@@ -514,7 +522,7 @@ void AssetService::FinalizeAssets() {
             if (sound.frameCount > 0) {
                 asset.SetSound(sound);
                 LOG_INFOF("AssetService", "Finalized sound: %s (%d frames)",
-                         asset.GetName().c_str(), sound.frameCount);
+                          asset.GetName().c_str(), sound.frameCount);
             } else {
                 LOG_ERRORF("AssetService", "Failed to finalize sound: %s (tried mono conversion)", asset.GetName().c_str());
 
@@ -538,4 +546,4 @@ void AssetService::FinalizeAssets() {
     LOG_INFO("AssetService", "Asset finalization complete");
 }
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

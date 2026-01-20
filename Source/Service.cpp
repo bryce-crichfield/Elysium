@@ -1,38 +1,31 @@
 #include "Service.h"
-#include "imgui.h"
 #include "Common.h"
+#include "imgui.h"
 
-namespace Elysium
-{
-std::string Service::GetName()
-{
+namespace Elysium {
+std::string Service::GetName() {
     Profile;
     return name_;
 }
 
-void Service::ToggleVisibility()
-{
+void Service::ToggleVisibility() {
     Profile;
     isVisible_ = !isVisible_;
 }
 
-void Service::DebugDraw()
-{
+void Service::DebugDraw() {
     Profile;
     if (!isVisible_ || !hasUi_)
         return;
 
     ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(GetName().c_str(), &isVisible_, ImGuiWindowFlags_NoCollapse))
-    {
-
+    if (ImGui::Begin(GetName().c_str(), &isVisible_, ImGuiWindowFlags_NoCollapse)) {
         ImGui();
     }
     ImGui::End();
 }
 
-void Service::ImGui()
-{
+void Service::ImGui() {
     Profile;
 }
-} // namespace Elysium
+}  // namespace Elysium
