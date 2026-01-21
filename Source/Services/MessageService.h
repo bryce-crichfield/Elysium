@@ -3,7 +3,7 @@
 #include <functional>
 #include <typeindex>
 #include <unordered_map>
-#include "Message.h"
+#include "Core/Message.h"
 #include "Service.h"
 
 namespace Elysium::Services {

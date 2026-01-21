@@ -7,8 +7,8 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
-#include "Component.h"
-#include "Entity.h"
+#include "Core/Component.h"
+#include "Core/Entity.h"
 #include "Service.h"
 #include "imgui.h"
 #include "rlImGui.h"

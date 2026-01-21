@@ -1,8 +1,8 @@
 #include "SceneInspector.h"
 #include <typeinfo>
-#include "Common.h"
+#include "Core/Common.h"
 #include "Services/SceneService.h"
-#include "System.h"
+#include "Core/System.h"
 #include "imgui.h"
 
 namespace Elysium {

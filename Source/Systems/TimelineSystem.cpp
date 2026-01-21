@@ -1,6 +1,6 @@
 #include "Systems/TimelineSystem.h"
-#include "Component.h"
-#include "Scene.h"
+#include "Core/Component.h"
+#include "Core/Scene.h"
 
 namespace Elysium::Systems {
 

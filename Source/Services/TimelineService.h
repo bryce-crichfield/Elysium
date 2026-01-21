@@ -2,9 +2,9 @@
 
 #include <memory>
 #include <string>
-#include "Entity.h"
+#include "Core/Entity.h"
 #include "Service.h"
-#include "Timeline.h"
+#include "Core/Timeline.h"
 
 namespace Elysium {
 class Scene;

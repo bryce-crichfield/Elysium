@@ -1,6 +1,6 @@
 #include "Services/EventService.h"
-#include "Common.h"
-#include "Scene.h"
+#include "Core/Common.h"
+#include "Core/Scene.h"
 #include "Services/LogService.h"
 
 namespace Elysium::Services {

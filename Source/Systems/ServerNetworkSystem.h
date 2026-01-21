@@ -3,11 +3,11 @@
 #include <queue>
 #include <unordered_map>
 #include <vector>
-#include "../Network/ComponentSerializer.h"
-#include "../Network/EntitySyncManager.h"
-#include "../Network/NetworkInput.h"
-#include "../Network/NetworkProtocol.h"
-#include "../System.h"
+#include "ComponentSerializer.h"
+#include "EntitySyncManager.h"
+#include "NetworkInput.h"
+#include "NetworkProtocol.h"
+#include "System.h"
 
 // Forward declarations
 typedef struct _ENetPeer ENetPeer;

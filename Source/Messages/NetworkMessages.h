@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <vector>
-#include "Message.h"
+#include "Core/Message.h"
 
 // Forward declaration for ENet type (defined in enet/enet.h)
 typedef struct _ENetPeer ENetPeer;

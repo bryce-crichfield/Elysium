@@ -1,8 +1,8 @@
 #include "Services/TimelineService.h"
 #include <algorithm>
 #include <cmath>
-#include "Application.h"
-#include "Scene.h"
+#include "Core/Application.h"
+#include "Core/Scene.h"
 #include "Services/SceneService.h"
 #include "imgui.h"
 #include "rlImGui.h"

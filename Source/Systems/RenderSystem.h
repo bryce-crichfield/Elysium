@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
-#include "Component.h"
-#include "System.h"
+#include "Core/Component.h"
+#include "Core/System.h"
 #include "raylib.h"
 
 namespace Elysium::Systems {

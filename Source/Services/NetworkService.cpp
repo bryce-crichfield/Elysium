@@ -16,7 +16,7 @@
 #endif
 
 // Now include raylib via Application.h
-#include "Application.h"
+#include "Core/Application.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"

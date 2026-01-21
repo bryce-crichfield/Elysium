@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <unordered_map>
-#include "../Entity.h"
+#include "Entity.h"
 #include "ByteBuffer.h"
 
 namespace Elysium::Network {

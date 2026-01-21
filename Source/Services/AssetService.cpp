@@ -1,13 +1,13 @@
 #include "Services/AssetService.h"
 #include <filesystem>
-#include "Application.h"
-#include "Common.h"
+#include "Core/Application.h"
+#include "Core/Common.h"
 #include "Services/LoadingService.h"
 #include "Services/LogService.h"
 #include "imgui.h"
 #include "raylib.h"
 
-#include "Sprite.h"
+#include "Core/Sprite.h"
 
 namespace Elysium::Services {
 

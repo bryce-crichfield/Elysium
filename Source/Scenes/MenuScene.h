@@ -1,8 +1,8 @@
 #pragma once
 
 #include <vector>
-#include "../Event.h"
-#include "../Scene.h"
+#include "Event.h"
+#include "Scene.h"
 #include "raylib.h"
 
 namespace Elysium::Scenes {

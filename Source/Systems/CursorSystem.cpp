@@ -1,6 +1,6 @@
 #include "Systems/CursorSystem.h"
-#include "Entity.h"
-#include "Scene.h"
+#include "Core/Entity.h"
+#include "Core/Scene.h"
 #include "Services/LogService.h"
 
 #include "raylib.h"

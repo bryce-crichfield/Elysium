@@ -1,8 +1,8 @@
 #include "Systems/CameraSystem.h"
 
-#include "Application.h"
-#include "Entity.h"
-#include "Scene.h"
+#include "Core/Application.h"
+#include "Core/Entity.h"
+#include "Core/Scene.h"
 
 #include "raylib.h"
 

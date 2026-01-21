@@ -4,9 +4,9 @@
 #include <regex>
 #include <sstream>
 #include <tracy/Tracy.hpp>
-#include "Application.h"
-#include "Common.h"
-#include "Path.h"
+#include "Core/Application.h"
+#include "Core/Common.h"
+#include "Utilities/Path.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "imgui.h"

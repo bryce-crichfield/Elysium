@@ -1,6 +1,6 @@
 #include "Services/MessageService.h"
 #include <typeindex>
-#include "Application.h"
+#include "Core/Application.h"
 #include "Services/SceneService.h"
 
 namespace Elysium::Services {

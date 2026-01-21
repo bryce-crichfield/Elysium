@@ -1,7 +1,7 @@
 #include "Systems/MovementSystem.h"
-#include "Component.h"
-#include "Entity.h"
-#include "Scene.h"
+#include "Core/Component.h"
+#include "Core/Entity.h"
+#include "Core/Scene.h"
 #include "raymath.h"
 
 namespace Elysium::Systems {

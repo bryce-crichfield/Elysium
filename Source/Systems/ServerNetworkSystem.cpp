@@ -1,10 +1,10 @@
 #include "Systems/ServerNetworkSystem.h"
-#include "Application.h"
-#include "Component.h"
-#include "Entity.h"
+#include "Core/Application.h"
+#include "Core/Component.h"
+#include "Core/Entity.h"
 #include "Messages/NetworkMessages.h"
 #include "Network/ByteBuffer.h"
-#include "Scene.h"
+#include "Core/Scene.h"
 #include "Services/NetworkService.h"
 
 namespace Elysium {

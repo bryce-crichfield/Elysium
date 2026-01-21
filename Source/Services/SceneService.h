@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "Message.h"
-#include "Scene.h"
-#include "SceneInspector.h"
+#include "Core/Message.h"
+#include "Core/Scene.h"
+#include "Editor/SceneInspector.h"
 #include "Service.h"
 #include "raylib.h"
 

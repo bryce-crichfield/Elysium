@@ -1,5 +1,5 @@
 #include "Scenes/ExploreScene.h"
-#include "Application.h"
+#include "Core/Application.h"
 #include "Scenes/MenuScene.h"
 #include "Services/LogService.h"
 #include "Services/NetworkService.h"

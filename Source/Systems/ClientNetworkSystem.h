@@ -3,10 +3,10 @@
 #include <queue>
 #include <unordered_set>
 #include <vector>
-#include "../Network/ComponentSerializer.h"
-#include "../Network/NetworkInput.h"
-#include "../Network/NetworkProtocol.h"
-#include "../System.h"
+#include "ComponentSerializer.h"
+#include "NetworkInput.h"
+#include "NetworkProtocol.h"
+#include "System.h"
 
 namespace Elysium {
 

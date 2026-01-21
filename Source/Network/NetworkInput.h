@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <memory>
-#include "../Event.h"
+#include "Event.h"
 #include "ByteBuffer.h"
 
 namespace Elysium::Network {

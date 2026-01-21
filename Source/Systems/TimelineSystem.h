@@ -4,9 +4,9 @@
 #include <string>
 #include <typeindex>
 #include <vector>
-#include "Component.h"
-#include "System.h"
-#include "Timeline.h"
+#include "Core/Component.h"
+#include "Core/System.h"
+#include "Core/Timeline.h"
 
 namespace Elysium::Systems {
 

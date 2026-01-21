@@ -1,6 +1,6 @@
 #include "Scenes/MenuScene.h"
 #include <memory>
-#include "Application.h"
+#include "Core/Application.h"
 #include "Scenes/ExploreScene.h"
 #include "Scenes/OverworldScene.h"
 #include "Services/LogService.h"

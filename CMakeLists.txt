@@ -82,6 +82,14 @@ endif()
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Source
+    ${CMAKE_SOURCE_DIR}/Source/Core
+    ${CMAKE_SOURCE_DIR}/Source/Utilities
+    ${CMAKE_SOURCE_DIR}/Source/Services
+    ${CMAKE_SOURCE_DIR}/Source/Systems
+    ${CMAKE_SOURCE_DIR}/Source/Scenes
+    ${CMAKE_SOURCE_DIR}/Source/Network
+    ${CMAKE_SOURCE_DIR}/Source/Messages
+    ${CMAKE_SOURCE_DIR}/Source/Editor
     ${CMAKE_SOURCE_DIR}/Vendor/raylib/src
     ${CMAKE_SOURCE_DIR}/Vendor/rlImGui
     ${CMAKE_SOURCE_DIR}/Vendor/imgui

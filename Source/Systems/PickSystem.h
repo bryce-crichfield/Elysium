@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Entity.h"
-#include "Event.h"
-#include "System.h"
+#include "Core/Entity.h"
+#include "Core/Event.h"
+#include "Core/System.h"
 
 namespace Elysium::Systems {
 

@@ -1,5 +1,5 @@
-#include "Application.h"
-#include "Common.h"
+#include "Core/Application.h"
+#include "Core/Common.h"
 #include "Scenes/Scenes.h"
 #include "Services/Services.h"
 

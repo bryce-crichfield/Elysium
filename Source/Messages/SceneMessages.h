@@ -1,8 +1,8 @@
 #pragma once
 
 #include <string>
-#include "../Network/NetworkProtocol.h"
-#include "Message.h"
+#include "NetworkProtocol.h"
+#include "Core/Message.h"
 
 namespace Elysium::Services {
 

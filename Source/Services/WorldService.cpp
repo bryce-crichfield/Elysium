@@ -2,9 +2,9 @@
 #include <algorithm>
 #include <iostream>
 #include <set>
-#include "Application.h"
-#include "Common.h"
-#include "Entity.h"
+#include "Core/Application.h"
+#include "Core/Common.h"
+#include "Core/Entity.h"
 #include "Services/AssetService.h"
 #include "Services/SceneService.h"
 #include "raylib.h"

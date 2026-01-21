@@ -2,8 +2,8 @@
 
 #include <string>
 #include <unordered_map>
-#include "../Asset.h"
-#include "../Service.h"
+#include "Asset.h"
+#include "Service.h"
 #include "raylib.h"
 
 namespace Elysium::Services {

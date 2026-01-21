@@ -1,6 +1,6 @@
 #include "Systems/PickSystem.h"
-#include "Component.h"
-#include "Entity.h"
+#include "Core/Component.h"
+#include "Core/Entity.h"
 #include "Services/LogService.h"
 #include "raymath.h"
 

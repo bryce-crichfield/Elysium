@@ -4,9 +4,9 @@
 #include <stdexcept>
 #include <variant>
 #include <vector>
-#include "Application.h"
-#include "Entity.h"
-#include "Scene.h"
+#include "Core/Application.h"
+#include "Core/Entity.h"
+#include "Core/Scene.h"
 #include "Services/AssetService.h"
 #include "raylib.h"
 #include "raymath.h"
