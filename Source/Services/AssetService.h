@@ -16,7 +16,6 @@ class AssetService : public Elysium::Service {
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    void ImGui() override;
 
     // Core asset loading - takes Asset object with name, path, type
     void LoadAsset(const Asset& asset);

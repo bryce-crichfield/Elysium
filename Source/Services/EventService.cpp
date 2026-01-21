@@ -7,7 +7,6 @@ namespace Elysium::Services {
 
 EventService::EventService() {
     name_ = "EventService";
-    hasUi_ = false;  // No UI for now
 }
 
 void EventService::Initialize() {

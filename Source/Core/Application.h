@@ -1,10 +1,12 @@
 #pragma once
 
 #include "Services/Service.h"
+#include "Editor.h"
 
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "raylib.h"
 
 namespace Elysium {
@@ -48,6 +50,26 @@ class Application {
         serviceRegistry_.RegisterService(std::move(service));
     }
 
+    template <typename T, typename... Args>
+    T& RegisterEditor(Args&&... args) {
+        auto editor = std::make_unique<T>(std::forward<Args>(args)...);
+        T& ref = *editor;
+        editors_.push_back(std::move(editor));
+        return ref;
+    }
+
+    template <typename T>
+    T* GetEditor() {
+        for (auto& editor : editors_) {
+            if (auto* typed = dynamic_cast<T*>(editor.get())) {
+                return typed;
+            }
+        }
+        return nullptr;
+    }
+
+    const std::vector<std::unique_ptr<Editor>>& GetEditors() const { return editors_; }
+
     bool ShouldClose() const;
 
    private:
@@ -65,6 +87,7 @@ class Application {
     ApplicationConfig config_;
 
     ServiceRegistry serviceRegistry_;
+    std::vector<std::unique_ptr<Editor>> editors_;
 
     bool initialized_ = false;
     bool shouldClose_ = false;

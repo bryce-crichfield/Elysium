@@ -6,9 +6,12 @@
 #include <vector>
 #include "Core/Message.h"
 #include "Core/Scene.h"
-#include "Editor/SceneInspector.h"
 #include "Service.h"
 #include "raylib.h"
+
+namespace Elysium {
+class SceneEditor;
+}
 
 namespace Elysium::Services {
 
@@ -22,7 +25,7 @@ struct SceneRegistration {
 
 class SceneService : public Elysium::Service {
    public:
-    friend class Elysium::SceneInspector;
+    friend class Elysium::SceneEditor;
 
     SceneService();
     ~SceneService() = default;
@@ -35,7 +38,6 @@ class SceneService : public Elysium::Service {
     void OnMessage(const Message& message);
     void Update(float deltaTime) override;
     void Render() override;
-    void ImGui() override;
 
     // Scene registration
     void RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory);
@@ -70,9 +72,6 @@ class SceneService : public Elysium::Service {
 
     // Rendering helpers
     void CalculateLetterboxing();
-
-    // Components
-    Elysium::SceneInspector inspector_;
 
     // Scene registry and stack
     std::unordered_map<std::string, SceneRegistration> scenes_;

@@ -1,23 +1,23 @@
 #pragma once
 
+#include "Core/Editor.h"
+
 namespace Elysium {
 
 namespace Services {
 class SceneService;
 }
 
-class SceneInspector {
+class SceneEditor : public Editor {
    public:
-    SceneInspector() = default;
-    ~SceneInspector() = default;
+    SceneEditor();
 
-    void DrawUI(Services::SceneService& service);
+    void Draw(Application& app) override;
 
    private:
     void DrawScenesPanel(Services::SceneService& service);
     void DrawCurrentScenePanel(Services::SceneService& service);
     void DrawSystemsDrawer(Services::SceneService& service);
-    void DrawAssetsDrawer(Services::SceneService& service);
 
     // Panel state
     float leftPanelWidth_ = 300.0f;

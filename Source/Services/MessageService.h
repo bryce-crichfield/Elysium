@@ -17,7 +17,6 @@ class MessageService : public Service {
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    void ImGui() override;
 
     // Thread-safe: post a message from any thread
     template <typename T, typename... Args>

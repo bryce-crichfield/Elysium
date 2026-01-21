@@ -38,7 +38,6 @@ class NetworkService : public Service {
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    void ImGui() override;
 
     // Network control
     void StartServer(uint16_t port = 7777, size_t maxClients = 32);
@@ -53,6 +52,11 @@ class NetworkService : public Service {
     // Status
     bool IsRunning() const { return isRunning_; }
     NetworkMode GetMode() const { return config_.mode; }
+    uint32_t GetConnectedPeers() const { return connectedPeers_; }
+    uint32_t GetPacketsSent() const { return packetsSent_; }
+    uint32_t GetPacketsReceived() const { return packetsReceived_; }
+    uint64_t GetBytesSent() const { return bytesSent_; }
+    uint64_t GetBytesReceived() const { return bytesReceived_; }
 
    private:
     // Scene change handling

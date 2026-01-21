@@ -43,8 +43,6 @@ void MessageService::Update(float deltaTime) {
     }
 }
 
-void MessageService::ImGui() {
-}
 
 // Remove all subscriptions for an owner (call in OnExit/Shutdown)
 void MessageService::UnsubscribeAll(void* owner) {

@@ -1,31 +1,26 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <typeindex>
-
-#include <memory>
 #include <unordered_map>
 #include <vector>
-#include "imgui.h"
+
 namespace Elysium {
+
 class Service {
    public:
     virtual ~Service() = default;
 
     virtual void Initialize() = 0;
     virtual void Shutdown() = 0;
-
-    std::string GetName();
     virtual void Update(float deltaTime) = 0;
     virtual void Render() {}
-    void DebugDraw();
-    virtual void ImGui();
-    void ToggleVisibility();
+
+    std::string GetName() const { return name_; }
 
    protected:
     std::string name_ = "UndefinedService";
-    bool isVisible_ = false;
-    bool hasUi_ = true;
 };
 
 struct Task {

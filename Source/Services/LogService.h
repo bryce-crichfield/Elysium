@@ -49,6 +49,7 @@ class LogService : public Elysium::Service {
     void Initialize() override;
     void Initialize(const std::string& logFilePath = "logs/engine.log");
     void Shutdown() override;
+    void Update(float deltaTime) override;
 
     // Standardized service logging methods
     static void LogInfo(const std::string& topic, const std::string& message);
@@ -85,14 +86,14 @@ class LogService : public Elysium::Service {
         LogDebug(topic, std::string(buffer));
     }
 
-    void Update(float deltaTime) override;
-    void ImGui() override;
-
     void LogMessage(int logLevel, const std::string& message);
     void LogMessage(LogLevel level, const std::string& topic, const std::string& message);
 
-    // Get all discovered topics for filtering
+    // Accessors for LogEditor
+    const std::vector<LogEntry>& GetLogBuffer() const { return logBuffer_; }
     std::vector<std::string> GetAllTopics() const;
+    std::string FormatTimestamp(const std::chrono::system_clock::time_point& timestamp) const;
+    std::string FormatLogEntry(const LogEntry& entry) const;
 
    private:
     // Core state
@@ -110,43 +111,17 @@ class LogService : public Elysium::Service {
     // Topic discovery
     mutable std::unordered_set<std::string> discoveredTopics_;
 
-    // UI state - filtering
-    std::unordered_map<std::string, bool> topicFilters_;
-    std::unordered_map<LogLevel, bool> levelFilters_;
-    bool showFilterPanel_ = false;
-    std::string searchFilter_ = "";
-
-    // UI state - selection
-    std::unordered_set<int> selectedLogIndices_;
-    int dragStartIndex_ = -1;
-    bool isDragging_ = false;
-
     // Constants
     static constexpr size_t MAX_LOG_BUFFER_SIZE = 1000;
-    static constexpr size_t MAX_DISPLAY_LOGS = 500;
 
     // Core methods
     void WriterThreadFunction();
     void WriteLogToFile(const LogEntry& entry);
     void WriteLogToStdout(const LogEntry& entry);
-    void InitializeFilters();
 
-    // UI rendering
-    void DrawHeader();
-    void DrawFilterPanel();
-    void DrawLevelFilters();
-    void DrawTopicFilters();
-    void DrawLogEntries();
-    void HandleLogSelection(int logIndex, const std::vector<int>& visibleIndices);
-    void DrawLogContextMenu(int logIndex, const LogEntry& entry, const std::string& fullLogText);
-
-    // Filtering and utilities
-    bool ShouldDisplayEntry(const LogEntry& entry) const;
-    std::string FormatTimestamp(const std::chrono::system_clock::time_point& timestamp) const;
-    std::string FormatLogEntry(const LogEntry& entry) const;
+    // Utilities
     const char* GetLogLevelName(LogLevel level) const;
     const char* GetLogLevelColor(LogLevel level) const;
-    unsigned int GetImGuiColor(LogLevel level) const;
 };
 
 }  // namespace Elysium::Services

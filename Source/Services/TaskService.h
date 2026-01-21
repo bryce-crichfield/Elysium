@@ -8,7 +8,6 @@
 #include <string>
 #include <thread>
 #include "Service.h"
-#include "imgui.h"
 // #include "Core/Common.h"
 
 namespace Elysium {
@@ -102,9 +101,6 @@ class TaskService : public Service {
         // Can be overridden by derived classes for additional logic
     }
 
-    void ImGui() override {
-    }
-
    protected:
     // Override this for custom task processing logic
     virtual void OnTaskProcessed(TaskType* task) {}
@@ -172,4 +168,4 @@ class TaskService : public Service {
     std::atomic<int> totalTasks_;
     std::atomic<int> processedTasks_;
 };
-};  // namespace Elysium
+}  // namespace Elysium

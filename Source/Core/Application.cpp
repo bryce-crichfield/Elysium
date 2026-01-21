@@ -6,6 +6,12 @@
 #include "Common.h"
 #include "Utilities/Path.h"
 #include "Services/Services.h"
+#include "Editor/SceneEditor.h"
+#include "Editor/WorldEditor.h"
+#include "Editor/LogEditor.h"
+#include "Editor/AssetEditor.h"
+#include "Editor/TimelineEditor.h"
+#include "Editor/NetworkEditor.h"
 #include "imgui.h"
 #include "rlImGui.h"
 
@@ -41,6 +47,13 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterService(std::make_unique<Elysium::Services::LoadingService>());
     RegisterService(std::make_unique<Elysium::Services::SceneService>());
     RegisterService(std::make_unique<Elysium::Services::TimelineService>());
+
+    RegisterEditor<SceneEditor>();
+    RegisterEditor<WorldEditor>();
+    RegisterEditor<LogEditor>();
+    RegisterEditor<AssetEditor>();
+    RegisterEditor<TimelineEditor>();
+    RegisterEditor<NetworkEditor>();
 
     g_appInstance = this;
     SetTraceLogCallback(CustomTraceLogCallback);
@@ -152,8 +165,10 @@ void Application::Draw() {
 
     // ImGui overlays on top
     rlImGuiBegin();
-    for (auto& service : serviceRegistry_.GetAllServices()) {
-        service->DebugDraw();
+    for (auto& editor : editors_) {
+        if (editor->IsVisible()) {
+            editor->Draw(*this);
+        }
     }
     rlImGuiEnd();
 
@@ -166,30 +181,41 @@ void Application::ProcessEvents() {
 
 void Application::ProcessInput() {
     Profile;
-    ImGuiIO& io = ImGui::GetIO();
 
     if (IsKeyPressed(KEY_F1)) {
-        serviceRegistry_.GetService<Elysium::Services::SceneService>().ToggleVisibility();
-    }
-
-    if (IsKeyPressed(KEY_F3)) {
-        serviceRegistry_.GetService<Elysium::Services::WorldService>().ToggleVisibility();
+        if (auto* editor = GetEditor<SceneEditor>()) {
+            editor->ToggleVisibility();
+        }
     }
 
     if (IsKeyPressed(KEY_F2)) {
-        serviceRegistry_.GetService<Elysium::Services::LogService>().ToggleVisibility();
+        if (auto* editor = GetEditor<LogEditor>()) {
+            editor->ToggleVisibility();
+        }
+    }
+
+    if (IsKeyPressed(KEY_F3)) {
+        if (auto* editor = GetEditor<WorldEditor>()) {
+            editor->ToggleVisibility();
+        }
     }
 
     if (IsKeyPressed(KEY_F4)) {
-        serviceRegistry_.GetService<Elysium::Services::TimelineService>().ToggleVisibility();
+        if (auto* editor = GetEditor<TimelineEditor>()) {
+            editor->ToggleVisibility();
+        }
     }
 
     if (IsKeyPressed(KEY_F5)) {
-        serviceRegistry_.GetService<Elysium::Services::AssetService>().ToggleVisibility();
+        if (auto* editor = GetEditor<AssetEditor>()) {
+            editor->ToggleVisibility();
+        }
     }
 
     if (IsKeyPressed(KEY_F6)) {
-        serviceRegistry_.GetService<Elysium::Services::NetworkService>().ToggleVisibility();
+        if (auto* editor = GetEditor<NetworkEditor>()) {
+            editor->ToggleVisibility();
+        }
     }
 }
 

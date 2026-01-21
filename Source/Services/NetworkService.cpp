@@ -33,7 +33,6 @@ namespace Elysium::Services {
 
 NetworkService::NetworkService() {
     name_ = "NetworkService";
-    hasUi_ = true;
 }
 
 NetworkService::~NetworkService() {
@@ -388,53 +387,6 @@ void NetworkService::OnNetworkDataReceived(const NetworkDataReceivedMessage& msg
             }
             break;
     }
-}
-
-void NetworkService::ImGui() {
-    if (!isVisible_)
-        return;
-
-    ImGui::Begin(name_.c_str(), &isVisible_);
-
-    // Status
-    ImGui::Text("Mode: %s",
-                config_.mode == NetworkMode::Server ? "Server" : config_.mode == NetworkMode::Client ? "Client"
-                                                                                                     : "None");
-    ImGui::Text("Running: %s", isRunning_.load() ? "Yes" : "No");
-    ImGui::Text("Connected Peers: %u", connectedPeers_.load());
-
-    ImGui::Separator();
-
-    // Stats
-    ImGui::Text("Packets Sent: %u", packetsSent_.load());
-    ImGui::Text("Packets Received: %u", packetsReceived_.load());
-    ImGui::Text("Bytes Sent: %llu", bytesSent_.load());
-    ImGui::Text("Bytes Received: %llu", bytesReceived_.load());
-
-    ImGui::Separator();
-
-    // Controls
-    if (!isRunning_) {
-        static char addressBuf[128] = "127.0.0.1";
-        static int port = 7777;
-
-        ImGui::InputText("Address", addressBuf, sizeof(addressBuf));
-        ImGui::InputInt("Port", &port);
-
-        if (ImGui::Button("Start Server")) {
-            StartServer(port);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Start Client")) {
-            StartClient(addressBuf, port);
-        }
-    } else {
-        if (ImGui::Button("Stop")) {
-            Stop();
-        }
-    }
-
-    ImGui::End();
 }
 
 }  // namespace Elysium::Services

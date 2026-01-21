@@ -1,62 +1,71 @@
-#include "SceneInspector.h"
+#include "SceneEditor.h"
 #include <typeinfo>
+#include "Core/Application.h"
 #include "Core/Common.h"
-#include "Services/SceneService.h"
 #include "Core/System.h"
+#include "Services/SceneService.h"
 #include "imgui.h"
 
 namespace Elysium {
 
 using namespace Services;
 
-void SceneInspector::DrawUI(SceneService& service) {
+SceneEditor::SceneEditor() : Editor("Scene Editor") {}
+
+void SceneEditor::Draw(Application& app) {
     Profile;
 
-    // Left side header
-    ImGui::Text("Scenes");
-    ImGui::SameLine(leftPanelWidth_ + 10);
-    ImGui::Text("Scene Stack");
+    auto& service = app.GetService<SceneService>();
 
-    // Left panel - Scenes Panel
-    ImGui::BeginChild("ScenesPanel", ImVec2(leftPanelWidth_, 0), true);
-    DrawScenesPanel(service);
-    ImGui::EndChild();
+    ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin(name_.c_str(), &isVisible_, ImGuiWindowFlags_NoCollapse)) {
+        // Left side header
+        ImGui::Text("Scenes");
+        ImGui::SameLine(leftPanelWidth_ + 10);
+        ImGui::Text("Scene Stack");
 
-    ImGui::SameLine();
+        // Left panel - Scenes Panel
+        ImGui::BeginChild("ScenesPanel", ImVec2(leftPanelWidth_, 0), true);
+        DrawScenesPanel(service);
+        ImGui::EndChild();
 
-    // Splitter
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
-    ImGui::Button("##splitter", ImVec2(4.0f, -1));
+        ImGui::SameLine();
 
-    if (ImGui::IsItemActive()) {
-        if (!isDraggingSplitter_) {
-            isDraggingSplitter_ = true;
+        // Splitter
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+        ImGui::Button("##splitter", ImVec2(4.0f, -1));
+
+        if (ImGui::IsItemActive()) {
+            if (!isDraggingSplitter_) {
+                isDraggingSplitter_ = true;
+            } else {
+                leftPanelWidth_ += ImGui::GetIO().MouseDelta.x;
+                if (leftPanelWidth_ < 200.0f)
+                    leftPanelWidth_ = 200.0f;
+                if (leftPanelWidth_ > ImGui::GetWindowWidth() - 200.0f)
+                    leftPanelWidth_ = ImGui::GetWindowWidth() - 200.0f;
+            }
         } else {
-            leftPanelWidth_ += ImGui::GetIO().MouseDelta.x;
-            if (leftPanelWidth_ < 200.0f)
-                leftPanelWidth_ = 200.0f;
-            if (leftPanelWidth_ > ImGui::GetWindowWidth() - 200.0f)
-                leftPanelWidth_ = ImGui::GetWindowWidth() - 200.0f;
+            isDraggingSplitter_ = false;
         }
-    } else {
-        isDraggingSplitter_ = false;
-    }
 
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-    }
-    ImGui::PopStyleColor(3);
-    ImGui::SameLine();
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        }
+        ImGui::PopStyleColor(3);
+        ImGui::SameLine();
 
-    // Right panel - Scene Stack Panel
-    ImGui::BeginChild("SceneStackPanel", ImVec2(0, 0), true);
-    DrawCurrentScenePanel(service);
-    ImGui::EndChild();
+        // Right panel - Scene Stack Panel
+        ImGui::BeginChild("SceneStackPanel", ImVec2(0, 0), true);
+        DrawCurrentScenePanel(service);
+        ImGui::EndChild();
+    }
+    ImGui::End();
 }
 
-void SceneInspector::DrawScenesPanel(SceneService& service) {
+void SceneEditor::DrawScenesPanel(SceneService& service) {
     // Scene Management Buttons
     bool hasSelection = selectedSceneIndex_ >= 0 && selectedSceneIndex_ < (int)service.scenes_.size();
 
@@ -182,7 +191,7 @@ void SceneInspector::DrawScenesPanel(SceneService& service) {
     }
 }
 
-void SceneInspector::DrawCurrentScenePanel(SceneService& service) {
+void SceneEditor::DrawCurrentScenePanel(SceneService& service) {
     Scene* topScene = service.GetTopScene();
 
     if (topScene) {
@@ -207,7 +216,7 @@ void SceneInspector::DrawCurrentScenePanel(SceneService& service) {
     }
 }
 
-void SceneInspector::DrawSystemsDrawer(SceneService& service) {
+void SceneEditor::DrawSystemsDrawer(SceneService& service) {
     static bool systemsOpen = true;
     if (ImGui::CollapsingHeader("Systems", systemsOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
         Scene* topScene = service.GetTopScene();
@@ -258,11 +267,6 @@ void SceneInspector::DrawSystemsDrawer(SceneService& service) {
 
         ImGui::Text("Total Systems: %zu", systems.size());
     }
-}
-
-void SceneInspector::DrawAssetsDrawer(SceneService& service) {
-    // Assets drawer removed - GetAssets() no longer exists
-    // Assets are now managed globally through AssetService
 }
 
 }  // namespace Elysium
