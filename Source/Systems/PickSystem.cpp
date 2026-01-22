@@ -81,8 +81,8 @@ void PickSystem::HandleMouseMoved(const MouseMovedEvent& event) {
     Vector2 worldPos = FramebufferToWorld(fbPos);
     auto& pos = world->GetComponent<PositionComponent>(draggedEntity_);
 
-    pos.x = worldPos.x - dragOffset_.x;
-    pos.y = worldPos.y - dragOffset_.y;
+    // pos.x = worldPos.x - dragOffset_.x;
+    // pos.y = worldPos.y - dragOffset_.y;
 
     auto pickEvent = PickEvent{ PickEvent::Type::MOVE, worldPos, 0 };
     FireEvent(pickEvent);

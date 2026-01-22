@@ -71,9 +71,40 @@ static Color ObjectToColor(const sol::object& obj) {
     return WHITE;
 }
 
+static Vector2 ScreenToWorld(Vector2 screenPos) {
+    auto* world = GetActiveWorld();
+    if (!world) return screenPos;
+
+    Vector2 cameraPos = {0, 0};
+    float zoom = 1.0f;
+    Vector2 viewportCenter = {0, 0};
+    bool foundCamera = false;
+
+    world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
+        if (!foundCamera && cameraComp.isVisible) {
+            if (world->HasComponent<PositionComponent>(camEnt)) {
+                auto& pos = world->GetComponent<PositionComponent>(camEnt);
+                cameraPos = { pos.x, pos.y };
+            }
+            zoom = cameraComp.zoom;
+            viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
+            foundCamera = true;
+        }
+    });
+
+    if (foundCamera) {
+        return {
+            ((screenPos.x - viewportCenter.x) / zoom) + cameraPos.x,
+            ((screenPos.y - viewportCenter.y) / zoom) + cameraPos.y
+        };
+    }
+    return screenPos;
+}
+
 void ScriptService::BindComponents() {
     // Vector2 (Raylib)
     lua.new_usertype<Vector2>("Vector2",
+        sol::constructors<Vector2(), Vector2(float, float)>(),
         "x", &Vector2::x,
         "y", &Vector2::y
     );
@@ -116,7 +147,9 @@ void ScriptService::BindComponents() {
         sol::constructors<MovementComponent()>(),
         "speed", &MovementComponent::speed,
         "isMoving", &MovementComponent::isMoving,
-        "loop", &MovementComponent::loop
+        "loop", &MovementComponent::loop,
+        "AddWaypoint", &MovementComponent::AddWaypoint,
+        "ClearWaypoints", &MovementComponent::ClearWaypoints
     );
 
     // SpriteComponent
@@ -133,6 +166,20 @@ void ScriptService::BindComponents() {
         "isDragging", &BoundsComponent::isDragging,
         "debugColor", sol::property([](BoundsComponent& b) { return b.debugColor; }, [](BoundsComponent& b, sol::object v) { b.debugColor = ObjectToColor(v); })
     );
+
+    // TeamComponent
+    lua.new_usertype<TeamComponent>("TeamComponent",
+        sol::constructors<TeamComponent(), TeamComponent(int)>(),
+        "teamId", &TeamComponent::teamId
+    );
+
+    // UnitComponent
+    lua.new_usertype<UnitComponent>("UnitComponent",
+        sol::constructors<UnitComponent()>(),
+        "hasActedThisTurn", &UnitComponent::hasActedThisTurn,
+        "canMove", &UnitComponent::canMove,
+        "canAttack", &UnitComponent::canAttack
+    );
 }
 
 void ScriptService::BindEntityAPI() {
@@ -141,21 +188,44 @@ void ScriptService::BindEntityAPI() {
         LOG_INFO("Lua", msg.c_str());
     });
 
+    // Lifecycle
+    lua.set_function("CreateEntity", []() -> Entity {
+        auto* world = GetActiveWorld();
+        return world ? world->CreateEntity() : 0;
+    });
+
+    lua.set_function("DestroyEntity", [](Entity entity) {
+        auto* world = GetActiveWorld();
+        if (world) world->DestroyEntity(entity);
+    });
+
+    lua.set_function("CloneEntity", [](Entity entity) {
+        auto* world = GetActiveWorld();
+        return world ? world->CloneEntity(entity) : 0;
+    });
+
     // Random
     lua.set_function("Random", [](int min, int max) {
         return min + (std::rand() % (max - min + 1));
     });
 
-    // SceneReplace
+    // Scene
     lua.set_function("SceneReplace", [](const std::string& sceneName) {
         auto& app = Elysium::Application::GetInstance();
         app.GetService<Elysium::Services::SceneService>().Replace(sceneName);
     });
 
-    // CloneEntity
-    lua.set_function("CloneEntity", [](Entity entity) {
-        auto* world = GetActiveWorld();
-        return world ? world->CloneEntity(entity) : 0;
+    // Input Polling
+    lua.set_function("IsKeyDown", [](int key) { return IsKeyDown(key); });
+    lua.set_function("IsKeyPressed", [](int key) { return IsKeyPressed(key); });
+    lua.set_function("IsMouseButtonDown", [](int button) { return IsMouseButtonDown(button); });
+    lua.set_function("IsMouseButtonPressed", [](int button) { return IsMouseButtonPressed(button); });
+    lua.set_function("GetMousePosition", []() { 
+        Vector2 m = GetMousePosition();
+        LOG_INFOF("Lua", "Mouse Position: %f, %f", m.x, m.y);
+        auto output = ScreenToWorld(m);
+        LOG_INFOF("Lua", "Converted World Position: %f, %f", output.x, output.y);
+        return output;
     });
 
     // GetComponent
@@ -182,6 +252,14 @@ void ScriptService::BindEntityAPI() {
         else if (name == "Bounds") {
             if (world->HasComponent<BoundsComponent>(entity))
                 return sol::make_object(lua.lua_state(), &world->GetComponent<BoundsComponent>(entity));
+        }
+        else if (name == "Team") {
+            if (world->HasComponent<TeamComponent>(entity))
+                return sol::make_object(lua.lua_state(), &world->GetComponent<TeamComponent>(entity));
+        }
+        else if (name == "Unit") {
+            if (world->HasComponent<UnitComponent>(entity))
+                return sol::make_object(lua.lua_state(), &world->GetComponent<UnitComponent>(entity));
         }
         return sol::nil;
     });
@@ -242,6 +320,14 @@ void ScriptService::BindEntityAPI() {
             auto& comp = getOrAdd.template operator()<BoundsComponent>();
             if (value.is<BoundsComponent>()) comp = value.as<BoundsComponent>();
         }
+        else if (name == "Team") {
+            auto& comp = getOrAdd.template operator()<TeamComponent>();
+            if (value.is<TeamComponent>()) comp = value.as<TeamComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.teamId = t.get_or("teamId", comp.teamId);
+            }
+        }
     });
 
     // AddComponent
@@ -254,9 +340,47 @@ void ScriptService::BindEntityAPI() {
         else if (name == "Movement") { if(!world->HasComponent<MovementComponent>(entity)) world->AddComponent<MovementComponent>(entity, {}); }
         else if (name == "Sprite") { if(!world->HasComponent<SpriteComponent>(entity)) world->AddComponent<SpriteComponent>(entity, {}); }
         else if (name == "Bounds") { if(!world->HasComponent<BoundsComponent>(entity)) world->AddComponent<BoundsComponent>(entity, {}); }
+        else if (name == "Team") { if(!world->HasComponent<TeamComponent>(entity)) world->AddComponent<TeamComponent>(entity, {}); }
+        else if (name == "Unit") { if(!world->HasComponent<UnitComponent>(entity)) world->AddComponent<UnitComponent>(entity, {}); }
         else {
              LOG_WARNINGF("Lua", "AddComponent: Unknown component type '%s'", name.c_str());
         }
+    });
+
+    // HasComponent
+    lua.set_function("HasComponent", [](Entity entity, const std::string& name) -> bool {
+        auto* world = GetActiveWorld();
+        if (!world) return false;
+        if (name == "Position") return world->HasComponent<PositionComponent>(entity);
+        if (name == "Rectangle") return world->HasComponent<RectangleComponent>(entity);
+        if (name == "Movement") return world->HasComponent<MovementComponent>(entity);
+        if (name == "Sprite") return world->HasComponent<SpriteComponent>(entity);
+        if (name == "Bounds") return world->HasComponent<BoundsComponent>(entity);
+        if (name == "Team") return world->HasComponent<TeamComponent>(entity);
+        if (name == "Unit") return world->HasComponent<UnitComponent>(entity);
+        return false;
+    });
+
+    // RemoveComponent
+    lua.set_function("RemoveComponent", [](Entity entity, const std::string& name) {
+        auto* world = GetActiveWorld();
+        if (!world) return;
+        if (name == "Position") world->RemoveComponent<PositionComponent>(entity);
+        else if (name == "Rectangle") world->RemoveComponent<RectangleComponent>(entity);
+        else if (name == "Movement") world->RemoveComponent<MovementComponent>(entity);
+        else if (name == "Sprite") world->RemoveComponent<SpriteComponent>(entity);
+        else if (name == "Bounds") world->RemoveComponent<BoundsComponent>(entity);
+        else if (name == "Team") world->RemoveComponent<TeamComponent>(entity);
+        else if (name == "Unit") world->RemoveComponent<UnitComponent>(entity);
+    });
+
+    // GetEntityByName
+    lua.set_function("GetEntityByName", [](const std::string& name) -> Entity {
+        auto* world = GetActiveWorld();
+        if (!world) return 0;
+        Entity entity;
+        if (world->GetEntityByName(name, &entity)) return entity;
+        return 0;
     });
 }
 
@@ -376,35 +500,9 @@ void ScriptService::OnEntityEvent(Entity entity, const std::string& scriptName, 
     sol::table eventData = lua.create_table();
 
     auto AddWorldCoords = [&](float screenX, float screenY) {
-        auto* world = GetActiveWorld();
-        if (world) {
-            Vector2 cameraPos = {0, 0};
-            float zoom = 1.0f;
-            Vector2 viewportCenter = {0, 0};
-            bool foundCamera = false;
-
-            world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
-                if (!foundCamera && cameraComp.isVisible) {
-                    if (world->HasComponent<PositionComponent>(camEnt)) {
-                        auto& pos = world->GetComponent<PositionComponent>(camEnt);
-                        cameraPos = { pos.x, pos.y };
-                    }
-                    zoom = cameraComp.zoom;
-                    viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
-                    foundCamera = true;
-                }
-            });
-
-            if (foundCamera) {
-                float wx = ((screenX - viewportCenter.x) / zoom) + cameraPos.x;
-                float wy = ((screenY - viewportCenter.y) / zoom) + cameraPos.y;
-                eventData["wx"] = wx;
-                eventData["wy"] = wy;
-                return;
-            }
-        }
-        eventData["wx"] = screenX;
-        eventData["wy"] = screenY;
+        Vector2 worldPos = ScreenToWorld({screenX, screenY});
+        eventData["wx"] = worldPos.x;
+        eventData["wy"] = worldPos.y;
     };
 
     if (auto* e = event.As<KeyPressedEvent>()) {

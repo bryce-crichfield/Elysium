@@ -17,15 +17,13 @@ void MovementSystem::Update(float deltaTime) {
                     movement.currentWaypointIndex = 0;
                 } else {
                     movement.isMoving = false;
+                    movement.waypoints.clear();
+                    movement.currentWaypointIndex = 0;
                     return;
                 }
             }
 
             Vector2 target = movement.waypoints[movement.currentWaypointIndex];
-            target.x *= TILE_WIDTH;
-            target.x += TILE_WIDTH / 2;
-            target.y *= TILE_HEIGHT;
-            target.y += TILE_HEIGHT / 2;
             Vector2 direction = Vector2Subtract(target, {pos.x, pos.y});
             float distance = Vector2Length(direction);
 

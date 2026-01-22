@@ -133,6 +133,16 @@ void WorldService::DrawComponent<MovementComponent>(Entity entity, Elysium::Worl
     ImGui::Checkbox("##Loop", &movement.loop);
     ImGui::Text("Waypoints: %zu", movement.waypoints.size());
     ImGui::Text("Current Waypoint: %zu", movement.currentWaypointIndex);
+    for (size_t i = 0; i < movement.waypoints.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Waypoint %zu:", i);
+        ImGui::SameLine(140.0f);
+        ImGui::SetNextItemWidth(-1);
+        ImGui::DragFloat2("##Waypoint", &movement.waypoints[i].x, 1.0f);
+        ImGui::PopID();
+    }
+    
 }
 
 template <>
