@@ -26,6 +26,11 @@ add_subdirectory(Vendor/SQLiteCpp)
 add_subdirectory(Vendor/enet)
 add_subdirectory(Vendor/lua)
 
+# sol2
+set(SOL2_TESTS OFF CACHE BOOL "" FORCE)
+set(SOL2_EXAMPLES OFF CACHE BOOL "" FORCE)
+add_subdirectory(Vendor/sol2)
+
 # ImGui library, since it doesn't have a CMakeLists.txt, we have to build it ourselves
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/imgui)
 set(IMGUI_SOURCES
@@ -75,6 +80,7 @@ target_link_libraries(${PROJECT_NAME}
     SQLiteCpp
     enet
     lua
+    sol2::sol2
 )
 
 # Add Tracy if enabled
@@ -101,6 +107,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/SQLiteCpp/include
     ${CMAKE_SOURCE_DIR}/Vendor/enet/include
     ${CMAKE_SOURCE_DIR}/Vendor/lua
+    ${CMAKE_SOURCE_DIR}/Vendor/sol2/include
 )
 
 if(TRACY_ENABLE)
