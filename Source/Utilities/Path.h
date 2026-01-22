@@ -14,6 +14,7 @@ class Path {
     explicit Path(const char* relativePath);
 
     std::string GetFullPath() const;
+    const std::string& GetRelativePath() const { return relativePath_; }
     const char* c_str() const;
 
    private:

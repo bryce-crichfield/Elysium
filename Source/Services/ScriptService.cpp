@@ -8,6 +8,8 @@
 #include "imgui.h"
 #include <memory>
 
+#include "Systems/PickSystem.h"
+
 // =================================================================================================
 // Component Adapters
 // =================================================================================================
@@ -197,6 +199,67 @@ const char* SpriteComponentAdapter::GetComponentName() const {
     return "Sprite";
 }
 
+/*
+struct BoundsComponent {
+    Rectangle bounds;  // Bounding box in world space
+    bool isDragging;   // Is this entity currently being dragged
+    Color debugColor;  // Color to draw debug bounds
+*/
+void BoundsComponentAdapter::Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) {
+    if (world->HasComponent<Elysium::BoundsComponent>(entity)) {
+        const auto& bounds = world->GetComponent<Elysium::BoundsComponent>(entity);
+        lua_newtable(L);
+        lua_pushnumber(L, bounds.bounds.x);
+        lua_setfield(L, -2, "x");
+        lua_pushnumber(L, bounds.bounds.y);
+        lua_setfield(L, -2, "y");
+        lua_pushnumber(L, bounds.bounds.width);
+        lua_setfield(L, -2, "width");
+        lua_pushnumber(L, bounds.bounds.height);
+        lua_setfield(L, -2, "height");
+    } else {
+        lua_pushnil(L);
+    }
+}
+
+void BoundsComponentAdapter::Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) {
+    if (lua_istable(L, -1)) {
+        Elysium::BoundsComponent bounds;
+        if (world->HasComponent<Elysium::BoundsComponent>(entity)) {
+            bounds = world->GetComponent<Elysium::BoundsComponent>(entity);
+        }
+        lua_getfield(L, -1, "x");
+        if (lua_isnumber(L, -1)) {
+            bounds.bounds.x = static_cast<float>(lua_tonumber(L, -1));
+        }
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "y");
+        if (lua_isnumber(L, -1)) {
+            bounds.bounds.y = static_cast<float>(lua_tonumber(L, -1));
+        }
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "width");
+        if (lua_isnumber(L, -1)) {
+            bounds.bounds.width = static_cast<float>(lua_tonumber(L, -1));
+        }
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "height");
+        if (lua_isnumber(L, -1)) {
+            bounds.bounds.height = static_cast<float>(lua_tonumber(L, -1));
+        }
+        lua_pop(L, 1);
+        if (world->HasComponent<Elysium::BoundsComponent>(entity)) {
+            world->GetComponent<Elysium::BoundsComponent>(entity) = bounds;
+        } else {
+            world->AddComponent<Elysium::BoundsComponent>(entity, bounds);
+        }
+    }
+}
+
+const char* BoundsComponentAdapter::GetComponentName() const {
+    return "Bounds";
+}
+
 
 ScriptService::ScriptService() {
     name_ = "ScriptService";
@@ -287,6 +350,19 @@ void ScriptService::BindEntityAPI() {
         auto& app = Elysium::Application::GetInstance();
         app.GetService<Elysium::Services::SceneService>().Replace(sceneName);
         return 0;
+    });
+
+    // CloneEntity(entityID) -> newEntityID
+    lua_register(L, "CloneEntity", [](lua_State* L) -> int {
+        Entity entity = (Entity)luaL_checkinteger(L, 1);
+        auto* world = GetActiveWorld();
+        if (!world) {
+            lua_pushinteger(L, 0);
+            return 1;
+        }
+        Entity newEntity = world->CloneEntity(entity);
+        lua_pushinteger(L, (lua_Integer)newEntity);
+        return 1;
     });
 
     // GetComponent(entityID, componentName) -> table or nil
@@ -631,6 +707,26 @@ void ScriptService::OnEntityEvent(Entity entity, const std::string& scriptName, 
             lua_pushnumber(L, e->GetDelta().y);
             lua_setfield(L, -2, "dy");
             AddWorldCoords(e->GetPosition().x, e->GetPosition().y);
+        }
+        else if (auto* e = event.As<Elysium::Systems::PickEvent>()) {
+            std::string typeStr = "";
+            switch (e->type) {
+                case Elysium::Systems::PickEvent::Type::PRESS:
+                    typeStr = "PickPress";
+                    break;
+                case Elysium::Systems::PickEvent::Type::RELEASE:
+                    typeStr = "PickRelease";
+                    break;
+                case Elysium::Systems::PickEvent::Type::MOVE:
+                    typeStr = "PickMove";
+                    break;
+            }
+            lua_pushstring(L, typeStr.c_str());
+            lua_setfield(L, -2, "type");
+            lua_pushnumber(L, e->position.x);
+            lua_setfield(L, -2, "wx");
+            lua_pushnumber(L, e->position.y);
+            lua_setfield(L, -2, "wy");
         }
         else {
             // Unknown event or not handled yet

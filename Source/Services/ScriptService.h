@@ -50,6 +50,13 @@ public:
     const char* GetComponentName() const override;
 };
 
+class BoundsComponentAdapter : public Elysium::Services::ILuaComponentAdapter {
+public:
+    void Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;
+    void Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;        
+    const char* GetComponentName() const override;
+};
+
 class ScriptService : public Elysium::Service {
 public:
     ScriptService();

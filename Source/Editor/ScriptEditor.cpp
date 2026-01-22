@@ -1,6 +1,7 @@
 #include "ScriptEditor.h"
 #include "Core/Application.h"
 #include "Services/ScriptService.h"
+#include "Services/AssetService.h"
 #include "Utilities/Path.h"
 #include "imgui.h"
 #include "raylib.h"
@@ -19,29 +20,48 @@ void ScriptEditor::Initialize() {
 void ScriptEditor::Draw(Application& app) {
     if (ImGui::Begin("Script Editor", &isVisible_)) {
         
-        ImGui::InputText("Path (Relative to Assets/)", scriptPath, sizeof(scriptPath));
-        
-        if (ImGui::Button("Load")) {
-            Path path(scriptPath);
-            char* text = LoadFileText(path.c_str());
-            if (text) {
-                strncpy(scriptBuffer, text, sizeof(scriptBuffer) - 1);
-                UnloadFileText(text);
-                statusMessage = "Loaded " + std::string(path.c_str());
-            } else {
-                statusMessage = "Failed to load " + std::string(path.c_str());
+        auto& assetService = app.GetService<Services::AssetService>();
+        const auto& allAssets = assetService.GetAllAssets();
+
+        if (ImGui::BeginCombo("Select Script", selectedAssetName.c_str())) {
+            for (const auto& [name, asset] : allAssets) {
+                if (asset.GetType() == AssetType::SCRIPT) {
+                    bool isSelected = (selectedAssetName == name);
+                    if (ImGui::Selectable(name.c_str(), isSelected)) {
+                        selectedAssetName = name;
+                        // Load script content
+                        std::string content = assetService.GetScript(name);
+                        strncpy(scriptBuffer, content.c_str(), sizeof(scriptBuffer) - 1);
+                        statusMessage = "Loaded script: " + name;
+                    }
+                    if (isSelected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
             }
+            ImGui::EndCombo();
         }
         
-        ImGui::SameLine();
         if (ImGui::Button("Save")) {
-            Path path(scriptPath);
-            if (SaveFileText(path.c_str(), scriptBuffer)) {
-                auto& scriptService = app.GetService<Services::ScriptService>();
-                scriptService.ReloadScript(scriptPath);
-                statusMessage = "Saved and Reloaded " + std::string(path.c_str());
+            if (!selectedAssetName.empty()) {
+                Asset* asset = assetService.GetAsset(selectedAssetName);
+                if (asset) {
+                    std::string fullPath = asset->GetPath();
+                    if (SaveFileText(fullPath.c_str(), scriptBuffer)) {
+                        // Reload in AssetService
+                        assetService.ReloadAsset(selectedAssetName);
+                        
+                        // Reload in ScriptService (using relative path as identifier)
+                        auto& scriptService = app.GetService<Services::ScriptService>();
+                        scriptService.ReloadScript(asset->GetAssetPath().GetRelativePath());
+                        
+                        statusMessage = "Saved and Reloaded " + selectedAssetName;
+                    } else {
+                        statusMessage = "Failed to save " + selectedAssetName;
+                    }
+                }
             } else {
-                statusMessage = "Failed to save " + std::string(path.c_str());
+                statusMessage = "No script selected to save";
             }
         }
         

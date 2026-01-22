@@ -3,6 +3,9 @@
 #include "Core/Entity.h"
 #include "Services/LogService.h"
 #include "raymath.h"
+#include "Core/Application.h"
+#include "Services/EventService.h"
+#include "Core/Scene.h"
 
 namespace Elysium::Systems {
 
@@ -20,6 +23,12 @@ void PickSystem::OnEvent(Event& event) {
     } else if (event.Is<MouseButtonReleasedEvent>()) {
         HandleMouseReleased(*event.As<MouseButtonReleasedEvent>());
     }
+}
+
+void PickSystem::FireEvent(const PickEvent& pickEvent) {
+    Event& event = const_cast<PickEvent&>(pickEvent);
+    Scene* scene = GetScene();
+    scene->OnEvent(event);
 }
 
 void PickSystem::HandleMousePressed(const MouseButtonPressedEvent& event) {
@@ -47,6 +56,9 @@ void PickSystem::HandleMousePressed(const MouseButtonPressedEvent& event) {
     });
 
     if (foundEntity) {
+        auto pickEvent = PickEvent{PickEvent::Type::PRESS, worldPos, event.GetButton()};
+        FireEvent(pickEvent);
+
         draggedEntity_ = selectedEntity;
         isDragging_ = true;
 
@@ -71,6 +83,9 @@ void PickSystem::HandleMouseMoved(const MouseMovedEvent& event) {
 
     pos.x = worldPos.x - dragOffset_.x;
     pos.y = worldPos.y - dragOffset_.y;
+
+    auto pickEvent = PickEvent{ PickEvent::Type::MOVE, worldPos, 0 };
+    FireEvent(pickEvent);
 }
 
 void PickSystem::HandleMouseReleased(const MouseButtonReleasedEvent& event) {
@@ -88,6 +103,8 @@ void PickSystem::HandleMouseReleased(const MouseButtonReleasedEvent& event) {
 
         draggedEntity_ = 0;
         isDragging_ = false;
+        auto pickEvent = PickEvent{ PickEvent::Type::RELEASE, FramebufferToWorld(event.GetPosition()), event.GetButton() };
+        FireEvent(pickEvent);
     }
 }
 

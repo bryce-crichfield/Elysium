@@ -19,6 +19,7 @@ class AssetService : public Elysium::Service {
 
     // Core asset loading - takes Asset object with name, path, type
     void LoadAsset(const Asset& asset);
+    void ReloadAsset(const AssetName& name);
     void FinalizeAssets();  // Convert raw data to GPU resources on main thread
     bool IsAssetLoaded(const AssetName& name) const;
 

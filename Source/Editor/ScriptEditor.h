@@ -13,9 +13,9 @@ public:
     void Draw(Application& app) override;
 
 private:
-    char scriptPath[256] = "Scripts/test.lua";
     char scriptBuffer[1024 * 64]; // 64KB buffer
     std::string statusMessage;
+    std::string selectedAssetName;
     int fontSize_ = 24;
     void* font_ = nullptr;
 };

@@ -79,6 +79,28 @@ void AssetService::LoadAsset(const Asset& unloadedAsset) {
     }
 }
 
+void AssetService::ReloadAsset(const AssetName& name) {
+    auto it = assetsByName_.find(name);
+    if (it == assetsByName_.end()) {
+        LOG_WARNINGF("AssetService", "Cannot reload asset '%s', not found", name.c_str());
+        return;
+    }
+
+    Asset& asset = it->second;
+    if (asset.IsLoaded()) {
+        asset.Unload();
+    }
+
+    LOG_INFOF("AssetService", "Reloading asset: %s", name.c_str());
+    LoadAssetByType(asset);
+
+    if (asset.IsLoaded() || asset.HasImageData() || asset.HasWaveData()) {
+        LOG_INFOF("AssetService", "Successfully reloaded asset: %s", name.c_str());
+    } else {
+        LOG_ERRORF("AssetService", "Failed to reload asset: %s", name.c_str());
+    }
+}
+
 bool AssetService::IsAssetLoaded(const AssetName& name) const {
     auto it = assetsByName_.find(name);
     return it != assetsByName_.end() && it->second.IsLoaded();
