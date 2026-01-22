@@ -5,6 +5,7 @@
 #include "Core/Scene.h"
 #include "Core/Component.h"
 #include "Utilities/Path.h"
+#include "imgui.h"
 
 namespace Elysium::Services {
 
@@ -181,22 +182,6 @@ void ScriptService::BindEntityAPI() {
 
         return 0;
     });
-
-    // Random(min, max) -> int
-    lua_register(L, "Random", [](lua_State* L) -> int {
-        int min = (int)luaL_checkinteger(L, 1);
-        int max = (int)luaL_checkinteger(L, 2);
-        lua_pushinteger(L, GetRandomValue(min, max));
-        return 1;
-    });
-
-    // SceneReplace(sceneName)
-    lua_register(L, "SceneReplace", [](lua_State* L) -> int {
-        const char* sceneName = luaL_checkstring(L, 1);
-        auto& app = Elysium::Application::GetInstance();
-        app.GetService<Services::SceneService>().Replace(sceneName);
-        return 0;
-    });
 }
 
 int ScriptService::GetOrLoadScript(const std::string& scriptName) {
@@ -225,53 +210,74 @@ int ScriptService::GetOrLoadScript(const std::string& scriptName) {
 
     // Check if it returned a table
     if (!lua_istable(L, -1)) {
-        // If it didn't return a table, it might be a simple script. 
-        // We can't use it for the component system effectively in this design.
-        LOG_WARNINGF("ScriptService", "Script %s did not return a table. It cannot be used as a component script.", scriptName.c_str());
-        lua_pop(L, 1); // Pop the non-table result
+        LOG_WARNINGF("ScriptService", "Script %s did not return a table.", scriptName.c_str());
+        lua_pop(L, 1);
         return LUA_REFNIL;
     }
 
-    // Store in registry
     int ref = luaL_ref(L, LUA_REGISTRYINDEX);
     scriptRegistry[scriptName] = ref;
-    
     LOG_INFOF("ScriptService", "Loaded script table: %s", scriptName.c_str());
     return ref;
+}
+
+int ScriptService::GetEntityInstance(Entity entity, const std::string& scriptName, bool create) {
+    auto it = entityScriptInstances.find(entity);
+    if (it != entityScriptInstances.end()) {
+        return it->second;
+    }
+
+    if (!create) return LUA_REFNIL;
+
+    // Create new instance
+    int templateRef = GetOrLoadScript(scriptName);
+    if (templateRef == LUA_REFNIL) return LUA_REFNIL;
+
+    // 1. New Table (Instance)
+    lua_newtable(L); 
+    
+    // 2. New Table (Metatable)
+    lua_newtable(L); 
+    
+    // 3. Get Template
+    lua_rawgeti(L, LUA_REGISTRYINDEX, templateRef); 
+    
+    // 4. Metatable.__index = Template
+    lua_setfield(L, -2, "__index"); 
+    
+    // 5. Set Metatable
+    lua_setmetatable(L, -2);
+
+    // 6. Store Instance
+    int instanceRef = luaL_ref(L, LUA_REGISTRYINDEX);
+    entityScriptInstances[entity] = instanceRef;
+    
+    return instanceRef;
 }
 
 bool ScriptService::InitEntity(Entity entity, const std::string& scriptName) {
     if (!L) return false;
 
-    int ref = GetOrLoadScript(scriptName);
+    // Force creation of instance
+    int ref = GetEntityInstance(entity, scriptName, true);
     if (ref == LUA_REFNIL) return false;
 
-    // Push the script table
-    lua_rawgeti(L, LUA_REGISTRYINDEX, ref); // Stack: [Table]
-    
-    // Get 'init' function
-    lua_getfield(L, -1, "init"); // Stack: [Table, Function?]
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref); // Stack: [Instance]
+    lua_getfield(L, -1, "init");            // Stack: [Instance, Function?]
     
     bool result = true;
-
     if (lua_isfunction(L, -1)) {
-        // Call: init(entityID)
-        lua_pushinteger(L, (lua_Integer)entity); // Arg1: Entity ID
-        
-        // pcall(nargs, nresults, errfunc)
-        if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+        lua_pushvalue(L, -2); // Push Instance as 'self'
+        lua_pushinteger(L, (lua_Integer)entity);
+        if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
              const char* err = lua_tostring(L, -1);
              LOG_ERRORF("ScriptService", "Error in %s:init: %s", scriptName.c_str(), err);
-             lua_pop(L, 1); // Pop error
+             lua_pop(L, 1);
              result = false;
         }
     } else {
-        // Pop the non-function value
         lua_pop(L, 1);
-        // It's okay if init doesn't exist
     }
-    
-    // Pop the script table
     lua_pop(L, 1);
     return result;
 }
@@ -279,32 +285,25 @@ bool ScriptService::InitEntity(Entity entity, const std::string& scriptName) {
 bool ScriptService::UpdateEntity(Entity entity, const std::string& scriptName, float deltaTime) {
     if (!L) return false;
 
-    int ref = GetOrLoadScript(scriptName);
+    // Get existing instance
+    int ref = GetEntityInstance(entity, scriptName, false);
     if (ref == LUA_REFNIL) return false;
 
-    // Push the script table
-    lua_rawgeti(L, LUA_REGISTRYINDEX, ref); // Stack: [Table]
-    
-    // Get 'update' function
-    lua_getfield(L, -1, "update"); // Stack: [Table, Function?]
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref); // Stack: [Instance]
+    lua_getfield(L, -1, "update");          // Stack: [Instance, Function?]
     
     if (lua_isfunction(L, -1)) {
-        // Call: update(entityID, dt)
-        lua_pushinteger(L, (lua_Integer)entity); // Arg1: Entity ID
-        lua_pushnumber(L, (lua_Number)deltaTime); // Arg2: DeltaTime
-        
-        // pcall(nargs, nresults, errfunc)
-        if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
+        lua_pushvalue(L, -2); // Push Instance as 'self'
+        lua_pushinteger(L, (lua_Integer)entity);
+        lua_pushnumber(L, (lua_Number)deltaTime);
+        if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
              const char* err = lua_tostring(L, -1);
              LOG_ERRORF("ScriptService", "Error in %s:update: %s", scriptName.c_str(), err);
-             lua_pop(L, 1); // Pop error
+             lua_pop(L, 1);
         }
     } else {
-        // Pop the non-function value
         lua_pop(L, 1);
     }
-    
-    // Pop the script table
     lua_pop(L, 1);
     return true;
 }
@@ -312,20 +311,15 @@ bool ScriptService::UpdateEntity(Entity entity, const std::string& scriptName, f
 void ScriptService::OnEntityEvent(Entity entity, const std::string& scriptName, Event& event) {
     if (!L) return;
 
-    int ref = GetOrLoadScript(scriptName);
+    int ref = GetEntityInstance(entity, scriptName, false);
     if (ref == LUA_REFNIL) return;
 
-    // Push the script table
-    lua_rawgeti(L, LUA_REGISTRYINDEX, ref); // Stack: [Table]
-    
-    // Get 'onEvent' function
-    lua_getfield(L, -1, "onEvent"); // Stack: [Table, Function?]
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref); // Stack: [Instance]
+    lua_getfield(L, -1, "onEvent");         // Stack: [Instance, Function?]
     
     if (lua_isfunction(L, -1)) {
-        // Call: onEvent(entityID, eventTable)
-        lua_pushinteger(L, (lua_Integer)entity); // Arg1: Entity ID
-        
-        // Arg2: Event Table
+        lua_pushvalue(L, -2); // Push Instance as 'self'
+        lua_pushinteger(L, (lua_Integer)entity);
         lua_newtable(L);
 
         // Helper to add World Coordinates for mouse events
@@ -431,18 +425,14 @@ void ScriptService::OnEntityEvent(Entity entity, const std::string& scriptName, 
              lua_setfield(L, -2, "type");
         }
 
-        // pcall(nargs, nresults, errfunc)
-        if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
+        if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
              const char* err = lua_tostring(L, -1);
              LOG_ERRORF("ScriptService", "Error in %s:onEvent: %s", scriptName.c_str(), err);
-             lua_pop(L, 1); // Pop error
+             lua_pop(L, 1);
         }
     } else {
-        // Pop the non-function value
         lua_pop(L, 1);
     }
-    
-    // Pop the script table
     lua_pop(L, 1);
 }
 
@@ -451,9 +441,51 @@ void ScriptService::ReloadScript(const std::string& scriptName) {
     if (it != scriptRegistry.end()) {
         luaL_unref(L, LUA_REGISTRYINDEX, it->second);
         scriptRegistry.erase(it);
-        LOG_INFOF("ScriptService", "Unloaded script: %s", scriptName.c_str());
+        LOG_INFOF("ScriptService", "Unloaded script: %s. Note: Existing instances retain old behavior until reset.", scriptName.c_str());
     }
-    // It will be reloaded on next GetOrLoadScript call
+}
+
+void ScriptService::InspectEntityScript(Entity entity) {
+    auto it = entityScriptInstances.find(entity);
+    if (it == entityScriptInstances.end()) {
+        ImGui::TextDisabled("No script instance.");
+        return;
+    }
+
+    if (!L) return;
+
+    int ref = it->second;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref); // Stack: [Instance]
+
+    if (lua_istable(L, -1)) {
+        lua_pushnil(L); // first key
+        while (lua_next(L, -2) != 0) {
+            // Stack: [Instance, Key, Value]
+            const char* key = lua_tostring(L, -2);
+            if (key && key[0] != '_') { // Skip internal/meta keys
+                ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "%s:", key);
+                ImGui::SameLine();
+
+                if (lua_isnumber(L, -1)) {
+                    float val = (float)lua_tonumber(L, -1);
+                    ImGui::Text("%.2f", val);
+                } else if (lua_isstring(L, -1)) {
+                    ImGui::Text("%s", lua_tostring(L, -1));
+                } else if (lua_isboolean(L, -1)) {
+                    ImGui::Text("%s", lua_toboolean(L, -1) ? "true" : "false");
+                } else if (lua_isfunction(L, -1)) {
+                    ImGui::TextDisabled("(function)");
+                } else if (lua_istable(L, -1)) {
+                    ImGui::TextDisabled("(table)");
+                } else {
+                    ImGui::TextDisabled("?");
+                }
+            }
+            lua_pop(L, 1); // Remove value, keep key for next
+        }
+    }
+    
+    lua_pop(L, 1); // Pop Instance
 }
 
 } // namespace Elysium::Services

@@ -116,6 +116,23 @@ Entity World::CloneEntity(Entity source) {
     // Clone all components
     componentManager->CloneAllComponents(source, newEntity);
 
+    // Special handling for ScriptComponent: Reset initialization flag
+    // We can't access HasComponent<ScriptComponent> easily without full type visibility
+    // But since World includes Component.h via Entity.h (or indirectly), it should be fine?
+    // Wait, World implementation uses templates.
+    // If we want to avoid linking issues, we might need to rely on the fact that we know ScriptComponent exists.
+    // Let's check if we can simply use HasComponent<ScriptComponent>
+    
+    // We need to ensure we can access ScriptComponent type.
+    // If HasComponent<ScriptComponent>(newEntity) works...
+    // But wait, RegisterComponent<ScriptComponent> is in World::World().
+    
+    // Using the public API for safety
+    if (HasComponent<ScriptComponent>(newEntity)) {
+        auto& script = GetComponent<ScriptComponent>(newEntity);
+        script.isInitialized = false;
+    }
+
     return newEntity;
 }
 

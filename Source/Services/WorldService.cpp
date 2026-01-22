@@ -7,6 +7,7 @@
 #include "Core/Entity.h"
 #include "Services/AssetService.h"
 #include "Services/SceneService.h"
+#include "Services/ScriptService.h"
 #include "imgui.h"
 #include "raylib.h"
 
@@ -719,7 +720,7 @@ void WorldService::DrawComponent<ScriptComponent>(Entity entity, Elysium::World*
         for (size_t i = 0; i < scriptAssetNames.size(); ++i) {
             bool isSelected = (currentIndex == static_cast<int>(i));
             if (ImGui::Selectable(scriptAssetNames[i].c_str(), isSelected)) {
-                script.scriptName = (i == 0) ? "" : scriptAssetNames[i];
+                script.scriptName = (i == 0) ? "" : scriptAssetNames[i] + ".lua";
             }
             if (isSelected) {
                 ImGui::SetItemDefaultFocus();
@@ -731,6 +732,13 @@ void WorldService::DrawComponent<ScriptComponent>(Entity entity, Elysium::World*
     FIELD_LABEL("Is Active: ")
     std::string activeId = "##ScriptActive_" + std::to_string(entity);
     ImGui::Checkbox(activeId.c_str(), &script.isActive);
+
+    if (!script.scriptName.empty() && script.isActive) {
+        if (ImGui::CollapsingHeader("Script Data")) {
+            auto& scriptService = Elysium::Application::GetInstance().GetService<ScriptService>();
+            scriptService.InspectEntityScript(entity);
+        }
+    }
 }
 
 }  // namespace Elysium::Services

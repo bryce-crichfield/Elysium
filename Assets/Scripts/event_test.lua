@@ -1,16 +1,16 @@
 local script = {}
 
-function script.init(entity)
+function script.init(self, entity)
     Log("Event Script Init: " .. entity)
     AddComponent(entity, "Position")
     SetPosition(entity, 100, 100)
 end
 
-function script.update(entity, dt)
+function script.update(self, entity, dt)
     -- Do nothing, wait for events
 end
 
-function script.onEvent(entity, event)
+function script.onEvent(self, entity, event)
     if event.type == "KeyPressed" then
         Log("Key Pressed: " .. event.key)
         

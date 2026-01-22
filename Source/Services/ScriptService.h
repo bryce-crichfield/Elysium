@@ -42,6 +42,9 @@ public:
     // Force reload of a script from disk (hot-reloading)
     void ReloadScript(const std::string& scriptName);
 
+    // Editor Helpers
+    void InspectEntityScript(Entity entity);
+
 private:
     lua_State* L = nullptr;
     
@@ -50,11 +53,20 @@ private:
     // Value: Lua Registry Reference (int) to the table returned by the script
     std::unordered_map<std::string, int> scriptRegistry;
 
+    // Active Instances per Entity
+    // Key: Entity ID
+    // Value: Lua Registry Reference (int) to the Instance Table
+    std::unordered_map<Entity, int> entityScriptInstances;
+
     void InitLuaContext();
     void BindEntityAPI();
     
     // Loads the script if not already loaded, returns the Registry Reference
     int GetOrLoadScript(const std::string& scriptName);
+    
+    // Helper to get or create the instance for an entity
+    // If create is true, it will instantiate from the script template
+    int GetEntityInstance(Entity entity, const std::string& scriptName, bool create = false);
 };
 
 } // namespace Elysium::Services

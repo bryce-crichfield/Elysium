@@ -6,7 +6,7 @@ script.minX = 100
 script.maxX = 700
 script.pulseTime = 0
 
-function script.init(entity)
+function script.init(self, entity)
     Log("Script Init: Entity " .. entity)
     
     -- Ensure we have a Position and Rectangle
@@ -18,32 +18,33 @@ function script.init(entity)
     SetPosition(entity, 400, 300)
 end
 
-function script.update(entity, dt)
+function script.update(self, entity, dt)
     -- Get current position
     local x, y = GetPosition(entity)
     
     if x then
         -- Update position (Ping Pong movement)
-        x = x + (script.speed * script.direction * dt)
+        -- Use 'self' to store per-entity state
+        x = x + (self.speed * self.direction * dt)
         
-        if x > script.maxX then
-            x = script.maxX
-            script.direction = -1
-        elseif x < script.minX then
-            x = script.minX
-            script.direction = 1
+        if x > self.maxX then
+            x = self.maxX
+            self.direction = -1
+        elseif x < self.minX then
+            x = self.minX
+            self.direction = 1
         end
         
         SetPosition(entity, x, y)
         
         -- Pulse size
-        script.pulseTime = script.pulseTime + dt
-        local size = 50 + (math.sin(script.pulseTime * 5) * 10)
+        self.pulseTime = self.pulseTime + dt
+        local size = 50 + (math.sin(self.pulseTime * 5) * 10)
         SetRectangle(entity, size, size)
     end
 end
 
-function script.onEvent(entity, event)
+function script.onEvent(self, entity, event)
     -- Log all events for this entity
     -- Log("PingPong Entity Event: " .. event.type)
 end
