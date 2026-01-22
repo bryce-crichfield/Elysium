@@ -12,6 +12,7 @@ class Editor {
     explicit Editor(const std::string& name) : name_(name) {}
     virtual ~Editor() = default;
 
+    virtual void Initialize() {}
     virtual void Draw(Application& app) = 0;
 
     bool IsVisible() const { return isVisible_; }

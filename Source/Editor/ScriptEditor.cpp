@@ -11,6 +11,11 @@ ScriptEditor::ScriptEditor() : Editor("Script Editor") {
     memset(scriptBuffer, 0, sizeof(scriptBuffer));
 }
 
+void ScriptEditor::Initialize() {
+    Path hermitCodeFontPath("Fonts/Hermit-Regular.otf");
+    font_ = ImGui::GetIO().Fonts->AddFontFromFileTTF(hermitCodeFontPath.GetFullPath().c_str(), (float)fontSize_);
+}
+
 void ScriptEditor::Draw(Application& app) {
     if (ImGui::Begin("Script Editor", &isVisible_)) {
         
@@ -47,11 +52,21 @@ void ScriptEditor::Draw(Application& app) {
             statusMessage = "Executed script";
         }
         
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("Font Size", &fontSize_)) {
+            if (fontSize_ < 8) fontSize_ = 8;
+            if (fontSize_ > 128) fontSize_ = 128;
+            app.RequestFontReload();
+        }
+
         if (!statusMessage.empty()) {
             ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", statusMessage.c_str());
         }
 
+        ImGui::PushFont(static_cast<ImFont*>(font_));   
         ImGui::InputTextMultiline("##source", scriptBuffer, sizeof(scriptBuffer), ImVec2(-1.0f, -1.0f), ImGuiInputTextFlags_AllowTabInput);
+        ImGui::PopFont();
     }
     ImGui::End();
 }

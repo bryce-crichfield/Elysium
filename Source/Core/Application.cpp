@@ -83,6 +83,10 @@ bool Application::Initialize(const std::string& configPath) {
         service->Initialize();
     }
 
+    for (auto& editor : editors_) {
+        editor->Initialize();
+    }
+
     initialized_ = true;
     LOG_INFO("Application", "Engine initialization complete");
     return true;
@@ -158,6 +162,16 @@ void Application::Update(float deltaTime) {
 
 void Application::Draw() {
     Profile;
+
+    if (pendingFontReload_) {
+        ImGui::GetIO().Fonts->Clear();
+        rlImGuiBeginInitImGui();
+        rlImGuiEndInitImGui();
+        for (auto& editor : editors_) {
+            editor->Initialize();
+        }
+        pendingFontReload_ = false;
+    }
 
     // Begin frame
     BeginDrawing();

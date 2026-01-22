@@ -72,6 +72,8 @@ class Application {
 
     bool ShouldClose() const;
 
+    void RequestFontReload() { pendingFontReload_ = true; }
+
    private:
     Application() = default;
     ~Application() = default;
@@ -91,6 +93,7 @@ class Application {
 
     bool initialized_ = false;
     bool shouldClose_ = false;
+    bool pendingFontReload_ = false;
 };
 
 }  // namespace Elysium
