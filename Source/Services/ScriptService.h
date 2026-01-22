@@ -60,6 +60,7 @@ private:
 
     void InitLuaContext();
     void BindEntityAPI();
+    void BindRaylibConstants();
     
     // Loads the script if not already loaded, returns the Registry Reference
     int GetOrLoadScript(const std::string& scriptName);

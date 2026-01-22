@@ -19,6 +19,7 @@ ScriptService::~ScriptService() {
 void ScriptService::Initialize() {
     InitLuaContext();
     BindEntityAPI();
+    BindRaylibConstants();
     LOG_INFO("ScriptService", "Lua VM Initialized with Table Capture support");
 }
 
@@ -182,6 +183,50 @@ void ScriptService::BindEntityAPI() {
 
         return 0;
     });
+}
+
+void ScriptService::BindRaylibConstants() {
+    if (!L) return;
+
+    // Helper to set a global integer
+    auto setInt = [&](const char* name, int value) {
+        lua_pushinteger(L, value);
+        lua_setglobal(L, name);
+    };
+
+    // Keyboard Keys (Common ones)
+    setInt("KEY_SPACE", 32);
+    setInt("KEY_ENTER", 257);
+    setInt("KEY_TAB", 258);
+    setInt("KEY_ESCAPE", 256);
+    setInt("KEY_BACKSPACE", 259);
+    setInt("KEY_LEFT", 263);
+    setInt("KEY_RIGHT", 262);
+    setInt("KEY_UP", 265);
+    setInt("KEY_DOWN", 264);
+    
+    // Letters
+    for (int i = 0; i < 26; ++i) {
+        char name[8];
+        snprintf(name, sizeof(name), "KEY_%c", 'A' + i);
+        setInt(name, 65 + i);
+    }
+
+    // Numbers
+    for (int i = 0; i < 10; ++i) {
+        char name[8];
+        snprintf(name, sizeof(name), "KEY_%d", i);
+        setInt(name, 48 + i);
+    }
+
+    // Mouse Buttons
+    setInt("MOUSE_LEFT", 0);
+    setInt("MOUSE_RIGHT", 1);
+    setInt("MOUSE_MIDDLE", 2);
+    setInt("MOUSE_SIDE", 3);
+    setInt("MOUSE_EXTRA", 4);
+    setInt("MOUSE_FORWARD", 5);
+    setInt("MOUSE_BACK", 6);
 }
 
 int ScriptService::GetOrLoadScript(const std::string& scriptName) {

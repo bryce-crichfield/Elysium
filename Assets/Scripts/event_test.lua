@@ -14,8 +14,7 @@ function script.onEvent(self, entity, event)
     if event.type == "KeyPressed" then
         Log("Key Pressed: " .. event.key)
         
-        -- Space key is 32
-        if event.key == 32 then
+        if event.key == KEY_SPACE then
             Log("Spacebar! Moving entity.")
             local x, y = GetPosition(entity)
             SetPosition(entity, x + 10, y)
