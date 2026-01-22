@@ -1,18 +1,10 @@
 #pragma once
 
-#include <functional>
 #include <vector>
 #include "Core/Event.h"
 #include "Service.h"
 
-namespace Elysium {
-class Scene;
-}
-
 namespace Elysium::Services {
-
-// EventListener is just a callback
-using EventListener = std::function<void(Event&)>;
 
 class EventService : public Elysium::Service {
    public:
@@ -24,15 +16,15 @@ class EventService : public Elysium::Service {
     void Shutdown() override;
     void Update(float deltaTime) override;
 
-    // Register/unregister listeners (using raw pointers to avoid lifetime hell)
-    void RegisterListener(Scene* scene);
-    void UnregisterListener(Scene* scene);
+    // Register/unregister listeners
+    void RegisterListener(IEventListener* listener);
+    void UnregisterListener(IEventListener* listener);
 
     // Dispatch event to all listeners
     void Dispatch(Event& event);
 
    private:
-    std::vector<Scene*> listeners_;
+    std::vector<IEventListener*> listeners_;
 };
 
 }  // namespace Elysium::Services

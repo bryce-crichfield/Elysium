@@ -32,7 +32,9 @@ void ScriptEditor::Draw(Application& app) {
         if (ImGui::Button("Save")) {
             Path path(scriptPath);
             if (SaveFileText(path.c_str(), scriptBuffer)) {
-                statusMessage = "Saved " + std::string(path.c_str());
+                auto& scriptService = app.GetService<Services::ScriptService>();
+                scriptService.ReloadScript(scriptPath);
+                statusMessage = "Saved and Reloaded " + std::string(path.c_str());
             } else {
                 statusMessage = "Failed to save " + std::string(path.c_str());
             }

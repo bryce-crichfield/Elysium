@@ -11,6 +11,7 @@ class Timeline;  // Forward declaration for Timeline
 #include <string>
 #include <vector>
 #include "Entity.h"
+#include "Event.h"
 
 namespace Elysium {
 
@@ -20,7 +21,7 @@ constexpr float TILE_HEIGHT = 32.0f;
 
 struct Application;
 
-class Scene {
+class Scene : public IEventListener {
    public:
     Scene();
     virtual ~Scene();
@@ -28,7 +29,7 @@ class Scene {
     // Hook methods - can be overridden by subclasses
     virtual void OnUpdate(float deltaTime);
     virtual void OnDraw(Rectangle screen);
-    virtual void OnEvent(class Event& event);
+    virtual void OnEvent(Event& event) override;
     virtual void OnMessage(class Message& message);
     virtual void OnEnter() {}
     virtual void OnExit() {}

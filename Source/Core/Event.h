@@ -109,4 +109,11 @@ class KeyReleasedEvent : public Event {
     int key_;
 };
 
+// Interface for anything that wants to listen to events
+class IEventListener {
+public:
+    virtual ~IEventListener() = default;
+    virtual void OnEvent(Event& event) = 0;
+};
+
 }  // namespace Elysium

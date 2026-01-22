@@ -21,4 +21,14 @@ void ScriptSystem::Update(float deltaTime) {
     });
 }
 
+void ScriptSystem::OnEvent(Event& event) {
+    auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+    
+    world->Query<ScriptComponent>([&](Entity entity, auto& scriptComp) {
+        if (scriptComp.isActive && !scriptComp.scriptName.empty() && scriptComp.isInitialized) {
+            scriptService.OnEntityEvent(entity, scriptComp.scriptName, event);
+        }
+    });
+}
+
 } // namespace Elysium::Systems

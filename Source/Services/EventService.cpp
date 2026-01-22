@@ -1,6 +1,5 @@
 #include "Services/EventService.h"
 #include "Core/Common.h"
-#include "Core/Scene.h"
 #include "Services/LogService.h"
 
 namespace Elysium::Services {
@@ -27,29 +26,29 @@ void EventService::Update(float deltaTime) {
     // Events are dispatched on-demand
 }
 
-void EventService::RegisterListener(Scene* scene) {
-    if (!scene)
+void EventService::RegisterListener(IEventListener* listener) {
+    if (!listener)
         return;
 
     // Check if already registered
-    for (auto* listener : listeners_) {
-        if (listener == scene) {
+    for (auto* l : listeners_) {
+        if (l == listener) {
             return;  // Already registered
         }
     }
 
-    listeners_.push_back(scene);
-    LOG_DEBUGF("EventService", "Registered listener: %p", scene);
+    listeners_.push_back(listener);
+    LOG_DEBUGF("EventService", "Registered listener: %p", listener);
 }
 
-void EventService::UnregisterListener(Scene* scene) {
-    if (!scene)
+void EventService::UnregisterListener(IEventListener* listener) {
+    if (!listener)
         return;
 
     for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
-        if (*it == scene) {
+        if (*it == listener) {
             listeners_.erase(it);
-            LOG_DEBUGF("EventService", "Unregistered listener: %p", scene);
+            LOG_DEBUGF("EventService", "Unregistered listener: %p", listener);
             return;
         }
     }

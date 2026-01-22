@@ -70,6 +70,23 @@ void ScriptService::BindEntityAPI() {
         return 0;
     });
 
+    // Random(min, max) -> int
+    lua_register(L, "Random", [](lua_State* L) -> int {
+        int min = (int)luaL_checkinteger(L, 1);
+        int max = (int)luaL_checkinteger(L, 2);
+        int result = min + (std::rand() % (max - min + 1));
+        lua_pushinteger(L, result);
+        return 1;
+    });
+
+    // SceneReplace(sceneName)
+    lua_register(L, "SceneReplace", [](lua_State* L) -> int {
+        const char* sceneName = luaL_checkstring(L, 1);
+        auto& app = Elysium::Application::GetInstance();
+        app.GetService<Elysium::Services::SceneService>().Replace(sceneName);
+        return 0;
+    });
+
     // GetPosition(entityID) -> x, y
     lua_register(L, "GetPosition", [](lua_State* L) -> int {
         int entityID = (int)luaL_checkinteger(L, 1);
@@ -162,6 +179,22 @@ void ScriptService::BindEntityAPI() {
             LOG_WARNINGF("Lua", "AddComponent: Unknown component type '%s'", typeName);
         }
 
+        return 0;
+    });
+
+    // Random(min, max) -> int
+    lua_register(L, "Random", [](lua_State* L) -> int {
+        int min = (int)luaL_checkinteger(L, 1);
+        int max = (int)luaL_checkinteger(L, 2);
+        lua_pushinteger(L, GetRandomValue(min, max));
+        return 1;
+    });
+
+    // SceneReplace(sceneName)
+    lua_register(L, "SceneReplace", [](lua_State* L) -> int {
+        const char* sceneName = luaL_checkstring(L, 1);
+        auto& app = Elysium::Application::GetInstance();
+        app.GetService<Services::SceneService>().Replace(sceneName);
         return 0;
     });
 }
@@ -274,6 +307,143 @@ bool ScriptService::UpdateEntity(Entity entity, const std::string& scriptName, f
     // Pop the script table
     lua_pop(L, 1);
     return true;
+}
+
+void ScriptService::OnEntityEvent(Entity entity, const std::string& scriptName, Event& event) {
+    if (!L) return;
+
+    int ref = GetOrLoadScript(scriptName);
+    if (ref == LUA_REFNIL) return;
+
+    // Push the script table
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref); // Stack: [Table]
+    
+    // Get 'onEvent' function
+    lua_getfield(L, -1, "onEvent"); // Stack: [Table, Function?]
+    
+    if (lua_isfunction(L, -1)) {
+        // Call: onEvent(entityID, eventTable)
+        lua_pushinteger(L, (lua_Integer)entity); // Arg1: Entity ID
+        
+        // Arg2: Event Table
+        lua_newtable(L);
+
+        // Helper to add World Coordinates for mouse events
+        auto AddWorldCoords = [&](float screenX, float screenY) {
+            auto* world = GetActiveWorld();
+            if (world) {
+                // Find active camera
+                Vector2 cameraPos = {0, 0};
+                float zoom = 1.0f;
+                Vector2 viewportCenter = {0, 0};
+                bool foundCamera = false;
+
+                world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
+                    if (!foundCamera && cameraComp.isVisible) {
+                        if (world->HasComponent<PositionComponent>(camEnt)) {
+                            auto& pos = world->GetComponent<PositionComponent>(camEnt);
+                            cameraPos = { pos.x, pos.y };
+                        }
+                        zoom = cameraComp.zoom;
+                        viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
+                        foundCamera = true;
+                    }
+                });
+
+                if (foundCamera) {
+                    // Inverse Transform: Screen -> World
+                    // 1. Translate to center relative (Screen - ViewportCenter)
+                    float cx = screenX - viewportCenter.x;
+                    float cy = screenY - viewportCenter.y;
+                    
+                    // 2. Scale Inverse ( / Zoom )
+                    cx /= zoom;
+                    cy /= zoom;
+                    
+                    // 3. Camera Translate Inverse ( + CameraPos )
+                    float wx = cx + cameraPos.x;
+                    float wy = cy + cameraPos.y;
+
+                    lua_pushnumber(L, wx);
+                    lua_setfield(L, -2, "wx");
+                    lua_pushnumber(L, wy);
+                    lua_setfield(L, -2, "wy");
+                    return;
+                }
+            }
+            // Fallback if no camera found: World = Screen
+            lua_pushnumber(L, screenX);
+            lua_setfield(L, -2, "wx");
+            lua_pushnumber(L, screenY);
+            lua_setfield(L, -2, "wy");
+        };
+
+        if (auto* e = event.As<KeyPressedEvent>()) {
+            lua_pushstring(L, "KeyPressed");
+            lua_setfield(L, -2, "type");
+            lua_pushinteger(L, e->GetKey());
+            lua_setfield(L, -2, "key");
+        }
+        else if (auto* e = event.As<KeyReleasedEvent>()) {
+            lua_pushstring(L, "KeyReleased");
+            lua_setfield(L, -2, "type");
+            lua_pushinteger(L, e->GetKey());
+            lua_setfield(L, -2, "key");
+        }
+        else if (auto* e = event.As<MouseButtonPressedEvent>()) {
+            lua_pushstring(L, "MouseButtonPressed");
+            lua_setfield(L, -2, "type");
+            lua_pushinteger(L, e->GetButton());
+            lua_setfield(L, -2, "button");
+            lua_pushnumber(L, e->GetPosition().x);
+            lua_setfield(L, -2, "x");
+            lua_pushnumber(L, e->GetPosition().y);
+            lua_setfield(L, -2, "y");
+            AddWorldCoords(e->GetPosition().x, e->GetPosition().y);
+        }
+        else if (auto* e = event.As<MouseButtonReleasedEvent>()) {
+            lua_pushstring(L, "MouseButtonReleased");
+            lua_setfield(L, -2, "type");
+            lua_pushinteger(L, e->GetButton());
+            lua_setfield(L, -2, "button");
+            lua_pushnumber(L, e->GetPosition().x);
+            lua_setfield(L, -2, "x");
+            lua_pushnumber(L, e->GetPosition().y);
+            lua_setfield(L, -2, "y");
+            AddWorldCoords(e->GetPosition().x, e->GetPosition().y);
+        }
+        else if (auto* e = event.As<MouseMovedEvent>()) {
+            lua_pushstring(L, "MouseMoved");
+            lua_setfield(L, -2, "type");
+            lua_pushnumber(L, e->GetPosition().x);
+            lua_setfield(L, -2, "x");
+            lua_pushnumber(L, e->GetPosition().y);
+            lua_setfield(L, -2, "y");
+            lua_pushnumber(L, e->GetDelta().x);
+            lua_setfield(L, -2, "dx");
+            lua_pushnumber(L, e->GetDelta().y);
+            lua_setfield(L, -2, "dy");
+            AddWorldCoords(e->GetPosition().x, e->GetPosition().y);
+        }
+        else {
+            // Unknown event or not handled yet
+             lua_pushstring(L, "Unknown");
+             lua_setfield(L, -2, "type");
+        }
+
+        // pcall(nargs, nresults, errfunc)
+        if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
+             const char* err = lua_tostring(L, -1);
+             LOG_ERRORF("ScriptService", "Error in %s:onEvent: %s", scriptName.c_str(), err);
+             lua_pop(L, 1); // Pop error
+        }
+    } else {
+        // Pop the non-function value
+        lua_pop(L, 1);
+    }
+    
+    // Pop the script table
+    lua_pop(L, 1);
 }
 
 void ScriptService::ReloadScript(const std::string& scriptName) {

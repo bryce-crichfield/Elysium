@@ -43,4 +43,9 @@ function script.update(entity, dt)
     end
 end
 
+function script.onEvent(entity, event)
+    -- Log all events for this entity
+    -- Log("PingPong Entity Event: " .. event.type)
+end
+
 return script

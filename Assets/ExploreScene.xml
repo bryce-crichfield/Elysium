@@ -67,5 +67,12 @@
 
             <BoundsComponent />
         </Entity>
+
+        <Entity>
+            <NameComponent name="EVENT_TESTER" />
+            <PositionComponent x="100" y="100" />
+            <RectangleComponent width="32" height="32" />
+            <ScriptComponent scriptName="Scripts/event_test.lua" />
+        </Entity>
     </Entities>
 </Scene>

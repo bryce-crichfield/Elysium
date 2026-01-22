@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include "Core/Entity.h"
+#include "Core/Event.h"
 
 extern "C" {
 #include "lua.h"
@@ -34,6 +35,9 @@ public:
     
     // Returns true if the script was loaded and Init was called (or didn't exist)
     bool InitEntity(Entity entity, const std::string& scriptName);
+
+    // Handle events
+    void OnEntityEvent(Entity entity, const std::string& scriptName, Event& event);
 
     // Force reload of a script from disk (hot-reloading)
     void ReloadScript(const std::string& scriptName);
