@@ -56,6 +56,21 @@ static Elysium::World* GetActiveWorld() {
     return nullptr;
 }
 
+static Color TableToColor(const sol::table& t) {
+    return Color{
+        (unsigned char)t.get_or("r", 255),
+        (unsigned char)t.get_or("g", 255),
+        (unsigned char)t.get_or("b", 255),
+        (unsigned char)t.get_or("a", 255)
+    };
+}
+
+static Color ObjectToColor(const sol::object& obj) {
+    if (obj.is<Color>()) return obj.as<Color>();
+    if (obj.is<sol::table>()) return TableToColor(obj.as<sol::table>());
+    return WHITE;
+}
+
 void ScriptService::BindComponents() {
     // Vector2 (Raylib)
     lua.new_usertype<Vector2>("Vector2",
@@ -91,8 +106,8 @@ void ScriptService::BindComponents() {
         sol::constructors<RectangleComponent(), RectangleComponent(float, float, Color, Color, const std::string&)>(),
         "width", &RectangleComponent::width,
         "height", &RectangleComponent::height,
-        "background", &RectangleComponent::background,
-        "border", &RectangleComponent::border,
+        "background", sol::property([](RectangleComponent& r) { return r.background; }, [](RectangleComponent& r, sol::object v) { r.background = ObjectToColor(v); }),
+        "border", sol::property([](RectangleComponent& r) { return r.border; }, [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); }),
         "layerName", &RectangleComponent::layerName
     );
 
@@ -116,7 +131,7 @@ void ScriptService::BindComponents() {
         sol::constructors<BoundsComponent(), BoundsComponent(Rectangle, Color)>(),
         "bounds", &BoundsComponent::bounds,
         "isDragging", &BoundsComponent::isDragging,
-        "debugColor", &BoundsComponent::debugColor
+        "debugColor", sol::property([](BoundsComponent& b) { return b.debugColor; }, [](BoundsComponent& b, sol::object v) { b.debugColor = ObjectToColor(v); })
     );
 }
 
@@ -183,20 +198,49 @@ void ScriptService::BindEntityAPI() {
             return world->GetComponent<T>(entity);
         };
 
-        if (name == "Position" && value.is<PositionComponent>()) {
-            getOrAdd.template operator()<PositionComponent>() = value.as<PositionComponent>();
+        if (name == "Position") {
+            auto& comp = getOrAdd.template operator()<PositionComponent>();
+            if (value.is<PositionComponent>()) comp = value.as<PositionComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.x = t.get_or("x", comp.x);
+                comp.y = t.get_or("y", comp.y);
+            }
         }
-        else if (name == "Rectangle" && value.is<RectangleComponent>()) {
-            getOrAdd.template operator()<RectangleComponent>() = value.as<RectangleComponent>();
+        else if (name == "Rectangle") {
+            auto& comp = getOrAdd.template operator()<RectangleComponent>();
+            if (value.is<RectangleComponent>()) comp = value.as<RectangleComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.width = t.get_or("width", comp.width);
+                comp.height = t.get_or("height", comp.height);
+                comp.layerName = t.get_or("layerName", comp.layerName);
+                if (t["background"].valid()) comp.background = ObjectToColor(t["background"]);
+                if (t["border"].valid()) comp.border = ObjectToColor(t["border"]);
+            }
         }
-        else if (name == "Movement" && value.is<MovementComponent>()) {
-            getOrAdd.template operator()<MovementComponent>() = value.as<MovementComponent>();
+        else if (name == "Movement") {
+            auto& comp = getOrAdd.template operator()<MovementComponent>();
+            if (value.is<MovementComponent>()) comp = value.as<MovementComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.speed = t.get_or("speed", comp.speed);
+                comp.isMoving = t.get_or("isMoving", comp.isMoving);
+                comp.loop = t.get_or("loop", comp.loop);
+            }
         }
-        else if (name == "Sprite" && value.is<SpriteComponent>()) {
-            getOrAdd.template operator()<SpriteComponent>() = value.as<SpriteComponent>();
+        else if (name == "Sprite") {
+            auto& comp = getOrAdd.template operator()<SpriteComponent>();
+            if (value.is<SpriteComponent>()) comp = value.as<SpriteComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.markerName = t.get_or("marker", comp.markerName);
+                comp.layerName = t.get_or("layer", comp.layerName);
+            }
         }
-        else if (name == "Bounds" && value.is<BoundsComponent>()) {
-            getOrAdd.template operator()<BoundsComponent>() = value.as<BoundsComponent>();
+        else if (name == "Bounds") {
+            auto& comp = getOrAdd.template operator()<BoundsComponent>();
+            if (value.is<BoundsComponent>()) comp = value.as<BoundsComponent>();
         }
     });
 

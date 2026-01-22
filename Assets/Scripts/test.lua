@@ -22,7 +22,9 @@ function script.init(self, entity)
     SetComponent(entity, "Rectangle", {
         width = 100, 
         height = 100, 
-        border = self.colors[self.colorIndex]
+        border = self.colors[self.colorIndex],
+        background = self.colors[self.colorIndex],
+        layerName="default"
     })
 end
 
