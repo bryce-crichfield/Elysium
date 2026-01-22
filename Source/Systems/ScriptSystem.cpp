@@ -12,6 +12,10 @@ void ScriptSystem::Update(float deltaTime) {
 
     world->Query<ScriptComponent>([&](Entity entity, auto& scriptComp) {
         if (scriptComp.isActive && !scriptComp.scriptName.empty()) {
+            if (!scriptComp.isInitialized) {
+                scriptService.InitEntity(entity, scriptComp.scriptName);
+                scriptComp.isInitialized = true;
+            }
             scriptService.UpdateEntity(entity, scriptComp.scriptName, deltaTime);
         }
     });

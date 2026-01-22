@@ -31,6 +31,9 @@ public:
     // Entity Scripting System
     // Returns true if the script was loaded and has an 'update' function
     bool UpdateEntity(Entity entity, const std::string& scriptName, float deltaTime);
+    
+    // Returns true if the script was loaded and Init was called (or didn't exist)
+    bool InitEntity(Entity entity, const std::string& scriptName);
 
     // Force reload of a script from disk (hot-reloading)
     void ReloadScript(const std::string& scriptName);

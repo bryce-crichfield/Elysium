@@ -279,6 +279,7 @@ struct BoundsComponent {
 struct ScriptComponent {
     std::string scriptName;
     bool isActive = true;
+    bool isInitialized = false;
 
     ScriptComponent() = default;
     ScriptComponent(const std::string& name) : scriptName(name) {}
