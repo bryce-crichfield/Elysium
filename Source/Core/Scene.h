@@ -2,7 +2,6 @@
 
 namespace Elysium {
 class System;    // This tells the compiler that the class System exists.
-class Timeline;  // Forward declaration for Timeline
 }  // namespace Elysium
 
 #include <cstddef>
@@ -39,12 +38,6 @@ class Scene : public IEventListener {
     const std::vector<std::unique_ptr<System>>& GetSystems() const { return systems_; }
     void AddSystem(std::unique_ptr<System> system);
 
-    // Timeline management
-    Timeline* CreateTimeline(const std::string& name);
-    Timeline* GetTimeline(const std::string& name);
-    void RemoveTimeline(const std::string& name);
-    const std::vector<std::unique_ptr<Timeline>>& GetTimelines() const { return timelines_; }
-
     // Called during XML loading to create scene-specific systems
     virtual void CreateCustomSystems() {}
 
@@ -52,7 +45,6 @@ class Scene : public IEventListener {
     // Core scene components
     std::unique_ptr<World> world_;
     std::vector<std::unique_ptr<System>> systems_;
-    std::vector<std::unique_ptr<Timeline>> timelines_;
 };
 
 // Scene factory function type - declared after Scene class is defined

@@ -15,7 +15,8 @@ int main() {
     sceneService.RegisterScene("MenuScene", "", []() { return new Elysium::Scenes::MenuScene(); });
     sceneService.RegisterScene("OverworldScene", "", []() { return new Elysium::Scenes::OverworldScene(); });
     sceneService.RegisterScene("ExploreScene", "ExploreScene.xml", []() { return new Elysium::Scenes::ExploreScene(); });
-    sceneService.Push("MenuScene");
+    sceneService.RegisterScene("RTSScene", "Scene.xml", []() { return new Elysium::Scenes::ExploreScene(); });
+    sceneService.Push("RTSScene");
 
     app.Run();
 

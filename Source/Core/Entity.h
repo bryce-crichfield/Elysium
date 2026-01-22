@@ -206,7 +206,7 @@ template <typename T>
 T& TypedComponentArray<T>::GetData(Entity entity) {
     auto it = entityToIndex.find(entity);
     if (it == entityToIndex.end()) {
-        throw std::runtime_error("Entity does not have this component");
+        throw std::runtime_error("Cannot get data.  Entity does not have this component");
     }
     return componentArray[it->second];
 }
@@ -345,7 +345,7 @@ const T& World::GetComponent(Entity entity) const {
     auto componentArray = componentManager->GetComponentArray<T>();
     auto it = componentArray->GetEntityToIndex().find(entity);
     if (it == componentArray->GetEntityToIndex().end()) {
-        throw std::runtime_error("Entity does not have this component");
+        throw std::runtime_error("Cannot get component.  Entity does not have this component");
     }
     return componentArray->GetArray()[it->second];
 }

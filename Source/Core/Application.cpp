@@ -6,13 +6,11 @@
 #include "Common.h"
 #include "Utilities/Path.h"
 #include "Services/Services.h"
-#include "Services/TimelineService.h"
 #include "Services/ScriptService.h"
 #include "Editor/SceneEditor.h"
 #include "Editor/WorldEditor.h"
 #include "Editor/LogEditor.h"
 #include "Editor/AssetEditor.h"
-#include "Editor/TimelineEditor.h"
 #include "Editor/NetworkEditor.h"
 #include "Editor/ScriptEditor.h"
 #include "imgui.h"
@@ -49,14 +47,12 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterService(std::make_unique<Elysium::Services::WorldService>());
     RegisterService(std::make_unique<Elysium::Services::LoadingService>());
     RegisterService(std::make_unique<Elysium::Services::SceneService>());
-    RegisterService(std::make_unique<Elysium::Services::TimelineService>());
     RegisterService(std::make_unique<Elysium::Services::ScriptService>());
 
     RegisterEditor<SceneEditor>();
     RegisterEditor<WorldEditor>();
     RegisterEditor<LogEditor>();
     RegisterEditor<AssetEditor>();
-    RegisterEditor<TimelineEditor>();
     RegisterEditor<NetworkEditor>();
     RegisterEditor<ScriptEditor>();
 
@@ -215,12 +211,6 @@ void Application::ProcessInput() {
 
     if (IsKeyPressed(KEY_F3)) {
         if (auto* editor = GetEditor<WorldEditor>()) {
-            editor->ToggleVisibility();
-        }
-    }
-
-    if (IsKeyPressed(KEY_F4)) {
-        if (auto* editor = GetEditor<TimelineEditor>()) {
             editor->ToggleVisibility();
         }
     }

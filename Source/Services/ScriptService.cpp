@@ -1,3 +1,5 @@
+#define SOL_HEADER_ONLY 1
+#define SOL_ALL_SAFETIES_ON 1
 #include "ScriptService.h"
 #include "Core/Application.h"
 #include "Services/LogService.h"
@@ -103,83 +105,75 @@ static Vector2 ScreenToWorld(Vector2 screenPos) {
 
 void ScriptService::BindComponents() {
     // Vector2 (Raylib)
-    lua.new_usertype<Vector2>("Vector2",
-        sol::constructors<Vector2(), Vector2(float, float)>(),
-        "x", &Vector2::x,
-        "y", &Vector2::y
-    );
+    auto vec2 = lua.new_usertype<Vector2>("Vector2", sol::constructors<Vector2(), Vector2(float, float)>());
+    vec2["x"] = &Vector2::x;
+    vec2["y"] = &Vector2::y;
 
     // Color (Raylib)
-    lua.new_usertype<Color>("Color",
-        "r", &Color::r,
-        "g", &Color::g,
-        "b", &Color::b,
-        "a", &Color::a
-    );
+    auto col = lua.new_usertype<Color>("Color", sol::constructors<Color()>());
+    col["r"] = &Color::r;
+    col["g"] = &Color::g;
+    col["b"] = &Color::b;
+    col["a"] = &Color::a;
 
     // Rectangle (Raylib)
-    lua.new_usertype<Rectangle>("Rectangle",
-        "x", &Rectangle::x,
-        "y", &Rectangle::y,
-        "width", &Rectangle::width,
-        "height", &Rectangle::height
-    );
+    auto rect = lua.new_usertype<Rectangle>("Rectangle", sol::constructors<Rectangle()>());
+    rect["x"] = &Rectangle::x;
+    rect["y"] = &Rectangle::y;
+    rect["width"] = &Rectangle::width;
+    rect["height"] = &Rectangle::height;
 
     // PositionComponent
-    lua.new_usertype<PositionComponent>("PositionComponent",
-        sol::constructors<PositionComponent(), PositionComponent(float, float)>(),
-        "x", &PositionComponent::x,
-        "y", &PositionComponent::y
-    );
+    auto posComp = lua.new_usertype<PositionComponent>("PositionComponent", sol::constructors<PositionComponent(), PositionComponent(float, float)>());
+    posComp["x"] = &PositionComponent::x;
+    posComp["y"] = &PositionComponent::y;
+
+    // NameComponent
+    auto nameComp = lua.new_usertype<NameComponent>("NameComponent", sol::constructors<NameComponent(), NameComponent(std::string)>());
+    nameComp["name"] = &NameComponent::name;
 
     // RectangleComponent
-    lua.new_usertype<RectangleComponent>("RectangleComponent",
-        sol::constructors<RectangleComponent(), RectangleComponent(float, float, Color, Color, const std::string&)>(),
-        "width", &RectangleComponent::width,
-        "height", &RectangleComponent::height,
-        "background", sol::property([](RectangleComponent& r) { return r.background; }, [](RectangleComponent& r, sol::object v) { r.background = ObjectToColor(v); }),
-        "border", sol::property([](RectangleComponent& r) { return r.border; }, [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); }),
-        "layerName", &RectangleComponent::layerName
-    );
+    auto rectComp = lua.new_usertype<RectangleComponent>("RectangleComponent", sol::constructors<RectangleComponent()>());
+    rectComp["width"] = &RectangleComponent::width;
+    rectComp["height"] = &RectangleComponent::height;
+    rectComp["background"] = sol::property([](RectangleComponent& r) { return r.background; }, [](RectangleComponent& r, sol::object v) { r.background = ObjectToColor(v); });
+    rectComp["border"] = sol::property([](RectangleComponent& r) { return r.border; }, [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); });
+    rectComp["layerName"] = &RectangleComponent::layerName;
 
     // MovementComponent
-    lua.new_usertype<MovementComponent>("MovementComponent",
-        sol::constructors<MovementComponent()>(),
-        "speed", &MovementComponent::speed,
-        "isMoving", &MovementComponent::isMoving,
-        "loop", &MovementComponent::loop,
-        "AddWaypoint", &MovementComponent::AddWaypoint,
-        "ClearWaypoints", &MovementComponent::ClearWaypoints
-    );
+    auto moveComp = lua.new_usertype<MovementComponent>("MovementComponent", sol::constructors<MovementComponent()>());
+    moveComp["speed"] = &MovementComponent::speed;
+    moveComp["isMoving"] = &MovementComponent::isMoving;
+    moveComp["loop"] = &MovementComponent::loop;
+    moveComp["AddWaypoint"] = &MovementComponent::AddWaypoint;
+    moveComp["ClearWaypoints"] = &MovementComponent::ClearWaypoints;
 
     // SpriteComponent
-    lua.new_usertype<SpriteComponent>("SpriteComponent",
-        sol::constructors<SpriteComponent()>(),
-        "marker", &SpriteComponent::markerName,
-        "layer", &SpriteComponent::layerName
-    );
+    auto spriteComp = lua.new_usertype<SpriteComponent>("SpriteComponent", sol::constructors<SpriteComponent()>());
+    spriteComp["marker"] = &SpriteComponent::markerName;
+    spriteComp["layer"] = &SpriteComponent::layerName;
 
     // BoundsComponent
-    lua.new_usertype<BoundsComponent>("BoundsComponent",
-        sol::constructors<BoundsComponent(), BoundsComponent(Rectangle, Color)>(),
-        "bounds", &BoundsComponent::bounds,
-        "isDragging", &BoundsComponent::isDragging,
-        "debugColor", sol::property([](BoundsComponent& b) { return b.debugColor; }, [](BoundsComponent& b, sol::object v) { b.debugColor = ObjectToColor(v); })
-    );
+    auto boundsComp = lua.new_usertype<BoundsComponent>("BoundsComponent", sol::constructors<BoundsComponent()>());
+    boundsComp["bounds"] = &BoundsComponent::bounds;
+    boundsComp["isDragging"] = &BoundsComponent::isDragging;
+    boundsComp["debugColor"] = sol::property([](BoundsComponent& b) { return b.debugColor; }, [](BoundsComponent& b, sol::object v) { b.debugColor = ObjectToColor(v); });
 
     // TeamComponent
-    lua.new_usertype<TeamComponent>("TeamComponent",
-        sol::constructors<TeamComponent(), TeamComponent(int)>(),
-        "teamId", &TeamComponent::teamId
-    );
+    auto teamComp = lua.new_usertype<TeamComponent>("TeamComponent", sol::constructors<TeamComponent(), TeamComponent(int)>());
+    teamComp["teamId"] = &TeamComponent::teamId;
 
     // UnitComponent
-    lua.new_usertype<UnitComponent>("UnitComponent",
-        sol::constructors<UnitComponent()>(),
-        "hasActedThisTurn", &UnitComponent::hasActedThisTurn,
-        "canMove", &UnitComponent::canMove,
-        "canAttack", &UnitComponent::canAttack
-    );
+    auto unitComp = lua.new_usertype<UnitComponent>("UnitComponent", sol::constructors<UnitComponent()>());
+    unitComp["hasActedThisTurn"] = &UnitComponent::hasActedThisTurn;
+    unitComp["canMove"] = &UnitComponent::canMove;
+    unitComp["canAttack"] = &UnitComponent::canAttack;
+
+    // ScriptComponent
+    auto scriptComp = lua.new_usertype<ScriptComponent>("ScriptComponent", sol::constructors<ScriptComponent(), ScriptComponent(std::string)>());
+    scriptComp["scriptName"] = &ScriptComponent::scriptName;
+    scriptComp["isActive"] = &ScriptComponent::isActive;
+    scriptComp["isInitialized"] = &ScriptComponent::isInitialized;
 }
 
 void ScriptService::BindEntityAPI() {
@@ -222,10 +216,7 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("IsMouseButtonPressed", [](int button) { return IsMouseButtonPressed(button); });
     lua.set_function("GetMousePosition", []() { 
         Vector2 m = GetMousePosition();
-        LOG_INFOF("Lua", "Mouse Position: %f, %f", m.x, m.y);
-        auto output = ScreenToWorld(m);
-        LOG_INFOF("Lua", "Converted World Position: %f, %f", output.x, output.y);
-        return output;
+        return ScreenToWorld(m);
     });
 
     // GetComponent
@@ -236,6 +227,10 @@ void ScriptService::BindEntityAPI() {
         if (name == "Position") {
             if (world->HasComponent<PositionComponent>(entity))
                 return sol::make_object(lua.lua_state(), &world->GetComponent<PositionComponent>(entity));
+        }
+        else if (name == "Name") {
+            if (world->HasComponent<NameComponent>(entity))
+                return sol::make_object(lua.lua_state(), &world->GetComponent<NameComponent>(entity));
         }
         else if (name == "Rectangle") {
             if (world->HasComponent<RectangleComponent>(entity))
@@ -261,6 +256,10 @@ void ScriptService::BindEntityAPI() {
             if (world->HasComponent<UnitComponent>(entity))
                 return sol::make_object(lua.lua_state(), &world->GetComponent<UnitComponent>(entity));
         }
+        else if (name == "Script") {
+            if (world->HasComponent<ScriptComponent>(entity))
+                return sol::make_object(lua.lua_state(), &world->GetComponent<ScriptComponent>(entity));
+        }
         return sol::nil;
     });
 
@@ -283,6 +282,17 @@ void ScriptService::BindEntityAPI() {
                 sol::table t = value.as<sol::table>();
                 comp.x = t.get_or("x", comp.x);
                 comp.y = t.get_or("y", comp.y);
+            }
+        }
+        else if (name == "Name") {
+            auto& comp = getOrAdd.template operator()<NameComponent>();
+            if (value.is<NameComponent>()) comp = value.as<NameComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.name = t.get_or("name", comp.name);
+            }
+            else if (value.is<std::string>()) {
+                comp.name = value.as<std::string>();
             }
         }
         else if (name == "Rectangle") {
@@ -328,6 +338,18 @@ void ScriptService::BindEntityAPI() {
                 comp.teamId = t.get_or("teamId", comp.teamId);
             }
         }
+        else if (name == "Script") {
+            auto& comp = getOrAdd.template operator()<ScriptComponent>();
+            if (value.is<ScriptComponent>()) comp = value.as<ScriptComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.scriptName = t.get_or("scriptName", comp.scriptName);
+                comp.isActive = t.get_or("isActive", comp.isActive);
+            }
+            else if (value.is<std::string>()) {
+                comp.scriptName = value.as<std::string>();
+            }
+        }
     });
 
     // AddComponent
@@ -336,12 +358,14 @@ void ScriptService::BindEntityAPI() {
         if (!world) return;
 
         if (name == "Position") { if(!world->HasComponent<PositionComponent>(entity)) world->AddComponent<PositionComponent>(entity, {}); }
+        else if (name == "Name") { if(!world->HasComponent<NameComponent>(entity)) world->AddComponent<NameComponent>(entity, {}); }
         else if (name == "Rectangle") { if(!world->HasComponent<RectangleComponent>(entity)) world->AddComponent<RectangleComponent>(entity, {}); }
         else if (name == "Movement") { if(!world->HasComponent<MovementComponent>(entity)) world->AddComponent<MovementComponent>(entity, {}); }
         else if (name == "Sprite") { if(!world->HasComponent<SpriteComponent>(entity)) world->AddComponent<SpriteComponent>(entity, {}); }
         else if (name == "Bounds") { if(!world->HasComponent<BoundsComponent>(entity)) world->AddComponent<BoundsComponent>(entity, {}); }
         else if (name == "Team") { if(!world->HasComponent<TeamComponent>(entity)) world->AddComponent<TeamComponent>(entity, {}); }
         else if (name == "Unit") { if(!world->HasComponent<UnitComponent>(entity)) world->AddComponent<UnitComponent>(entity, {}); }
+        else if (name == "Script") { if(!world->HasComponent<ScriptComponent>(entity)) world->AddComponent<ScriptComponent>(entity, {}); }
         else {
              LOG_WARNINGF("Lua", "AddComponent: Unknown component type '%s'", name.c_str());
         }
@@ -352,12 +376,14 @@ void ScriptService::BindEntityAPI() {
         auto* world = GetActiveWorld();
         if (!world) return false;
         if (name == "Position") return world->HasComponent<PositionComponent>(entity);
+        if (name == "Name") return world->HasComponent<NameComponent>(entity);
         if (name == "Rectangle") return world->HasComponent<RectangleComponent>(entity);
         if (name == "Movement") return world->HasComponent<MovementComponent>(entity);
         if (name == "Sprite") return world->HasComponent<SpriteComponent>(entity);
         if (name == "Bounds") return world->HasComponent<BoundsComponent>(entity);
         if (name == "Team") return world->HasComponent<TeamComponent>(entity);
         if (name == "Unit") return world->HasComponent<UnitComponent>(entity);
+        if (name == "Script") return world->HasComponent<ScriptComponent>(entity);
         return false;
     });
 
@@ -366,12 +392,14 @@ void ScriptService::BindEntityAPI() {
         auto* world = GetActiveWorld();
         if (!world) return;
         if (name == "Position") world->RemoveComponent<PositionComponent>(entity);
+        else if (name == "Name") world->RemoveComponent<NameComponent>(entity);
         else if (name == "Rectangle") world->RemoveComponent<RectangleComponent>(entity);
         else if (name == "Movement") world->RemoveComponent<MovementComponent>(entity);
         else if (name == "Sprite") world->RemoveComponent<SpriteComponent>(entity);
         else if (name == "Bounds") world->RemoveComponent<BoundsComponent>(entity);
         else if (name == "Team") world->RemoveComponent<TeamComponent>(entity);
         else if (name == "Unit") world->RemoveComponent<UnitComponent>(entity);
+        else if (name == "Script") world->RemoveComponent<ScriptComponent>(entity);
     });
 
     // GetEntityByName
