@@ -3,7 +3,7 @@ local script = {}
 function script.init(self, entity)
     Log("Event Script Init: " .. entity)
     AddComponent(entity, "Position")
-    SetPosition(entity, 100, 100)
+    SetComponent(entity, "Position", {x = 100, y = 100})
 end
 
 function script.update(self, entity, dt)
@@ -16,17 +16,19 @@ function script.onEvent(self, entity, event)
         
         if event.key == KEY_SPACE then
             Log("Spacebar! Moving entity.")
-            local x, y = GetPosition(entity)
-            SetPosition(entity, x + 10, y)
+            local pos = GetComponent(entity, "Position")
+            if pos then
+                SetComponent(entity, "Position", {x = pos.x + 10, y = pos.y})
+            end
         end
     elseif event.type == "MouseButtonPressed" then
         -- Use World Coordinates (wx, wy) if available
         if event.wx and event.wy then
             Log("Mouse Clicked at World: " .. event.wx .. ", " .. event.wy)
-            SetPosition(entity, event.wx, event.wy)
+            SetComponent(entity, "Position", {x = event.wx, y = event.wy})
         else
             Log("Mouse Clicked at Screen: " .. event.x .. ", " .. event.y)
-            SetPosition(entity, event.x, event.y)
+            SetComponent(entity, "Position", {x = event.x, y = event.y})
         end
     end
 end

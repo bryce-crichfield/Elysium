@@ -6,8 +6,197 @@
 #include "Core/Component.h"
 #include "Utilities/Path.h"
 #include "imgui.h"
+#include <memory>
 
+// =================================================================================================
+// Component Adapters
+// =================================================================================================
 namespace Elysium::Services {
+
+    void PositionComponentAdapter::Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) {
+        if (world->HasComponent<Elysium::PositionComponent>(entity)) {
+            const auto& pos = world->GetComponent<Elysium::PositionComponent>(entity);
+            lua_newtable(L);
+            lua_pushnumber(L, pos.x);
+            lua_setfield(L, -2, "x");
+            lua_pushnumber(L, pos.y);
+            lua_setfield(L, -2, "y");
+        } else {
+            lua_pushnil(L);
+        }
+    }
+
+    void PositionComponentAdapter::Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) {
+        if (lua_istable(L, -1)) {
+            Elysium::PositionComponent pos;
+            if (world->HasComponent<Elysium::PositionComponent>(entity)) {
+                pos = world->GetComponent<Elysium::PositionComponent>(entity);
+            }
+            lua_getfield(L, -1, "x");
+            if (lua_isnumber(L, -1)) {
+                pos.x = static_cast<float>(lua_tonumber(L, -1));
+            }
+            lua_pop(L, 1);
+            lua_getfield(L, -1, "y");
+            if (lua_isnumber(L, -1)) {
+                pos.y = static_cast<float>(lua_tonumber(L, -1));
+            }
+            lua_pop(L, 1);
+            if (world->HasComponent<Elysium::PositionComponent>(entity)) {
+                world->GetComponent<Elysium::PositionComponent>(entity) = pos;
+            } else {
+                world->AddComponent<Elysium::PositionComponent>(entity, pos);
+            }
+        }
+    }
+
+    const char* PositionComponentAdapter::GetComponentName() const {
+        return "Position";
+    }
+
+    void RectangleComponentAdapter::Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) {
+        if (world->HasComponent<Elysium::RectangleComponent>(entity)) {
+            const auto& rect = world->GetComponent<Elysium::RectangleComponent>(entity);
+            lua_newtable(L);
+            lua_pushnumber(L, rect.width);
+            lua_setfield(L, -2, "width");
+            lua_pushnumber(L, rect.height);
+            lua_setfield(L, -2, "height");
+            
+            lua_newtable(L);
+            lua_pushnumber(L, rect.border.r);
+            lua_setfield(L, -2, "r");
+            lua_pushnumber(L, rect.border.g);
+            lua_setfield(L, -2, "g");
+            lua_pushnumber(L, rect.border.b);
+            lua_setfield(L, -2, "b");
+            lua_pushnumber(L, rect.border.a);
+            lua_setfield(L, -2, "a");
+            lua_setfield(L, -2, "border");
+
+        } else {
+            lua_pushnil(L);
+        }
+    }
+
+    void RectangleComponentAdapter::Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) {
+        if (lua_istable(L, -1)) {
+            Elysium::RectangleComponent rect;
+             if (world->HasComponent<Elysium::RectangleComponent>(entity)) {
+                rect = world->GetComponent<Elysium::RectangleComponent>(entity);
+            }
+
+            lua_getfield(L, -1, "width");
+            if (lua_isnumber(L, -1)) {
+                rect.width = static_cast<float>(lua_tonumber(L, -1));
+            }
+            lua_pop(L, 1);
+            lua_getfield(L, -1, "height");
+            if (lua_isnumber(L, -1)) {
+                rect.height = static_cast<float>(lua_tonumber(L, -1));
+            }
+            lua_pop(L, 1);
+
+            lua_getfield(L, -1, "border");
+            if (lua_istable(L, -1)) {
+                lua_getfield(L, -1, "r");
+                if (lua_isnumber(L, -1)) rect.border.r = (unsigned char)lua_tointeger(L, -1);
+                lua_pop(L, 1);
+
+                lua_getfield(L, -1, "g");
+                if (lua_isnumber(L, -1)) rect.border.g = (unsigned char)lua_tointeger(L, -1);
+                lua_pop(L, 1);
+
+                lua_getfield(L, -1, "b");
+                if (lua_isnumber(L, -1)) rect.border.b = (unsigned char)lua_tointeger(L, -1);
+                lua_pop(L, 1);
+
+                lua_getfield(L, -1, "a");
+                if (lua_isnumber(L, -1)) rect.border.a = (unsigned char)lua_tointeger(L, -1);
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+
+            if (world->HasComponent<Elysium::RectangleComponent>(entity)) {
+                world->GetComponent<Elysium::RectangleComponent>(entity) = rect;
+            } else {
+                world->AddComponent<Elysium::RectangleComponent>(entity, rect);
+            }
+        }
+    }
+
+    const char* RectangleComponentAdapter::GetComponentName() const {
+        return "Rectangle";
+    }
+
+    void MovementComponentAdapter::Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) {
+        if (world->HasComponent<Elysium::MovementComponent>(entity)) {
+            const auto& mov = world->GetComponent<Elysium::MovementComponent>(entity);
+            lua_newtable(L);
+            lua_pushnumber(L, mov.speed);
+            lua_setfield(L, -2, "speed");
+        } else {
+            lua_pushnil(L);
+        }
+    }
+
+    void MovementComponentAdapter::Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) {
+        if (lua_istable(L, -1)) {
+            Elysium::MovementComponent mov;
+            if (world->HasComponent<Elysium::MovementComponent>(entity)) {
+                mov = world->GetComponent<Elysium::MovementComponent>(entity);
+            }
+            lua_getfield(L, -1, "speed");
+            if (lua_isnumber(L, -1)) {
+                mov.speed = static_cast<float>(lua_tonumber(L, -1));
+            }
+            lua_pop(L, 1);
+            if (world->HasComponent<Elysium::MovementComponent>(entity)) {
+                world->GetComponent<Elysium::MovementComponent>(entity) = mov;
+            } else {
+                world->AddComponent<Elysium::MovementComponent>(entity, mov);
+            }
+        }
+    }
+
+    const char* MovementComponentAdapter::GetComponentName() const {
+        return "Movement";
+    }
+
+void SpriteComponentAdapter::Get(Elysium::World* world, Elysium::Entity entity, lua_State* L)  {
+    if (world->HasComponent<Elysium::SpriteComponent>(entity)) {
+        const auto& sprite = world->GetComponent<Elysium::SpriteComponent>(entity);
+        lua_newtable(L);
+        lua_pushstring(L, sprite.markerName.c_str());
+        lua_setfield(L, -2, "marker");
+    } else {
+        lua_pushnil(L);
+    }
+}
+
+void SpriteComponentAdapter::Set(Elysium::World* world, Elysium::Entity entity, lua_State* L)  {
+    if (lua_istable(L, -1)) {
+        Elysium::SpriteComponent sprite;
+        if (world->HasComponent<Elysium::SpriteComponent>(entity)) {
+            sprite = world->GetComponent<Elysium::SpriteComponent>(entity);
+        }
+        lua_getfield(L, -1, "marker");
+        if (lua_isstring(L, -1)) {
+            sprite.markerName = lua_tostring(L, -1);
+        }
+        lua_pop(L, 1);
+        if (world->HasComponent<Elysium::SpriteComponent>(entity)) {
+            world->GetComponent<Elysium::SpriteComponent>(entity) = sprite;
+        } else {
+            world->AddComponent<Elysium::SpriteComponent>(entity, sprite);
+        }
+    }
+}
+
+const char* SpriteComponentAdapter::GetComponentName() const {
+    return "Sprite";
+}
+
 
 ScriptService::ScriptService() {
     name_ = "ScriptService";
@@ -18,6 +207,10 @@ ScriptService::~ScriptService() {
 
 void ScriptService::Initialize() {
     InitLuaContext();
+    RegisterComponentAdapter(std::make_unique<PositionComponentAdapter>());
+    RegisterComponentAdapter(std::make_unique<RectangleComponentAdapter>());
+    RegisterComponentAdapter(std::make_unique<MovementComponentAdapter>());
+    RegisterComponentAdapter(std::make_unique<SpriteComponentAdapter>());
     BindEntityAPI();
     BindRaylibConstants();
     LOG_INFO("ScriptService", "Lua VM Initialized with Table Capture support");
@@ -32,6 +225,13 @@ void ScriptService::Shutdown() {
 }
 
 void ScriptService::Update(float deltaTime) {
+}
+
+void ScriptService::RegisterComponentAdapter(std::unique_ptr<ILuaComponentAdapter> adapter) {
+    if (!adapter) return;
+    const char* name = adapter->GetComponentName();
+    componentAdapters[name] = std::move(adapter);
+    LOG_INFOF("ScriptService", "Registered component adapter for: %s", name);
 }
 
 void ScriptService::ExecuteString(const std::string& scriptString) {
@@ -89,64 +289,32 @@ void ScriptService::BindEntityAPI() {
         return 0;
     });
 
-    // GetPosition(entityID) -> x, y
-    lua_register(L, "GetPosition", [](lua_State* L) -> int {
-        int entityID = (int)luaL_checkinteger(L, 1);
-        auto* world = GetActiveWorld();
-        if (world && world->HasComponent<PositionComponent>(entityID)) {
-            const auto& pos = world->GetComponent<PositionComponent>(entityID);
-            lua_pushnumber(L, pos.x);
-            lua_pushnumber(L, pos.y);
-            return 2;
-        }
-        return 0; // Return nil if invalid
-    });
-
-    // SetPosition(entityID, x, y)
-    lua_register(L, "SetPosition", [](lua_State* L) -> int {
-        int entityID = (int)luaL_checkinteger(L, 1);
-        float x = (float)luaL_checknumber(L, 2);
-        float y = (float)luaL_checknumber(L, 3);
+    // GetComponent(entityID, componentName) -> table or nil
+    lua_register(L, "GetComponent", [](lua_State* L) -> int {
+        Entity entity = (Entity)luaL_checkinteger(L, 1);
+        const char* name = luaL_checkstring(L, 2);
         
-        auto* world = GetActiveWorld();
-        if (world) {
-            if(world->HasComponent<PositionComponent>(entityID)) {
-                auto& pos = world->GetComponent<PositionComponent>(entityID);
-                pos.x = x;
-                pos.y = y;
-            } else {
-                 // Optional: Add component if it doesn't exist?
-                 // For now, let's enforce it must exist
-                 LOG_WARNINGF("Lua", "Entity %d has no PositionComponent", entityID);
-            }
+        ScriptService* service = &Application::GetInstance().GetService<ScriptService>();
+        auto it = service->componentAdapters.find(name);
+        if (it != service->componentAdapters.end()) {
+            it->second->Get(GetActiveWorld(), entity, L);
+            return 1;
         }
         return 0;
     });
 
-    // GetRectangle(entityID) -> width, height
-    lua_register(L, "GetRectangle", [](lua_State* L) -> int {
-        int entityID = (int)luaL_checkinteger(L, 1);
-        auto* world = GetActiveWorld();
-        if (world && world->HasComponent<RectangleComponent>(entityID)) {
-            const auto& rect = world->GetComponent<RectangleComponent>(entityID);
-            lua_pushnumber(L, rect.width);
-            lua_pushnumber(L, rect.height);
-            return 2;
-        }
-        return 0; 
-    });
-
-    // SetRectangle(entityID, width, height)
-    lua_register(L, "SetRectangle", [](lua_State* L) -> int {
-        int entityID = (int)luaL_checkinteger(L, 1);
-        float w = (float)luaL_checknumber(L, 2);
-        float h = (float)luaL_checknumber(L, 3);
+    // Lua: SetComponent(id, "Position", {x = 10, y = 20})
+    lua_register(L, "SetComponent", [](lua_State* L) -> int {
+        Entity entity = (Entity)luaL_checkinteger(L, 1);
+        const char* name = luaL_checkstring(L, 2);
+        // Table is at index 3
         
-        auto* world = GetActiveWorld();
-        if (world && world->HasComponent<RectangleComponent>(entityID)) {
-            auto& rect = world->GetComponent<RectangleComponent>(entityID);
-            rect.width = w;
-            rect.height = h;
+        ScriptService* service = &Application::GetInstance().GetService<ScriptService>();
+        auto it = service->componentAdapters.find(name);
+        if (it != service->componentAdapters.end()) {
+            lua_pushvalue(L, 3); // Ensure table is at top for Set()
+            it->second->Set(GetActiveWorld(), entity, L);
+            lua_pop(L, 1);
         }
         return 0;
     });

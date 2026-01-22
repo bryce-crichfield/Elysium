@@ -14,6 +14,42 @@ extern "C" {
 
 namespace Elysium::Services {
 
+class ILuaComponentAdapter {
+public:
+    virtual ~ILuaComponentAdapter() = default;
+    virtual void Get(World* world, Entity entity, lua_State* L) = 0;
+    virtual void Set(World* world, Entity entity, lua_State* L) = 0;
+    virtual const char* GetComponentName() const = 0;
+};
+
+class PositionComponentAdapter : public Elysium::Services::ILuaComponentAdapter {
+public:
+    void Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;
+    void Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;
+    const char* GetComponentName() const override;
+};
+
+class RectangleComponentAdapter : public Elysium::Services::ILuaComponentAdapter {
+public:
+    void Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;
+    void Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;        
+    const char* GetComponentName() const override;
+};
+
+class MovementComponentAdapter : public Elysium::Services::ILuaComponentAdapter {
+public:
+    void Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;
+    void Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;        
+    const char* GetComponentName() const override;
+};
+
+class SpriteComponentAdapter : public Elysium::Services::ILuaComponentAdapter {
+public:
+    void Get(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;
+    void Set(Elysium::World* world, Elysium::Entity entity, lua_State* L) override;        
+    const char* GetComponentName() const override;
+};
+
 class ScriptService : public Elysium::Service {
 public:
     ScriptService();
@@ -45,6 +81,8 @@ public:
     // Editor Helpers
     void InspectEntityScript(Entity entity);
 
+    void RegisterComponentAdapter(std::unique_ptr<ILuaComponentAdapter> adapter);
+
 private:
     lua_State* L = nullptr;
     
@@ -68,6 +106,9 @@ private:
     // Helper to get or create the instance for an entity
     // If create is true, it will instantiate from the script template
     int GetEntityInstance(Entity entity, const std::string& scriptName, bool create = false);
+
+    // Component Adapters
+    std::unordered_map<std::string, std::unique_ptr<ILuaComponentAdapter>> componentAdapters;
 };
 
 } // namespace Elysium::Services
