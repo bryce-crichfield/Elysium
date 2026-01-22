@@ -24,6 +24,7 @@ add_subdirectory(Vendor/raylib)
 add_subdirectory(Vendor/tinyxml2)
 add_subdirectory(Vendor/SQLiteCpp)
 add_subdirectory(Vendor/enet)
+add_subdirectory(Vendor/lua)
 
 # ImGui library, since it doesn't have a CMakeLists.txt, we have to build it ourselves
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/imgui)
@@ -73,6 +74,7 @@ target_link_libraries(${PROJECT_NAME}
     tinyxml2
     SQLiteCpp
     enet
+    lua
 )
 
 # Add Tracy if enabled
@@ -98,6 +100,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/tinyxml2
     ${CMAKE_SOURCE_DIR}/Vendor/SQLiteCpp/include
     ${CMAKE_SOURCE_DIR}/Vendor/enet/include
+    ${CMAKE_SOURCE_DIR}/Vendor/lua
 )
 
 if(TRACY_ENABLE)

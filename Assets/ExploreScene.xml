@@ -1,6 +1,7 @@
 <Scene type="ExploreScene">
     <Systems>
         <System type="MovementSystem" />
+        <System type="ScriptSystem" />
         <System type="SpriteSystem" />
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
@@ -61,6 +62,8 @@
             spriteName="mushroom_warrior"
             markerName="idle/down"
             layerName="entity" />
+
+            <ScriptComponent scriptName="Scripts/test.lua" />
 
             <BoundsComponent />
         </Entity>

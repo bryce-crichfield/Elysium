@@ -19,3 +19,6 @@
 [submodule "Vendor/enet"]
 	path = Vendor/enet
 	url = https://github.com/lsalzman/enet.git
+[submodule "Vendor/lua"]
+	path = Vendor/lua
+	url = https://github.com/lua/lua

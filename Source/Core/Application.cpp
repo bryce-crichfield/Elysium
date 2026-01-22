@@ -6,12 +6,15 @@
 #include "Common.h"
 #include "Utilities/Path.h"
 #include "Services/Services.h"
+#include "Services/TimelineService.h"
+#include "Services/ScriptService.h"
 #include "Editor/SceneEditor.h"
 #include "Editor/WorldEditor.h"
 #include "Editor/LogEditor.h"
 #include "Editor/AssetEditor.h"
 #include "Editor/TimelineEditor.h"
 #include "Editor/NetworkEditor.h"
+#include "Editor/ScriptEditor.h"
 #include "imgui.h"
 #include "rlImGui.h"
 
@@ -47,6 +50,7 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterService(std::make_unique<Elysium::Services::LoadingService>());
     RegisterService(std::make_unique<Elysium::Services::SceneService>());
     RegisterService(std::make_unique<Elysium::Services::TimelineService>());
+    RegisterService(std::make_unique<Elysium::Services::ScriptService>());
 
     RegisterEditor<SceneEditor>();
     RegisterEditor<WorldEditor>();
@@ -54,6 +58,7 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterEditor<AssetEditor>();
     RegisterEditor<TimelineEditor>();
     RegisterEditor<NetworkEditor>();
+    RegisterEditor<ScriptEditor>();
 
     g_appInstance = this;
     SetTraceLogCallback(CustomTraceLogCallback);
@@ -214,6 +219,12 @@ void Application::ProcessInput() {
 
     if (IsKeyPressed(KEY_F6)) {
         if (auto* editor = GetEditor<NetworkEditor>()) {
+            editor->ToggleVisibility();
+        }
+    }
+
+    if (IsKeyPressed(KEY_F7)) {
+        if (auto* editor = GetEditor<ScriptEditor>()) {
             editor->ToggleVisibility();
         }
     }

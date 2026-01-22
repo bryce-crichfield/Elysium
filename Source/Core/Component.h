@@ -276,4 +276,12 @@ struct BoundsComponent {
         : bounds(rect), isDragging(false), debugColor(color) {}
 };
 
+struct ScriptComponent {
+    std::string scriptName;
+    bool isActive = true;
+
+    ScriptComponent() = default;
+    ScriptComponent(const std::string& name) : scriptName(name) {}
+};
+
 };  // namespace Elysium

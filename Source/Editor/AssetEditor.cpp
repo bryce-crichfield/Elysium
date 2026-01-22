@@ -28,6 +28,8 @@ static const char* GetAssetTypeString(AssetType type) {
             return "Shader";
         case AssetType::SPRITE:
             return "Sprite";
+        case AssetType::SCRIPT:
+            return "Script";
         default:
             return "Unknown";
     }
@@ -179,6 +181,8 @@ void AssetEditor::Draw(Application& app) {
                         type = AssetType::SPRITE;
                     else if (ext == ".wav")
                         type = AssetType::SOUND;
+                    else if (ext == ".lua")
+                        type = AssetType::SCRIPT;
 
                     auto& loadingService = app.GetService<LoadingService>();
                     loadingService.LoadAssets(std::vector<Asset>{Asset(type, assetNameBuffer_, relativeToAssets)});

@@ -47,6 +47,7 @@ void WorldService::RegisterComponentTypes() {
     RegisterComponent<CharacterComponent>("Character");
     RegisterComponent<UnitComponent>("Unit");
     RegisterComponent<BoundsComponent>("Bounds");
+    RegisterComponent<ScriptComponent>("Script");
 }
 
 void WorldService::Update(float deltaTime) {
@@ -684,6 +685,52 @@ void WorldService::DrawComponent<BoundsComponent>(Entity entity, Elysium::World*
 
     ImGui::Separator();
     ImGui::TextDisabled("Bounds are computed automatically by RenderSystem");
+}
+
+template <>
+void WorldService::DrawComponent<ScriptComponent>(Entity entity, Elysium::World* world) {
+    auto& script = world->GetComponent<ScriptComponent>(entity);
+
+    // Script asset picker
+    FIELD_LABEL("Script Asset: ")
+    auto& assetService = Elysium::Application::GetInstance().GetService<AssetService>();
+    const auto& allAssets = assetService.GetAllAssets();
+
+    std::vector<std::string> scriptAssetNames;
+    scriptAssetNames.push_back("<None>");
+
+    for (const auto& [name, asset] : allAssets) {
+        if (asset.GetType() == AssetType::SCRIPT && asset.IsLoaded()) {
+            scriptAssetNames.push_back(name);
+        }
+    }
+
+    std::string currentScript = script.scriptName.empty() ? "<None>" : script.scriptName;
+    int currentIndex = 0;
+    for (size_t i = 0; i < scriptAssetNames.size(); ++i) {
+        if (scriptAssetNames[i] == currentScript) {
+            currentIndex = static_cast<int>(i);
+            break;
+        }
+    }
+
+    std::string comboId = "##ScriptAsset_" + std::to_string(entity);
+    if (ImGui::BeginCombo(comboId.c_str(), currentScript.c_str())) {
+        for (size_t i = 0; i < scriptAssetNames.size(); ++i) {
+            bool isSelected = (currentIndex == static_cast<int>(i));
+            if (ImGui::Selectable(scriptAssetNames[i].c_str(), isSelected)) {
+                script.scriptName = (i == 0) ? "" : scriptAssetNames[i];
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    FIELD_LABEL("Is Active: ")
+    std::string activeId = "##ScriptActive_" + std::to_string(entity);
+    ImGui::Checkbox(activeId.c_str(), &script.isActive);
 }
 
 }  // namespace Elysium::Services

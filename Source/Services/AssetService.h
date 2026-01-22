@@ -31,6 +31,7 @@ class AssetService : public Elysium::Service {
     Model GetModel(const AssetName& name);
     Shader GetShader(const AssetName& name);
     Sprite GetSprite(const AssetName& name);
+    Script GetScript(const AssetName& name);
 
     // Asset enumeration
     const std::unordered_map<AssetName, Asset>& GetAllAssets() const { return assetsByName_; }

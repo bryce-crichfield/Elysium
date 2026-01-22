@@ -56,6 +56,13 @@ Sprite Asset::GetSprite() const {
     return std::get<Sprite>(data_);
 }
 
+Script Asset::GetScript() const {
+    if (type_ != AssetType::SCRIPT || !loaded_) {
+        return "";
+    }
+    return std::get<Script>(data_);
+}
+
 void Asset::SetTexture(const Texture2D& texture) {
     if (type_ == AssetType::TEXTURE) {
         data_ = texture;
@@ -115,6 +122,13 @@ void Asset::SetSprite(const Sprite& sprite) {
     }
 }
 
+void Asset::SetScript(const Script& script) {
+    if (type_ == AssetType::SCRIPT) {
+        data_ = script;
+        loaded_ = true;
+    }
+}
+
 void Asset::Unload() {
     if (loaded_) {
         switch (type_) {
@@ -135,6 +149,9 @@ void Asset::Unload() {
                 break;
             case AssetType::SHADER:
                 UnloadShader(std::get<Shader>(data_));
+                break;
+            case AssetType::SCRIPT:
+                // Nothing to unload for script string
                 break;
         }
         loaded_ = false;

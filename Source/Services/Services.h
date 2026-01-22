@@ -7,6 +7,7 @@
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"
 #include "Services/SceneService.h"
+#include "Services/ScriptService.h"
 #include "Services/TaskService.h"
 #include "Services/TimelineService.h"
 #include "Services/WorldService.h"

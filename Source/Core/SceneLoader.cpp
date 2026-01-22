@@ -11,6 +11,7 @@
 #include "Systems/MovementSystem.h"
 #include "Systems/PickSystem.h"
 #include "Systems/RenderSystem.h"
+#include "Systems/ScriptSystem.h"
 #include "Systems/SpriteSystem.h"
 #include "Utilities/Xml.h"
 #include "raylib.h"
@@ -293,6 +294,13 @@ const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
         world->AddComponent(entity, BoundsComponent());
     };
 
+    componentLoaders["ScriptComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
+        const char* scriptName = xmlComponent->Attribute("scriptName");
+        if (scriptName) {
+            world->AddComponent(entity, ScriptComponent(scriptName));
+        }
+    };
+
     return componentLoaders;
 }
 
@@ -346,6 +354,8 @@ void LoadSystems(XMLElement* root, Scene& scene) {
                 scene.AddSystem(std::make_unique<Elysium::Systems::SpriteSystem>(context));
             } else if (systemName == "PickSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::PickSystem>(context));
+            } else if (systemName == "ScriptSystem") {
+                scene.AddSystem(std::make_unique<Elysium::Systems::ScriptSystem>(context));
             } else {
                 LOG_WARNINGF("Scene", "Unknown system type: %s", systemName.c_str());
             }

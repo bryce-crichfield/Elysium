@@ -13,6 +13,7 @@
 namespace Elysium {
 
 using AssetName = std::string;
+using Script = std::string;
 
 enum class AssetType {
     TEXTURE,
@@ -21,7 +22,8 @@ enum class AssetType {
     FONT,
     MODEL,
     SHADER,
-    SPRITE
+    SPRITE,
+    SCRIPT
 };
 
 class Asset {
@@ -49,6 +51,7 @@ class Asset {
     Image GetImageData() const { return imageData_; }
     Wave GetWaveData() const { return waveData_; }
     Sprite GetSprite() const;
+    Script GetScript() const;
 
     void SetTexture(const Texture2D& texture);
     void SetSound(const Sound& sound);
@@ -59,6 +62,7 @@ class Asset {
     void SetImageData(const Image& image);
     void SetWaveData(const Wave& wave);
     void SetSprite(const Sprite& sprite);
+    void SetScript(const Script& script);
 
     void Unload();
 
@@ -70,7 +74,7 @@ class Asset {
     bool hasImageData_ = false;
     bool hasWaveData_ = false;
 
-    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite> data_;
+    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite, Script> data_;
     Image imageData_{};
     Wave waveData_{};
 };

@@ -162,6 +162,16 @@ Sprite AssetService::GetSprite(const AssetName& name) {
     return Sprite{};
 }
 
+Script AssetService::GetScript(const AssetName& name) {
+    Asset* asset = GetAsset(name);
+    if (asset && asset->GetType() == AssetType::SCRIPT) {
+        return asset->GetScript();
+    }
+
+    LOG_WARNINGF("AssetService", "Script not found: %s", name.c_str());
+    return "";
+}
+
 void AssetService::LoadAssetByType(Asset& asset) {
     const std::string& path = asset.GetPath();
 
@@ -267,6 +277,19 @@ void AssetService::LoadAssetByType(Asset& asset) {
                 LOG_DEBUGF("AssetService", "SetSprite completed, asset loaded = %s", asset.IsLoaded() ? "true" : "false");
             } catch (...) {
                 LOG_ERRORF("AssetService", "Failed to load sprite: %s", path.c_str());
+            }
+            break;
+        }
+
+        case AssetType::SCRIPT: {
+            LOG_DEBUGF("AssetService", "Loading SCRIPT asset from %s", path.c_str());
+            char* text = ::LoadFileText(path.c_str());
+            if (text) {
+                asset.SetScript(std::string(text));
+                ::UnloadFileText(text);
+                LOG_DEBUGF("AssetService", "Script loaded: %s", asset.GetName().c_str());
+            } else {
+                LOG_ERRORF("AssetService", "Failed to load script: %s", path.c_str());
             }
             break;
         }
