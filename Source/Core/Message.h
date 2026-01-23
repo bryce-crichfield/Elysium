@@ -49,10 +49,10 @@ class MessageQueue {
     std::vector<std::unique_ptr<Message>>* writeBuffer_ = &bufferA_;
 };
 
-// Test message for verifying the message system
-struct TestMessage : public Message {
-    int value;
-    explicit TestMessage(int v) : value(v) {}
+class IMessageListener {
+public:
+    virtual ~IMessageListener() = default;
+    virtual void OnMessage(Message& message) = 0;
 };
 
 }  // namespace Elysium

@@ -116,4 +116,37 @@ public:
     virtual void OnEvent(Event& event) = 0;
 };
 
+// Mouse listener - systems call DispatchMouseEvent from their OnEvent
+// Does NOT inherit IEventListener to avoid diamond problem with multiple listeners
+struct IMouseListener {
+    virtual ~IMouseListener() = default;
+
+    // Systems call this from their OnEvent to dispatch mouse events
+    void DispatchMouseEvent(Event& event) {
+        if (auto* e = event.As<MouseButtonPressedEvent>()) OnMouseButtonPressed(*e);
+        else if (auto* e = event.As<MouseButtonReleasedEvent>()) OnMouseButtonReleased(*e);
+        else if (auto* e = event.As<MouseMovedEvent>()) OnMouseMoved(*e);
+        else if (auto* e = event.As<MouseWheelEvent>()) OnMouseWheel(*e);
+    }
+
+    virtual void OnMouseButtonPressed(MouseButtonPressedEvent& event) {}
+    virtual void OnMouseButtonReleased(MouseButtonReleasedEvent& event) {}
+    virtual void OnMouseMoved(MouseMovedEvent& event) {}
+    virtual void OnMouseWheel(MouseWheelEvent& event) {}
+};
+
+// Keyboard listener - same pattern as IMouseListener
+struct IKeyboardListener {
+    virtual ~IKeyboardListener() = default;
+
+    // Systems call this from their OnEvent to dispatch keyboard events
+    void DispatchKeyboardEvent(Event& event) {
+        if (auto* e = event.As<KeyPressedEvent>()) OnKeyPressed(*e);
+        else if (auto* e = event.As<KeyReleasedEvent>()) OnKeyReleased(*e);
+    }
+
+    virtual void OnKeyPressed(KeyPressedEvent& event) {}
+    virtual void OnKeyReleased(KeyReleasedEvent& event) {}
+};
+
 }  // namespace Elysium

@@ -33,6 +33,9 @@ constexpr Entity INVALID_ENTITY = MAX_ENTITIES;
 
 using ComponentMask = std::bitset<MAX_COMPONENTS>;
 
+// Forward declaration for World listener registration
+struct IWorldListener;
+
 class ComponentArray {
    public:
     virtual ~ComponentArray() = default;
@@ -123,6 +126,7 @@ class World {
    private:
     std::unique_ptr<ComponentManager> componentManager;
     std::unique_ptr<EntityManager> entityManager;
+    std::vector<IWorldListener*> worldListeners_;
 
    public:
     World();  // Declaration only
@@ -132,6 +136,10 @@ class World {
     void DestroyEntity(Entity entity);                     // Declaration only
     size_t GetEntityCount() const;                         // Declaration only
     const std::vector<Entity>& GetLivingEntities() const;  // Declaration only
+
+    // World listener registration
+    void AddWorldListener(IWorldListener* listener);
+    void RemoveWorldListener(IWorldListener* listener);
 
     // Template methods remain in the header
     template <typename T>
@@ -395,4 +403,26 @@ void World::Query(Func&& func) {
         }
     }
 }
-};  // namespace Elysium
+
+struct EntityCreatedEvent : public Event {
+    Entity entity;
+
+    EntityCreatedEvent(Entity e) : entity(e) {}
+};
+
+struct EntityDestroyedEvent : public Event {
+    Entity entity;
+
+    EntityDestroyedEvent(Entity e) : entity(e) {}
+};
+
+// World listener - registered with World directly for entity lifecycle events
+// Does NOT use the scene event system - this is direct World notification
+struct IWorldListener {
+    virtual ~IWorldListener() = default;
+
+    virtual void OnEntityCreated(Entity entity) {}
+    virtual void OnEntityDestroyed(Entity entity) {}
+};
+
+}  // namespace Elysium

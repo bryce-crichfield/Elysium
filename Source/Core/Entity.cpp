@@ -101,12 +101,26 @@ World::World() {
     RegisterComponent<ScriptComponent>();
 }
 
+void World::AddWorldListener(IWorldListener* listener) {
+    worldListeners_.push_back(listener);
+}
+
+void World::RemoveWorldListener(IWorldListener* listener) {
+    worldListeners_.erase(
+        std::remove(worldListeners_.begin(), worldListeners_.end(), listener),
+        worldListeners_.end());
+}
+
 Entity World::CreateEntity() {
-    return entityManager->CreateEntity();
+    Entity entity = entityManager->CreateEntity();
+    for (auto* listener : worldListeners_) {
+        listener->OnEntityCreated(entity);
+    }
+    return entity;
 }
 
 Entity World::CloneEntity(Entity source) {
-    // Create new entity
+    // Create new entity directly (don't use CreateEntity() to avoid double notification)
     Entity newEntity = entityManager->CreateEntity();
 
     // Copy component mask
@@ -117,20 +131,14 @@ Entity World::CloneEntity(Entity source) {
     componentManager->CloneAllComponents(source, newEntity);
 
     // Special handling for ScriptComponent: Reset initialization flag
-    // We can't access HasComponent<ScriptComponent> easily without full type visibility
-    // But since World includes Component.h via Entity.h (or indirectly), it should be fine?
-    // Wait, World implementation uses templates.
-    // If we want to avoid linking issues, we might need to rely on the fact that we know ScriptComponent exists.
-    // Let's check if we can simply use HasComponent<ScriptComponent>
-    
-    // We need to ensure we can access ScriptComponent type.
-    // If HasComponent<ScriptComponent>(newEntity) works...
-    // But wait, RegisterComponent<ScriptComponent> is in World::World().
-    
-    // Using the public API for safety
     if (HasComponent<ScriptComponent>(newEntity)) {
         auto& script = GetComponent<ScriptComponent>(newEntity);
         script.isInitialized = false;
+    }
+
+    // Notify listeners after clone is complete
+    for (auto* listener : worldListeners_) {
+        listener->OnEntityCreated(newEntity);
     }
 
     return newEntity;
@@ -155,8 +163,12 @@ std::string World::GetEntityName(Entity entity) const {
 }
 
 void World::DestroyEntity(Entity entity) {
-    entityManager->DestroyEntity(entity);
+    // Notify listeners BEFORE destruction so they can still access components
+    for (auto* listener : worldListeners_) {
+        listener->OnEntityDestroyed(entity);
+    }
     componentManager->EntityDestroyed(entity);
+    entityManager->DestroyEntity(entity);
 }
 
 size_t World::GetEntityCount() const {

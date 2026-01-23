@@ -25,23 +25,29 @@ struct PickEvent : public Event {
  * PickSystem handles mouse picking and dragging of entities with BoundsComponent.
  * It listens to mouse events and updates entity positions during drag operations.
  */
-class PickSystem : public System {
+class PickSystem : public System, public IWorldListener, public IMouseListener {
    public:
     PickSystem(Context context);
+    ~PickSystem();
 
     void Update(float deltaTime) override;
+
+    // IEventListener - composes dispatch helpers
     void OnEvent(Event& event) override;
 
-   private:
-    void FireEvent(const PickEvent& pickEvent);
+    // IWorldListener
+    void OnEntityCreated(Entity entity) override {}
+    void OnEntityDestroyed(Entity entity) override {}
 
+    // IMouseListener overrides
+    void OnMouseButtonPressed(MouseButtonPressedEvent& event) override;
+    void OnMouseButtonReleased(MouseButtonReleasedEvent& event) override;
+    void OnMouseMoved(MouseMovedEvent& event) override;
+
+   private:
     Entity draggedEntity_ = 0;
     bool isDragging_ = false;
     Vector2 dragOffset_ = {0, 0};  // Offset from entity position to mouse position
-
-    void HandleMousePressed(const MouseButtonPressedEvent& event);
-    void HandleMouseMoved(const MouseMovedEvent& event);
-    void HandleMouseReleased(const MouseButtonReleasedEvent& event);
 
     // Check if a point is inside an entity's bounds
     bool IsPointInBounds(Vector2 point, const Rectangle& bounds);

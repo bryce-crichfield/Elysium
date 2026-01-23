@@ -4,34 +4,32 @@
 #include "Services/LogService.h"
 #include "raymath.h"
 #include "Core/Application.h"
-#include "Services/EventService.h"
 #include "Core/Scene.h"
 
 namespace Elysium::Systems {
 
-PickSystem::PickSystem(Context context) : System(context) {}
+PickSystem::PickSystem(Context context) : System(context) {
+    // Register as world listener
+    world->AddWorldListener(this);
+}
+
+PickSystem::~PickSystem() {
+    // Unregister from world
+    world->RemoveWorldListener(this);
+}
 
 void PickSystem::Update(float deltaTime) {
     // Nothing to update per frame - all logic is event-driven
 }
 
 void PickSystem::OnEvent(Event& event) {
-    if (event.Is<MouseButtonPressedEvent>()) {
-        HandleMousePressed(*event.As<MouseButtonPressedEvent>());
-    } else if (event.Is<MouseMovedEvent>()) {
-        HandleMouseMoved(*event.As<MouseMovedEvent>());
-    } else if (event.Is<MouseButtonReleasedEvent>()) {
-        HandleMouseReleased(*event.As<MouseButtonReleasedEvent>());
-    }
+    // Use dispatch helper - allows composing multiple listener interfaces
+    DispatchMouseEvent(event);
 }
 
-void PickSystem::FireEvent(const PickEvent& pickEvent) {
-    Event& event = const_cast<PickEvent&>(pickEvent);
-    Scene* scene = GetScene();
-    scene->OnEvent(event);
-}
 
-void PickSystem::HandleMousePressed(const MouseButtonPressedEvent& event) {
+
+void PickSystem::OnMouseButtonPressed(MouseButtonPressedEvent& event) {
     // Only handle left mouse button
     if (event.GetButton() != MOUSE_LEFT_BUTTON) {
         return;
@@ -56,14 +54,14 @@ void PickSystem::HandleMousePressed(const MouseButtonPressedEvent& event) {
     });
 
     if (foundEntity) {
-        auto pickEvent = PickEvent{PickEvent::Type::PRESS, worldPos, event.GetButton()};
-        FireEvent(pickEvent);
+        auto& bounds = world->GetComponent<BoundsComponent>(selectedEntity);
+        PickEvent pickEvent = PickEvent{PickEvent::Type::PRESS, worldPos, event.GetButton()};
+        bounds.OnPickEvent.Emit(pickEvent);
 
         draggedEntity_ = selectedEntity;
         isDragging_ = true;
 
         // Mark entity as dragging
-        auto& bounds = world->GetComponent<BoundsComponent>(draggedEntity_);
         bounds.isDragging = true;
 
         LOG_INFOF("PickSystem", "Started dragging entity %zu at world pos (%.1f, %.1f)",
@@ -71,7 +69,7 @@ void PickSystem::HandleMousePressed(const MouseButtonPressedEvent& event) {
     }
 }
 
-void PickSystem::HandleMouseMoved(const MouseMovedEvent& event) {
+void PickSystem::OnMouseMoved(MouseMovedEvent& event) {
     if (!isDragging_ || draggedEntity_ == 0) {
         return;
     }
@@ -79,32 +77,31 @@ void PickSystem::HandleMouseMoved(const MouseMovedEvent& event) {
     // Update entity position to follow mouse
     Vector2 fbPos = event.GetPosition();
     Vector2 worldPos = FramebufferToWorld(fbPos);
-    auto& pos = world->GetComponent<PositionComponent>(draggedEntity_);
-
-    // pos.x = worldPos.x - dragOffset_.x;
-    // pos.y = worldPos.y - dragOffset_.y;
 
     auto pickEvent = PickEvent{ PickEvent::Type::MOVE, worldPos, 0 };
-    FireEvent(pickEvent);
+    auto& bounds = world->GetComponent<BoundsComponent>(draggedEntity_);
+    bounds.OnPickEvent.Emit(pickEvent);
 }
 
-void PickSystem::HandleMouseReleased(const MouseButtonReleasedEvent& event) {
+void PickSystem::OnMouseButtonReleased(MouseButtonReleasedEvent& event) {
     // Only handle left mouse button
     if (event.GetButton() != MOUSE_LEFT_BUTTON) {
         return;
     }
 
     if (isDragging_ && draggedEntity_ != 0) {
-        // Clear dragging flag
+        // Emit release event before clearing state
         auto& bounds = world->GetComponent<BoundsComponent>(draggedEntity_);
+        auto pickEvent = PickEvent{ PickEvent::Type::RELEASE, FramebufferToWorld(event.GetPosition()), event.GetButton() };
+        bounds.OnPickEvent.Emit(pickEvent);
+
+        // Clear dragging flag
         bounds.isDragging = false;
 
         LOG_INFOF("PickSystem", "Stopped dragging entity %zu", draggedEntity_);
 
         draggedEntity_ = 0;
         isDragging_ = false;
-        auto pickEvent = PickEvent{ PickEvent::Type::RELEASE, FramebufferToWorld(event.GetPosition()), event.GetButton() };
-        FireEvent(pickEvent);
     }
 }
 

@@ -2,6 +2,9 @@
 #include <string>
 #include <typeinfo>
 
+#include "Core/Event.h"
+#include "Core/Message.h"
+
 namespace Elysium {
 class Application;
 class Scene;
@@ -16,7 +19,7 @@ struct Context {
     World* world;
 };
 
-class System {
+class System : public IEventListener, public IMessageListener {
    protected:
     Application* application;
     Scene* scene;
@@ -29,11 +32,11 @@ class System {
 
     virtual void Update(float deltaTime) {}
     virtual void Draw() {}
-    virtual void OnEvent(class Event& event) {}  // Override to handle input events
-    virtual void OnMessage(class Message& message) {}
-    std::string GetName() const { return typeid(*this).name(); }
+    
+    virtual void OnEvent(Event& event) override {}
+    virtual void OnMessage(Message& message) override {}
 
-    // Helper to get the scene (for systems that need it)
+    std::string GetName() const { return typeid(*this).name(); }
     Scene* GetScene() const { return scene; }
 };
 

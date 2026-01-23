@@ -5,6 +5,8 @@
 #include <string>
 #include "Sprite.h"
 #include "raylib.h"
+#include "Core/Event.h"
+#include "Core/Signal.h"
 namespace Elysium {
 
 // Forward declarations
@@ -274,6 +276,8 @@ struct BoundsComponent {
 
     BoundsComponent(Rectangle rect, Color color)
         : bounds(rect), isDragging(false), debugColor(color) {}
+
+    Signal<Event> OnPickEvent;
 };
 
 struct ScriptComponent {

@@ -11,6 +11,7 @@ class System;    // This tells the compiler that the class System exists.
 #include <vector>
 #include "Entity.h"
 #include "Event.h"
+#include "Message.h"
 
 namespace Elysium {
 
@@ -20,7 +21,7 @@ constexpr float TILE_HEIGHT = 32.0f;
 
 struct Application;
 
-class Scene : public IEventListener {
+class Scene : public IEventListener, IMessageListener {
    public:
     Scene();
     virtual ~Scene();
@@ -29,7 +30,7 @@ class Scene : public IEventListener {
     virtual void OnUpdate(float deltaTime);
     virtual void OnDraw(Rectangle screen);
     virtual void OnEvent(Event& event) override;
-    virtual void OnMessage(class Message& message);
+    virtual void OnMessage(Message& message) override;
     virtual void OnEnter() {}
     virtual void OnExit() {}
 
