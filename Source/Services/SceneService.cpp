@@ -298,9 +298,26 @@ void SceneService::ProcessInput() {
     }
 
     Vector2 mousePos = GetMousePosition();
+    bool isInside = CheckCollisionPointRec(mousePos, letterboxRect_);
+
+    static bool wasInside = false;
+    if (isInside && !wasInside) {
+        MouseEnterEvent event;
+        for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+            (*it)->OnEvent(event);
+            if (event.handled) break;
+        }
+    } else if (!isInside && wasInside) {
+        MouseExitEvent event;
+        for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+            (*it)->OnEvent(event);
+            if (event.handled) break;
+        }
+    }
+    wasInside = isInside;
 
     // Only process mouse events if mouse is inside the framebuffer
-    if (CheckCollisionPointRec(mousePos, letterboxRect_)) {
+    if (isInside) {
         Vector2 fbPos = ScreenToFramebuffer(mousePos);
 
         // Mouse button events

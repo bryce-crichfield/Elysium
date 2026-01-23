@@ -88,6 +88,16 @@ class MouseWheelEvent : public Event {
     Vector2 position_;
 };
 
+class MouseEnterEvent : public Event {
+   public:
+    MouseEnterEvent() = default;
+};
+
+class MouseExitEvent : public Event {
+   public:
+    MouseExitEvent() = default;
+};
+
 // Keyboard events
 class KeyPressedEvent : public Event {
    public:
@@ -127,12 +137,16 @@ struct IMouseListener {
         else if (auto* e = event.As<MouseButtonReleasedEvent>()) OnMouseButtonReleased(*e);
         else if (auto* e = event.As<MouseMovedEvent>()) OnMouseMoved(*e);
         else if (auto* e = event.As<MouseWheelEvent>()) OnMouseWheel(*e);
+        else if (auto* e = event.As<MouseEnterEvent>()) OnMouseEnter(*e);
+        else if (auto* e = event.As<MouseExitEvent>()) OnMouseExit(*e);
     }
 
     virtual void OnMouseButtonPressed(MouseButtonPressedEvent& event) {}
     virtual void OnMouseButtonReleased(MouseButtonReleasedEvent& event) {}
     virtual void OnMouseMoved(MouseMovedEvent& event) {}
     virtual void OnMouseWheel(MouseWheelEvent& event) {}
+    virtual void OnMouseEnter(MouseEnterEvent& event) {}
+    virtual void OnMouseExit(MouseExitEvent& event) {}
 };
 
 // Keyboard listener - same pattern as IMouseListener
