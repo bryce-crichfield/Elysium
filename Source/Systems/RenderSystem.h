@@ -39,6 +39,7 @@ class RenderSystem : public System {
     Matrix GetLayerTransform(const LayerComponent& layer, Entity cameraEntity);
     void ComputeBounds(Entity entity, const RenderItem& item);
     void DrawDebugBounds();
+    void DrawSelectionHighlights();
 };
 
 }  // namespace Elysium::Systems

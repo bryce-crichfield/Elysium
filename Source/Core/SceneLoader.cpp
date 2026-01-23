@@ -8,6 +8,7 @@
 #include "System.h"
 #include "Systems/AnimationSystem.h"
 #include "Systems/CameraSystem.h"
+#include "Systems/CommandSystem.h"
 #include "Systems/MovementSystem.h"
 #include "Systems/PickSystem.h"
 #include "Systems/RenderSystem.h"
@@ -356,6 +357,8 @@ void LoadSystems(XMLElement* root, Scene& scene) {
                 scene.AddSystem(std::make_unique<Elysium::Systems::PickSystem>(context));
             } else if (systemName == "ScriptSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::ScriptSystem>(context));
+            } else if (systemName == "CommandSystem") {
+                scene.AddSystem(std::make_unique<Elysium::Systems::CommandSystem>(context));
             } else {
                 LOG_WARNINGF("Scene", "Unknown system type: %s", systemName.c_str());
             }

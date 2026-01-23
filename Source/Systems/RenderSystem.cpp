@@ -120,13 +120,14 @@ void RenderSystem::RenderCamera(Entity cameraEntity, const CameraComponent& came
         }
     }
 
-    // Draw debug bounds on top of everything with world space transform
+    // Draw debug bounds and selection highlights on top of everything with world space transform
     LayerComponent worldLayer;
     worldLayer.space = LayerComponent::Space::World;
     worldLayer.blend = LayerComponent::Blend::Normal;
     Matrix transform = GetLayerTransform(worldLayer, cameraEntity);
     rlPushMatrix();
     rlMultMatrixf(MatrixToFloat(transform));
+    DrawSelectionHighlights();
     DrawDebugBounds();
     rlPopMatrix();
 
@@ -493,6 +494,55 @@ void RenderSystem::DrawDebugBounds() {
             dragColor.a = 50;
             DrawRectangleRec(bounds.bounds, dragColor);
         }
+    });
+}
+
+void RenderSystem::DrawSelectionHighlights() {
+    world->Query<SelectionComponent, BoundsComponent>([&](Entity entity, auto& sel, auto& bounds) {
+        // Skip if bounds haven't been computed yet
+        if (bounds.bounds.width <= 0 || bounds.bounds.height <= 0) {
+            return;
+        }
+
+        // Draw selection highlight - green border with slight padding
+        const float padding = 2.0f;
+        Rectangle highlightRect = {
+            bounds.bounds.x - padding,
+            bounds.bounds.y - padding,
+            bounds.bounds.width + padding * 2,
+            bounds.bounds.height + padding * 2
+        };
+
+        // Draw thick green border for selection
+        DrawRectangleLinesEx(highlightRect, 2.0f, GREEN);
+
+        // Draw corner markers for extra visibility
+        const float cornerSize = 6.0f;
+        Color cornerColor = {0, 255, 0, 200};
+
+        // Top-left
+        DrawLineEx({highlightRect.x, highlightRect.y},
+                   {highlightRect.x + cornerSize, highlightRect.y}, 2.0f, cornerColor);
+        DrawLineEx({highlightRect.x, highlightRect.y},
+                   {highlightRect.x, highlightRect.y + cornerSize}, 2.0f, cornerColor);
+
+        // Top-right
+        DrawLineEx({highlightRect.x + highlightRect.width, highlightRect.y},
+                   {highlightRect.x + highlightRect.width - cornerSize, highlightRect.y}, 2.0f, cornerColor);
+        DrawLineEx({highlightRect.x + highlightRect.width, highlightRect.y},
+                   {highlightRect.x + highlightRect.width, highlightRect.y + cornerSize}, 2.0f, cornerColor);
+
+        // Bottom-left
+        DrawLineEx({highlightRect.x, highlightRect.y + highlightRect.height},
+                   {highlightRect.x + cornerSize, highlightRect.y + highlightRect.height}, 2.0f, cornerColor);
+        DrawLineEx({highlightRect.x, highlightRect.y + highlightRect.height},
+                   {highlightRect.x, highlightRect.y + highlightRect.height - cornerSize}, 2.0f, cornerColor);
+
+        // Bottom-right
+        DrawLineEx({highlightRect.x + highlightRect.width, highlightRect.y + highlightRect.height},
+                   {highlightRect.x + highlightRect.width - cornerSize, highlightRect.y + highlightRect.height}, 2.0f, cornerColor);
+        DrawLineEx({highlightRect.x + highlightRect.width, highlightRect.y + highlightRect.height},
+                   {highlightRect.x + highlightRect.width, highlightRect.y + highlightRect.height - cornerSize}, 2.0f, cornerColor);
     });
 }
 

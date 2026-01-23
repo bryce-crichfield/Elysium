@@ -98,6 +98,7 @@ World::World() {
     RegisterComponent<CharacterComponent>();
     RegisterComponent<UnitComponent>();
     RegisterComponent<BoundsComponent>();
+    RegisterComponent<SelectionComponent>();
     RegisterComponent<ScriptComponent>();
 }
 

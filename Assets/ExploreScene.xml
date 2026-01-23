@@ -7,6 +7,7 @@
         <System type="CameraSystem" />
         <System type="PickSystem" />
         <System type="RenderSystem" />
+        <System type="CommandSystem" />
     </Systems>
 
     <Layers>

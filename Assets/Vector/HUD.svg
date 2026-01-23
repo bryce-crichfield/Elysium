@@ -1,0 +1,26 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0 840 L450 840 L480 810 L1440 810 L1470 840 L1920 840 L1920 1080 L0 1080 Z" 
+        fill="#1a1a1a" stroke="#4a4a4a" stroke-width="4" opacity="0.95"/>
+
+  <rect x="20" y="810" width="250" height="250" rx="10" fill="#000000" stroke="#00ffcc" stroke-width="2"/>
+  <text x="30" y="830" fill="#00ffcc" font-family="monospace" font-size="14">MINIMAP_VIEWPORT</text>
+
+  <circle cx="580" cy="940" r="80" fill="#2a2a2a" stroke="#ffffff" stroke-width="3"/>
+  
+  <rect x="680" y="880" width="400" height="30" rx="5" fill="#330000" stroke="#ff0000" stroke-width="1"/>
+  <rect x="680" y="920" width="400" height="20" rx="5" fill="#001133" stroke="#0066ff" stroke-width="1"/>
+  <text x="680" y="870" fill="#ffffff" font-family="sans-serif" font-size="16">UNIT_NAME_LABEL</text>
+
+  <g id="AbilityIcons">
+    <rect x="1480" y="850" width="60" height="60" rx="4" fill="#333" stroke="#aaa"/>
+    <rect x="1550" y="850" width="60" height="60" rx="4" fill="#333" stroke="#aaa"/>
+    <rect x="1620" y="850" width="60" height="60" rx="4" fill="#333" stroke="#aaa"/>
+    <rect x="1690" y="850" width="60" height="60" rx="4" fill="#333" stroke="#aaa"/>
+    <rect x="1480" y="920" width="60" height="60" rx="4" fill="#333" stroke="#aaa"/>
+    <rect x="1550" y="920" width="60" height="60" rx="4" fill="#333" stroke="#aaa"/>
+    <rect x="1620" y="920" width="90" height="60" rx="4" fill="#333" stroke="#aaa"/> </g>
+
+  <path d="M1600 0 L1920 0 L1920 60 L1630 60 Z" fill="#1a1a1a" stroke="#4a4a4a" stroke-width="2"/>
+  <text x="1650" y="40" fill="#ffd700" font-family="monospace" font-size="24">GOLD: 0</text>
+  <text x="1780" y="40" fill="#ffffff" font-family="monospace" font-size="24">POP: 0/100</text>
+</svg>

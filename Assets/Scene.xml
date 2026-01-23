@@ -8,6 +8,7 @@
         <System type="PickSystem" />
         <System type="ScriptSystem" />
         <System type="DebugSystem" />
+        <System type="CommandSystem" />
     </Systems>
 ...
     <Entities>

@@ -280,6 +280,14 @@ struct BoundsComponent {
     Signal<Event> OnPickEvent;
 };
 
+/**
+ * SelectionComponent is a tag component - its presence indicates the entity is selected.
+ * Add to select, remove to deselect.
+ */
+struct SelectionComponent {
+    SelectionComponent() = default;
+};
+
 struct ScriptComponent {
     std::string scriptName;
     bool isActive = true;
