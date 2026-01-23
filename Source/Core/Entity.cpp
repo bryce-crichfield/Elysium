@@ -99,7 +99,9 @@ World::World() {
     RegisterComponent<UnitComponent>();
     RegisterComponent<BoundsComponent>();
     RegisterComponent<SelectionComponent>();
+    RegisterComponent<PathRequestComponent>();
     RegisterComponent<ScriptComponent>();
+    RegisterComponent<KinematicsComponent>();
 }
 
 void World::AddWorldListener(IWorldListener* listener) {

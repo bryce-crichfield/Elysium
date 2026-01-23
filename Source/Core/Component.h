@@ -280,6 +280,12 @@ struct BoundsComponent {
     Signal<Event> OnPickEvent;
 };
 
+struct PathRequestComponent {
+    Vector2 target;
+    PathRequestComponent() : target({0.0f, 0.0f}) {}
+    PathRequestComponent(Vector2 t) : target(t) {}
+};
+
 /**
  * SelectionComponent is a tag component - its presence indicates the entity is selected.
  * Add to select, remove to deselect.
@@ -295,6 +301,20 @@ struct ScriptComponent {
 
     ScriptComponent() = default;
     ScriptComponent(const std::string& name) : scriptName(name) {}
+};
+
+/**
+ * KinematicsComponent handles physics-based movement.
+ * Stores velocity, acceleration, and damping (friction).
+ */
+struct KinematicsComponent {
+    Vector2 velocity;
+    Vector2 acceleration;
+    float friction; // 0.0 = no friction, 1.0 = instant stop per second
+    float maxSpeed;
+
+    KinematicsComponent(float maxSpd = 200.0f, float f = 5.0f) 
+        : velocity({0,0}), acceleration({0,0}), friction(f), maxSpeed(maxSpd) {}
 };
 
 };  // namespace Elysium

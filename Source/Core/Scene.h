@@ -1,9 +1,6 @@
 #pragma once
 
-namespace Elysium {
-class System;    // This tells the compiler that the class System exists.
-}  // namespace Elysium
-
+#include "System.h"
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -37,6 +34,17 @@ class Scene : public IEventListener, IMessageListener {
     // Entity and system access
     World* GetWorld() { return world_.get(); }
     const std::vector<std::unique_ptr<System>>& GetSystems() const { return systems_; }
+    
+    template <typename T>
+    T* GetSystem() const {
+        for (const auto& system : systems_) {
+            if (T* t = dynamic_cast<T*>(system.get())) {
+                return t;
+            }
+        }
+        return nullptr;
+    }
+
     void AddSystem(std::unique_ptr<System> system);
 
     // Called during XML loading to create scene-specific systems

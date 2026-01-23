@@ -14,6 +14,9 @@
 #include "Systems/RenderSystem.h"
 #include "Systems/ScriptSystem.h"
 #include "Systems/SpriteSystem.h"
+#include "Systems/SpatialSystem.h"
+#include "Systems/PathfindingSystem.h"
+#include "Systems/KinematicsSystem.h"
 #include "Utilities/Xml.h"
 #include "raylib.h"
 #include "tinyxml2.h"
@@ -302,6 +305,12 @@ const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
         }
     };
 
+    componentLoaders["KinematicsComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
+        float friction = xmlComponent->FloatAttribute("friction", 5.0f);
+        float maxSpeed = xmlComponent->FloatAttribute("maxSpeed", 200.0f);
+        world->AddComponent(entity, KinematicsComponent(maxSpeed, friction));
+    };
+
     return componentLoaders;
 }
 
@@ -359,6 +368,12 @@ void LoadSystems(XMLElement* root, Scene& scene) {
                 scene.AddSystem(std::make_unique<Elysium::Systems::ScriptSystem>(context));
             } else if (systemName == "CommandSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::CommandSystem>(context));
+            } else if (systemName == "SpatialSystem") {
+                scene.AddSystem(std::make_unique<Elysium::Systems::SpatialSystem>(context));
+            } else if (systemName == "PathfindingSystem") {
+                scene.AddSystem(std::make_unique<Elysium::Systems::PathfindingSystem>(context));
+            } else if (systemName == "KinematicsSystem") {
+                scene.AddSystem(std::make_unique<Elysium::Systems::KinematicsSystem>(context));
             } else {
                 LOG_WARNINGF("Scene", "Unknown system type: %s", systemName.c_str());
             }

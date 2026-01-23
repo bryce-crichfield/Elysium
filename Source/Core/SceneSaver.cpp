@@ -211,6 +211,13 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
             .SetAttribute("scriptName", script.scriptName.c_str());
     };
 
+    componentSavers[std::type_index(typeid(KinematicsComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
+        auto& kin = world->GetComponent<KinematicsComponent>(entity);
+        builder.AddElement("KinematicsComponent")
+            .SetAttribute("friction", kin.friction)
+            .SetAttribute("maxSpeed", kin.maxSpeed);
+    };
+
     return componentSavers;
 }
 
@@ -348,6 +355,9 @@ void SaveEntities(XMLBuilder& builder, World* world) {
         }
         if (world->HasComponent<ScriptComponent>(entity)) {
             savers.at(std::type_index(typeid(ScriptComponent)))(entityBuilder, world, entity);
+        }
+        if (world->HasComponent<KinematicsComponent>(entity)) {
+            savers.at(std::type_index(typeid(KinematicsComponent)))(entityBuilder, world, entity);
         }
     }
 }

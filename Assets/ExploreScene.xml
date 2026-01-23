@@ -1,5 +1,7 @@
 <Scene type="ExploreScene">
     <Systems>
+        <System type="SpatialSystem" />
+        <System type="PathfindingSystem" />
         <System type="MovementSystem" />
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
@@ -70,10 +72,26 @@
         </Entity>
 
         <Entity>
-            <NameComponent name="EVENT_TESTER" />
-            <PositionComponent x="100" y="100" />
-            <RectangleComponent width="32" height="32" />
-            <ScriptComponent scriptName="Scripts/event_test.lua" />
+            <NameComponent name="ENTITY_1" />
+            <PositionComponent x="128" y="0" />
+            <MovementComponent>
+            <Waypoints>
+            </Waypoints>
+            </MovementComponent>
+            <AnimationComponent />
+            <DirectionComponent />
+            <!-- <CircleComponent radius="8" background="#ad0000" layerName="entity" /> -->
+
+            <SpriteComponent
+            spriteName="mushroom_warrior"
+            markerName="idle/down"
+            layerName="entity" />
+
+            <ScriptComponent scriptName="Scripts/test.lua" />
+
+            <BoundsComponent />
         </Entity>
+
+       
     </Entities>
 </Scene>

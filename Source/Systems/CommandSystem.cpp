@@ -79,13 +79,14 @@ void CommandSystem::IssueMoveCommand(Vector2 targetPos) {
         [&](Entity entity, auto& sel, auto& movement, auto& pos) {
             LOG_INFOF("CommandSystem", "Entity %zu selected at (%.1f, %.1f) issuing move to (%.1f, %.1f)",
                       entity, pos.x, pos.y, targetPos.x, targetPos.y);
-            // Clear existing waypoints and set new destination
-            movement.ClearWaypoints();
-            movement.AddWaypoint(targetPos);
-            movement.currentWaypointIndex = 0;
-            movement.isMoving = true;
-            movement.loop = false;  // Don't loop for move commands
-
+            
+            // Attach or update PathRequestComponent to trigger pathfinding
+            if (world->HasComponent<PathRequestComponent>(entity)) {
+                world->GetComponent<PathRequestComponent>(entity).target = targetPos;
+            } else {
+                world->AddComponent(entity, PathRequestComponent(targetPos));
+            }
+            
             commandedCount++;
         });
 
