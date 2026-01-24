@@ -3,13 +3,16 @@
         <System type="SpatialSystem" />
         <System type="PathfindingSystem" />
         <System type="MovementSystem" />
+        <System type="KinematicsSystem" />
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
         <System type="PickSystem" />
-        <System type="RenderSystem" />
         <System type="CommandSystem" />
+        <System type="AttackSystem" />
+        <System type="ProjectileSystem" />
+        <System type="RenderSystem" />
     </Systems>
 
     <Layers>
@@ -20,16 +23,28 @@
         <Layer name="light" z="3" type="Lighting" space="World" blend="Additive" opacity="0.8" />
     </Layers>
 
-    <Tilemap width="8" height="8">
+    <Tilemap width="20" height="20">
         <Tilemask>
-            0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
         </Tilemask>
 
         <TileDefinitions>
@@ -45,21 +60,20 @@
             <CameraComponent target="ENTITY_0" />
         </Entity>
 
+        <!-- PLAYER UNIT -->
         <Entity>
             <NameComponent name="ENTITY_0" />
-            <LocationComponent x="0" y="0" />
-            <PositionComponent />
+            <PositionComponent x="100" y="100" />
             <MovementComponent>
-            <Waypoints>
-                <Waypoint x="0" y="0" />
-                <Waypoint x="4" y="0" />
-                <Waypoint x="4" y="4" />
-                <Waypoint x="0" y="4" />
-            </Waypoints>
+                <Waypoints></Waypoints>
             </MovementComponent>
+            <KinematicsComponent maxSpeed="150" friction="5" />
             <AnimationComponent />
             <DirectionComponent />
-            <!-- <CircleComponent radius="8" background="#ad0000" layerName="entity" /> -->
+            <BoundsComponent />
+            <FactionComponent name="Player" /> <!-- Player -->
+            <HealthComponent max="100" />
+            <AttackComponent range="150" damage="15" cooldown="1.0" />
 
             <SpriteComponent
             spriteName="mushroom_warrior"
@@ -67,31 +81,40 @@
             layerName="entity" />
 
             <ScriptComponent scriptName="Scripts/test.lua" />
-
-            <BoundsComponent />
         </Entity>
 
+        <!-- ENEMY UNIT -->
         <Entity>
             <NameComponent name="ENTITY_1" />
-            <PositionComponent x="128" y="0" />
+            <PositionComponent x="300" y="300" />
             <MovementComponent>
-            <Waypoints>
-            </Waypoints>
+                <Waypoints></Waypoints>
             </MovementComponent>
+            <KinematicsComponent maxSpeed="100" friction="5" />
             <AnimationComponent />
             <DirectionComponent />
-            <!-- <CircleComponent radius="8" background="#ad0000" layerName="entity" /> -->
+            <BoundsComponent />
+            <FactionComponent name="Enemy" /> <!-- Enemy -->
+            <HealthComponent max="50" />
+            <!-- No attack for now, just a dummy -->
 
             <SpriteComponent
             spriteName="mushroom_warrior"
             markerName="idle/down"
             layerName="entity" />
+            
+            <!-- Tint it red to look like enemy -->
+            <!-- <CircleComponent radius="5" background="#FF0000" layerName="entity" /> (optional visual aid) -->
 
             <ScriptComponent scriptName="Scripts/test.lua" />
-
-            <BoundsComponent />
         </Entity>
 
-       
+        <!-- BARRACKS -->
+        <Entity>
+            <NameComponent name="Barracks_1" />
+            <PositionComponent x="100" y="300" />
+            <ScriptComponent scriptName="Scripts/barracks.lua" />
+        </Entity>
+
     </Entities>
 </Scene>

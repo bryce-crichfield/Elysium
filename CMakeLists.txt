@@ -83,10 +83,21 @@ target_link_libraries(${PROJECT_NAME}
     sol2::sol2
 )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE 
+    SOL_NO_CHECK_NUMBER_PRECISION=1    
+)
+
 # Add Tracy if enabled
 if(TRACY_ENABLE)
     target_link_libraries(${PROJECT_NAME} Tracy::TracyClient)
 endif()
+
+if(MINGW)
+    target_compile_options(${PROJECT_NAME} PRIVATE 
+        -Wa,-mbig-obj  # Handle large object files
+    )
+endif()
+
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE

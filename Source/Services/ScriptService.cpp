@@ -110,7 +110,7 @@ void ScriptService::BindComponents() {
     vec2["y"] = &Vector2::y;
 
     // Color (Raylib)
-    auto col = lua.new_usertype<Color>("Color", sol::constructors<Color()>());
+    auto col = lua.new_usertype<Color>("Color", sol::constructors<Color(), Color(float, float, float, float)>());
     col["r"] = &Color::r;
     col["g"] = &Color::g;
     col["b"] = &Color::b;
@@ -174,6 +174,35 @@ void ScriptService::BindComponents() {
     scriptComp["scriptName"] = &ScriptComponent::scriptName;
     scriptComp["isActive"] = &ScriptComponent::isActive;
     scriptComp["isInitialized"] = &ScriptComponent::isInitialized;
+
+    // HealthComponent
+    auto healthComp = lua.new_usertype<HealthComponent>("HealthComponent", sol::constructors<HealthComponent(), HealthComponent(float)>());
+    healthComp["current"] = &HealthComponent::current;
+    healthComp["max"] = &HealthComponent::max;
+
+    // FactionComponent
+    auto factionComp = lua.new_usertype<FactionComponent>("FactionComponent", 
+        sol::constructors<FactionComponent(), FactionComponent(std::string)>()
+    );
+    factionComp["name"] = &FactionComponent::name;
+
+    // KinematicsComponent
+    auto kinComp = lua.new_usertype<KinematicsComponent>("KinematicsComponent", sol::constructors<KinematicsComponent(), KinematicsComponent(float, float)>());
+    kinComp["maxSpeed"] = &KinematicsComponent::maxSpeed;
+    kinComp["friction"] = &KinematicsComponent::friction;
+    kinComp["velocity"] = &KinematicsComponent::velocity;
+    kinComp["acceleration"] = &KinematicsComponent::acceleration;
+
+
+    // AttackComponent
+    auto attackComp = lua.new_usertype<AttackComponent>("AttackComponent", sol::constructors<AttackComponent(float, float, float)>());
+    attackComp["damage"] = &AttackComponent::damage;
+    attackComp["range"] = &AttackComponent::range;
+    attackComp["cooldown"] = &AttackComponent::cooldown;
+    attackComp["timer"] = &AttackComponent::timer;
+    attackComp["isAttacking"] = &AttackComponent::isAttacking;
+    attackComp["targetId"] = &AttackComponent::targetId;
+
 }
 
 void ScriptService::BindEntityAPI() {
@@ -259,6 +288,22 @@ void ScriptService::BindEntityAPI() {
         else if (name == "Script") {
             if (world->HasComponent<ScriptComponent>(entity))
                 return sol::make_object(lua.lua_state(), &world->GetComponent<ScriptComponent>(entity));
+        }
+        else if (name == "Health") {
+            if (world->HasComponent<HealthComponent>(entity))
+                return sol::make_object(lua.lua_state(), &world->GetComponent<HealthComponent>(entity));
+        }
+        else if (name == "Faction") {
+            if (world->HasComponent<FactionComponent>(entity))
+                return sol::make_object(lua.lua_state(), &world->GetComponent<FactionComponent>(entity));
+        }
+        else if (name == "Kinematics") {
+            if (world->HasComponent<KinematicsComponent>(entity))
+                return sol::make_object(lua.lua_state(), &world->GetComponent<KinematicsComponent>(entity));
+        }
+        else if (name == "Attack") {
+            if (world->HasComponent<AttackComponent>(entity))
+                return sol::make_object(lua.lua_state(), &world->GetComponent<AttackComponent>(entity));
         }
         return sol::nil;
     });
@@ -349,6 +394,55 @@ void ScriptService::BindEntityAPI() {
             else if (value.is<std::string>()) {
                 comp.scriptName = value.as<std::string>();
             }
+        } 
+        else if (name == "Health") {
+            auto& comp = getOrAdd.template operator()<HealthComponent>();
+            if (value.is<HealthComponent>()) comp = value.as<HealthComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.current = t.get_or("current", comp.current);
+                comp.max = t.get_or("max", comp.max);
+            }
+        } 
+        else if (name == "Faction") {
+            auto& comp = getOrAdd.template operator()<FactionComponent>();
+            if (value.is<FactionComponent>()) comp = value.as<FactionComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.name = t.get_or("name", comp.name);
+            }
+        }
+        else if (name == "Kinematics") {
+            auto& comp = getOrAdd.template operator()<KinematicsComponent>();
+            if (value.is<KinematicsComponent>()) comp = value.as<KinematicsComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.maxSpeed = t.get_or("maxSpeed", comp.maxSpeed);
+                comp.friction = t.get_or("friction", comp.friction);
+                if (t["velocity"].valid()) {
+                    sol::table velTable = t["velocity"];
+                    comp.velocity.x = velTable.get_or("x", comp.velocity.x);
+                    comp.velocity.y = velTable.get_or("y", comp.velocity.y);
+                }
+                if (t["acceleration"].valid()) {
+                    sol::table accTable = t["acceleration"];
+                    comp.acceleration.x = accTable.get_or("x", comp.acceleration.x);
+                    comp.acceleration.y = accTable.get_or("y", comp.acceleration.y);
+                }
+            }
+        }
+        else if (name == "Attack") {
+            auto& comp = getOrAdd.template operator()<AttackComponent>();
+            if (value.is<AttackComponent>()) comp = value.as<AttackComponent>();
+            else if (value.is<sol::table>()) {
+                sol::table t = value.as<sol::table>();
+                comp.damage = t.get_or("damage", comp.damage);
+                comp.range = t.get_or("range", comp.range);
+                comp.cooldown = t.get_or("cooldown", comp.cooldown);
+                comp.timer = t.get_or("timer", comp.timer);
+                comp.isAttacking = t.get_or("isAttacking", comp.isAttacking);
+                comp.targetId = t.get_or("targetId", comp.targetId);
+            }
         }
     });
 
@@ -366,6 +460,10 @@ void ScriptService::BindEntityAPI() {
         else if (name == "Team") { if(!world->HasComponent<TeamComponent>(entity)) world->AddComponent<TeamComponent>(entity, {}); }
         else if (name == "Unit") { if(!world->HasComponent<UnitComponent>(entity)) world->AddComponent<UnitComponent>(entity, {}); }
         else if (name == "Script") { if(!world->HasComponent<ScriptComponent>(entity)) world->AddComponent<ScriptComponent>(entity, {}); }
+        else if (name == "Health") { if(!world->HasComponent<HealthComponent>(entity)) world->AddComponent<HealthComponent>(entity, {}); }
+        else if (name == "Faction") { if(!world->HasComponent<FactionComponent>(entity)) world->AddComponent<FactionComponent>(entity, {}); }
+        else if (name == "Kinematics") { if(!world->HasComponent<KinematicsComponent>(entity)) world->AddComponent<KinematicsComponent>(entity, {}); }
+        else if (name == "Attack") { if(!world->HasComponent<AttackComponent>(entity)) world->AddComponent<AttackComponent>(entity, {}); }
         else {
              LOG_WARNINGF("Lua", "AddComponent: Unknown component type '%s'", name.c_str());
         }
@@ -384,6 +482,8 @@ void ScriptService::BindEntityAPI() {
         if (name == "Team") return world->HasComponent<TeamComponent>(entity);
         if (name == "Unit") return world->HasComponent<UnitComponent>(entity);
         if (name == "Script") return world->HasComponent<ScriptComponent>(entity);
+        if (name == "Health") return world->HasComponent<HealthComponent>(entity);
+        if (name == "Faction") return world->HasComponent<FactionComponent>(entity);
         return false;
     });
 
@@ -400,6 +500,7 @@ void ScriptService::BindEntityAPI() {
         else if (name == "Team") world->RemoveComponent<TeamComponent>(entity);
         else if (name == "Unit") world->RemoveComponent<UnitComponent>(entity);
         else if (name == "Script") world->RemoveComponent<ScriptComponent>(entity);
+        else if (name == "Health") world->RemoveComponent<HealthComponent>(entity);
     });
 
     // GetEntityByName

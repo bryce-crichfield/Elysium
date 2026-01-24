@@ -45,8 +45,12 @@ struct MovementComponent {
     bool isMoving = false;
     bool loop = true;  // should it loop back to start when done?
 
-    void AddWaypoint(const Vector2& waypoint);
-    void ClearWaypoints();
+    void AddWaypoint(const Vector2& waypoint) {
+        waypoints.push_back(waypoint);
+    }
+    void ClearWaypoints() {
+        waypoints.clear();
+    }
 
     MovementComponent() = default;
     MovementComponent(const std::vector<Vector2>& waypoints);
@@ -315,6 +319,41 @@ struct KinematicsComponent {
 
     KinematicsComponent(float maxSpd = 200.0f, float f = 5.0f) 
         : velocity({0,0}), acceleration({0,0}), friction(f), maxSpeed(maxSpd) {}
+};
+
+struct HealthComponent {
+    float current;
+    float max;
+    
+    HealthComponent(float maxHealth = 100.0f) : current(maxHealth), max(maxHealth) {}
+};
+
+struct FactionComponent {
+    std::string name;
+    
+    FactionComponent(const std::string& name = "Player") : name(name) {}
+};
+
+struct AttackComponent {
+    float range;
+    float damage;
+    float cooldown; // seconds
+    float timer;    // current countdown
+    Entity targetId;
+    bool isAttacking;
+    
+    AttackComponent(float rng = 100.0f, float dmg = 10.0f, float cd = 1.0f) 
+        : range(rng), damage(dmg), cooldown(cd), timer(0.0f), targetId(0), isAttacking(false) {}
+};
+
+struct ProjectileComponent {
+    float damage;
+    Entity targetId;
+    float speed;
+    float lifetime; // seconds before auto-destroy
+    
+    ProjectileComponent(float dmg = 10.0f, Entity target = 0, float spd = 300.0f)
+        : damage(dmg), targetId(target), speed(spd), lifetime(5.0f) {}
 };
 
 };  // namespace Elysium

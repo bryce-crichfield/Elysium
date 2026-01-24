@@ -18,20 +18,15 @@ class CommandSystem : public System, public IMouseListener {
 
     void Update(float deltaTime) override;
 
-    // IEventListener
     void OnEvent(Event& event) override;
-
-    // IMouseListener overrides
     void OnMouseButtonPressed(MouseButtonPressedEvent& event) override;
     void OnMouseButtonReleased(MouseButtonReleasedEvent& event) override;
-    void OnMouseMoved(MouseMovedEvent& event) override {}
 
-   private:
-    // Transform framebuffer coordinates to world space
+private:
     Vector2 FramebufferToWorld(Vector2 fbPos);
-
-    // Issue move command to all selected entities
     void IssueMoveCommand(Vector2 targetPos);
+    void IssueAttackCommand(Entity targetEntity);
+    Entity FindEntityAtPoint(Vector2 worldPos);
 };
 
 }  // namespace Elysium::Systems

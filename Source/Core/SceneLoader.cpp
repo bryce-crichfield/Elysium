@@ -17,6 +17,8 @@
 #include "Systems/SpatialSystem.h"
 #include "Systems/PathfindingSystem.h"
 #include "Systems/KinematicsSystem.h"
+#include "Systems/AttackSystem.h"
+#include "Systems/ProjectileSystem.h"
 #include "Utilities/Xml.h"
 #include "raylib.h"
 #include "tinyxml2.h"
@@ -269,7 +271,7 @@ const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
         if (!target.empty()) {
             FollowComponent followComp;
             followComp.targetEntityName = target;
-            world->AddComponent(entity, followComp);
+            world->AddComponent(entity, FollowComponent{1.0f, target});
         }
     };
 
@@ -311,6 +313,23 @@ const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
         world->AddComponent(entity, KinematicsComponent(maxSpeed, friction));
     };
 
+    componentLoaders["HealthComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
+        float max = xmlComponent->FloatAttribute("max", 100.0f);
+        world->AddComponent(entity, HealthComponent(max));
+    };
+
+    componentLoaders["FactionComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
+        std::string name = xmlComponent->Attribute("name") ? xmlComponent->Attribute("name") : "Player";
+        world->AddComponent(entity, FactionComponent(name));
+    };
+
+    componentLoaders["AttackComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
+        float range = xmlComponent->FloatAttribute("range", 100.0f);
+        float damage = xmlComponent->FloatAttribute("damage", 10.0f);
+        float cooldown = xmlComponent->FloatAttribute("cooldown", 1.0f);
+        world->AddComponent(entity, AttackComponent(range, damage, cooldown));
+    };
+
     return componentLoaders;
 }
 
@@ -323,7 +342,7 @@ void LoadEntities(XMLElement* root, World* world) {
         ForEachElement(entities, "Entity", [&](XMLElement* xmlEntity) {
             // Create the entity
             Entity entity = world->CreateEntity();
-            LOG_DEBUGF("Scene", "Created entity: %d", entity);
+            LOG_DEBUGF("Scene", "Created entity: %zu", entity);
 
             // Create the components
             ForEachChild(xmlEntity, [&](XMLElement* component) {
@@ -374,6 +393,10 @@ void LoadSystems(XMLElement* root, Scene& scene) {
                 scene.AddSystem(std::make_unique<Elysium::Systems::PathfindingSystem>(context));
             } else if (systemName == "KinematicsSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::KinematicsSystem>(context));
+            } else if (systemName == "AttackSystem") {
+                scene.AddSystem(std::make_unique<Elysium::Systems::AttackSystem>(context));
+            } else if (systemName == "ProjectileSystem") {
+                scene.AddSystem(std::make_unique<Elysium::Systems::ProjectileSystem>(context));
             } else {
                 LOG_WARNINGF("Scene", "Unknown system type: %s", systemName.c_str());
             }

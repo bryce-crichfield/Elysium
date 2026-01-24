@@ -128,10 +128,51 @@ void RenderSystem::RenderCamera(Entity cameraEntity, const CameraComponent& came
     rlPushMatrix();
     rlMultMatrixf(MatrixToFloat(transform));
     DrawSelectionHighlights();
+    DrawHealthBars();
     DrawDebugBounds();
     rlPopMatrix();
 
     EndScissorMode();
+}
+
+void RenderSystem::DrawHealthBars() {
+    world->Query<HealthComponent, PositionComponent>([&](Entity entity, auto& health, auto& pos) {
+        // Find height to draw at (prefer above BoundsComponent if it exists)
+        float topY = pos.y - 32.0f; // Default offset
+        float barWidth = 40.0f;
+        float barHeight = 5.0f;
+
+        if (world->HasComponent<BoundsComponent>(entity)) {
+            auto& bounds = world->GetComponent<BoundsComponent>(entity);
+            if (bounds.bounds.width > 0) {
+                topY = bounds.bounds.y - 10.0f;
+                barWidth = bounds.bounds.width;
+            }
+        }
+
+        // Clamp bar width to a reasonable size
+        if (barWidth < 30.0f) barWidth = 30.0f;
+        if (barWidth > 60.0f) barWidth = 60.0f;
+
+        Vector2 barPos = {pos.x - barWidth * 0.5f, topY - barHeight};
+
+        // Draw background
+        DrawRectangleV(barPos, {barWidth, barHeight}, BLACK);
+
+        // Draw health
+        float healthPercent = health.current / health.max;
+        if (healthPercent < 0) healthPercent = 0;
+        if (healthPercent > 1) healthPercent = 1;
+
+        Color healthColor = GREEN;
+        if (healthPercent < 0.25f) healthColor = RED;
+        else if (healthPercent < 0.5f) healthColor = ORANGE;
+
+        DrawRectangleV(barPos, {barWidth * healthPercent, barHeight}, healthColor);
+        
+        // Draw border
+        DrawRectangleLinesEx({barPos.x, barPos.y, barWidth, barHeight}, 1.0f, {50, 50, 50, 255});
+    });
 }
 
 bool RenderSystem::CanCameraSeeLayer(Entity entity, const CameraComponent& camera, const std::string& layerName, const Layers& layers) {

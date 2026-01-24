@@ -1,87 +1,63 @@
-local script = {}
+local Barracks = {}
 
--- State
-script.queue = {}
-script.spawnTimer = 0
-script.selected = false
+Barracks.spawnTimer = 0.0
+Barracks.spawnInterval = 5.0
 
-function script.init(self, entity)
-    Log("Barracks Init: " .. entity)
-    
-    -- Ensure components
-    AddComponent(entity, "Position")
+function Barracks.init(self, entity)
+    Log("Initializing Barracks for entity " .. entity)
+
+    -- Visuals
     AddComponent(entity, "Rectangle")
+    local rect = GetComponent(entity, "Rectangle")
+    rect.width = 64
+    rect.height = 64
+    rect.background = Color.new(100, 100, 100, 255) -- Grey building
+    rect.border = Color.new(50, 50, 50, 255)
+    
     AddComponent(entity, "Bounds")
-    AddComponent(entity, "Name")
     
-    SetComponent(entity, "Name", "Barracks")
-    SetComponent(entity, "Rectangle", {
-        width = 80, 
-        height = 80, 
-        background = {r = 80, g = 80, b = 100, a = 255},
-        border = {r = 150, g = 150, b = 150, a = 255}
-    })
+    -- Health
+    AddComponent(entity, "Health")
+    local health = GetComponent(entity, "Health")
+    health.max = 500
+    health.current = 500
+    
+    -- Faction
+    AddComponent(entity, "Faction")
+    local faction = GetComponent(entity, "Faction")
+    faction.name = "Player"
 end
 
-function script.update(self, entity, dt)
-    if #self.queue > 0 then
-        self.spawnTimer = self.spawnTimer - dt
-        
-        -- Visual feedback: change color based on progress
-        local rect = GetComponent(entity, "Rectangle")
-        if rect then
-            local progress = 1.0 - (self.spawnTimer / 2.0)
-            rect.background.g = 80 + (progress * 100)
-        end
-
-        if self.spawnTimer <= 0 then
-            self:spawnUnit(entity)
-            table.remove(self.queue, 1)
-            
-            if #self.queue > 0 then 
-                self.spawnTimer = 2.0 
-            else
-                -- Reset color when done
-                local rect = GetComponent(entity, "Rectangle")
-                if rect then rect.background.g = 80 end
-            end
-        end
+function Barracks.update(self, entity, dt)
+    Barracks.spawnTimer = Barracks.spawnTimer + dt
+    
+    if Barracks.spawnTimer >= Barracks.spawnInterval then
+        Barracks.spawnTimer = 0.0
+        Barracks.SpawnSoldier(entity)
     end
 end
 
-function script.spawnUnit(self, entity)
-    local pos = GetComponent(entity, "Position")
-    local newUnit = CreateEntity()
+function Barracks.SpawnSoldier(buildingEntity)
+    local worldPos = GetComponent(buildingEntity, "Position")
     
-    Log("Barracks: Spawning unit " .. newUnit)
+    local soldierId = CreateEntity()
+    Log("Barracks spawning soldier: " .. soldierId)
     
-    -- Setup the new unit
-    AddComponent(newUnit, "Position")
-    SetComponent(newUnit, "Position", {x = pos.x + 60, y = pos.y + 60})
+    -- Set initial position near barracks
+    AddComponent(soldierId, "Position")
+    local pos = GetComponent(soldierId, "Position")
+    pos.x = worldPos.x + Random(-50, 50)
+    pos.y = worldPos.y + 70 -- Spawn slightly below
     
-    -- Important: Assign the unit script
-    AddComponent(newUnit, "Script")
-    SetComponent(newUnit, "Script", "Assets/Scripts/test.lua")
+    -- Attach Soldier script
+    AddComponent(soldierId, "Script")
+    local script = GetComponent(soldierId, "Script")
+    script.scriptName = "Scripts/soldier.lua"
+    script.isActive = true
+    -- Note: ScriptSystem will initialize the script on next frame/update
 end
 
-function script.onEvent(self, entity, event)
-    -- Selection
-    if event.type == "PickPress" then
-        self.selected = not self.selected
-        Log("Barracks Selected: " .. tostring(self.selected))
-        
-        local rect = GetComponent(entity, "Rectangle")
-        if rect then
-            rect.border = self.selected and {r=255, g=255, b=0, a=255} or {r=150, g=150, b=150, a=255}
-        end
-    end
-
-    -- Hotkey 'U' to queue unit
-    if self.selected and event.type == "KeyPressed" and event.key == KEY_U then
-        Log("Barracks: Queuing Soldier...")
-        table.insert(self.queue, "soldier")
-        if #self.queue == 1 then self.spawnTimer = 2.0 end
-    end
+function Barracks.onEvent(entity, event)
 end
 
-return script
+return Barracks

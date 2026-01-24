@@ -102,6 +102,10 @@ World::World() {
     RegisterComponent<PathRequestComponent>();
     RegisterComponent<ScriptComponent>();
     RegisterComponent<KinematicsComponent>();
+    RegisterComponent<HealthComponent>();
+    RegisterComponent<AttackComponent>();
+    RegisterComponent<ProjectileComponent>();
+    RegisterComponent<FactionComponent>();
 }
 
 void World::AddWorldListener(IWorldListener* listener) {

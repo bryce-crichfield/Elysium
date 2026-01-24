@@ -12,14 +12,6 @@ LocationComponent::LocationComponent(int x, int y) : x(x), y(y) {
 MovementComponent::MovementComponent(const std::vector<Vector2>& waypoints) : waypoints(waypoints) {
 }
 
-void MovementComponent::AddWaypoint(const Vector2& waypoint) {
-    waypoints.push_back(waypoint);
-}
-
-void MovementComponent::ClearWaypoints() {
-    waypoints.clear();
-}
-
 AnimationComponent::AnimationComponent(std::string marker) : marker(marker) {
 }
 

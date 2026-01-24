@@ -40,6 +40,7 @@ class RenderSystem : public System {
     void ComputeBounds(Entity entity, const RenderItem& item);
     void DrawDebugBounds();
     void DrawSelectionHighlights();
+    void DrawHealthBars();
 };
 
 }  // namespace Elysium::Systems
