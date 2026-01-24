@@ -104,105 +104,231 @@ static Vector2 ScreenToWorld(Vector2 screenPos) {
 }
 
 void ScriptService::BindComponents() {
-    // Vector2 (Raylib)
+    // Raylib types (not ECS components)
     auto vec2 = lua.new_usertype<Vector2>("Vector2", sol::constructors<Vector2(), Vector2(float, float)>());
     vec2["x"] = &Vector2::x;
     vec2["y"] = &Vector2::y;
 
-    // Color (Raylib)
     auto col = lua.new_usertype<Color>("Color", sol::constructors<Color(), Color(float, float, float, float)>());
     col["r"] = &Color::r;
     col["g"] = &Color::g;
     col["b"] = &Color::b;
     col["a"] = &Color::a;
 
-    // Rectangle (Raylib)
     auto rect = lua.new_usertype<Rectangle>("Rectangle", sol::constructors<Rectangle()>());
     rect["x"] = &Rectangle::x;
     rect["y"] = &Rectangle::y;
     rect["width"] = &Rectangle::width;
     rect["height"] = &Rectangle::height;
 
-    // PositionComponent
-    auto posComp = lua.new_usertype<PositionComponent>("PositionComponent", sol::constructors<PositionComponent(), PositionComponent(float, float)>());
-    posComp["x"] = &PositionComponent::x;
-    posComp["y"] = &PositionComponent::y;
+    // Register all ECS components with the registry
+    componentRegistry_.Register<PositionComponent>("Position",
+        [](sol::usertype<PositionComponent>& ut) {
+            ut["x"] = &PositionComponent::x;
+            ut["y"] = &PositionComponent::y;
+        },
+        [](PositionComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.x = t.get_or("x", c.x);
+                c.y = t.get_or("y", c.y);
+            }
+        });
 
-    // NameComponent
-    auto nameComp = lua.new_usertype<NameComponent>("NameComponent", sol::constructors<NameComponent(), NameComponent(std::string)>());
-    nameComp["name"] = &NameComponent::name;
+    componentRegistry_.Register<NameComponent>("Name",
+        [](sol::usertype<NameComponent>& ut) {
+            ut["name"] = &NameComponent::name;
+        },
+        [](NameComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.name = t.get_or("name", c.name);
+            } else if (v.is<std::string>()) {
+                c.name = v.as<std::string>();
+            }
+        });
 
-    // RectangleComponent
-    auto rectComp = lua.new_usertype<RectangleComponent>("RectangleComponent", sol::constructors<RectangleComponent()>());
-    rectComp["width"] = &RectangleComponent::width;
-    rectComp["height"] = &RectangleComponent::height;
-    rectComp["background"] = sol::property([](RectangleComponent& r) { return r.background; }, [](RectangleComponent& r, sol::object v) { r.background = ObjectToColor(v); });
-    rectComp["border"] = sol::property([](RectangleComponent& r) { return r.border; }, [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); });
-    rectComp["layerName"] = &RectangleComponent::layerName;
+    componentRegistry_.Register<RectangleComponent>("Rectangle",
+        [](sol::usertype<RectangleComponent>& ut) {
+            ut["width"] = &RectangleComponent::width;
+            ut["height"] = &RectangleComponent::height;
+            ut["background"] = sol::property(
+                [](RectangleComponent& r) { return r.background; },
+                [](RectangleComponent& r, sol::object v) { r.background = ObjectToColor(v); });
+            ut["border"] = sol::property(
+                [](RectangleComponent& r) { return r.border; },
+                [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); });
+            ut["layerName"] = &RectangleComponent::layerName;
+        },
+        [](RectangleComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.width = t.get_or("width", c.width);
+                c.height = t.get_or("height", c.height);
+                c.layerName = t.get_or("layerName", c.layerName);
+                if (t["background"].valid()) c.background = ObjectToColor(t["background"]);
+                if (t["border"].valid()) c.border = ObjectToColor(t["border"]);
+            }
+        });
 
-    // MovementComponent
-    auto moveComp = lua.new_usertype<MovementComponent>("MovementComponent", sol::constructors<MovementComponent()>());
-    moveComp["speed"] = &MovementComponent::speed;
-    moveComp["isMoving"] = &MovementComponent::isMoving;
-    moveComp["loop"] = &MovementComponent::loop;
-    moveComp["AddWaypoint"] = &MovementComponent::AddWaypoint;
-    moveComp["ClearWaypoints"] = &MovementComponent::ClearWaypoints;
+    componentRegistry_.Register<MovementComponent>("Movement",
+        [](sol::usertype<MovementComponent>& ut) {
+            ut["speed"] = &MovementComponent::speed;
+            ut["isMoving"] = &MovementComponent::isMoving;
+            ut["loop"] = &MovementComponent::loop;
+            ut["AddWaypoint"] = &MovementComponent::AddWaypoint;
+            ut["ClearWaypoints"] = &MovementComponent::ClearWaypoints;
+        },
+        [](MovementComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.speed = t.get_or("speed", c.speed);
+                c.isMoving = t.get_or("isMoving", c.isMoving);
+                c.loop = t.get_or("loop", c.loop);
+            }
+        });
 
-    // SpriteComponent
-    auto spriteComp = lua.new_usertype<SpriteComponent>("SpriteComponent", sol::constructors<SpriteComponent()>());
-    spriteComp["marker"] = &SpriteComponent::markerName;
-    spriteComp["layer"] = &SpriteComponent::layerName;
+    componentRegistry_.Register<SpriteComponent>("Sprite",
+        [](sol::usertype<SpriteComponent>& ut) {
+            ut["marker"] = &SpriteComponent::markerName;
+            ut["layer"] = &SpriteComponent::layerName;
+        },
+        [](SpriteComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.markerName = t.get_or("marker", c.markerName);
+                c.layerName = t.get_or("layer", c.layerName);
+            }
+        });
 
-    // BoundsComponent
-    auto boundsComp = lua.new_usertype<BoundsComponent>("BoundsComponent", sol::constructors<BoundsComponent()>());
-    boundsComp["bounds"] = &BoundsComponent::bounds;
-    boundsComp["isDragging"] = &BoundsComponent::isDragging;
-    boundsComp["debugColor"] = sol::property([](BoundsComponent& b) { return b.debugColor; }, [](BoundsComponent& b, sol::object v) { b.debugColor = ObjectToColor(v); });
+    componentRegistry_.Register<BoundsComponent>("Bounds",
+        [](sol::usertype<BoundsComponent>& ut) {
+            ut["bounds"] = &BoundsComponent::bounds;
+            ut["isDragging"] = &BoundsComponent::isDragging;
+            ut["debugColor"] = sol::property(
+                [](BoundsComponent& b) { return b.debugColor; },
+                [](BoundsComponent& b, sol::object v) { b.debugColor = ObjectToColor(v); });
+        },
+        nullptr);
 
-    // TeamComponent
-    auto teamComp = lua.new_usertype<TeamComponent>("TeamComponent", sol::constructors<TeamComponent(), TeamComponent(int)>());
-    teamComp["teamId"] = &TeamComponent::teamId;
+    componentRegistry_.Register<TeamComponent>("Team",
+        [](sol::usertype<TeamComponent>& ut) {
+            ut["teamId"] = &TeamComponent::teamId;
+        },
+        [](TeamComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.teamId = t.get_or("teamId", c.teamId);
+            }
+        });
 
-    // UnitComponent
-    auto unitComp = lua.new_usertype<UnitComponent>("UnitComponent", sol::constructors<UnitComponent()>());
-    unitComp["hasActedThisTurn"] = &UnitComponent::hasActedThisTurn;
-    unitComp["canMove"] = &UnitComponent::canMove;
-    unitComp["canAttack"] = &UnitComponent::canAttack;
+    componentRegistry_.Register<UnitComponent>("Unit",
+        [](sol::usertype<UnitComponent>& ut) {
+            ut["hasActedThisTurn"] = &UnitComponent::hasActedThisTurn;
+            ut["canMove"] = &UnitComponent::canMove;
+            ut["canAttack"] = &UnitComponent::canAttack;
+            ut["canCastSpells"] = &UnitComponent::canCastSpells;
+            ut["canUseItems"] = &UnitComponent::canUseItems;
+        },
+        [](UnitComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.hasActedThisTurn = t.get_or("hasActedThisTurn", c.hasActedThisTurn);
+                c.canMove = t.get_or("canMove", c.canMove);
+                c.canAttack = t.get_or("canAttack", c.canAttack);
+                c.canCastSpells = t.get_or("canCastSpells", c.canCastSpells);
+                c.canUseItems = t.get_or("canUseItems", c.canUseItems);
+            }
+        });
 
-    // ScriptComponent
-    auto scriptComp = lua.new_usertype<ScriptComponent>("ScriptComponent", sol::constructors<ScriptComponent(), ScriptComponent(std::string)>());
-    scriptComp["scriptName"] = &ScriptComponent::scriptName;
-    scriptComp["isActive"] = &ScriptComponent::isActive;
-    scriptComp["isInitialized"] = &ScriptComponent::isInitialized;
+    componentRegistry_.Register<ScriptComponent>("Script",
+        [](sol::usertype<ScriptComponent>& ut) {
+            ut["scriptName"] = &ScriptComponent::scriptName;
+            ut["isActive"] = &ScriptComponent::isActive;
+            ut["isInitialized"] = &ScriptComponent::isInitialized;
+        },
+        [](ScriptComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.scriptName = t.get_or("scriptName", c.scriptName);
+                c.isActive = t.get_or("isActive", c.isActive);
+            } else if (v.is<std::string>()) {
+                c.scriptName = v.as<std::string>();
+            }
+        });
 
-    // HealthComponent
-    auto healthComp = lua.new_usertype<HealthComponent>("HealthComponent", sol::constructors<HealthComponent(), HealthComponent(float)>());
-    healthComp["current"] = &HealthComponent::current;
-    healthComp["max"] = &HealthComponent::max;
+    componentRegistry_.Register<HealthComponent>("Health",
+        [](sol::usertype<HealthComponent>& ut) {
+            ut["current"] = &HealthComponent::current;
+            ut["max"] = &HealthComponent::max;
+        },
+        [](HealthComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.current = t.get_or("current", c.current);
+                c.max = t.get_or("max", c.max);
+            }
+        });
 
-    // FactionComponent
-    auto factionComp = lua.new_usertype<FactionComponent>("FactionComponent", 
-        sol::constructors<FactionComponent(), FactionComponent(std::string)>()
-    );
-    factionComp["name"] = &FactionComponent::name;
+    componentRegistry_.Register<FactionComponent>("Faction",
+        [](sol::usertype<FactionComponent>& ut) {
+            ut["name"] = &FactionComponent::name;
+        },
+        [](FactionComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.name = t.get_or("name", c.name);
+            }
+        });
 
-    // KinematicsComponent
-    auto kinComp = lua.new_usertype<KinematicsComponent>("KinematicsComponent", sol::constructors<KinematicsComponent(), KinematicsComponent(float, float)>());
-    kinComp["maxSpeed"] = &KinematicsComponent::maxSpeed;
-    kinComp["friction"] = &KinematicsComponent::friction;
-    kinComp["velocity"] = &KinematicsComponent::velocity;
-    kinComp["acceleration"] = &KinematicsComponent::acceleration;
+    componentRegistry_.Register<KinematicsComponent>("Kinematics",
+        [](sol::usertype<KinematicsComponent>& ut) {
+            ut["maxSpeed"] = &KinematicsComponent::maxSpeed;
+            ut["friction"] = &KinematicsComponent::friction;
+            ut["velocity"] = &KinematicsComponent::velocity;
+            ut["acceleration"] = &KinematicsComponent::acceleration;
+        },
+        [](KinematicsComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.maxSpeed = t.get_or("maxSpeed", c.maxSpeed);
+                c.friction = t.get_or("friction", c.friction);
+                if (t["velocity"].valid()) {
+                    sol::table vt = t["velocity"];
+                    c.velocity.x = vt.get_or("x", c.velocity.x);
+                    c.velocity.y = vt.get_or("y", c.velocity.y);
+                }
+                if (t["acceleration"].valid()) {
+                    sol::table at = t["acceleration"];
+                    c.acceleration.x = at.get_or("x", c.acceleration.x);
+                    c.acceleration.y = at.get_or("y", c.acceleration.y);
+                }
+            }
+        });
 
+    componentRegistry_.Register<AttackComponent>("Attack",
+        [](sol::usertype<AttackComponent>& ut) {
+            ut["damage"] = &AttackComponent::damage;
+            ut["range"] = &AttackComponent::range;
+            ut["cooldown"] = &AttackComponent::cooldown;
+            ut["timer"] = &AttackComponent::timer;
+            ut["isAttacking"] = &AttackComponent::isAttacking;
+            ut["targetId"] = &AttackComponent::targetId;
+        },
+        [](AttackComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.damage = t.get_or("damage", c.damage);
+                c.range = t.get_or("range", c.range);
+                c.cooldown = t.get_or("cooldown", c.cooldown);
+                c.timer = t.get_or("timer", c.timer);
+                c.isAttacking = t.get_or("isAttacking", c.isAttacking);
+                c.targetId = t.get_or("targetId", c.targetId);
+            }
+        });
 
-    // AttackComponent
-    auto attackComp = lua.new_usertype<AttackComponent>("AttackComponent", sol::constructors<AttackComponent(float, float, float)>());
-    attackComp["damage"] = &AttackComponent::damage;
-    attackComp["range"] = &AttackComponent::range;
-    attackComp["cooldown"] = &AttackComponent::cooldown;
-    attackComp["timer"] = &AttackComponent::timer;
-    attackComp["isAttacking"] = &AttackComponent::isAttacking;
-    attackComp["targetId"] = &AttackComponent::targetId;
-
+    // Register all usertypes with Lua
+    componentRegistry_.RegisterAllUserTypes(lua);
 }
 
 void ScriptService::BindEntityAPI() {
@@ -252,255 +378,35 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("GetComponent", [this](Entity entity, const std::string& name) -> sol::object {
         auto* world = GetActiveWorld();
         if (!world) return sol::nil;
-
-        if (name == "Position") {
-            if (world->HasComponent<PositionComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<PositionComponent>(entity));
-        }
-        else if (name == "Name") {
-            if (world->HasComponent<NameComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<NameComponent>(entity));
-        }
-        else if (name == "Rectangle") {
-            if (world->HasComponent<RectangleComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<RectangleComponent>(entity));
-        }
-        else if (name == "Movement") {
-            if (world->HasComponent<MovementComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<MovementComponent>(entity));
-        }
-        else if (name == "Sprite") {
-            if (world->HasComponent<SpriteComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<SpriteComponent>(entity));
-        }
-        else if (name == "Bounds") {
-            if (world->HasComponent<BoundsComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<BoundsComponent>(entity));
-        }
-        else if (name == "Team") {
-            if (world->HasComponent<TeamComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<TeamComponent>(entity));
-        }
-        else if (name == "Unit") {
-            if (world->HasComponent<UnitComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<UnitComponent>(entity));
-        }
-        else if (name == "Script") {
-            if (world->HasComponent<ScriptComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<ScriptComponent>(entity));
-        }
-        else if (name == "Health") {
-            if (world->HasComponent<HealthComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<HealthComponent>(entity));
-        }
-        else if (name == "Faction") {
-            if (world->HasComponent<FactionComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<FactionComponent>(entity));
-        }
-        else if (name == "Kinematics") {
-            if (world->HasComponent<KinematicsComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<KinematicsComponent>(entity));
-        }
-        else if (name == "Attack") {
-            if (world->HasComponent<AttackComponent>(entity))
-                return sol::make_object(lua.lua_state(), &world->GetComponent<AttackComponent>(entity));
-        }
-        return sol::nil;
+        return componentRegistry_.GetComponent(name, lua, world, entity);
     });
 
     // SetComponent
-    lua.set_function("SetComponent", [](Entity entity, const std::string& name, sol::object value) {
+    lua.set_function("SetComponent", [this](Entity entity, const std::string& name, sol::object value) {
         auto* world = GetActiveWorld();
         if (!world) return;
-
-        auto getOrAdd = [&]<typename T>() -> T& {
-            if (!world->HasComponent<T>(entity)) {
-                world->AddComponent<T>(entity, T());
-            }
-            return world->GetComponent<T>(entity);
-        };
-
-        if (name == "Position") {
-            auto& comp = getOrAdd.template operator()<PositionComponent>();
-            if (value.is<PositionComponent>()) comp = value.as<PositionComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.x = t.get_or("x", comp.x);
-                comp.y = t.get_or("y", comp.y);
-            }
-        }
-        else if (name == "Name") {
-            auto& comp = getOrAdd.template operator()<NameComponent>();
-            if (value.is<NameComponent>()) comp = value.as<NameComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.name = t.get_or("name", comp.name);
-            }
-            else if (value.is<std::string>()) {
-                comp.name = value.as<std::string>();
-            }
-        }
-        else if (name == "Rectangle") {
-            auto& comp = getOrAdd.template operator()<RectangleComponent>();
-            if (value.is<RectangleComponent>()) comp = value.as<RectangleComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.width = t.get_or("width", comp.width);
-                comp.height = t.get_or("height", comp.height);
-                comp.layerName = t.get_or("layerName", comp.layerName);
-                if (t["background"].valid()) comp.background = ObjectToColor(t["background"]);
-                if (t["border"].valid()) comp.border = ObjectToColor(t["border"]);
-            }
-        }
-        else if (name == "Movement") {
-            auto& comp = getOrAdd.template operator()<MovementComponent>();
-            if (value.is<MovementComponent>()) comp = value.as<MovementComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.speed = t.get_or("speed", comp.speed);
-                comp.isMoving = t.get_or("isMoving", comp.isMoving);
-                comp.loop = t.get_or("loop", comp.loop);
-            }
-        }
-        else if (name == "Sprite") {
-            auto& comp = getOrAdd.template operator()<SpriteComponent>();
-            if (value.is<SpriteComponent>()) comp = value.as<SpriteComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.markerName = t.get_or("marker", comp.markerName);
-                comp.layerName = t.get_or("layer", comp.layerName);
-            }
-        }
-        else if (name == "Bounds") {
-            auto& comp = getOrAdd.template operator()<BoundsComponent>();
-            if (value.is<BoundsComponent>()) comp = value.as<BoundsComponent>();
-        }
-        else if (name == "Team") {
-            auto& comp = getOrAdd.template operator()<TeamComponent>();
-            if (value.is<TeamComponent>()) comp = value.as<TeamComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.teamId = t.get_or("teamId", comp.teamId);
-            }
-        }
-        else if (name == "Script") {
-            auto& comp = getOrAdd.template operator()<ScriptComponent>();
-            if (value.is<ScriptComponent>()) comp = value.as<ScriptComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.scriptName = t.get_or("scriptName", comp.scriptName);
-                comp.isActive = t.get_or("isActive", comp.isActive);
-            }
-            else if (value.is<std::string>()) {
-                comp.scriptName = value.as<std::string>();
-            }
-        } 
-        else if (name == "Health") {
-            auto& comp = getOrAdd.template operator()<HealthComponent>();
-            if (value.is<HealthComponent>()) comp = value.as<HealthComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.current = t.get_or("current", comp.current);
-                comp.max = t.get_or("max", comp.max);
-            }
-        } 
-        else if (name == "Faction") {
-            auto& comp = getOrAdd.template operator()<FactionComponent>();
-            if (value.is<FactionComponent>()) comp = value.as<FactionComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.name = t.get_or("name", comp.name);
-            }
-        }
-        else if (name == "Kinematics") {
-            auto& comp = getOrAdd.template operator()<KinematicsComponent>();
-            if (value.is<KinematicsComponent>()) comp = value.as<KinematicsComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.maxSpeed = t.get_or("maxSpeed", comp.maxSpeed);
-                comp.friction = t.get_or("friction", comp.friction);
-                if (t["velocity"].valid()) {
-                    sol::table velTable = t["velocity"];
-                    comp.velocity.x = velTable.get_or("x", comp.velocity.x);
-                    comp.velocity.y = velTable.get_or("y", comp.velocity.y);
-                }
-                if (t["acceleration"].valid()) {
-                    sol::table accTable = t["acceleration"];
-                    comp.acceleration.x = accTable.get_or("x", comp.acceleration.x);
-                    comp.acceleration.y = accTable.get_or("y", comp.acceleration.y);
-                }
-            }
-        }
-        else if (name == "Attack") {
-            auto& comp = getOrAdd.template operator()<AttackComponent>();
-            if (value.is<AttackComponent>()) comp = value.as<AttackComponent>();
-            else if (value.is<sol::table>()) {
-                sol::table t = value.as<sol::table>();
-                comp.damage = t.get_or("damage", comp.damage);
-                comp.range = t.get_or("range", comp.range);
-                comp.cooldown = t.get_or("cooldown", comp.cooldown);
-                comp.timer = t.get_or("timer", comp.timer);
-                comp.isAttacking = t.get_or("isAttacking", comp.isAttacking);
-                comp.targetId = t.get_or("targetId", comp.targetId);
-            }
-        }
+        componentRegistry_.SetComponent(name, world, entity, value);
     });
 
     // AddComponent
-    lua.set_function("AddComponent", [](Entity entity, const std::string& name) {
+    lua.set_function("AddComponent", [this](Entity entity, const std::string& name) {
         auto* world = GetActiveWorld();
         if (!world) return;
-
-        if (name == "Position") { if(!world->HasComponent<PositionComponent>(entity)) world->AddComponent<PositionComponent>(entity, {}); }
-        else if (name == "Name") { if(!world->HasComponent<NameComponent>(entity)) world->AddComponent<NameComponent>(entity, {}); }
-        else if (name == "Rectangle") { if(!world->HasComponent<RectangleComponent>(entity)) world->AddComponent<RectangleComponent>(entity, {}); }
-        else if (name == "Movement") { if(!world->HasComponent<MovementComponent>(entity)) world->AddComponent<MovementComponent>(entity, {}); }
-        else if (name == "Sprite") { if(!world->HasComponent<SpriteComponent>(entity)) world->AddComponent<SpriteComponent>(entity, {}); }
-        else if (name == "Bounds") { if(!world->HasComponent<BoundsComponent>(entity)) world->AddComponent<BoundsComponent>(entity, {}); }
-        else if (name == "Team") { if(!world->HasComponent<TeamComponent>(entity)) world->AddComponent<TeamComponent>(entity, {}); }
-        else if (name == "Unit") { if(!world->HasComponent<UnitComponent>(entity)) world->AddComponent<UnitComponent>(entity, {}); }
-        else if (name == "Script") { if(!world->HasComponent<ScriptComponent>(entity)) world->AddComponent<ScriptComponent>(entity, {}); }
-        else if (name == "Health") { if(!world->HasComponent<HealthComponent>(entity)) world->AddComponent<HealthComponent>(entity, {}); }
-        else if (name == "Faction") { if(!world->HasComponent<FactionComponent>(entity)) world->AddComponent<FactionComponent>(entity, {}); }
-        else if (name == "Kinematics") { if(!world->HasComponent<KinematicsComponent>(entity)) world->AddComponent<KinematicsComponent>(entity, {}); }
-        else if (name == "Attack") { if(!world->HasComponent<AttackComponent>(entity)) world->AddComponent<AttackComponent>(entity, {}); }
-        else {
-             LOG_WARNINGF("Lua", "AddComponent: Unknown component type '%s'", name.c_str());
-        }
+        componentRegistry_.Add(name, world, entity);
     });
 
     // HasComponent
-    lua.set_function("HasComponent", [](Entity entity, const std::string& name) -> bool {
+    lua.set_function("HasComponent", [this](Entity entity, const std::string& name) -> bool {
         auto* world = GetActiveWorld();
         if (!world) return false;
-        if (name == "Position") return world->HasComponent<PositionComponent>(entity);
-        if (name == "Name") return world->HasComponent<NameComponent>(entity);
-        if (name == "Rectangle") return world->HasComponent<RectangleComponent>(entity);
-        if (name == "Movement") return world->HasComponent<MovementComponent>(entity);
-        if (name == "Sprite") return world->HasComponent<SpriteComponent>(entity);
-        if (name == "Bounds") return world->HasComponent<BoundsComponent>(entity);
-        if (name == "Team") return world->HasComponent<TeamComponent>(entity);
-        if (name == "Unit") return world->HasComponent<UnitComponent>(entity);
-        if (name == "Script") return world->HasComponent<ScriptComponent>(entity);
-        if (name == "Health") return world->HasComponent<HealthComponent>(entity);
-        if (name == "Faction") return world->HasComponent<FactionComponent>(entity);
-        return false;
+        return componentRegistry_.Has(name, world, entity);
     });
 
     // RemoveComponent
-    lua.set_function("RemoveComponent", [](Entity entity, const std::string& name) {
+    lua.set_function("RemoveComponent", [this](Entity entity, const std::string& name) {
         auto* world = GetActiveWorld();
         if (!world) return;
-        if (name == "Position") world->RemoveComponent<PositionComponent>(entity);
-        else if (name == "Name") world->RemoveComponent<NameComponent>(entity);
-        else if (name == "Rectangle") world->RemoveComponent<RectangleComponent>(entity);
-        else if (name == "Movement") world->RemoveComponent<MovementComponent>(entity);
-        else if (name == "Sprite") world->RemoveComponent<SpriteComponent>(entity);
-        else if (name == "Bounds") world->RemoveComponent<BoundsComponent>(entity);
-        else if (name == "Team") world->RemoveComponent<TeamComponent>(entity);
-        else if (name == "Unit") world->RemoveComponent<UnitComponent>(entity);
-        else if (name == "Script") world->RemoveComponent<ScriptComponent>(entity);
-        else if (name == "Health") world->RemoveComponent<HealthComponent>(entity);
+        componentRegistry_.Remove(name, world, entity);
     });
 
     // GetEntityByName
