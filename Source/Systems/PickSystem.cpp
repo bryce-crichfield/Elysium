@@ -1,4 +1,5 @@
 #include "Systems/PickSystem.h"
+#include <unordered_map>
 #include "Core/Application.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
@@ -79,8 +80,21 @@ void PickSystem::OnMouseButtonPressed(MouseButtonPressedEvent& event) {
     }
 
     Vector2 fbPos = event.GetPosition();
-    Vector2 worldPos = FramebufferToWorld(fbPos);
 
+    // First check screen-space UI elements (they take priority)
+    Entity screenEntity = FindScreenSpaceEntityAtPoint(fbPos);
+    if (screenEntity != 0) {
+        // Fire pick event on screen-space entity through scene event system
+        pressedEntity_ = screenEntity;
+        PickEvent pickEvent(PickEvent::Type::PRESS, fbPos, screenEntity);
+        GetScene()->OnEvent(pickEvent);
+        event.handled = true;
+        LOG_INFOF("PickSystem", "Screen-space entity %zu pressed at (%.1f, %.1f)", screenEntity, fbPos.x, fbPos.y);
+        return;
+    }
+
+    // Fall back to world-space picking
+    Vector2 worldPos = FramebufferToWorld(fbPos);
     Entity clickedEntity = FindEntityAtPoint(worldPos);
 
     if (clickedEntity != 0) {
@@ -101,6 +115,11 @@ void PickSystem::OnMouseButtonPressed(MouseButtonPressedEvent& event) {
             world->AddComponent<SelectionComponent>(clickedEntity, SelectionComponent{});
         }
 
+        // Fire pick event through scene event system
+        pressedEntity_ = clickedEntity;
+        PickEvent pickEvent(PickEvent::Type::PRESS, worldPos, clickedEntity);
+        GetScene()->OnEvent(pickEvent);
+
         LOG_INFOF("PickSystem", "Selected entity %zu at (%.1f, %.1f)", clickedEntity, worldPos.x, worldPos.y);
     } else {
         // Clicked on empty space - start box selection
@@ -112,6 +131,7 @@ void PickSystem::OnMouseButtonPressed(MouseButtonPressedEvent& event) {
         isBoxSelecting_ = true;
         boxStart_ = worldPos;
         boxCurrent_ = worldPos;
+        pressedEntity_ = 0;
 
         LOG_INFOF("PickSystem", "Started box selection at (%.1f, %.1f)", worldPos.x, worldPos.y);
     }
@@ -128,6 +148,17 @@ void PickSystem::OnMouseMoved(MouseMovedEvent& event) {
 
 void PickSystem::OnMouseButtonReleased(MouseButtonReleasedEvent& event) {
     if (event.GetButton() != MOUSE_LEFT_BUTTON) {
+        return;
+    }
+
+    Vector2 fbPos = event.GetPosition();
+
+    // Fire release event on the entity that was pressed
+    if (pressedEntity_ != 0) {
+        PickEvent pickEvent(PickEvent::Type::RELEASE, fbPos, pressedEntity_);
+        GetScene()->OnEvent(pickEvent);
+        LOG_INFOF("PickSystem", "Entity %zu released", pressedEntity_);
+        pressedEntity_ = 0;
         return;
     }
 
@@ -219,6 +250,40 @@ Entity PickSystem::FindEntityAtPoint(Vector2 worldPos) {
     world->Query<BoundsComponent>([&](Entity entity, auto& bounds) {
         if (IsPointInBounds(worldPos, bounds.bounds)) {
             foundEntity = entity;
+        }
+    });
+
+    return foundEntity;
+}
+
+Entity PickSystem::FindScreenSpaceEntityAtPoint(Vector2 screenPos) {
+    Entity foundEntity = 0;
+
+    // Build layer lookup for screen-space detection
+    std::unordered_map<std::string, bool> screenSpaceLayers;
+    world->Query<LayerComponent>([&](Entity entity, auto& layer) {
+        screenSpaceLayers[layer.name] = (layer.space == LayerComponent::Space::Screen);
+    });
+
+    // Check entities with bounds - prefer screen-space entities (higher z-order typically)
+    world->Query<BoundsComponent>([&](Entity entity, auto& bounds) {
+        // Get the layer name from the entity's renderable component
+        std::string layerName = "default";
+        if (world->HasComponent<RectangleComponent>(entity)) {
+            layerName = world->GetComponent<RectangleComponent>(entity).layerName;
+        } else if (world->HasComponent<TextComponent>(entity)) {
+            layerName = world->GetComponent<TextComponent>(entity).layerName;
+        } else if (world->HasComponent<CircleComponent>(entity)) {
+            layerName = world->GetComponent<CircleComponent>(entity).layerName;
+        }
+
+        // Check if this is a screen-space layer
+        auto it = screenSpaceLayers.find(layerName);
+        if (it != screenSpaceLayers.end() && it->second) {
+            // Screen-space entity - check against screen coordinates
+            if (IsPointInBounds(screenPos, bounds.bounds)) {
+                foundEntity = entity;
+            }
         }
     });
 

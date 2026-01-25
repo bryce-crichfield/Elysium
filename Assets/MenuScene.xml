@@ -1,0 +1,84 @@
+<Scene type="MenuScene">
+    <Systems>
+        <System type="ScriptSystem" />
+        <System type="PickSystem" />
+        <System type="RenderSystem" />
+    </Systems>
+
+    <Layers>
+        <Layer name="background" z="0" type="Background" space="Screen" blend="Normal" />
+        <Layer name="ui" z="1" type="Overlay" space="Screen" blend="Normal" />
+    </Layers>
+
+    <Entities>
+        <!-- Camera (required for rendering) -->
+        <Entity>
+            <NameComponent name="CAMERA" />
+            <PositionComponent x="0" y="0" />
+            <CameraComponent />
+        </Entity>
+
+        <!-- Title -->
+        <Entity>
+            <NameComponent name="Title" />
+            <PositionComponent x="400" y="80" />
+            <TextComponent text="ELYSIUM" fontSize="60" color="#FFFFFF" layerName="ui" />
+        </Entity>
+
+        <!-- Subtitle -->
+        <Entity>
+            <NameComponent name="Subtitle" />
+            <PositionComponent x="400" y="140" />
+            <TextComponent text="A Scripted Game Engine" fontSize="20" color="#AAAAAA" layerName="ui" />
+        </Entity>
+
+        <!-- Play Button -->
+        <Entity>
+            <NameComponent name="PlayButton" />
+            <PositionComponent x="400" y="250" />
+            <RectangleComponent width="200" height="50" background="#2266AA" border="#44AAFF" layerName="ui" />
+            <BoundsComponent />
+            <ScriptComponent scriptName="Scripts/menu_button.lua" />
+        </Entity>
+        <Entity>
+            <NameComponent name="PlayButtonText" />
+            <PositionComponent x="400" y="250" />
+            <TextComponent text="Play Game" fontSize="24" color="#FFFFFF" layerName="ui" />
+        </Entity>
+
+        <!-- Options Button -->
+        <Entity>
+            <NameComponent name="OptionsButton" />
+            <PositionComponent x="400" y="320" />
+            <RectangleComponent width="200" height="50" background="#226644" border="#44AA66" layerName="ui" />
+            <BoundsComponent />
+            <ScriptComponent scriptName="Scripts/menu_button.lua" />
+        </Entity>
+        <Entity>
+            <NameComponent name="OptionsButtonText" />
+            <PositionComponent x="400" y="320" />
+            <TextComponent text="Options" fontSize="24" color="#FFFFFF" layerName="ui" />
+        </Entity>
+
+        <!-- Quit Button -->
+        <Entity>
+            <NameComponent name="QuitButton" />
+            <PositionComponent x="400" y="390" />
+            <RectangleComponent width="200" height="50" background="#662222" border="#AA4444" layerName="ui" />
+            <BoundsComponent />
+            <ScriptComponent scriptName="Scripts/menu_button.lua" />
+        </Entity>
+        <Entity>
+            <NameComponent name="QuitButtonText" />
+            <PositionComponent x="400" y="390" />
+            <TextComponent text="Quit" fontSize="24" color="#FFFFFF" layerName="ui" />
+        </Entity>
+
+        <!-- Version text -->
+        <Entity>
+            <NameComponent name="Version" />
+            <PositionComponent x="400" y="550" />
+            <TextComponent text="v0.1.0 - Scripting Demo" fontSize="14" color="#666666" layerName="ui" />
+        </Entity>
+    </Entities>
+</Scene>

@@ -247,7 +247,11 @@ const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
     componentLoaders["TextComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
         std::string text = xmlComponent->Attribute("text") ? xmlComponent->Attribute("text") : "";
         int fontSize = xmlComponent->IntAttribute("fontSize", 12);
-        world->AddComponent(entity, TextComponent(text, fontSize));
+        std::string colorHex = xmlComponent->Attribute("color") ? xmlComponent->Attribute("color") : "";
+        const char* layerName = xmlComponent->Attribute("layerName");
+
+        Color textColor = ParseHexColor(colorHex, WHITE);
+        world->AddComponent(entity, TextComponent(text, fontSize, textColor, layerName ? layerName : "default"));
     };
 
     componentLoaders["SpriteComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
@@ -328,6 +332,12 @@ const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
         float damage = xmlComponent->FloatAttribute("damage", 10.0f);
         float cooldown = xmlComponent->FloatAttribute("cooldown", 1.0f);
         world->AddComponent(entity, AttackComponent(range, damage, cooldown));
+    };
+
+    componentLoaders["ScaleComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
+        float x = xmlComponent->FloatAttribute("x", 1.0f);
+        float y = xmlComponent->FloatAttribute("y", 1.0f);
+        world->AddComponent(entity, ScaleComponent(x, y));
     };
 
     return componentLoaders;

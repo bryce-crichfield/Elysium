@@ -12,10 +12,10 @@ int main() {
     }
 
     auto& sceneService = app.GetService<Elysium::Services::SceneService>();
-    sceneService.RegisterScene("MenuScene", "", []() { return new Elysium::Scenes::MenuScene(); });
+    sceneService.RegisterScene("MenuScene", "MenuScene.xml", []() { return new Elysium::Scenes::MenuScene(); });
     sceneService.RegisterScene("OverworldScene", "", []() { return new Elysium::Scenes::OverworldScene(); });
     sceneService.RegisterScene("ExploreScene", "ExploreScene.xml", []() { return new Elysium::Scenes::ExploreScene(); });
-    sceneService.Push("ExploreScene");
+    sceneService.Push("MenuScene");
 
     app.Run();
 

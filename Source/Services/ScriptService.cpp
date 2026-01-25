@@ -394,6 +394,46 @@ void ScriptService::BindComponents() {
             }
         });
 
+    componentRegistry_.Register<TextComponent>("Text",
+        [](sol::usertype<TextComponent>& ut) {
+            ut["content"] = &TextComponent::content;
+            ut["fontSize"] = &TextComponent::fontSize;
+            ut["color"] = sol::property(
+                [](TextComponent& t) { return t.color; },
+                [](TextComponent& t, sol::object v) { t.color = ObjectToColor(v); });
+            ut["layerName"] = &TextComponent::layerName;
+        },
+        [](TextComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.content = t.get_or("content", c.content);
+                c.fontSize = t.get_or("fontSize", c.fontSize);
+                c.layerName = t.get_or("layerName", c.layerName);
+                if (t["color"].valid()) c.color = ObjectToColor(t["color"]);
+            }
+        });
+
+    componentRegistry_.Register<CircleComponent>("Circle",
+        [](sol::usertype<CircleComponent>& ut) {
+            ut["radius"] = &CircleComponent::radius;
+            ut["background"] = sol::property(
+                [](CircleComponent& c) { return c.background; },
+                [](CircleComponent& c, sol::object v) { c.background = ObjectToColor(v); });
+            ut["border"] = sol::property(
+                [](CircleComponent& c) { return c.border; },
+                [](CircleComponent& c, sol::object v) { c.border = ObjectToColor(v); });
+            ut["layerName"] = &CircleComponent::layerName;
+        },
+        [](CircleComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.radius = t.get_or("radius", c.radius);
+                c.layerName = t.get_or("layerName", c.layerName);
+                if (t["background"].valid()) c.background = ObjectToColor(t["background"]);
+                if (t["border"].valid()) c.border = ObjectToColor(t["border"]);
+            }
+        });
+
     // Register all usertypes with Lua
     componentRegistry_.RegisterAllUserTypes(lua);
 }

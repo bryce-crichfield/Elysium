@@ -13,11 +13,12 @@ struct PickEvent : public Event {
         RELEASE
     };
 
-    PickEvent(Type t, Vector2 pos, int b = 0)
-        : type(t), position(pos), button(b) {}
+    PickEvent(Type t, Vector2 pos, Entity e = 0, int b = 0)
+        : type(t), position(pos), entity(e), button(b) {}
 
     Type type;
     Vector2 position;
+    Entity entity;  // The entity that was picked
     int button;
 };
 
@@ -54,6 +55,9 @@ class PickSystem : public System, public IWorldListener, public IMouseListener {
     Vector2 boxStart_ = {0, 0};      // World space start of selection box
     Vector2 boxCurrent_ = {0, 0};    // World space current mouse position
 
+    // Track which entity was pressed (for firing release events)
+    Entity pressedEntity_ = 0;
+
     // Check if a point is inside an entity's bounds
     bool IsPointInBounds(Vector2 point, const Rectangle& bounds);
 
@@ -69,8 +73,11 @@ class PickSystem : public System, public IWorldListener, public IMouseListener {
     // Deselect all entities with SelectionComponent
     void DeselectAll();
 
-    // Find entity under point, returns 0 if none
+    // Find entity under point in world space, returns 0 if none
     Entity FindEntityAtPoint(Vector2 worldPos);
+
+    // Find screen-space UI entity under point, returns 0 if none
+    Entity FindScreenSpaceEntityAtPoint(Vector2 screenPos);
 };
 
 }  // namespace Elysium::Systems
