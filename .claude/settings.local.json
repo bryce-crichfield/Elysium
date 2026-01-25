@@ -29,7 +29,8 @@
       "Bash(pwsh -Command \".\\\\elysium.ps1 --Build\")",
       "Bash(git rm:*)",
       "Bash(del \"C:\\\\Users\\\\Bryce\\\\Documents\\\\GitHub\\\\Elysium2\\\\Source\\\\Editor\\\\SceneInspector.h\")",
-      "Bash(del \"C:\\\\Users\\\\Bryce\\\\Documents\\\\GitHub\\\\Elysium2\\\\Source\\\\Editor\\\\SceneInspector.cpp\")"
+      "Bash(del \"C:\\\\Users\\\\Bryce\\\\Documents\\\\GitHub\\\\Elysium2\\\\Source\\\\Editor\\\\SceneInspector.cpp\")",
+      "Bash(git show:*)"
     ],
     "deny": []
   }

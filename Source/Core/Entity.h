@@ -28,7 +28,7 @@
 namespace Elysium {
 using Entity = size_t;
 constexpr size_t MAX_ENTITIES = 10000;
-constexpr size_t MAX_COMPONENTS = 32;
+constexpr size_t MAX_COMPONENTS = 64;
 constexpr Entity INVALID_ENTITY = MAX_ENTITIES;
 
 using ComponentMask = std::bitset<MAX_COMPONENTS>;

@@ -9,6 +9,9 @@
         <System type="ScriptSystem" />
         <System type="DebugSystem" />
         <System type="CommandSystem" />
+        <System type="SpatialSystem" />
+        <System type="PathfindingSystem" />
+        <System type="KinematicsSystem" />
     </Systems>
 ...
     <Entities>
@@ -16,6 +19,30 @@
             <NameComponent name="Barracks" />
             <PositionComponent x="100" y="100" />
             <ScriptComponent scriptName="Scripts/barracks.lua" />
+        </Entity>
+
+        <Entity>
+            <NameComponent name="CommandCenter" />
+            <PositionComponent x="200" y="200" />
+            <ScriptComponent scriptName="Scripts/command_center.lua" />
+        </Entity>
+
+        <Entity>
+            <NameComponent name="MineralPatch1" />
+            <PositionComponent x="500" y="150" />
+            <ScriptComponent scriptName="Scripts/resource_node.lua" />
+        </Entity>
+
+        <Entity>
+            <NameComponent name="MineralPatch2" />
+            <PositionComponent x="550" y="220" />
+            <ScriptComponent scriptName="Scripts/resource_node.lua" />
+        </Entity>
+
+        <Entity>
+            <NameComponent name="MineralPatch3" />
+            <PositionComponent x="480" y="280" />
+            <ScriptComponent scriptName="Scripts/resource_node.lua" />
         </Entity>
 
         <Entity>

@@ -9,6 +9,8 @@
 #include "Utilities/Path.h"
 #include "imgui.h"
 #include <memory>
+#include <limits>
+#include <cmath>
 
 #include "Systems/PickSystem.h"
 
@@ -327,6 +329,71 @@ void ScriptService::BindComponents() {
             }
         });
 
+    componentRegistry_.Register<PathRequestComponent>("PathRequest",
+        [](sol::usertype<PathRequestComponent>& ut) {
+            ut["target"] = &PathRequestComponent::target;
+        },
+        [](PathRequestComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                if (t["target"].valid()) {
+                    sol::table tgt = t["target"];
+                    c.target.x = tgt.get_or("x", c.target.x);
+                    c.target.y = tgt.get_or("y", c.target.y);
+                }
+            }
+        });
+
+    componentRegistry_.Register<ResourceComponent>("Resource",
+        [](sol::usertype<ResourceComponent>& ut) {
+            ut["resourceType"] = &ResourceComponent::resourceType;
+            ut["amount"] = &ResourceComponent::amount;
+            ut["maxAmount"] = &ResourceComponent::maxAmount;
+            ut["gatherRate"] = &ResourceComponent::gatherRate;
+        },
+        [](ResourceComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.resourceType = t.get_or("resourceType", c.resourceType);
+                c.amount = t.get_or("amount", c.amount);
+                c.maxAmount = t.get_or("maxAmount", c.maxAmount);
+                c.gatherRate = t.get_or("gatherRate", c.gatherRate);
+            }
+        });
+
+    componentRegistry_.Register<CarryComponent>("Carry",
+        [](sol::usertype<CarryComponent>& ut) {
+            ut["resourceType"] = &CarryComponent::resourceType;
+            ut["amount"] = &CarryComponent::amount;
+            ut["capacity"] = &CarryComponent::capacity;
+        },
+        [](CarryComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.resourceType = t.get_or("resourceType", c.resourceType);
+                c.amount = t.get_or("amount", c.amount);
+                c.capacity = t.get_or("capacity", c.capacity);
+            }
+        });
+
+    componentRegistry_.Register<StorageComponent>("Storage",
+        [this](sol::usertype<StorageComponent>& ut) {
+            ut["canAcceptDeposits"] = &StorageComponent::canAcceptDeposits;
+            ut["GetResource"] = [](StorageComponent& s, const std::string& type) -> float {
+                auto it = s.resources.find(type);
+                return it != s.resources.end() ? it->second : 0.0f;
+            };
+            ut["AddResource"] = [](StorageComponent& s, const std::string& type, float amt) {
+                s.resources[type] += amt;
+            };
+        },
+        [](StorageComponent& c, sol::object v) {
+            if (v.is<sol::table>()) {
+                sol::table t = v.as<sol::table>();
+                c.canAcceptDeposits = t.get_or("canAcceptDeposits", c.canAcceptDeposits);
+            }
+        });
+
     // Register all usertypes with Lua
     componentRegistry_.RegisterAllUserTypes(lua);
 }
@@ -416,6 +483,53 @@ void ScriptService::BindEntityAPI() {
         Entity entity;
         if (world->GetEntityByName(name, &entity)) return entity;
         return 0;
+    });
+
+    // FindEntitiesWithComponent - returns table of entities with given component
+    lua.set_function("FindEntitiesWithComponent", [this](const std::string& componentName) -> sol::table {
+        sol::table result = lua.create_table();
+        auto* world = GetActiveWorld();
+        if (!world) return result;
+
+        int index = 1;
+        for (Entity e : world->GetLivingEntities()) {
+            if (componentRegistry_.Has(componentName, world, e)) {
+                result[index++] = e;
+            }
+        }
+        return result;
+    });
+
+    // FindNearestEntity - finds entity with component nearest to position
+    lua.set_function("FindNearestEntity", [this](float x, float y, const std::string& componentName) -> Entity {
+        auto* world = GetActiveWorld();
+        if (!world) return 0;
+
+        Entity nearest = 0;
+        float nearestDist = std::numeric_limits<float>::max();
+
+        for (Entity e : world->GetLivingEntities()) {
+            if (!componentRegistry_.Has(componentName, world, e)) continue;
+            if (!world->HasComponent<PositionComponent>(e)) continue;
+
+            auto& pos = world->GetComponent<PositionComponent>(e);
+            float dx = pos.x - x;
+            float dy = pos.y - y;
+            float dist = dx * dx + dy * dy;
+
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = e;
+            }
+        }
+        return nearest;
+    });
+
+    // Distance - compute distance between two points
+    lua.set_function("Distance", [](float x1, float y1, float x2, float y2) -> float {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        return std::sqrt(dx * dx + dy * dy);
     });
 }
 

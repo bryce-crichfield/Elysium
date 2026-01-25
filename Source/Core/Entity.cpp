@@ -106,6 +106,9 @@ World::World() {
     RegisterComponent<AttackComponent>();
     RegisterComponent<ProjectileComponent>();
     RegisterComponent<FactionComponent>();
+    RegisterComponent<ResourceComponent>();
+    RegisterComponent<CarryComponent>();
+    RegisterComponent<StorageComponent>();
 }
 
 void World::AddWorldListener(IWorldListener* listener) {

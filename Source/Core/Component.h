@@ -351,9 +351,35 @@ struct ProjectileComponent {
     Entity targetId;
     float speed;
     float lifetime; // seconds before auto-destroy
-    
+
     ProjectileComponent(float dmg = 10.0f, Entity target = 0, float spd = 300.0f)
         : damage(dmg), targetId(target), speed(spd), lifetime(5.0f) {}
+};
+
+struct ResourceComponent {
+    std::string resourceType;
+    float amount;
+    float maxAmount;
+    float gatherRate;
+
+    ResourceComponent(const std::string& type = "Minerals", float amt = 1000.0f)
+        : resourceType(type), amount(amt), maxAmount(amt), gatherRate(10.0f) {}
+};
+
+struct CarryComponent {
+    std::string resourceType;
+    float amount;
+    float capacity;
+
+    CarryComponent(float cap = 50.0f)
+        : resourceType(""), amount(0.0f), capacity(cap) {}
+};
+
+struct StorageComponent {
+    std::unordered_map<std::string, float> resources;
+    bool canAcceptDeposits;
+
+    StorageComponent() : canAcceptDeposits(true) {}
 };
 
 };  // namespace Elysium
