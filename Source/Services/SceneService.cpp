@@ -38,103 +38,126 @@ void SceneService::Initialize() {
 // =============================================================================
 
 void SceneService::Push(const std::string& sceneName) {
-    Profile;
-    auto it = scenes_.find(sceneName);
-    if (it == scenes_.end()) {
-        LOG_ERRORF("SceneService", "Cannot push scene. Scene not found: %s", sceneName.c_str());
-        return;
-    }
-
-    // Check if scene is already in stack
-    Scene* scene = CreateOrGetScene(sceneName);
-    if (!scene) {
-        LOG_ERRORF("SceneService", "Failed to create scene: %s", sceneName.c_str());
-        return;
-    }
-
-    for (Scene* s : sceneStack_) {
-        if (s == scene) {
-            LOG_WARNINGF("SceneService", "Scene '%s' is already in the stack", sceneName.c_str());
-            return;
-        }
-    }
-
-    sceneStack_.push_back(scene);
-    EnterScene(scene, sceneName);
-    LOG_INFOF("SceneService", "Pushed scene: %s (stack size: %zu)", sceneName.c_str(), sceneStack_.size());
-
-    // Publish scene change message
-    auto& messageService = Application::GetInstance().GetService<MessageService>();
-    messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Push, sceneName);
+    pendingOperations_.push_back({SceneOperationType::Push, sceneName});
 }
 
 void SceneService::Pop() {
-    Profile;
-    if (sceneStack_.empty()) {
-        LOG_WARNING("SceneService", "Cannot pop. Scene stack is empty");
-        return;
-    }
-
-    Scene* scene = sceneStack_.back();
-    sceneStack_.pop_back();
-
-    if (scene) {
-        scene->OnExit();
-    }
-
-    LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
-
-    // Publish scene change message
-    auto& messageService = Application::GetInstance().GetService<MessageService>();
-    messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Pop, "");
+    pendingOperations_.push_back({SceneOperationType::Pop, ""});
 }
 
 void SceneService::Replace(const std::string& sceneName) {
-    Profile;
-    if (!sceneStack_.empty()) {
-        Scene* oldScene = sceneStack_.back();
-        sceneStack_.pop_back();
-        if (oldScene) {
-            oldScene->OnExit();
-        }
-    }
-
-    // Do push logic inline (don't call Push to avoid double message)
-    auto it = scenes_.find(sceneName);
-    if (it == scenes_.end()) {
-        LOG_ERRORF("SceneService", "Cannot replace with scene. Scene not found: %s", sceneName.c_str());
-        return;
-    }
-
-    Scene* scene = CreateOrGetScene(sceneName);
-    if (!scene) {
-        LOG_ERRORF("SceneService", "Failed to create scene: %s", sceneName.c_str());
-        return;
-    }
-
-    sceneStack_.push_back(scene);
-    EnterScene(scene, sceneName);
-    LOG_INFOF("SceneService", "Replaced top scene with: %s", sceneName.c_str());
-
-    // Publish scene change message as Replace
-    auto& messageService = Application::GetInstance().GetService<MessageService>();
-    messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Replace, sceneName);
+    pendingOperations_.push_back({SceneOperationType::Replace, sceneName});
 }
 
 void SceneService::Clear() {
-    Profile;
-    while (!sceneStack_.empty()) {
-        Scene* scene = sceneStack_.back();
-        sceneStack_.pop_back();
-        if (scene) {
-            scene->OnExit();
+    pendingOperations_.push_back({SceneOperationType::Clear, ""});
+}
+
+void SceneService::ApplySceneOperations() {
+    if (pendingOperations_.empty()) return;
+
+    // Process all pending operations
+    for (const auto& op : pendingOperations_) {
+        switch (op.type) {
+            case SceneOperationType::Push: {
+                auto it = scenes_.find(op.name);
+                if (it == scenes_.end()) {
+                    LOG_ERRORF("SceneService", "Cannot push scene. Scene not found: %s", op.name.c_str());
+                    continue;
+                }
+
+                Scene* scene = CreateOrGetScene(op.name);
+                if (!scene) {
+                    LOG_ERRORF("SceneService", "Failed to create scene: %s", op.name.c_str());
+                    continue;
+                }
+
+                // Check duplicates
+                bool found = false;
+                for (Scene* s : sceneStack_) {
+                    if (s == scene) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    LOG_WARNINGF("SceneService", "Scene '%s' is already in the stack", op.name.c_str());
+                    continue;
+                }
+
+                sceneStack_.push_back(scene);
+                EnterScene(scene, op.name);
+                LOG_INFOF("SceneService", "Pushed scene: %s (stack size: %zu)", op.name.c_str(), sceneStack_.size());
+
+                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Push, op.name);
+                break;
+            }
+            case SceneOperationType::Pop: {
+                if (sceneStack_.empty()) {
+                    LOG_WARNING("SceneService", "Cannot pop. Scene stack is empty");
+                    continue;
+                }
+
+                Scene* scene = sceneStack_.back();
+                sceneStack_.pop_back();
+
+                if (scene) {
+                    scene->OnExit();
+                }
+
+                LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
+
+                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Pop, "");
+                break;
+            }
+            case SceneOperationType::Replace: {
+                 if (!sceneStack_.empty()) {
+                    Scene* oldScene = sceneStack_.back();
+                    sceneStack_.pop_back();
+                    if (oldScene) {
+                        oldScene->OnExit();
+                    }
+                }
+
+                auto it = scenes_.find(op.name);
+                if (it == scenes_.end()) {
+                    LOG_ERRORF("SceneService", "Cannot replace with scene. Scene not found: %s", op.name.c_str());
+                    continue;
+                }
+
+                Scene* scene = CreateOrGetScene(op.name);
+                if (!scene) {
+                    LOG_ERRORF("SceneService", "Failed to create scene: %s", op.name.c_str());
+                    continue;
+                }
+
+                sceneStack_.push_back(scene);
+                EnterScene(scene, op.name);
+                LOG_INFOF("SceneService", "Replaced top scene with: %s", op.name.c_str());
+
+                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Replace, op.name);
+                break;
+            }
+            case SceneOperationType::Clear: {
+                 while (!sceneStack_.empty()) {
+                    Scene* scene = sceneStack_.back();
+                    sceneStack_.pop_back();
+                    if (scene) {
+                        scene->OnExit();
+                    }
+                }
+                LOG_INFO("SceneService", "Cleared scene stack");
+
+                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Clear, "");
+                break;
+            }
         }
     }
-    LOG_INFO("SceneService", "Cleared scene stack");
-
-    // Publish scene change message
-    auto& messageService = Application::GetInstance().GetService<MessageService>();
-    messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Clear, "");
+    pendingOperations_.clear();
 }
 
 Scene* SceneService::GetTopScene() const {
@@ -200,15 +223,18 @@ void SceneService::OnMessage(const Message& message) {
 void SceneService::Update(float deltaTime) {
     Profile;
 
-    // Cache deltaTime for systems that need it
+    ApplySceneOperations();
+
     if (deltaTime > 0.0f && deltaTime < 0.1f) {
         cachedDeltaTime_ = deltaTime;
     }
 
-    // Process input events (dispatches to scenes top-down)
     ProcessInput();
+    
+    if (!pendingOperations_.empty()) {
+        ApplySceneOperations();
+    }
 
-    // Update ALL scenes in the stack (bottom to top)
     for (Scene* scene : sceneStack_) {
         scene->OnUpdate(cachedDeltaTime_);
     }

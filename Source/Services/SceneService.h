@@ -66,6 +66,14 @@ class SceneService : public Elysium::Service {
     void ProcessInput();
     Scene* CreateOrGetScene(const std::string& name);
     void EnterScene(Scene* scene, const std::string& name);
+    void ApplySceneOperations();
+
+    enum class SceneOperationType { Push, Pop, Replace, Clear };
+    struct SceneOperation {
+        SceneOperationType type;
+        std::string name;
+    };
+    std::vector<SceneOperation> pendingOperations_;
 
     // Helper to convert screen coords to framebuffer coords
     Vector2 ScreenToFramebuffer(Vector2 screenPos) const;
