@@ -1,6 +1,8 @@
 #include "NetworkEditor.h"
 #include "Core/Application.h"
 #include "Core/Common.h"
+#include "Services/InvokeService.h"
+#include "Services/LogService.h"
 #include "Services/NetworkService.h"
 #include "imgui.h"
 
@@ -45,15 +47,46 @@ void NetworkEditor::Draw(Application& app) {
             ImGui::InputInt("Port", &port_);
 
             if (ImGui::Button("Start Server")) {
-                service.StartServer(port_);
+                NetworkConfig config;
+                config.mode = NetworkMode::Server;
+                config.port = static_cast<uint16_t>(port_);
+                service.Start(config);
             }
             ImGui::SameLine();
             if (ImGui::Button("Start Client")) {
-                service.StartClient(addressBuffer_, port_);
+                NetworkConfig config;
+                config.mode = NetworkMode::Client;
+                config.address = addressBuffer_;
+                config.port = static_cast<uint16_t>(port_);
+                service.Start(config);
             }
         } else {
             if (ImGui::Button("Stop")) {
                 service.Stop();
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Test RPC");
+            if (ImGui::Button("Send Ping")) {
+                auto& invoke = app.GetService<InvokeService>();
+                PingRequest req;
+                req.clientTick = ++pingCounter_;
+                auto future = invoke.Invoke<Ping>(SERVER_PEER, req);
+                pingFuture_ = future;
+                waitingForPing_ = true;
+                LOG_INFO("NetworkEditor", "Sent Ping RPC (clientTick=42)");
+            }
+            if (waitingForPing_ && pingFuture_.IsReady()) {
+                auto resp = pingFuture_.Get();
+                LOG_INFOF("NetworkEditor", "Ping response: serverTick=%u, echoClientTick=%u",
+                          resp.serverTick, resp.echoClientTick);
+                lastPingResponse_ = resp;
+                waitingForPing_ = false;
+                hasPingResult_ = true;
+            }
+            if (hasPingResult_) {
+                ImGui::Text("Last Ping: serverTick=%u echo=%u",
+                            lastPingResponse_.serverTick, lastPingResponse_.echoClientTick);
             }
         }
     }

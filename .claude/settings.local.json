@@ -30,7 +30,8 @@
       "Bash(git rm:*)",
       "Bash(del \"C:\\\\Users\\\\Bryce\\\\Documents\\\\GitHub\\\\Elysium2\\\\Source\\\\Editor\\\\SceneInspector.h\")",
       "Bash(del \"C:\\\\Users\\\\Bryce\\\\Documents\\\\GitHub\\\\Elysium2\\\\Source\\\\Editor\\\\SceneInspector.cpp\")",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(tree:*)"
     ],
     "deny": []
   }

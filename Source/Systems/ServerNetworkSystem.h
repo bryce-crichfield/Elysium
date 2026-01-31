@@ -3,10 +3,8 @@
 #include <queue>
 #include <unordered_map>
 #include <vector>
-#include "ComponentSerializer.h"
-#include "EntitySyncManager.h"
-#include "NetworkInput.h"
-#include "NetworkProtocol.h"
+#include "Network/Network.h"
+#include "Network/NetworkSynchronizer.h"
 #include "System.h"
 
 // Forward declarations
@@ -20,7 +18,7 @@ namespace Elysium {
  * Responsibilities:
  * - Tick accumulator for 50ms server tick rate (20 Hz)
  * - Process buffered client inputs and replay as Events
- * - Track dirty entities via EntitySyncManager
+ * - Track dirty entities via NetworkSynchronizer
  * - Broadcast SyncPackets to all connected clients
  * - Handle client connect/disconnect lifecycle
  *
@@ -67,10 +65,6 @@ class ServerNetworkSystem : public System {
     void OnClientConnected(ENetPeer* peer);
     void OnClientDisconnected(ENetPeer* peer);
 
-    // Input processing
-    void ProcessInputPacket(ENetPeer* peer, Network::ByteBuffer& buffer);
-    void ReplayInputsAsEvents();
-
     // State synchronization
     void BroadcastFullState(ENetPeer* peer);
     void BroadcastDirtyState();
@@ -84,7 +78,7 @@ class ServerNetworkSystem : public System {
     void ScanAndTrackEntities();
 
     // State
-    Network::EntitySyncManager syncManager_;
+    Network::NetworkSynchronizer syncManager_;
 
     // Timing
     float tickAccumulator_ = 0.0f;
@@ -97,13 +91,6 @@ class ServerNetworkSystem : public System {
         bool needsFullSync = true;        // Send full state on next tick
     };
     std::unordered_map<ENetPeer*, ClientState> clients_;
-
-    // Buffered inputs from clients (processed each tick)
-    struct BufferedInput {
-        ENetPeer* peer;
-        Network::NetworkInput input;
-    };
-    std::queue<BufferedInput> inputBuffer_;
 };
 
 }  // namespace Elysium

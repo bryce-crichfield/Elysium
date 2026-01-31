@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Services/AssetService.h"
+#include "Services/InvokeService.h"
 #include "Services/LoadingService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"

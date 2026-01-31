@@ -1,8 +1,8 @@
-#include "Network/EntitySyncManager.h"
+#include "Network/NetworkSynchronizer.h"
 
 namespace Elysium::Network {
 
-void EntitySyncManager::MarkDirty(Entity entity) {
+void NetworkSynchronizer::MarkDirty(Entity entity) {
     auto it = entityStates_.find(entity);
     if (it != entityStates_.end()) {
         // Increment version - wraps around at 65535, which is fine
@@ -10,7 +10,7 @@ void EntitySyncManager::MarkDirty(Entity entity) {
     }
 }
 
-bool EntitySyncManager::IsDirty(Entity entity) const {
+bool NetworkSynchronizer::IsDirty(Entity entity) const {
     auto it = entityStates_.find(entity);
     if (it == entityStates_.end()) {
         return false;
@@ -18,7 +18,7 @@ bool EntitySyncManager::IsDirty(Entity entity) const {
     return it->second.version > it->second.lastSentVersion;
 }
 
-std::vector<Entity> EntitySyncManager::GetDirtyEntities() const {
+std::vector<Entity> NetworkSynchronizer::GetDirtyEntities() const {
     std::vector<Entity> dirty;
     dirty.reserve(entityStates_.size() / 4);  // Estimate ~25% dirty
 
@@ -30,7 +30,7 @@ std::vector<Entity> EntitySyncManager::GetDirtyEntities() const {
     return dirty;
 }
 
-void EntitySyncManager::MarkSynced(Entity entity, uint32_t tick, uint32_t componentMask) {
+void NetworkSynchronizer::MarkSynced(Entity entity, uint32_t tick, uint32_t componentMask) {
     auto it = entityStates_.find(entity);
     if (it != entityStates_.end()) {
         it->second.lastSentVersion = it->second.version;
@@ -39,7 +39,7 @@ void EntitySyncManager::MarkSynced(Entity entity, uint32_t tick, uint32_t compon
     }
 }
 
-void EntitySyncManager::MarkAllSynced(uint32_t tick) {
+void NetworkSynchronizer::MarkAllSynced(uint32_t tick) {
     for (auto& [entity, state] : entityStates_) {
         state.lastSentVersion = state.version;
         state.lastSyncTick = tick;
@@ -47,9 +47,9 @@ void EntitySyncManager::MarkAllSynced(uint32_t tick) {
     }
 }
 
-void EntitySyncManager::TrackEntity(Entity entity) {
+void NetworkSynchronizer::TrackEntity(Entity entity) {
     if (entityStates_.find(entity) == entityStates_.end()) {
-        EntitySyncState state;
+        EntityState state;
         state.version = 1;  // Start dirty so it gets synced
         state.lastSentVersion = 0;
         state.lastSyncTick = 0;
@@ -58,15 +58,15 @@ void EntitySyncManager::TrackEntity(Entity entity) {
     }
 }
 
-void EntitySyncManager::UntrackEntity(Entity entity) {
+void NetworkSynchronizer::UntrackEntity(Entity entity) {
     entityStates_.erase(entity);
 }
 
-bool EntitySyncManager::IsTracked(Entity entity) const {
+bool NetworkSynchronizer::IsTracked(Entity entity) const {
     return entityStates_.find(entity) != entityStates_.end();
 }
 
-uint16_t EntitySyncManager::GetVersion(Entity entity) const {
+uint16_t NetworkSynchronizer::GetVersion(Entity entity) const {
     auto it = entityStates_.find(entity);
     if (it != entityStates_.end()) {
         return it->second.version;
@@ -74,7 +74,7 @@ uint16_t EntitySyncManager::GetVersion(Entity entity) const {
     return 0;
 }
 
-std::vector<Entity> EntitySyncManager::GetTrackedEntities() const {
+std::vector<Entity> NetworkSynchronizer::GetTrackedEntities() const {
     std::vector<Entity> entities;
     entities.reserve(entityStates_.size());
     for (const auto& [entity, state] : entityStates_) {
@@ -83,11 +83,11 @@ std::vector<Entity> EntitySyncManager::GetTrackedEntities() const {
     return entities;
 }
 
-void EntitySyncManager::Clear() {
+void NetworkSynchronizer::Clear() {
     entityStates_.clear();
 }
 
-bool EntitySyncManager::HasComponentMaskChanged(Entity entity, uint32_t currentMask) const {
+bool NetworkSynchronizer::HasComponentMaskChanged(Entity entity, uint32_t currentMask) const {
     auto it = entityStates_.find(entity);
     if (it == entityStates_.end()) {
         return false;
@@ -95,7 +95,7 @@ bool EntitySyncManager::HasComponentMaskChanged(Entity entity, uint32_t currentM
     return it->second.lastSentComponentMask != currentMask;
 }
 
-uint32_t EntitySyncManager::GetLastSentComponentMask(Entity entity) const {
+uint32_t NetworkSynchronizer::GetLastSentComponentMask(Entity entity) const {
     auto it = entityStates_.find(entity);
     if (it != entityStates_.end()) {
         return it->second.lastSentComponentMask;

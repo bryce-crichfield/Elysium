@@ -21,12 +21,12 @@ void ExploreScene::SetupNetworkSystems() {
     context.scene = this;
     context.world = world_.get();
 
-    if (mode == Services::NetworkMode::Server) {
+    if (mode == NetworkMode::Server) {
         auto serverSystem = std::make_unique<ServerNetworkSystem>(context);
         serverNetworkSystem_ = serverSystem.get();
         AddSystem(std::move(serverSystem));
         LOG_INFO("ExploreScene", "Added ServerNetworkSystem");
-    } else if (mode == Services::NetworkMode::Client) {
+    } else if (mode == NetworkMode::Client) {
         auto clientSystem = std::make_unique<ClientNetworkSystem>(context);
         clientNetworkSystem_ = clientSystem.get();
         AddSystem(std::move(clientSystem));

@@ -4,28 +4,71 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <memory>
 #include <vector>
 
-namespace Elysium::Network {
+namespace Elysium {
 
-/**
- * ByteBuffer - Simple binary serialization for network packets.
- * Uses little-endian encoding for cross-platform compatibility.
- * Header-only implementation.
- */
-class ByteBuffer {
+class SerialBuffer;
+
+template <typename T>
+concept Serializable = requires(T obj, const T& constObj, SerialBuffer& buffer) {
+    { T::Write(constObj, buffer) } -> std::same_as<void>;
+    { T::Read(obj, buffer) } -> std::same_as<void>;
+};
+
+// Type-Erased Serializable Object
+class SerializableObject {
+public:
+    template<Serializable T>
+    SerializableObject(T obj) 
+        : self_(std::make_unique<Model<T>>(std::move(obj))) {}
+    
+    void Write(SerialBuffer& buf) const {
+        self_->Write(buf);
+    }
+    
+    void Read(SerialBuffer& buf) {
+        self_->Read(buf);
+    }
+
+private:
+    struct Concept {
+        virtual ~Concept() = default;
+        virtual void Write(SerialBuffer& buf) const = 0;
+        virtual void Read(SerialBuffer& buf) = 0;
+    };
+    
+    template<Serializable T>
+    struct Model : Concept {
+        Model(T obj) : data_(std::move(obj)) {}
+        
+        void Write(SerialBuffer& buf) const override {
+            T::Write(data_, buf);  // Calls your static method
+        }
+        
+        void Read(SerialBuffer& buf) override {
+            T::Read(data_, buf);
+        }
+        
+        T data_;
+    };
+    
+    std::unique_ptr<Concept> self_;
+};
+
+class SerialBuffer {
    public:
-    ByteBuffer() = default;
+    SerialBuffer() = default;
 
-    explicit ByteBuffer(size_t initialCapacity) {
+    explicit SerialBuffer(size_t initialCapacity) {
         buffer_.reserve(initialCapacity);
     }
 
-    explicit ByteBuffer(const std::vector<uint8_t>& data) : buffer_(data), readPos_(0) {}
+    explicit SerialBuffer(const std::vector<uint8_t>& data) : buffer_(data), readPos_(0) {}
 
-    ByteBuffer(const uint8_t* data, size_t length) : buffer_(data, data + length), readPos_(0) {}
+    SerialBuffer(const uint8_t* data, size_t length) : buffer_(data, data + length), readPos_(0) {}
 
-    // === Write Operations ===
 
     void WriteU8(uint8_t value) {
         buffer_.push_back(value);
@@ -99,12 +142,6 @@ class ByteBuffer {
         return value;
     }
 
-    void ReadBytes(void* dest, size_t length) {
-        EnsureReadable(length);
-        std::memcpy(dest, buffer_.data() + readPos_, length);
-        readPos_ += length;
-    }
-
     std::string ReadString() {
         uint16_t length = ReadU16();
         EnsureReadable(length);
@@ -113,12 +150,32 @@ class ByteBuffer {
         return str;
     }
 
+    void ReadBytes(void* dest, size_t length) {
+        EnsureReadable(length);
+        std::memcpy(dest, buffer_.data() + readPos_, length);
+        readPos_ += length;
+    }
+
     // === Buffer Access ===
 
     const uint8_t* Data() const { return buffer_.data(); }
     uint8_t* Data() { return buffer_.data(); }
     size_t Size() const { return buffer_.size(); }
     bool Empty() const { return buffer_.empty(); }
+
+    template<typename T>
+    void WriteAt(size_t position, const T& value) {
+        if (position + sizeof(T) > buffer_.size()) {
+            throw std::out_of_range("SerialBuffer WriteAt out of range");
+        }
+        
+        SerialBuffer temp;
+        value.Write(temp);
+        if (position + temp.Size() > buffer_.size()) {
+             throw std::out_of_range("SerialBuffer WriteAt out of range");
+        }
+        std::memcpy(buffer_.data() + position, temp.Data(), temp.Size());
+    }
 
     void Clear() {
         buffer_.clear();
@@ -145,7 +202,7 @@ class ByteBuffer {
     // Peek at data without advancing read position
     uint8_t PeekU8() const {
         if (readPos_ >= buffer_.size()) {
-            throw std::out_of_range("ByteBuffer underflow on peek");
+            throw std::out_of_range("SerialBuffer underflow on peek");
         }
         return buffer_[readPos_];
     }
@@ -153,7 +210,7 @@ class ByteBuffer {
    private:
     void EnsureReadable(size_t bytes) const {
         if (readPos_ + bytes > buffer_.size()) {
-            throw std::out_of_range("ByteBuffer underflow: need " +
+            throw std::out_of_range("SerialBuffer underflow: need " +
                                     std::to_string(bytes) + " bytes, have " +
                                     std::to_string(buffer_.size() - readPos_));
         }
@@ -162,5 +219,4 @@ class ByteBuffer {
     std::vector<uint8_t> buffer_;
     size_t readPos_ = 0;
 };
-
-}  // namespace Elysium::Network
+}  // namespace Elysium

@@ -3,8 +3,8 @@
 #include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/Event.h"
-#include "Messages/SceneMessages.h"
 #include "Utilities/Path.h"
+#include "Services/InvokeService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Core/System.h"
@@ -31,6 +31,35 @@ void SceneService::Initialize() {
 
     framebuffer_ = LoadRenderTexture(config.framebufferWidth, config.framebufferHeight);
     CalculateLetterboxing();
+
+    auto& invokeService = Application::GetInstance().GetService<InvokeService>();
+    invokeService.Register<SceneChange>(
+        std::function<SceneChangeResponseMessage(NetworkPeer, const SceneChangeRequestMessage&)>(
+        [this](NetworkPeer, const SceneChangeRequestMessage& req) -> SceneChangeResponseMessage {
+            SceneChangeResponseMessage resp;
+            switch (req.op) {
+                case SceneChangeOp::Push:
+                    Push(req.sceneName);
+                    resp.success = true;
+                    break;
+                case SceneChangeOp::Pop:
+                    Pop();
+                    resp.success = true;
+                    break;
+                case SceneChangeOp::Replace:
+                    Replace(req.sceneName);
+                    resp.success = true;
+                    break;
+                case SceneChangeOp::Clear:
+                    Clear();
+                    resp.success = true;
+                    break;
+                default:
+                    resp.success = false;
+                    break;
+            }
+            return resp;
+        }));
 }
 
 // =============================================================================
@@ -90,7 +119,7 @@ void SceneService::ApplySceneOperations() {
                 LOG_INFOF("SceneService", "Pushed scene: %s (stack size: %zu)", op.name.c_str(), sceneStack_.size());
 
                 auto& messageService = Application::GetInstance().GetService<MessageService>();
-                messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Push, op.name);
+                messageService.Post<SceneChangedMessage>(SceneChangeOp::Push, op.name);
                 break;
             }
             case SceneOperationType::Pop: {
@@ -109,7 +138,7 @@ void SceneService::ApplySceneOperations() {
                 LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
 
                 auto& messageService = Application::GetInstance().GetService<MessageService>();
-                messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Pop, "");
+                messageService.Post<SceneChangedMessage>(SceneChangeOp::Pop, "");
                 break;
             }
             case SceneOperationType::Replace: {
@@ -138,7 +167,7 @@ void SceneService::ApplySceneOperations() {
                 LOG_INFOF("SceneService", "Replaced top scene with: %s", op.name.c_str());
 
                 auto& messageService = Application::GetInstance().GetService<MessageService>();
-                messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Replace, op.name);
+                messageService.Post<SceneChangedMessage>(SceneChangeOp::Replace, op.name);
                 break;
             }
             case SceneOperationType::Clear: {
@@ -152,7 +181,7 @@ void SceneService::ApplySceneOperations() {
                 LOG_INFO("SceneService", "Cleared scene stack");
 
                 auto& messageService = Application::GetInstance().GetService<MessageService>();
-                messageService.Post<SceneChangedMessage>(Network::SceneChangeOp::Clear, "");
+                messageService.Post<SceneChangedMessage>(SceneChangeOp::Clear, "");
                 break;
             }
         }

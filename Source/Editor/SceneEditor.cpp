@@ -231,13 +231,15 @@ void SceneEditor::DrawSystemsDrawer(SceneService& service) {
             return;
         }
 
-        if (ImGui::BeginTable("SystemsTable", 3,
+        if (ImGui::BeginTable("SystemsTable", 5,
                               ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
                                   ImGuiTableFlags_ScrollY,
                               ImVec2(0, 150))) {
             ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 40);
             ImGui::TableSetupColumn("System Type", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 60);
+            ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, 70);
+            ImGui::TableSetupColumn("Visible", ImGuiTableColumnFlags_WidthFixed, 70);
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableHeadersRow();
 
@@ -259,7 +261,18 @@ void SceneEditor::DrawSystemsDrawer(SceneService& service) {
                 ImGui::Text("%s", systemName.c_str());
 
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Text("Active");
+
+                ImGui::TableSetColumnIndex(3);
+                bool isEnabled = systems[i]->IsEnabled();
+                if (ImGui::Checkbox(("##enabled" + std::to_string(i)).c_str(), &isEnabled)) {
+                    systems[i]->SetEnabled(isEnabled);
+                }
+
+                ImGui::TableSetColumnIndex(4);
+                bool isVisible = systems[i]->IsVisible();
+                if (ImGui::Checkbox(("##visible" + std::to_string(i)).c_str(), &isVisible)) {
+                    systems[i]->SetVisible(isVisible);
+                }
             }
 
             ImGui::EndTable();

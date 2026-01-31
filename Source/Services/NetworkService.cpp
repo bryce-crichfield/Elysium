@@ -16,16 +16,12 @@
 #endif
 
 // Now include raylib via Application.h
+#include "Core/Common.h"
 #include "Core/Application.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"
 #include "Services/SceneService.h"
-
-#include "Messages/NetworkMessages.h"
-#include "Messages/SceneMessages.h"
-#include "Network/ByteBuffer.h"
-#include "Network/NetworkProtocol.h"
 
 #include <tracy/Tracy.hpp>
 
@@ -44,24 +40,9 @@ void NetworkService::Initialize() {
         LOG_ERROR("Network", "Failed to initialize ENet");
         return;
     }
-
-    // Subscribe to scene changes to broadcast to clients (server mode)
-    auto& messageService = Application::GetInstance().GetService<MessageService>();
-    messageService.Subscribe<SceneChangedMessage>(this, [this](const SceneChangedMessage& msg) {
-        OnSceneChanged(msg);
-    });
-
-    // Subscribe to network data to handle scene changes (client mode)
-    messageService.Subscribe<NetworkDataReceivedMessage>(this, [this](const NetworkDataReceivedMessage& msg) {
-        OnNetworkDataReceived(msg);
-    });
 }
 
 void NetworkService::Shutdown() {
-    // Unsubscribe from messages
-    auto& messageService = Application::GetInstance().GetService<MessageService>();
-    messageService.UnsubscribeAll(this);
-
     Stop();
 
     if (host_) {
@@ -73,14 +54,32 @@ void NetworkService::Shutdown() {
 }
 
 void NetworkService::Update(float deltaTime) {
-    // Most work happens on the network thread
-    // This is just for any main-thread coordination if needed
 }
 
-void NetworkService::StartServer(uint16_t port, size_t maxClients) {
+bool NetworkService::Start(NetworkConfig config) {
     if (isRunning_) {
-        LOG_WARNING("Network", "Network already running");
-        return;
+        LOG_ERROR("Network", "Network already running");
+        return false;
+    }
+
+    config_ = config;
+
+    if (config.mode == NetworkMode::Server) {
+        return StartServer(config.port, config.maxClients);
+    } 
+    
+    if (config.mode == NetworkMode::Client) {
+        return StartClient(config.address, config.port);
+    } 
+    
+    LOG_ERROR("Network", "Network mode is None; not starting");
+    return false;
+}
+
+bool NetworkService::StartServer(uint16_t port, size_t maxClients) {
+    if (isRunning_) {
+        LOG_ERROR("Network", "Network already running");
+        return false;
     }
 
     config_.mode = NetworkMode::Server;
@@ -96,22 +95,21 @@ void NetworkService::StartServer(uint16_t port, size_t maxClients) {
 
     if (!host_) {
         LOG_ERROR("Network", "Failed to create ENet server");
-        return;
+        return false;
     }
 
     isRunning_ = true;
     shouldStop_ = false;
     networkThread_ = std::thread(&NetworkService::NetworkThread, this);
 
-    auto& messageService = Application::GetInstance().GetService<Elysium::Services::MessageService>();
-    messageService.Post<NetworkServerStartedMessage>(port, maxClients);
     LOG_INFOF("Network", "Server started on port %d", port);
+    return true;
 }
 
-void NetworkService::StartClient(const std::string& address, uint16_t port) {
+bool NetworkService::StartClient(const std::string& address, uint16_t port) {
     if (isRunning_) {
-        LOG_WARNING("Network", "Network already running");
-        return;
+        LOG_ERROR("Network", "Network already running");
+        return false;
     }
 
     config_.mode = NetworkMode::Client;
@@ -123,7 +121,7 @@ void NetworkService::StartClient(const std::string& address, uint16_t port) {
 
     if (!host_) {
         LOG_ERROR("Network", "Failed to create ENet client");
-        return;
+        return false;
     }
 
     ENetAddress serverAddress;
@@ -136,7 +134,7 @@ void NetworkService::StartClient(const std::string& address, uint16_t port) {
         LOG_ERROR("Network", "Failed to create connection peer");
         enet_host_destroy(host_);
         host_ = nullptr;
-        return;
+        return false;
     }
 
     isRunning_ = true;
@@ -144,11 +142,12 @@ void NetworkService::StartClient(const std::string& address, uint16_t port) {
     networkThread_ = std::thread(&NetworkService::NetworkThread, this);
 
     LOG_INFOF("Network", "Client connecting to %s:%d", address.c_str(), port);
+    return true;
 }
 
-void NetworkService::Stop() {
+bool NetworkService::Stop() {
     if (!isRunning_)
-        return;
+        return false;
 
     shouldStop_ = true;
 
@@ -173,9 +172,9 @@ void NetworkService::Stop() {
     isRunning_ = false;
     connectedPeers_ = 0;
     auto& messageService = Application::GetInstance().GetService<Elysium::Services::MessageService>();
-
     messageService.Post<NetworkStoppedMessage>();
     LOG_INFO("Network", "Network stopped");
+    return true;
 }
 
 void NetworkService::NetworkThread() {
@@ -184,56 +183,52 @@ void NetworkService::NetworkThread() {
 
     while (!shouldStop_) {
         auto& messageService = Application::GetInstance().GetService<Elysium::Services::MessageService>();
-
         {
             ZoneScopedN("NetworkService::Poll");
             std::lock_guard<std::mutex> lock(hostMutex_);
 
-            if (!host_)
-                break;
+            if (!host_) { break; }
 
             while (enet_host_service(host_, &event, 0) > 0) {
-                if (config_.mode == NetworkMode::Server) {
-                    ProcessServerEvents();
-                } else {
-                    ProcessClientEvents();
-                }
-
                 switch (event.type) {
                     case ENET_EVENT_TYPE_CONNECT:
                         if (config_.mode == NetworkMode::Server) {
                             connectedPeers_++;
-                            messageService.Post<ClientConnectedMessage>(event.peer);
+                            messageService.Post<NetworkConnectedMessage>(NetworkMode::Server, static_cast<void*>(event.peer));
                             LOG_INFOF("Network", "Client connected from %u:%u",
                                       event.peer->address.host, event.peer->address.port);
                         } else {
                             connectedPeers_ = 1;
-                            messageService.Post<ServerConnectedMessage>();
+                            messageService.Post<NetworkConnectedMessage>(NetworkMode::Client);
                             LOG_INFO("Network", "Connected to server");
                         }
                         break;
 
-                    case ENET_EVENT_TYPE_RECEIVE:
+                    case ENET_EVENT_TYPE_RECEIVE: {
                         packetsReceived_++;
                         bytesReceived_ += event.packet->dataLength;
 
-                        messageService.Post<NetworkDataReceivedMessage>(
-                            event.peer,
+                        auto peerId = peerMap_.find(event.peer);
+                        NetworkPeer peer = (peerId != peerMap_.end()) ? peerId->second : INVALID_PEER;
+
+                        messageService.Post<NetworkDataMessage>(
+                            peer,
                             event.packet->data,
                             event.packet->dataLength,
                             event.channelID);
 
                         enet_packet_destroy(event.packet);
                         break;
+                    }
 
                     case ENET_EVENT_TYPE_DISCONNECT:
                         if (config_.mode == NetworkMode::Server) {
                             connectedPeers_--;
-                            messageService.Post<ClientDisconnectedMessage>(event.peer);
+                            messageService.Post<NetworkDisconnectedMessage>(NetworkMode::Server, static_cast<void*>(event.peer));
                             LOG_INFO("Network", "Client disconnected");
                         } else {
                             connectedPeers_ = 0;
-                            messageService.Post<ServerDisconnectedMessage>();
+                            messageService.Post<NetworkDisconnectedMessage>(NetworkMode::Client);
                             LOG_INFO("Network", "Disconnected from server");
                         }
                         event.peer->data = nullptr;
@@ -244,17 +239,8 @@ void NetworkService::NetworkThread() {
                 }
             }
         }
-
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-}
-
-void NetworkService::ProcessServerEvents() {
-    // Server-specific event processing if needed
-}
-
-void NetworkService::ProcessClientEvents() {
-    // Client-specific event processing if needed
 }
 
 void NetworkService::SendToServer(const void* data, size_t length, bool reliable) {
@@ -308,85 +294,10 @@ void NetworkService::BroadcastToClients(const void* data, size_t length, bool re
     bytesSent_ += length;
 }
 
-void NetworkService::OnSceneChanged(const SceneChangedMessage& msg) {
-    LOG_INFO("Network", "OnSceneChanged");
-    // Only broadcast if we're the server
-    if (config_.mode != NetworkMode::Server || !isRunning_) {
-        return;
-    }
 
-    Network::ByteBuffer buffer(128);
-
-    // Packet header
-    Network::PacketHeader header;
-    header.packetType = static_cast<uint8_t>(Network::PacketType::SceneChange);
-    header.flags = 0;
-    header.tick = 0;  // Scene changes aren't tick-sensitive
-    header.Write(buffer);
-
-    // Scene change packet
-    Network::SceneChangePacket packet;
-    packet.operation = msg.operation;
-    packet.SetSceneName(msg.sceneName);
-    packet.Write(buffer);
-
-    // Broadcast reliably to all clients
-    BroadcastToClients(buffer.Data(), buffer.Size(), true);
-
-    LOG_INFOF("Network", "Broadcast scene change: %s (op=%d)",
-              msg.sceneName.c_str(), static_cast<int>(msg.operation));
-}
-
-void NetworkService::OnNetworkDataReceived(const NetworkDataReceivedMessage& msg) {
-    // Only handle on client
-    if (config_.mode != NetworkMode::Client) {
-        return;
-    }
-
-    // Parse packet header to check for scene change
-    Network::ByteBuffer buffer(msg.data);
-
-    if (buffer.Size() < Network::PacketHeader::SIZE) {
-        return;
-    }
-
-    Network::PacketHeader header;
-    header.Read(buffer);
-
-    // Only handle SceneChange packets - let other packets pass through to systems
-    if (static_cast<Network::PacketType>(header.packetType) != Network::PacketType::SceneChange) {
-        return;
-    }
-
-    Network::SceneChangePacket packet;
-    packet.Read(buffer);
-
-    std::string sceneName = packet.GetSceneName();
-    LOG_INFOF("Network", "Server requested scene change: %s (op=%d)",
-              sceneName.c_str(), static_cast<int>(packet.operation));
-
-    auto& sceneService = Application::GetInstance().GetService<SceneService>();
-
-    switch (packet.operation) {
-        case Network::SceneChangeOp::Push:
-            sceneService.Push(sceneName);
-            break;
-
-        case Network::SceneChangeOp::Pop:
-            sceneService.Pop();
-            break;
-
-        case Network::SceneChangeOp::Replace:
-            sceneService.Replace(sceneName);
-            break;
-
-        case Network::SceneChangeOp::Clear:
-            sceneService.Clear();
-            if (!sceneName.empty()) {
-                sceneService.Push(sceneName);
-            }
-            break;
-    }
+void NetworkService::OnNetworkData(const NetworkDataMessage& msg) {
+    // InvokeService subscribes to NetworkDataMessage and handles InvokeRequest/InvokeResponse.
+    // NetworkService doesn't need to dispatch these specific messages anymore.
 }
 
 }  // namespace Elysium::Services

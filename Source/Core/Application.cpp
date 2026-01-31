@@ -42,6 +42,7 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterService(std::make_unique<Elysium::Services::LogService>());
     RegisterService(std::make_unique<Elysium::Services::MessageService>());
     RegisterService(std::make_unique<Elysium::Services::NetworkService>());
+    RegisterService(std::make_unique<Elysium::Services::InvokeService>());
     RegisterService(std::make_unique<Elysium::Services::AssetService>());
     RegisterService(std::make_unique<Elysium::Services::WorldService>());
     RegisterService(std::make_unique<Elysium::Services::LoadingService>());

@@ -32,7 +32,8 @@ Scene::~Scene() {
 
 void Scene::OnUpdate(float deltaTime) {
     for (auto& system : systems_) {
-        system->Update(deltaTime);
+        if (system->IsEnabled())
+            system->Update(deltaTime);
     }
 }
 
@@ -40,7 +41,8 @@ void Scene::OnDraw(Rectangle screen) {
     // RenderSystem now handles all camera rendering internally
     // Just render all systems - no need for manual camera management
     for (auto& system : systems_) {
-        system->Draw();
+        if (system->IsVisible())
+            system->Draw();
     }
 }
 
