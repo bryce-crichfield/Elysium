@@ -1,73 +1,56 @@
+local Component = require("Scripts/Component")
+
 local Soldier = {}
 
-function Soldier.init(self, entity)
+function Soldier.Initialize(self, entity)
     Log("Initializing Soldier for entity " .. entity)
 
-    -- Ensure it has Position (usually already added by scene loader or spawner)
-    AddComponent(entity, "Position")
-    
+    Component.Add(entity, "Position")
+    Component.Add(entity, "Bounds")
 
-    -- Add Bounds
-    AddComponent(entity, "Bounds")
+    Component.Add(entity, "Rectangle", {
+        width = 32,
+        height = 48,
+        background = Color.new(0, 0, 255, 255),
+        border = Color.new(0, 0, 150, 255)
+    })
 
-    AddComponent(entity, "Rectangle")
-    local rect = GetComponent(entity, "Rectangle")
-    rect.width = 32
-    rect.height = 48
-    rect.background = Color.new(0, 0, 255, 255) --
-    rect.border = Color.new(0, 0, 150, 255)
-    SetComponent(entity, "Rectangle", rect)
+    Component.Add(entity, "Movement")
 
-    -- Add Movement/Physics
-    AddComponent(entity, "Movement")
-    AddComponent(entity, "Kinematics")
-    local kin = GetComponent(entity, "Kinematics")
-    kin.maxSpeed = 150.0
-    kin.friction = 5.0
-    SetComponent(entity, "Kinematics", kin)
+    Component.Add(entity, "Kinematics", {
+        maxSpeed = 150.0,
+        friction = 5.0
+    })
 
-    -- Add Stats
-    AddComponent(entity, "Health")
-    local health = GetComponent(entity, "Health")
-    health.max = 100
-    health.current = 100
-    SetComponent(entity, "Health", health)
+    Component.Add(entity, "Health", {
+        max = 100,
+        current = 100
+    })
 
-    -- Add Faction (Default to Player/0, but can be overridden)
-    AddComponent(entity, "Faction")
-    local faction = GetComponent(entity, "Faction")
-    faction.name = "Enemy"
-    SetComponent(entity, "Faction", faction)
+    Component.Add(entity, "Faction", {
+        name = "Enemy"
+    })
 
-    -- Add Attack Capability
-    AddComponent(entity, "Attack")
-    local attack = GetComponent(entity, "Attack")
-    attack.range = 100.0
-    attack.damage = 10.0
-    attack.cooldown = 1.0
-    attack.timer = 0.0
-    attack.isAttacking = false
-    attack.targetId = -1
-    SetComponent(entity, "Attack", attack)
+    Component.Add(entity, "Attack", {
+        range = 100.0,
+        damage = 10.0,
+        cooldown = 1.0,
+        timer = 0.0,
+        isAttacking = false,
+        targetId = -1
+    })
 end
 
-function Soldier.update(self, entity, dt)
-    -- Simple state machine could go here (e.g. animation switching)
+function Soldier.Update(self, entity, dt)
     local kin = GetComponent(entity, "Kinematics")
-    local sprite = GetComponent(entity, "Sprite")
-    
-    -- Very basic animation state logic
-    if math.abs(kin.velocity.x) > 10 or math.abs(kin.velocity.y) > 10 then
-        -- Moving
-        -- sprite.marker = "run/down" (if we had run anims)
+    if kin and (math.abs(kin.velocity.x) > 10 or math.abs(kin.velocity.y) > 10) then
+        -- Moving state
     else
-        -- Idle
-        -- sprite.marker = "idle/down"
+        -- Idle state
     end
 end
 
-function Soldier.onEvent(entity, event)
-    -- Handle specific events if needed
+function Soldier.OnEvent(self, entity, event)
 end
 
 return Soldier

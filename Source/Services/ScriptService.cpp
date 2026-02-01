@@ -51,6 +51,10 @@ void ScriptService::ExecuteString(const std::string& scriptString) {
 
 void ScriptService::InitLuaContext() {
     lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::table, sol::lib::string, sol::lib::math, sol::lib::debug);
+
+    // Configure package.path so require("Scripts/Component") resolves to Assets/Scripts/Component.lua
+    std::string assetsPath = ASSETS_PATH;
+    lua["package"]["path"] = assetsPath + "?.lua;" + assetsPath + "?/init.lua";
 }
 
 // Helper to get World from active scene
@@ -359,7 +363,7 @@ bool ScriptService::InitEntity(Entity entity, const std::string& scriptName) {
     sol::table instance = GetEntityInstance(entity, scriptName, true);
     if (!instance.valid()) return false;
 
-    sol::function initFunc = instance["init"];
+    sol::function initFunc = instance["Initialize"];
     if (initFunc.valid()) {
         auto result = initFunc(instance, entity);
         if (!result.valid()) {
@@ -375,7 +379,7 @@ bool ScriptService::UpdateEntity(Entity entity, const std::string& scriptName, f
     sol::table instance = GetEntityInstance(entity, scriptName, false);
     if (!instance.valid()) return false;
 
-    sol::function updateFunc = instance["update"];
+    sol::function updateFunc = instance["Update"];
     if (updateFunc.valid()) {
         auto result = updateFunc(instance, entity, deltaTime);
         if (!result.valid()) {
@@ -391,7 +395,7 @@ void ScriptService::OnEntityEvent(Entity entity, const std::string& scriptName, 
     sol::table instance = GetEntityInstance(entity, scriptName, false);
     if (!instance.valid()) return;
 
-    sol::function onEventFunc = instance["onEvent"];
+    sol::function onEventFunc = instance["OnEvent"];
     if (!onEventFunc.valid()) return;
 
     sol::table eventData = lua.create_table();

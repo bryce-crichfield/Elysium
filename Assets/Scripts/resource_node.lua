@@ -1,29 +1,28 @@
+local Component = require("Scripts/Component")
+
 local ResourceNode = {}
 
-function ResourceNode.init(self, entity)
+function ResourceNode.Initialize(self, entity)
     Log("Initializing ResourceNode for entity " .. entity)
 
-    -- Visuals: 40x40 cyan rectangle
-    AddComponent(entity, "Rectangle")
-    local rect = GetComponent(entity, "Rectangle")
-    rect.width = 40
-    rect.height = 40
-    rect.background = Color.new(0, 200, 220, 255)  -- Cyan
-    rect.border = Color.new(0, 150, 170, 255)
+    Component.Add(entity, "Rectangle", {
+        width = 40,
+        height = 40,
+        background = Color.new(0, 200, 220, 255),
+        border = Color.new(0, 150, 170, 255)
+    })
 
-    AddComponent(entity, "Bounds")
+    Component.Add(entity, "Bounds")
 
-    -- Resource data
-    AddComponent(entity, "Resource")
-    local res = GetComponent(entity, "Resource")
-    res.resourceType = "Minerals"
-    res.amount = 1500
-    res.maxAmount = 1500
-    res.gatherRate = 15
+    Component.Add(entity, "Resource", {
+        resourceType = "Minerals",
+        amount = 1500,
+        maxAmount = 1500,
+        gatherRate = 15
+    })
 end
 
-function ResourceNode.update(self, entity, dt)
-    -- Dim the node as it gets depleted
+function ResourceNode.Update(self, entity, dt)
     local res = GetComponent(entity, "Resource")
     local rect = GetComponent(entity, "Rectangle")
 
@@ -37,7 +36,7 @@ function ResourceNode.update(self, entity, dt)
     end
 end
 
-function ResourceNode.onEvent(self, entity, event)
+function ResourceNode.OnEvent(self, entity, event)
 end
 
 return ResourceNode

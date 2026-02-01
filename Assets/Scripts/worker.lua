@@ -1,58 +1,50 @@
-local Worker = {}
+local Component = require("Scripts/Component")
 
--- States
-Worker.STATE_IDLE = "IDLE"
-Worker.STATE_MOVING_TO_RESOURCE = "MOVING_TO_RESOURCE"
-Worker.STATE_GATHERING = "GATHERING"
-Worker.STATE_RETURNING = "RETURNING"
-Worker.STATE_DEPOSITING = "DEPOSITING"
+local Worker = {
+    STATE_IDLE = "IDLE",
+    STATE_MOVING_TO_RESOURCE = "MOVING_TO_RESOURCE",
+    STATE_GATHERING = "GATHERING",
+    STATE_RETURNING = "RETURNING",
+    STATE_DEPOSITING = "DEPOSITING",
 
-Worker.state = Worker.STATE_IDLE
-Worker.targetResource = 0
-Worker.targetStorage = 0
-Worker.gatherTimer = 0.0
+    state = "IDLE",
+    targetResource = 0,
+    targetStorage = 0,
+    gatherTimer = 0.0
+}
 
-function Worker.init(self, entity)
+function Worker.Initialize(self, entity)
     Log("Initializing Worker for entity " .. entity)
 
-    -- Ensure Position exists
-    AddComponent(entity, "Position")
+    Component.Add(entity, "Position")
 
-    -- Visuals: 24x24 yellow rectangle
-    AddComponent(entity, "Rectangle")
-    local rect = GetComponent(entity, "Rectangle")
-    rect.width = 24
-    rect.height = 24
-    rect.background = Color.new(255, 220, 50, 255)  -- Yellow
-    rect.border = Color.new(180, 150, 30, 255)
+    Component.Add(entity, "Rectangle", {
+        width = 24,
+        height = 24,
+        background = Color.new(255, 220, 50, 255),
+        border = Color.new(180, 150, 30, 255)
+    })
 
-    AddComponent(entity, "Bounds")
+    Component.Add(entity, "Bounds")
+    Component.Add(entity, "Movement")
 
-    -- Movement
-    AddComponent(entity, "Movement")
+    Component.Add(entity, "Kinematics", {
+        maxSpeed = 100.0,
+        friction = 5.0
+    })
 
-    AddComponent(entity, "Kinematics")
-    local kin = GetComponent(entity, "Kinematics")
-    kin.maxSpeed = 100.0
-    kin.friction = 5.0
+    Component.Add(entity, "Health", {
+        max = 50,
+        current = 50
+    })
 
-    -- Health
-    AddComponent(entity, "Health")
-    local health = GetComponent(entity, "Health")
-    health.max = 50
-    health.current = 50
+    Component.Add(entity, "Faction", { name = "Player" })
 
-    -- Faction
-    AddComponent(entity, "Faction")
-    local faction = GetComponent(entity, "Faction")
-    faction.name = "Player"
-
-    -- Carrying capacity
-    AddComponent(entity, "Carry")
-    local carry = GetComponent(entity, "Carry")
-    carry.capacity = 50
-    carry.amount = 0
-    carry.resourceType = ""
+    Component.Add(entity, "Carry", {
+        capacity = 50,
+        amount = 0,
+        resourceType = ""
+    })
 
     self.state = Worker.STATE_IDLE
     self.targetResource = 0
@@ -60,28 +52,23 @@ function Worker.init(self, entity)
     self.gatherTimer = 0.0
 end
 
-function Worker.update(self, entity, dt)
+function Worker.Update(self, entity, dt)
     local pos = GetComponent(entity, "Position")
 
     if self.state == Worker.STATE_IDLE then
         self:FindResource(entity, pos)
-
     elseif self.state == Worker.STATE_MOVING_TO_RESOURCE then
         self:MoveToResource(entity, pos)
-
     elseif self.state == Worker.STATE_GATHERING then
         self:Gather(entity, dt)
-
     elseif self.state == Worker.STATE_RETURNING then
         self:ReturnToStorage(entity, pos)
-
     elseif self.state == Worker.STATE_DEPOSITING then
         self:Deposit(entity)
     end
 end
 
 function Worker:FindResource(entity, pos)
-    -- Find nearest resource with amount > 0
     local resources = FindEntitiesWithComponent("Resource")
     local bestEntity = 0
     local bestDist = 999999
@@ -104,7 +91,6 @@ function Worker:FindResource(entity, pos)
         self.targetResource = bestEntity
         local resPos = GetComponent(bestEntity, "Position")
 
-        -- Request pathfinding
         AddComponent(entity, "PathRequest")
         local pathReq = GetComponent(entity, "PathRequest")
         pathReq.target = Vector2.new(resPos.x, resPos.y)
@@ -120,7 +106,6 @@ function Worker:MoveToResource(entity, pos)
         return
     end
 
-    -- Check if resource still exists and has amount
     if not HasComponent(self.targetResource, "Resource") then
         self.state = Worker.STATE_IDLE
         self.targetResource = 0
@@ -138,7 +123,6 @@ function Worker:MoveToResource(entity, pos)
     local dist = Distance(pos.x, pos.y, resPos.x, resPos.y)
 
     if dist < 40 then
-        -- Arrived at resource - remove path request to stop
         if HasComponent(entity, "PathRequest") then
             RemoveComponent(entity, "PathRequest")
         end
@@ -158,13 +142,11 @@ function Worker:Gather(entity, dt)
     local carry = GetComponent(entity, "Carry")
 
     if res.amount <= 0 or carry.amount >= carry.capacity then
-        -- Done gathering, return to storage
         self.state = Worker.STATE_RETURNING
         Log("Worker " .. entity .. " carrying " .. carry.amount .. " " .. carry.resourceType)
         return
     end
 
-    -- Accumulate gathered resources
     self.gatherTimer = self.gatherTimer + dt
     local gatherAmount = res.gatherRate * dt
     local spaceLeft = carry.capacity - carry.amount
@@ -177,7 +159,6 @@ function Worker:Gather(entity, dt)
 end
 
 function Worker:ReturnToStorage(entity, pos)
-    -- Find nearest storage building
     local storages = FindEntitiesWithComponent("Storage")
     local bestEntity = 0
     local bestDist = 999999
@@ -200,15 +181,12 @@ function Worker:ReturnToStorage(entity, pos)
         self.targetStorage = bestEntity
         local storagePos = GetComponent(bestEntity, "Position")
 
-        -- Request pathfinding
         AddComponent(entity, "PathRequest")
         local pathReq = GetComponent(entity, "PathRequest")
         pathReq.target = Vector2.new(storagePos.x, storagePos.y)
 
-        -- Check arrival
         local dist = Distance(pos.x, pos.y, storagePos.x, storagePos.y)
         if dist < 60 then
-            -- Arrived at storage
             if HasComponent(entity, "PathRequest") then
                 RemoveComponent(entity, "PathRequest")
             end
@@ -216,7 +194,6 @@ function Worker:ReturnToStorage(entity, pos)
             Log("Worker " .. entity .. " arrived at storage")
         end
     else
-        -- No storage found, wait
         self.state = Worker.STATE_IDLE
     end
 end
@@ -242,7 +219,7 @@ function Worker:Deposit(entity)
     self.state = Worker.STATE_IDLE
 end
 
-function Worker.onEvent(self, entity, event)
+function Worker.OnEvent(self, entity, event)
 end
 
 return Worker

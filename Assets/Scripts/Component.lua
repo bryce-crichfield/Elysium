@@ -2,7 +2,7 @@
 local Component = {}
 
 -- Adds a component and optionally initializes it with a table of values
-function ComponComponentent.Add(entity, name, props)
+function Component.Add(entity, name, props)
     AddComponent(entity, name)
     if props then
         local c = GetComponent(entity, name)
@@ -20,4 +20,4 @@ function Component.Update(entity, name, func)
     SetComponent(entity, name, c)
 end
 
-return Comp
+return Component

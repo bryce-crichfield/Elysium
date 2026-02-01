@@ -38,7 +38,7 @@
             <PositionComponent x="400" y="250" />
             <RectangleComponent width="200" height="50" background="#2266AA" border="#44AAFF" layerName="ui" />
             <BoundsComponent />
-            <ScriptComponent scriptName="Scripts/menu_button.lua" />
+            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
         </Entity>
         <Entity>
             <NameComponent name="PlayButtonText" />
@@ -52,7 +52,7 @@
             <PositionComponent x="400" y="320" />
             <RectangleComponent width="200" height="50" background="#226644" border="#44AA66" layerName="ui" />
             <BoundsComponent />
-            <ScriptComponent scriptName="Scripts/menu_button.lua" />
+            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
         </Entity>
         <Entity>
             <NameComponent name="OptionsButtonText" />
@@ -66,7 +66,7 @@
             <PositionComponent x="400" y="390" />
             <RectangleComponent width="200" height="50" background="#662222" border="#AA4444" layerName="ui" />
             <BoundsComponent />
-            <ScriptComponent scriptName="Scripts/menu_button.lua" />
+            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
         </Entity>
         <Entity>
             <NameComponent name="QuitButtonText" />
