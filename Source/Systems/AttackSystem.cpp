@@ -4,6 +4,14 @@
 #include "Core/Scene.h"
 #include "Services/LogService.h"
 #include "raymath.h"
+#include "Components/AttackComponent.h"
+#include "Components/PositionComponent.h"
+#include "Components/HealthComponent.h"
+#include "Components/MovementComponent.h"
+#include "Components/KinematicsComponent.h"
+#include "Components/PathRequestComponent.h"
+#include "Components/CircleComponent.h"
+#include "Components/ProjectileComponent.h"
 
 namespace Elysium::Systems {
 

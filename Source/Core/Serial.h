@@ -18,6 +18,10 @@ concept Serializable = requires(T obj, const T& constObj, SerialBuffer& buffer) 
 };
 
 // Type-Erased Serializable Object
+// This is used for when you what to store a containerized instance of Serializable types.
+// Example: Container<Serializable> is not valid, but Container<SerializableObject> is 
+//          because Serializable is a type constraint not a type.
+// This erases the type of T underneath, so if that's important to you, save it off associatively.
 class SerializableObject {
 public:
     template<Serializable T>
@@ -106,7 +110,6 @@ class SerialBuffer {
         WriteBytes(str.data(), str.length());
     }
 
-    // === Read Operations ===
 
     uint8_t ReadU8() {
         EnsureReadable(1);

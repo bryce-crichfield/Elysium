@@ -1,11 +1,19 @@
 #pragma once
 
 #include <string>
+
 #include "imgui.h"
+
+#include "Core/Entity.h"
 
 namespace Elysium {
 
 class Application;
+
+template<typename T>
+concept Inspectable = requires(T& c, Entity e) {
+    { T::Inspect(c, e) } -> std::same_as<void>;
+};
 
 class Editor {
    public:

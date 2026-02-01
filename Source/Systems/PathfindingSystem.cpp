@@ -4,6 +4,9 @@
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "raymath.h"
+#include "Components/PathRequestComponent.h"
+#include "Components/PositionComponent.h"
+#include "Components/MovementComponent.h"
 
 namespace Elysium::Systems {
 

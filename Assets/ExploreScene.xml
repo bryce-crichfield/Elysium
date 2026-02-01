@@ -119,7 +119,6 @@
         <Entity>
             <NameComponent name="CommandCenter" />
             <PositionComponent x="200" y="200" />
-            <ScriptComponent scriptName="Scripts/command_center.lua" />
         </Entity>
 
         <Entity>

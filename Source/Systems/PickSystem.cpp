@@ -7,6 +7,14 @@
 #include "Services/LogService.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include "Components/CameraComponent.h"
+#include "Components/PositionComponent.h"
+#include "Components/BoundsComponent.h"
+#include "Components/SelectionComponent.h"
+#include "Components/RectangleComponent.h"
+#include "Components/TextComponent.h"
+#include "Components/CircleComponent.h"
+#include "Components/LayerComponent.h"
 
 namespace Elysium::Systems {
 

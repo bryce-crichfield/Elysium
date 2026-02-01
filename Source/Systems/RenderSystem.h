@@ -7,6 +7,14 @@
 #include <vector>
 #include "Core/Component.h"
 #include "Core/System.h"
+#include "Components/RectangleComponent.h"
+#include "Components/CircleComponent.h"
+#include "Components/TextComponent.h"
+#include "Components/SpriteComponent.h"
+#include "Components/TextureComponent.h"
+#include "Components/LightComponent.h"
+#include "Components/LayerComponent.h"
+#include "Components/CameraComponent.h"
 #include "raylib.h"
 
 namespace Elysium::Systems {

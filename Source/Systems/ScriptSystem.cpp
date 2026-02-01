@@ -3,6 +3,7 @@
 #include "Core/Application.h"
 #include "Services/ScriptService.h"
 #include "Systems/PickSystem.h"
+#include "Components/ScriptComponent.h"
 
 namespace Elysium::Systems {
 

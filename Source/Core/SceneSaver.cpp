@@ -1,6 +1,7 @@
 #include <sstream>
 #include <string>
 #include <typeindex>
+#include "Core/Components.h"
 #include <unordered_map>
 #include "Application.h"
 #include "Entity.h"
@@ -13,7 +14,7 @@
 #include "Systems/MovementSystem.h"
 #include "Systems/RenderSystem.h"
 #include "Systems/SpriteSystem.h"
-#include "Utilities/Xml.h"
+#include "Core/Xml.h"
 #include "raylib.h"
 #include "tinyxml2.h"
 

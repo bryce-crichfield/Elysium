@@ -1,13 +1,12 @@
 #include "Systems/CursorSystem.h"
-#include "Core/Entity.h"
-#include "Core/Scene.h"
+#include "Components/LocationComponent.h"
+#include "Components/MovementComponent.h"
+#include "Components/PositionComponent.h"
 #include "Services/LogService.h"
 
-#include "raylib.h"
-#include "raymath.h"
-
-#define MAP_WIDTH 8
-#define MAP_HEIGHT 8
+// TODO: these should come from the tilemap/scene config
+constexpr int MAP_WIDTH = 100;
+constexpr int MAP_HEIGHT = 100;
 
 namespace Elysium::Systems {
 void CursorSystem::Update(float deltaTime) {

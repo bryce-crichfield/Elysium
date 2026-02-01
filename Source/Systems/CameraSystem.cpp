@@ -1,11 +1,10 @@
 #include "Systems/CameraSystem.h"
-
 #include "Core/Application.h"
-#include "Core/Entity.h"
-#include "Core/Scene.h"
+#include "Services/WorldService.h"
 #include "Services/SceneService.h"
-
-#include "raylib.h"
+#include "Components/PositionComponent.h"
+#include "Components/CameraComponent.h"
+#include "Components/FollowComponent.h"
 #include "raymath.h"
 
 namespace Elysium::Systems {

@@ -5,6 +5,11 @@
 #include "Core/Scene.h"
 #include "raymath.h"
 #include <algorithm>
+#include "Components/MovementComponent.h"
+#include "Components/PositionComponent.h"
+#include "Components/BoundsComponent.h"
+#include "Components/KinematicsComponent.h"
+#include "Components/DirectionComponent.h"
 
 namespace Elysium::Systems {
 

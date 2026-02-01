@@ -6,6 +6,13 @@
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "System.h"
+#include "Core/Xml.h"
+#include "Core/ComponentRegistry.h"
+#include "Core/Components.h"
+#include "raylib.h"
+#include "tinyxml2.h"
+
+// System includes still needed for LoadSystems
 #include "Systems/AnimationSystem.h"
 #include "Systems/CameraSystem.h"
 #include "Systems/CommandSystem.h"
@@ -19,73 +26,47 @@
 #include "Systems/KinematicsSystem.h"
 #include "Systems/AttackSystem.h"
 #include "Systems/ProjectileSystem.h"
-#include "Utilities/Xml.h"
-#include "raylib.h"
-#include "tinyxml2.h"
 
 using namespace tinyxml2;
 
 namespace Elysium {
 
 LayerComponent::Type ParseLayerType(const char* typeStr) {
-    if (!typeStr)
-        return LayerComponent::Type::World;
+    if (!typeStr) return LayerComponent::Type::World;
     std::string type = typeStr;
-    if (type == "Background")
-        return LayerComponent::Type::Background;
-    else if (type == "World")
-        return LayerComponent::Type::World;
-    else if (type == "Lighting")
-        return LayerComponent::Type::Lighting;
-    else if (type == "Overlay")
-        return LayerComponent::Type::Overlay;
-    else
-        return LayerComponent::Type::World;
+    if (type == "Background") return LayerComponent::Type::Background;
+    else if (type == "Lighting") return LayerComponent::Type::Lighting;
+    else if (type == "Overlay") return LayerComponent::Type::Overlay;
+    return LayerComponent::Type::World;
 }
 
 LayerComponent::Space ParseLayerSpace(const char* spaceStr) {
-    if (!spaceStr)
-        return LayerComponent::Space::World;
+    if (!spaceStr) return LayerComponent::Space::World;
     std::string space = spaceStr;
-    if (space == "Screen")
-        return LayerComponent::Space::Screen;
-    else if (space == "World")
-        return LayerComponent::Space::World;
-    else if (space == "Parallax")
-        return LayerComponent::Space::Parallax;
-    else
-        return LayerComponent::Space::World;
+    if (space == "Screen") return LayerComponent::Space::Screen;
+    else if (space == "Parallax") return LayerComponent::Space::Parallax;
+    return LayerComponent::Space::World;
 }
 
 LayerComponent::Blend ParseLayerBlend(const char* blendStr) {
-    if (!blendStr)
-        return LayerComponent::Blend::Normal;
+    if (!blendStr) return LayerComponent::Blend::Normal;
     std::string blend = blendStr;
-    if (blend == "Normal")
-        return LayerComponent::Blend::Normal;
-    else if (blend == "Additive")
-        return LayerComponent::Blend::Additive;
-    else if (blend == "Multiply")
-        return LayerComponent::Blend::Multiply;
-    else if (blend == "Alpha")
-        return LayerComponent::Blend::Alpha;
-    else
-        return LayerComponent::Blend::Normal;
+    if (blend == "Additive") return LayerComponent::Blend::Additive;
+    else if (blend == "Multiply") return LayerComponent::Blend::Multiply;
+    else if (blend == "Alpha") return LayerComponent::Blend::Alpha;
+    return LayerComponent::Blend::Normal;
 }
 
 LayerComponent CreateLayerComponent(XMLElement* xmlLayer) {
     LayerComponent layerComp;
-
     const char* name = xmlLayer->Attribute("name");
     layerComp.name = name ? name : "default";
     layerComp.zIndex = xmlLayer->IntAttribute("z", 0);
     layerComp.opacity = xmlLayer->FloatAttribute("opacity", 1.0f);
     layerComp.isVisible = xmlLayer->BoolAttribute("isVisible", true);
-
     layerComp.type = ParseLayerType(xmlLayer->Attribute("type"));
     layerComp.space = ParseLayerSpace(xmlLayer->Attribute("space"));
     layerComp.blend = ParseLayerBlend(xmlLayer->Attribute("blend"));
-
     return layerComp;
 }
 
@@ -106,56 +87,38 @@ void LoadTilemap(XMLElement* root, World* world) {
     VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
         std::unordered_map<int, RectangleComponent> tileDefinitions;
         std::vector<int> tilemask;
-
         int tilemapWidth = tilemap->IntAttribute("width", 0);
-        int tilemapHeight = tilemap->IntAttribute("height", 0);
 
         VisitElement(tilemap, "Tilemask", [&](XMLElement* xmlTileMask) {
             const char* textContent = xmlTileMask->GetText();
             if (textContent) {
-                std::string content = std::string(textContent);
-
-                // Remove leading and trailing whitespace
+                std::string content(textContent);
                 size_t start = content.find_first_not_of(" \t\n\r");
                 size_t end = content.find_last_not_of(" \t\n\r");
-
                 if (start != std::string::npos && end != std::string::npos) {
                     content = content.substr(start, end - start + 1);
-
-                    // Split by whitespace and convert to integers
                     std::istringstream iss(content);
                     std::string token;
                     while (iss >> token) {
-                        try {
-                            int value = std::stoi(token);
-                            tilemask.push_back(value);
-                        } catch (const std::exception& e) {
-                            throw std::exception(e);
-                        }
+                        tilemask.push_back(std::stoi(token));
                     }
                 }
             }
         });
 
         VisitElement(tilemap, "TileDefinitions", [&](XMLElement* xmlTileDefinitions) {
-            LOG_DEBUG("Scene", "Processing TileDefinitions");
             ForEachElement(xmlTileDefinitions, "TileDefinition", [&](XMLElement* xmlTileDefinition) {
                 int id = xmlTileDefinition->IntAttribute("id", 0);
-                std::string backgroundHex =
-                    xmlTileDefinition->Attribute("background") ? xmlTileDefinition->Attribute("background") : "";
-                std::string borderHex =
-                    xmlTileDefinition->Attribute("border") ? xmlTileDefinition->Attribute("border") : "";
+                std::string bgHex = xmlTileDefinition->Attribute("background") ? xmlTileDefinition->Attribute("background") : "";
+                std::string borderHex = xmlTileDefinition->Attribute("border") ? xmlTileDefinition->Attribute("border") : "";
                 const char* layerName = xmlTileDefinition->Attribute("layerName");
-                Color backgroundColor = ParseHexColor(backgroundHex, BLANK);
+                Color bgColor = ParseHexColor(bgHex, BLANK);
                 Color borderColor = ParseHexColor(borderHex, BLANK);
-
-                tileDefinitions[id] =
-                    RectangleComponent(32, 32, backgroundColor, borderColor, layerName ? layerName : "tile");
-                LOG_DEBUGF("Scene", "Created tile definition %d with layer '%s'", id, layerName ? layerName : "tile");
+                tileDefinitions[id] = RectangleComponent(32, 32, bgColor, borderColor, layerName ? layerName : "tile");
             });
         });
 
-        for (int i = 0; i < tilemask.size(); i++) {
+        for (size_t i = 0; i < tilemask.size(); i++) {
             int id = tilemask[i];
             int x = i % tilemapWidth;
             int y = i / tilemapWidth;
@@ -176,168 +139,26 @@ const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
     if (!componentLoaders.empty())
         return componentLoaders;
 
-    // Register component parser functions
-    componentLoaders["NameComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        const char* name = xmlComponent->Attribute("name");
-        world->AddComponent(entity, NameComponent(name));
-    };
-
-    componentLoaders["PositionComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        float x = xmlComponent->FloatAttribute("x", 0.0f);
-        float y = xmlComponent->FloatAttribute("y", 0.0f);
-        world->AddComponent(entity, PositionComponent(x, y));
-    };
-
-    componentLoaders["LocationComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        int x = xmlComponent->IntAttribute("x", 0);
-        int y = xmlComponent->IntAttribute("y", 0);
-        world->AddComponent(entity, LocationComponent(x, y));
-    };
-
-    componentLoaders["MovementComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        std::vector<Vector2> waypoints;
-        VisitElement(xmlComponent, "Waypoints", [&](XMLElement* xmlWaypoints) {
-            ForEachElement(xmlWaypoints, "Waypoint", [&](XMLElement* xmlWaypoint) {
-                int x = xmlWaypoint->IntAttribute("x", 0);
-                int y = xmlWaypoint->IntAttribute("y", 0);
-                waypoints.push_back({(float)x, (float)y});
-            });
-        });
-        world->AddComponent(entity, MovementComponent(waypoints));
-    };
-
-    componentLoaders["AnimationComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        world->AddComponent(entity, AnimationComponent());
-    };
-
-    componentLoaders["DirectionComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        world->AddComponent(entity, DirectionComponent());
-    };
-
-    componentLoaders["LayerComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        world->AddComponent(entity, CreateLayerComponent(xmlComponent));
-    };
-
-    componentLoaders["RectangleComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        float width = xmlComponent->FloatAttribute("width", 100.0f);
-        float height = xmlComponent->FloatAttribute("height", 100.0f);
-        std::string backgroundHex = xmlComponent->Attribute("background") ? xmlComponent->Attribute("background") : "";
-        std::string borderHex = xmlComponent->Attribute("border") ? xmlComponent->Attribute("border") : "";
-        const char* layerName = xmlComponent->Attribute("layerName");
-
-        Color backgroundColor = ParseHexColor(backgroundHex, BLANK);
-        Color borderColor = ParseHexColor(borderHex, BLANK);
-
-        world->AddComponent(
-            entity, RectangleComponent(width, height, backgroundColor, borderColor, layerName ? layerName : "tile"));
-    };
-
-    componentLoaders["CircleComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        float radius = xmlComponent->FloatAttribute("radius", 50.0f);
-        std::string fillHex = xmlComponent->Attribute("fill") ? xmlComponent->Attribute("fill") : "";
-        std::string borderHex = xmlComponent->Attribute("border") ? xmlComponent->Attribute("border") : "";
-        const char* layerName = xmlComponent->Attribute("layerName");
-
-        Color fillColor = ParseHexColor(fillHex, BLANK);
-        Color borderColor = ParseHexColor(borderHex, BLANK);
-
-        world->AddComponent(entity, CircleComponent(radius, fillColor, borderColor, layerName ? layerName : "tile"));
-    };
-
-    componentLoaders["TextComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        std::string text = xmlComponent->Attribute("text") ? xmlComponent->Attribute("text") : "";
-        int fontSize = xmlComponent->IntAttribute("fontSize", 12);
-        std::string colorHex = xmlComponent->Attribute("color") ? xmlComponent->Attribute("color") : "";
-        const char* layerName = xmlComponent->Attribute("layerName");
-
-        Color textColor = ParseHexColor(colorHex, WHITE);
-        world->AddComponent(entity, TextComponent(text, fontSize, textColor, layerName ? layerName : "default"));
-    };
-
-    componentLoaders["SpriteComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        const char* spriteName = xmlComponent->Attribute("spriteName");
-        const char* markerName = xmlComponent->Attribute("markerName");
-        const char* layerName = xmlComponent->Attribute("layerName");
-
-        if (spriteName && markerName) {
-            auto& assetService = Application::GetInstance().GetService<Elysium::Services::AssetService>();
-            Sprite sprite = assetService.GetSprite(spriteName);
-            world->AddComponent(entity, SpriteComponent(sprite, markerName, layerName ? layerName : "default"));
-        } else {
-            LOG_WARNING("Scene", "SpriteComponent missing required attributes: spriteName or markerName");
-        }
-    };
-
+    // Load from registry
+    const auto& registryLoaders = ComponentRegistry::Instance().GetXmlLoaders();
+    for(const auto& [name, loader] : registryLoaders) {
+        componentLoaders[name] = loader;
+    }
+    
+    // Register custom overrides
     componentLoaders["CameraComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        std::string target = xmlComponent->Attribute("target") ? xmlComponent->Attribute("target") : "";
-        world->AddComponent(entity, CameraComponent());
+        // Use default loader first
+        CameraComponent cam{};
+        CameraComponent::LoadXml(cam, xmlComponent);
+        world->AddComponent(entity, cam);
 
+        // Custom logic: Add FollowComponent if target is specified
+        std::string target = xmlComponent->Attribute("target") ? xmlComponent->Attribute("target") : "";
         if (!target.empty()) {
             FollowComponent followComp;
             followComp.targetEntityName = target;
             world->AddComponent(entity, FollowComponent{1.0f, target});
         }
-    };
-
-    componentLoaders["LightComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        float radius = xmlComponent->FloatAttribute("radius", 50.0f);
-        int r = xmlComponent->IntAttribute("r", 255);
-        int g = xmlComponent->IntAttribute("g", 255);
-        int b = xmlComponent->IntAttribute("b", 255);
-        int a = xmlComponent->IntAttribute("a", 100);
-        const char* layerName = xmlComponent->Attribute("layerName");
-        Color color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
-        world->AddComponent(entity, LightComponent(color, radius, layerName ? layerName : "default"));
-    };
-
-    componentLoaders["TileComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        world->AddComponent(entity, TileComponent());
-    };
-
-    componentLoaders["TeamComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        int teamId = xmlComponent->IntAttribute("teamId", 0);
-        world->AddComponent(entity, TeamComponent(teamId));
-    };
-
-    componentLoaders["BoundsComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        // BoundsComponent is computed by RenderSystem, but we create it here with default values
-        world->AddComponent(entity, BoundsComponent());
-    };
-
-    componentLoaders["ScriptComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        const char* scriptName = xmlComponent->Attribute("scriptName");
-        if (scriptName) {
-            world->AddComponent(entity, ScriptComponent(scriptName));
-        }
-    };
-
-    componentLoaders["KinematicsComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        float friction = xmlComponent->FloatAttribute("friction", 5.0f);
-        float maxSpeed = xmlComponent->FloatAttribute("maxSpeed", 200.0f);
-        world->AddComponent(entity, KinematicsComponent(maxSpeed, friction));
-    };
-
-    componentLoaders["HealthComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        float max = xmlComponent->FloatAttribute("max", 100.0f);
-        world->AddComponent(entity, HealthComponent(max));
-    };
-
-    componentLoaders["FactionComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        std::string name = xmlComponent->Attribute("name") ? xmlComponent->Attribute("name") : "Player";
-        world->AddComponent(entity, FactionComponent(name));
-    };
-
-    componentLoaders["AttackComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        float range = xmlComponent->FloatAttribute("range", 100.0f);
-        float damage = xmlComponent->FloatAttribute("damage", 10.0f);
-        float cooldown = xmlComponent->FloatAttribute("cooldown", 1.0f);
-        world->AddComponent(entity, AttackComponent(range, damage, cooldown));
-    };
-
-    componentLoaders["ScaleComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        float x = xmlComponent->FloatAttribute("x", 1.0f);
-        float y = xmlComponent->FloatAttribute("y", 1.0f);
-        world->AddComponent(entity, ScaleComponent(x, y));
     };
 
     return componentLoaders;

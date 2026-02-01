@@ -1,5 +1,8 @@
 #include "Entity.h"
 #include "Sprite.h"
+#include "ComponentRegistry.h"
+#include "Core/Components.h"
+#include "Core/World.h"
 
 namespace Elysium {
 void ComponentManager::EntityDestroyed(Entity entity) {
@@ -71,14 +74,16 @@ const std::vector<Entity>& EntityManager::GetLivingEntities() const {
     return livingEntities;
 }
 
-// World implementations (already moved from previous fix)
+// World implementations
 World::World() {
     componentManager = std::make_unique<ComponentManager>();
     entityManager = std::make_unique<EntityManager>();
 
-    RegisterComponent<NameComponent>();
+    ComponentRegistry::Instance().RegisterAllComponents(*this);
+
+    // RegisterComponent<NameComponent>(); // Handled by Registry
     RegisterComponent<LocationComponent>();
-    RegisterComponent<PositionComponent>();
+    // RegisterComponent<PositionComponent>(); // Handled by Registry
     RegisterComponent<ScaleComponent>();
     RegisterComponent<MovementComponent>();
     RegisterComponent<DirectionComponent>();

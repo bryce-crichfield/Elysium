@@ -1,6 +1,7 @@
 #include "Systems/SpriteSystem.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
+#include "Components/SpriteComponent.h"
 
 namespace Elysium::Systems {
 

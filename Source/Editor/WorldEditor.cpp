@@ -5,6 +5,7 @@
 #include "Core/Entity.h"
 #include "Services/WorldService.h"
 #include "imgui.h"
+#include "Components/NameComponent.h"
 
 namespace Elysium {
 

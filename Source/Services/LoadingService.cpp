@@ -6,7 +6,7 @@
 #include <tracy/Tracy.hpp>
 #include "Core/Application.h"
 #include "Core/Common.h"
-#include "Utilities/Path.h"
+#include "Core/Path.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "imgui.h"

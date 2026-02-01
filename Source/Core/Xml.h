@@ -14,7 +14,21 @@
 #include "Core/System.h"
 #include "raylib.h"
 
+using namespace tinyxml2;
+
 namespace Elysium {
+
+// Concept for components that can be loaded from XML
+template<typename T>
+concept XmlLoadable = requires(T& c, XMLElement* el) {
+    { T::LoadXml(c, el) } -> std::same_as<void>;
+};
+
+// Concept for components that can be saved to XML
+template<typename T>
+concept XmlSavable = requires(const T& c, XMLPrinter& printer) {
+    { T::SaveXml(c, printer) } -> std::same_as<void>;
+};
 
 Color ParseHexColor(const std::string& hex, Color defaultColor = BLANK);
 

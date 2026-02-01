@@ -31,7 +31,8 @@
       "Bash(del \"C:\\\\Users\\\\Bryce\\\\Documents\\\\GitHub\\\\Elysium2\\\\Source\\\\Editor\\\\SceneInspector.h\")",
       "Bash(del \"C:\\\\Users\\\\Bryce\\\\Documents\\\\GitHub\\\\Elysium2\\\\Source\\\\Editor\\\\SceneInspector.cpp\")",
       "Bash(git show:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(Remove-Item \"Source\\\\Utilities\\\\Xml.h\",\"Source\\\\Utilities\\\\Xml.cpp\",\"Source\\\\Utilities\\\\Path.h\",\"Source\\\\Utilities\\\\Path.cpp\")"
     ],
     "deny": []
   }

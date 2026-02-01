@@ -3,6 +3,7 @@
 #include "Core/Entity.h"
 #include "Core/Event.h"
 #include "Core/System.h"
+#include "Core/World.h"
 
 namespace Elysium::Systems {
 

@@ -1,0 +1,23 @@
+#pragma once
+#include "Core/Component.h"
+#include "raylib.h"
+#include <string>
+
+namespace Elysium {
+    struct CircleComponent {
+        float radius;
+        Color background;
+        Color border;
+        std::string layerName = "default";
+
+        CircleComponent(float r = 10.0f, Color background = {}, Color border = {}, const std::string& layer = "default");
+
+        static constexpr const char* Name() { return "Circle"; }
+        static constexpr const char* XmlTag() { return "CircleComponent"; }
+
+        static void LoadXml(CircleComponent& c, tinyxml2::XMLElement* el);
+        static void Inspect(CircleComponent& c, Entity e);
+        static void BindLua(sol::usertype<CircleComponent>& ut);
+        static void SetFromLua(CircleComponent& c, sol::object v);
+    };
+}

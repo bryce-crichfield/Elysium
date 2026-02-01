@@ -2,7 +2,7 @@
 #include "Core/Application.h"
 #include "Services/ScriptService.h"
 #include "Services/AssetService.h"
-#include "Utilities/Path.h"
+#include "Core/Path.h"
 #include "imgui.h"
 #include "raylib.h"
 

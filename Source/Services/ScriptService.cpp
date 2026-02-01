@@ -1,16 +1,19 @@
 #define SOL_HEADER_ONLY 1
 #define SOL_ALL_SAFETIES_ON 1
-#include "ScriptService.h"
+#include "Services/ScriptService.h"
 #include "Core/Application.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
 #include "Core/Scene.h"
 #include "Core/Component.h"
-#include "Utilities/Path.h"
+#include "Core/ComponentRegistry.h"
+#include "Core/Path.h"
 #include "imgui.h"
 #include <memory>
 #include <limits>
 #include <cmath>
+#include "Components/CameraComponent.h"
+#include "Components/PositionComponent.h"
 
 #include "Systems/PickSystem.h"
 
@@ -58,21 +61,6 @@ static Elysium::World* GetActiveWorld() {
         return scene->GetWorld();
     }
     return nullptr;
-}
-
-static Color TableToColor(const sol::table& t) {
-    return Color{
-        (unsigned char)t.get_or("r", 255),
-        (unsigned char)t.get_or("g", 255),
-        (unsigned char)t.get_or("b", 255),
-        (unsigned char)t.get_or("a", 255)
-    };
-}
-
-static Color ObjectToColor(const sol::object& obj) {
-    if (obj.is<Color>()) return obj.as<Color>();
-    if (obj.is<sol::table>()) return TableToColor(obj.as<sol::table>());
-    return WHITE;
 }
 
 static Vector2 ScreenToWorld(Vector2 screenPos) {
@@ -123,319 +111,8 @@ void ScriptService::BindComponents() {
     rect["width"] = &Rectangle::width;
     rect["height"] = &Rectangle::height;
 
-    // Register all ECS components with the registry
-    componentRegistry_.Register<PositionComponent>("Position",
-        [](sol::usertype<PositionComponent>& ut) {
-            ut["x"] = &PositionComponent::x;
-            ut["y"] = &PositionComponent::y;
-        },
-        [](PositionComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.x = t.get_or("x", c.x);
-                c.y = t.get_or("y", c.y);
-            }
-        });
-
-    componentRegistry_.Register<NameComponent>("Name",
-        [](sol::usertype<NameComponent>& ut) {
-            ut["name"] = &NameComponent::name;
-        },
-        [](NameComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.name = t.get_or("name", c.name);
-            } else if (v.is<std::string>()) {
-                c.name = v.as<std::string>();
-            }
-        });
-
-    componentRegistry_.Register<RectangleComponent>("Rectangle",
-        [](sol::usertype<RectangleComponent>& ut) {
-            ut["width"] = &RectangleComponent::width;
-            ut["height"] = &RectangleComponent::height;
-            ut["background"] = sol::property(
-                [](RectangleComponent& r) { return r.background; },
-                [](RectangleComponent& r, sol::object v) { r.background = ObjectToColor(v); });
-            ut["border"] = sol::property(
-                [](RectangleComponent& r) { return r.border; },
-                [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); });
-            ut["layerName"] = &RectangleComponent::layerName;
-        },
-        [](RectangleComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.width = t.get_or("width", c.width);
-                c.height = t.get_or("height", c.height);
-                c.layerName = t.get_or("layerName", c.layerName);
-                if (t["background"].valid()) c.background = ObjectToColor(t["background"]);
-                if (t["border"].valid()) c.border = ObjectToColor(t["border"]);
-            }
-        });
-
-    componentRegistry_.Register<MovementComponent>("Movement",
-        [](sol::usertype<MovementComponent>& ut) {
-            ut["speed"] = &MovementComponent::speed;
-            ut["isMoving"] = &MovementComponent::isMoving;
-            ut["loop"] = &MovementComponent::loop;
-            ut["AddWaypoint"] = &MovementComponent::AddWaypoint;
-            ut["ClearWaypoints"] = &MovementComponent::ClearWaypoints;
-        },
-        [](MovementComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.speed = t.get_or("speed", c.speed);
-                c.isMoving = t.get_or("isMoving", c.isMoving);
-                c.loop = t.get_or("loop", c.loop);
-            }
-        });
-
-    componentRegistry_.Register<SpriteComponent>("Sprite",
-        [](sol::usertype<SpriteComponent>& ut) {
-            ut["marker"] = &SpriteComponent::markerName;
-            ut["layer"] = &SpriteComponent::layerName;
-        },
-        [](SpriteComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.markerName = t.get_or("marker", c.markerName);
-                c.layerName = t.get_or("layer", c.layerName);
-            }
-        });
-
-    componentRegistry_.Register<BoundsComponent>("Bounds",
-        [](sol::usertype<BoundsComponent>& ut) {
-            ut["bounds"] = &BoundsComponent::bounds;
-            ut["isDragging"] = &BoundsComponent::isDragging;
-            ut["debugColor"] = sol::property(
-                [](BoundsComponent& b) { return b.debugColor; },
-                [](BoundsComponent& b, sol::object v) { b.debugColor = ObjectToColor(v); });
-        },
-        nullptr);
-
-    componentRegistry_.Register<TeamComponent>("Team",
-        [](sol::usertype<TeamComponent>& ut) {
-            ut["teamId"] = &TeamComponent::teamId;
-        },
-        [](TeamComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.teamId = t.get_or("teamId", c.teamId);
-            }
-        });
-
-    componentRegistry_.Register<UnitComponent>("Unit",
-        [](sol::usertype<UnitComponent>& ut) {
-            ut["hasActedThisTurn"] = &UnitComponent::hasActedThisTurn;
-            ut["canMove"] = &UnitComponent::canMove;
-            ut["canAttack"] = &UnitComponent::canAttack;
-            ut["canCastSpells"] = &UnitComponent::canCastSpells;
-            ut["canUseItems"] = &UnitComponent::canUseItems;
-        },
-        [](UnitComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.hasActedThisTurn = t.get_or("hasActedThisTurn", c.hasActedThisTurn);
-                c.canMove = t.get_or("canMove", c.canMove);
-                c.canAttack = t.get_or("canAttack", c.canAttack);
-                c.canCastSpells = t.get_or("canCastSpells", c.canCastSpells);
-                c.canUseItems = t.get_or("canUseItems", c.canUseItems);
-            }
-        });
-
-    componentRegistry_.Register<ScriptComponent>("Script",
-        [](sol::usertype<ScriptComponent>& ut) {
-            ut["scriptName"] = &ScriptComponent::scriptName;
-            ut["isActive"] = &ScriptComponent::isActive;
-            ut["isInitialized"] = &ScriptComponent::isInitialized;
-        },
-        [](ScriptComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.scriptName = t.get_or("scriptName", c.scriptName);
-                c.isActive = t.get_or("isActive", c.isActive);
-            } else if (v.is<std::string>()) {
-                c.scriptName = v.as<std::string>();
-            }
-        });
-
-    componentRegistry_.Register<HealthComponent>("Health",
-        [](sol::usertype<HealthComponent>& ut) {
-            ut["current"] = &HealthComponent::current;
-            ut["max"] = &HealthComponent::max;
-        },
-        [](HealthComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.current = t.get_or("current", c.current);
-                c.max = t.get_or("max", c.max);
-            }
-        });
-
-    componentRegistry_.Register<FactionComponent>("Faction",
-        [](sol::usertype<FactionComponent>& ut) {
-            ut["name"] = &FactionComponent::name;
-        },
-        [](FactionComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.name = t.get_or("name", c.name);
-            }
-        });
-
-    componentRegistry_.Register<KinematicsComponent>("Kinematics",
-        [](sol::usertype<KinematicsComponent>& ut) {
-            ut["maxSpeed"] = &KinematicsComponent::maxSpeed;
-            ut["friction"] = &KinematicsComponent::friction;
-            ut["velocity"] = &KinematicsComponent::velocity;
-            ut["acceleration"] = &KinematicsComponent::acceleration;
-        },
-        [](KinematicsComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.maxSpeed = t.get_or("maxSpeed", c.maxSpeed);
-                c.friction = t.get_or("friction", c.friction);
-                if (t["velocity"].valid()) {
-                    sol::table vt = t["velocity"];
-                    c.velocity.x = vt.get_or("x", c.velocity.x);
-                    c.velocity.y = vt.get_or("y", c.velocity.y);
-                }
-                if (t["acceleration"].valid()) {
-                    sol::table at = t["acceleration"];
-                    c.acceleration.x = at.get_or("x", c.acceleration.x);
-                    c.acceleration.y = at.get_or("y", c.acceleration.y);
-                }
-            }
-        });
-
-    componentRegistry_.Register<AttackComponent>("Attack",
-        [](sol::usertype<AttackComponent>& ut) {
-            ut["damage"] = &AttackComponent::damage;
-            ut["range"] = &AttackComponent::range;
-            ut["cooldown"] = &AttackComponent::cooldown;
-            ut["timer"] = &AttackComponent::timer;
-            ut["isAttacking"] = &AttackComponent::isAttacking;
-            ut["targetId"] = &AttackComponent::targetId;
-        },
-        [](AttackComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.damage = t.get_or("damage", c.damage);
-                c.range = t.get_or("range", c.range);
-                c.cooldown = t.get_or("cooldown", c.cooldown);
-                c.timer = t.get_or("timer", c.timer);
-                c.isAttacking = t.get_or("isAttacking", c.isAttacking);
-                c.targetId = t.get_or("targetId", c.targetId);
-            }
-        });
-
-    componentRegistry_.Register<PathRequestComponent>("PathRequest",
-        [](sol::usertype<PathRequestComponent>& ut) {
-            ut["target"] = &PathRequestComponent::target;
-        },
-        [](PathRequestComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                if (t["target"].valid()) {
-                    sol::table tgt = t["target"];
-                    c.target.x = tgt.get_or("x", c.target.x);
-                    c.target.y = tgt.get_or("y", c.target.y);
-                }
-            }
-        });
-
-    componentRegistry_.Register<ResourceComponent>("Resource",
-        [](sol::usertype<ResourceComponent>& ut) {
-            ut["resourceType"] = &ResourceComponent::resourceType;
-            ut["amount"] = &ResourceComponent::amount;
-            ut["maxAmount"] = &ResourceComponent::maxAmount;
-            ut["gatherRate"] = &ResourceComponent::gatherRate;
-        },
-        [](ResourceComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.resourceType = t.get_or("resourceType", c.resourceType);
-                c.amount = t.get_or("amount", c.amount);
-                c.maxAmount = t.get_or("maxAmount", c.maxAmount);
-                c.gatherRate = t.get_or("gatherRate", c.gatherRate);
-            }
-        });
-
-    componentRegistry_.Register<CarryComponent>("Carry",
-        [](sol::usertype<CarryComponent>& ut) {
-            ut["resourceType"] = &CarryComponent::resourceType;
-            ut["amount"] = &CarryComponent::amount;
-            ut["capacity"] = &CarryComponent::capacity;
-        },
-        [](CarryComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.resourceType = t.get_or("resourceType", c.resourceType);
-                c.amount = t.get_or("amount", c.amount);
-                c.capacity = t.get_or("capacity", c.capacity);
-            }
-        });
-
-    componentRegistry_.Register<StorageComponent>("Storage",
-        [this](sol::usertype<StorageComponent>& ut) {
-            ut["canAcceptDeposits"] = &StorageComponent::canAcceptDeposits;
-            ut["GetResource"] = [](StorageComponent& s, const std::string& type) -> float {
-                auto it = s.resources.find(type);
-                return it != s.resources.end() ? it->second : 0.0f;
-            };
-            ut["AddResource"] = [](StorageComponent& s, const std::string& type, float amt) {
-                s.resources[type] += amt;
-            };
-        },
-        [](StorageComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.canAcceptDeposits = t.get_or("canAcceptDeposits", c.canAcceptDeposits);
-            }
-        });
-
-    componentRegistry_.Register<TextComponent>("Text",
-        [](sol::usertype<TextComponent>& ut) {
-            ut["content"] = &TextComponent::content;
-            ut["fontSize"] = &TextComponent::fontSize;
-            ut["color"] = sol::property(
-                [](TextComponent& t) { return t.color; },
-                [](TextComponent& t, sol::object v) { t.color = ObjectToColor(v); });
-            ut["layerName"] = &TextComponent::layerName;
-        },
-        [](TextComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.content = t.get_or("content", c.content);
-                c.fontSize = t.get_or("fontSize", c.fontSize);
-                c.layerName = t.get_or("layerName", c.layerName);
-                if (t["color"].valid()) c.color = ObjectToColor(t["color"]);
-            }
-        });
-
-    componentRegistry_.Register<CircleComponent>("Circle",
-        [](sol::usertype<CircleComponent>& ut) {
-            ut["radius"] = &CircleComponent::radius;
-            ut["background"] = sol::property(
-                [](CircleComponent& c) { return c.background; },
-                [](CircleComponent& c, sol::object v) { c.background = ObjectToColor(v); });
-            ut["border"] = sol::property(
-                [](CircleComponent& c) { return c.border; },
-                [](CircleComponent& c, sol::object v) { c.border = ObjectToColor(v); });
-            ut["layerName"] = &CircleComponent::layerName;
-        },
-        [](CircleComponent& c, sol::object v) {
-            if (v.is<sol::table>()) {
-                sol::table t = v.as<sol::table>();
-                c.radius = t.get_or("radius", c.radius);
-                c.layerName = t.get_or("layerName", c.layerName);
-                if (t["background"].valid()) c.background = ObjectToColor(t["background"]);
-                if (t["border"].valid()) c.border = ObjectToColor(t["border"]);
-            }
-        });
-
-    // Register all usertypes with Lua
-    componentRegistry_.RegisterAllUserTypes(lua);
+    // Bind Global Registry Components
+    Elysium::ComponentRegistry::Instance().BindAllScripts(lua);
 }
 
 void ScriptService::BindEntityAPI() {
@@ -485,35 +162,55 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("GetComponent", [this](Entity entity, const std::string& name) -> sol::object {
         auto* world = GetActiveWorld();
         if (!world) return sol::nil;
-        return componentRegistry_.GetComponent(name, lua, world, entity);
+        
+        if (auto* access = Elysium::ComponentRegistry::Instance().GetLuaAccess(name)) {
+            return access->get(world, entity, lua);
+        }
+        return sol::nil;
     });
 
     // SetComponent
     lua.set_function("SetComponent", [this](Entity entity, const std::string& name, sol::object value) {
         auto* world = GetActiveWorld();
         if (!world) return;
-        componentRegistry_.SetComponent(name, world, entity, value);
+        
+        if (auto* access = Elysium::ComponentRegistry::Instance().GetLuaAccess(name)) {
+            access->set(world, entity, value);
+            return;
+        }
     });
 
     // AddComponent
     lua.set_function("AddComponent", [this](Entity entity, const std::string& name) {
         auto* world = GetActiveWorld();
         if (!world) return;
-        componentRegistry_.Add(name, world, entity);
+
+        if (auto* access = Elysium::ComponentRegistry::Instance().GetLuaAccess(name)) {
+            access->add(world, entity);
+            return;
+        }
     });
 
     // HasComponent
     lua.set_function("HasComponent", [this](Entity entity, const std::string& name) -> bool {
         auto* world = GetActiveWorld();
         if (!world) return false;
-        return componentRegistry_.Has(name, world, entity);
+
+        if (auto* access = Elysium::ComponentRegistry::Instance().GetLuaAccess(name)) {
+            return access->has(world, entity);
+        }
+        return false;
     });
 
     // RemoveComponent
     lua.set_function("RemoveComponent", [this](Entity entity, const std::string& name) {
         auto* world = GetActiveWorld();
         if (!world) return;
-        componentRegistry_.Remove(name, world, entity);
+
+        if (auto* access = Elysium::ComponentRegistry::Instance().GetLuaAccess(name)) {
+            access->remove(world, entity);
+            return;
+        }
     });
 
     // GetEntityByName
@@ -533,7 +230,13 @@ void ScriptService::BindEntityAPI() {
 
         int index = 1;
         for (Entity e : world->GetLivingEntities()) {
-            if (componentRegistry_.Has(componentName, world, e)) {
+            bool has = false;
+            
+            if (auto* access = Elysium::ComponentRegistry::Instance().GetLuaAccess(componentName)) {
+                has = access->has(world, e);
+            }
+
+            if (has) {
                 result[index++] = e;
             }
         }
@@ -549,7 +252,12 @@ void ScriptService::BindEntityAPI() {
         float nearestDist = std::numeric_limits<float>::max();
 
         for (Entity e : world->GetLivingEntities()) {
-            if (!componentRegistry_.Has(componentName, world, e)) continue;
+            bool has = false;
+             if (auto* access = Elysium::ComponentRegistry::Instance().GetLuaAccess(componentName)) {
+                has = access->has(world, e);
+            }
+            if (!has) continue;
+
             if (!world->HasComponent<PositionComponent>(e)) continue;
 
             auto& pos = world->GetComponent<PositionComponent>(e);

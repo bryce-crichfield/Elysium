@@ -9,8 +9,8 @@
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
-#include "Component.h"
 #include "raylib.h"
+#include "Core/Event.h"
 
 // Entity-Component-System (ECS) Storage Layout:
 //
@@ -404,25 +404,6 @@ void World::Query(Func&& func) {
     }
 }
 
-struct EntityCreatedEvent : public Event {
-    Entity entity;
 
-    EntityCreatedEvent(Entity e) : entity(e) {}
-};
-
-struct EntityDestroyedEvent : public Event {
-    Entity entity;
-
-    EntityDestroyedEvent(Entity e) : entity(e) {}
-};
-
-// World listener - registered with World directly for entity lifecycle events
-// Does NOT use the scene event system - this is direct World notification
-struct IWorldListener {
-    virtual ~IWorldListener() = default;
-
-    virtual void OnEntityCreated(Entity entity) {}
-    virtual void OnEntityDestroyed(Entity entity) {}
-};
 
 }  // namespace Elysium

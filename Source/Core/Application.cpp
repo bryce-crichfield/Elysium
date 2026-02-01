@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <thread>
 #include "Common.h"
-#include "Utilities/Path.h"
+#include "Core/Path.h"
 #include "Services/Services.h"
 #include "Services/ScriptService.h"
 #include "Editor/SceneEditor.h"

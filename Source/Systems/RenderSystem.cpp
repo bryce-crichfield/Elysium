@@ -11,6 +11,19 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include "Components/CameraComponent.h"
+#include "Components/LayerComponent.h"
+#include "Components/PositionComponent.h"
+#include "Components/RectangleComponent.h"
+#include "Components/CircleComponent.h"
+#include "Components/TextComponent.h"
+#include "Components/SpriteComponent.h"
+#include "Components/TextureComponent.h"
+#include "Components/LightComponent.h"
+#include "Components/BoundsComponent.h"
+#include "Components/ScaleComponent.h"
+#include "Components/HealthComponent.h"
+#include "Components/SelectionComponent.h"
 
 namespace Elysium::Systems {
 

@@ -3,6 +3,8 @@
 #include "Core/Entity.h"
 #include "Core/Scene.h"
 #include "raymath.h"
+#include "Components/KinematicsComponent.h"
+#include "Components/PositionComponent.h"
 
 namespace Elysium::Systems {
 

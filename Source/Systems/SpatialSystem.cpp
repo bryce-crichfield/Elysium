@@ -6,6 +6,8 @@
 #include <cfloat>
 #include <algorithm>
 #include <cmath>
+#include "Components/PositionComponent.h"
+#include "Components/BoundsComponent.h"
 
 namespace Elysium::Systems {
 
