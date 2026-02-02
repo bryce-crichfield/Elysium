@@ -4,8 +4,10 @@
 #include "Core/Common.h"
 #include "Core/Entity.h"
 #include "Services/WorldService.h"
+#include "Services/ScriptService.h"
 #include "imgui.h"
 #include "Components/NameComponent.h"
+#include "Services/LogService.h"
 
 namespace Elysium {
 
@@ -20,7 +22,7 @@ void WorldEditor::Draw(Application& app) {
     auto* world = service.GetWorld();
 
     ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(name_.c_str(), &isVisible_, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
         if (!world) {
             ImGui::Text("No World Loaded");
             ImGui::End();
@@ -32,48 +34,21 @@ void WorldEditor::Draw(Application& app) {
         ImGui::SameLine(leftPanelWidth_ + 10);
         ImGui::Text("Inspector");
 
-        // Left panel - Entity List
-        ImGui::BeginChild("EntityPanel", ImVec2(leftPanelWidth_, 0), true);
-        DrawEntityToolbar(service);
-
-        // Scrollable entity table
-        ImGui::BeginChild("EntityList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-        DrawEntityList(service);
-        ImGui::EndChild();
+        // 1. Entity List (Top half)
+        float topPanelHeight = ImGui::GetContentRegionAvail().y * 0.4f; // Use 40% height
+        ImGui::BeginChild("EntityPanel", ImVec2(0, topPanelHeight), true);
+            DrawEntityToolbar(service);
+            DrawEntityList(service);
         ImGui::EndChild();
 
-        ImGui::SameLine();
+        // 2. Horizontal Splitter (Vertical movement)
+        ImGui::Button("##splitter", ImVec2(-1, 4.0f)); 
+        // Logic to adjust topPanelHeight based on MouseDelta.y...
 
-        // Splitter
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
-        ImGui::Button("##splitter", ImVec2(4.0f, -1));
-
-        if (ImGui::IsItemActive()) {
-            if (!isDraggingSplitter_) {
-                isDraggingSplitter_ = true;
-            } else {
-                leftPanelWidth_ += ImGui::GetIO().MouseDelta.x;
-                if (leftPanelWidth_ < 200.0f)
-                    leftPanelWidth_ = 200.0f;
-                if (leftPanelWidth_ > ImGui::GetWindowWidth() - 200.0f)
-                    leftPanelWidth_ = ImGui::GetWindowWidth() - 200.0f;
-            }
-        } else {
-            isDraggingSplitter_ = false;
-        }
-
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        }
-        ImGui::PopStyleColor(3);
-        ImGui::SameLine();
-
-        // Right panel - Inspector
+        // 3. Inspector (Bottom half)
         ImGui::BeginChild("Inspector", ImVec2(0, 0), true);
-        DrawInspectorToolbar(service);
-        DrawInspectorPanel(service);
+            DrawInspectorToolbar(service);
+            DrawInspectorPanel(service);
         ImGui::EndChild();
     }
     ImGui::End();
@@ -88,76 +63,65 @@ void WorldEditor::DrawEntityToolbar(WorldService& service) {
     ImGui::SetNextItemWidth(-1);
     static char searchBuffer[256] = "";
     if (ImGui::InputText("##Search", searchBuffer, sizeof(searchBuffer))) {
-        searchFilter_ = std::string(searchBuffer);
     }
     ImGui::Separator();
 
     // Filter panel
-    if (ImGui::CollapsingHeader("Filters", filtersCollapsed_ ? 0 : ImGuiTreeNodeFlags_DefaultOpen)) {
-        // Clear button at the top
-        if (ImGui::Button("Clear All Filters")) {
-            filters_.clear();
-        }
+    if (ImGui::CollapsingHeader("Lua Filter", ImGuiTreeNodeFlags_DefaultOpen)) {
+        static char luaBuffer[1024] = "function filter(e)\n  return true\nend";
+        
+        // Use a tall input box for the script
+        ImGui::InputTextMultiline("##LuaFilter", luaBuffer, sizeof(luaBuffer), 
+            ImVec2(-1, ImGui::GetTextLineHeight() * 5), // 5 lines tall
+            ImGuiInputTextFlags_AllowTabInput);
 
-        // Filter table
-        if (!filters_.empty() && ImGui::BeginTable("Filters", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-            ImGui::TableSetupColumn("NOT", ImGuiTableColumnFlags_WidthFixed, 40.0f);
-            ImGui::TableSetupColumn("Component", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Op", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-            ImGui::TableHeadersRow();
+        if (ImGui::Button("Save", ImVec2(-1, 0))) {
+            // 1. 'template' is a reserved keyword in C++. Changed to 'scriptTemplate'.
+            // 2. Used R"(...)" for a raw string literal to handle multiple lines.
+            const char* scriptTemplate = R"(
+                %s
 
-            for (size_t i = 0; i < filters_.size(); ++i) {
-                ImGui::PushID(static_cast<int>(i));
-                ImGui::TableNextRow();
+                local entities = GetEntities()
+                local result = {}
+                for i, e in ipairs(entities) do
+                    if filter(e) then
+                        table.insert(result, e)
+                    end
+                end
 
-                // Negation checkbox
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Checkbox("##negate", &filters_[i].negate);
+                return result
+            )";
 
-                // Component dropdown
-                ImGui::TableSetColumnIndex(1);
-                ImGui::SetNextItemWidth(-1);
-                std::vector<const char*> componentNames;
-                int currentSelection = -1;
-                for (size_t j = 0; j < componentPlaceholders.size(); ++j) {
-                    componentNames.push_back(componentPlaceholders[j].name.c_str());
-                    if (componentPlaceholders[j].name == filters_[i].componentName) {
-                        currentSelection = static_cast<int>(j);
+            // 3. Format the template with the user's buffer (luaBuffer)
+            char finalScript[2048]; 
+            snprintf(finalScript, sizeof(finalScript), scriptTemplate, luaBuffer);
+
+            auto& scripts = Application::GetInstance().GetService<ScriptService>();
+            // 4. Execute the formatted string, not just the raw buffer
+            auto result = scripts.ExecuteString(finalScript);
+            filteredEntities_.clear();
+            if (result.valid()) {
+                sol::table entityTable = result;
+
+                // print the ids of the matching entities
+                for (auto& kv : entityTable) {
+                    sol::object key = kv.first;
+                    sol::object val = kv.second;
+
+                    if (val.is<Entity>()) {
+                        Entity e = val.as<Entity>();
+                        filteredEntities_.push_back(e);
                     }
                 }
-
-                if (ImGui::Combo("##component", &currentSelection, componentNames.data(), static_cast<int>(componentNames.size()))) {
-                    if (currentSelection >= 0) {
-                        filters_[i].componentName = componentPlaceholders[currentSelection].name;
-                        filters_[i].predicate = componentPlaceholders[currentSelection].hasComponentFunc;
-                    }
-                }
-
-                // Operator dropdown (skip for first filter)
-                ImGui::TableSetColumnIndex(2);
-                if (i > 0) {
-                    const char* operators[] = {"AND", "OR"};
-                    int currentOp = static_cast<int>(filters_[i].logicalOperator);
-                    if (ImGui::Combo("##operator", &currentOp, operators, IM_ARRAYSIZE(operators))) {
-                        filters_[i].logicalOperator = static_cast<FilterLogicalOperator>(currentOp);
-                    }
-                } else {
-                    ImGui::Text("-");
-                }
-
-                ImGui::PopID();
+            } else {
+                // Handle Lua error
+                sol::error err = result;
+                LOG_ERRORF("WorldEditor", "Lua Error in filter script: %s", err.what());
             }
-
-            ImGui::EndTable();
         }
-
-        // Add/Remove buttons at the bottom
-        if (ImGui::Button("Add Filter")) {
-            filters_.emplace_back();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Remove Filter") && !filters_.empty()) {
-            filters_.pop_back();
+        
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Expects: function(entity) -> bool");
         }
     }
 
@@ -190,44 +154,16 @@ void WorldEditor::DrawEntityList(WorldService& service) {
         const auto& livingEntities = world->GetEntitiesWithComponents<>();
 
         for (Entity entity : livingEntities) {
-            bool shouldDraw = true;
-            if (!filters_.empty()) {
-                // Evaluate first filter (only if it has a valid predicate)
-                if (filters_[0].predicate) {
-                    shouldDraw = filters_[0].Evaluate(entity, world);
-                }
-
-                // Evaluate remaining filters in order
-                for (size_t i = 1; i < filters_.size(); ++i) {
-                    if (filters_[i].predicate) {
-                        bool filterResult = filters_[i].Evaluate(entity, world);
-
-                        if (filters_[i].logicalOperator == FilterLogicalOperator::AND) {
-                            shouldDraw = shouldDraw && filterResult;
-                        } else {
-                            shouldDraw = shouldDraw || filterResult;
-                        }
-                    }
+            if (!filteredEntities_.empty()) {
+                // If filtering is active, skip entities not in the filtered list
+                if (std::find(filteredEntities_.begin(), filteredEntities_.end(), entity) == filteredEntities_.end()) {
+                    continue;
                 }
             }
-
-            if (!shouldDraw)
-                continue;
 
             std::string entityName = world->GetEntityName(entity);
             if (entityName.empty()) {
                 entityName = "Entity " + std::to_string(entity);
-            }
-
-            if (!searchFilter_.empty()) {
-                std::string lowerName = entityName;
-                std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
-                std::string lowerFilter = searchFilter_;
-                std::transform(lowerFilter.begin(), lowerFilter.end(), lowerFilter.begin(), ::tolower);
-
-                if (lowerName.find(lowerFilter) == std::string::npos) {
-                    continue;
-                }
             }
 
             ImGui::TableNextRow();

@@ -259,7 +259,7 @@ void SceneService::Update(float deltaTime) {
     }
 
     ProcessInput();
-    
+
     if (!pendingOperations_.empty()) {
         ApplySceneOperations();
     }
@@ -296,8 +296,14 @@ void SceneService::CalculateLetterboxing() {
         offset_.y = 0;
         letterboxRect_ = Rectangle{offset_.x, offset_.y, scaledWidth, (float)windowHeight};
     }
+
+    // In play mode the viewport matches the letterbox
+    if (Application::GetInstance().GetMode() == AppMode::Play) {
+        viewportRect_ = letterboxRect_;
+    }
 }
 
+// Renders to the framebuffer, but it's up to the caller to blit it to the screen
 void SceneService::Render() {
     Profile;
     auto& app = Application::GetInstance();
@@ -322,21 +328,30 @@ void SceneService::Render() {
 
     EndTextureMode();
 
+    // In editor mode, the ImGui "Game" panel blits the framebuffer
+    if (Application::GetInstance().GetMode() == AppMode::Editor) {
+        return;
+    }
+
     // Draw framebuffer to screen with letterboxing
-    DrawTexturePro(
-        framebuffer_.texture,
-        Rectangle{0, 0, (float)framebuffer_.texture.width, -(float)framebuffer_.texture.height},
-        letterboxRect_, Vector2{0, 0}, 0.0f, WHITE);
+
 }
 
 // =============================================================================
 // Event Handling
 // =============================================================================
 
+void SceneService::SetViewportRect(Rectangle rect) {
+    viewportRect_ = rect;
+}
+
 Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const {
-    // Transform screen coords to framebuffer coords
-    float fbX = (screenPos.x - letterboxRect_.x) / scaleX_;
-    float fbY = (screenPos.y - letterboxRect_.y) / scaleY_;
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+
+    // Use viewport rect to translate screen coords to framebuffer coords
+    float fbX = (screenPos.x - viewportRect_.x) / viewportRect_.width * config.framebufferWidth;
+    float fbY = (screenPos.y - viewportRect_.y) / viewportRect_.height * config.framebufferHeight;
 
     return Vector2{fbX, fbY};
 }
@@ -353,7 +368,7 @@ void SceneService::ProcessInput() {
     }
 
     Vector2 mousePos = GetMousePosition();
-    bool isInside = CheckCollisionPointRec(mousePos, letterboxRect_);
+    bool isInside = CheckCollisionPointRec(mousePos, viewportRect_);
 
     static bool wasInside = false;
     if (isInside && !wasInside) {

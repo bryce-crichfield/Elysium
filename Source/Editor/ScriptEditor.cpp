@@ -18,7 +18,7 @@ void ScriptEditor::Initialize() {
 }
 
 void ScriptEditor::Draw(Application& app) {
-    if (ImGui::Begin("Script Editor", &isVisible_)) {
+    if (ImGui::Begin("Script Editor", nullptr, ImGuiWindowFlags_NoCollapse)) {
         
         auto& assetService = app.GetService<Services::AssetService>();
         const auto& allAssets = assetService.GetAllAssets();

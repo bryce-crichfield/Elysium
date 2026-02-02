@@ -19,7 +19,7 @@ public:
     void Update(float deltaTime) override;
 
     // Core execution
-    void ExecuteString(const std::string& scriptString);
+    sol::protected_function_result ExecuteString(const std::string& scriptString);
     
     // Entity Scripting System
     // Returns true if the script was loaded and has an 'update' function

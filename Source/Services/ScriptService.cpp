@@ -41,12 +41,15 @@ void ScriptService::Shutdown() {
 void ScriptService::Update(float deltaTime) {
 }
 
-void ScriptService::ExecuteString(const std::string& scriptString) {
+sol::protected_function_result ScriptService::ExecuteString(const std::string& scriptString) {
     auto result = lua.safe_script(scriptString, sol::script_pass_on_error);
     if (!result.valid()) {
         sol::error err = result;
         LOG_ERRORF("ScriptService", "Lua Error: %s", err.what());
+        return result;
     }
+
+    return result;
 }
 
 void ScriptService::InitLuaContext() {
@@ -123,6 +126,21 @@ void ScriptService::BindEntityAPI() {
     // Log
     lua.set_function("Log", [](const std::string& msg) {
         LOG_INFO("Lua", msg.c_str());
+    });
+
+    lua.set_function("GetEntities", [](sol::this_state s) -> sol::table {
+        sol::state_view lua(s); // Get a view of the current state
+        sol::table result = lua.create_table();
+        
+        auto* world = GetActiveWorld();
+        if (!world) return result;
+
+        int index = 1;
+        // Ensure world->GetLivingEntities() returns a container compatible with range-based for
+        for (Entity e : world->GetLivingEntities()) {
+            result[index++] = e;
+        }
+        return result;
     });
 
     // Lifecycle

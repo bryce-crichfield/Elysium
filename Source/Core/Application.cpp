@@ -14,6 +14,7 @@
 #include "Editor/NetworkEditor.h"
 #include "Editor/ScriptEditor.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "rlImGui.h"
 
 namespace Elysium {
@@ -137,6 +138,8 @@ bool Application::ShouldClose() const {
 
 void Application::Update(float deltaTime) {
     Profile;
+    startTime_ += deltaTime;
+
     for (auto service : serviceRegistry_.GetAllServices()) {
         service->Update(deltaTime);
     }
@@ -173,18 +176,106 @@ void Application::Draw() {
     BeginDrawing();
     ClearBackground(BLACK);
 
-    // Services render their content (SceneService draws scenes, etc.)
+    // Services render their content (SceneService draws scenes to framebuffer)
     for (auto& service : serviceRegistry_.GetAllServices()) {
         service->Render();
     }
 
-    // ImGui overlays on top
+    // ImGui overlays
     rlImGuiBegin();
+
+    if (mode_ == AppMode::Editor) {
+        // Enable docking and prevent tab close via middle-click
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        ImGui::GetIO().ConfigDockingAlwaysTabBar = true;
+
+        // Full-window dockspace
+        ImGuiID dockspaceId = ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
+
+        // Build default layout once
+        if (!editorLayoutBuilt_) {
+            editorLayoutBuilt_ = true;
+
+            ImGui::DockBuilderRemoveNode(dockspaceId);
+            ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspaceId, ImGui::GetMainViewport()->WorkSize);
+
+            // Split: left 20% | remainder
+            ImGuiID dockLeft, dockRemain;
+            ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.20f, &dockLeft, &dockRemain);
+
+            // Split remainder: bottom 25% | center+right
+            ImGuiID dockBottom, dockCenterRight;
+            ImGui::DockBuilderSplitNode(dockRemain, ImGuiDir_Down, 0.25f, &dockBottom, &dockCenterRight);
+
+            // Split center+right: center | right 25%
+            ImGuiID dockCenter, dockRight;
+            ImGui::DockBuilderSplitNode(dockCenterRight, ImGuiDir_Right, 0.25f, &dockRight, &dockCenter);
+
+            // Assign windows
+            ImGui::DockBuilderDockWindow("World Editor", dockLeft);
+            ImGui::DockBuilderDockWindow("Game", dockCenter);
+            ImGui::DockBuilderDockWindow("Log Viewer", dockBottom);
+            ImGui::DockBuilderDockWindow("Scene Editor", dockRight);
+            ImGui::DockBuilderDockWindow("Asset Browser", dockRight);
+            ImGui::DockBuilderDockWindow("Network", dockRight);
+            ImGui::DockBuilderDockWindow("Script Editor", dockCenter);
+
+            ImGui::DockBuilderFinish(dockspaceId);
+        }
+
+        // Game viewport panel
+        auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        if (ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse)) {
+            // Grab content region position and size before drawing the image
+            ImVec2 pos = ImGui::GetCursorScreenPos();
+            ImVec2 avail = ImGui::GetContentRegionAvail();
+
+            rlImGuiImageRenderTextureFit(&sceneService.GetFramebuffer(), true);
+
+            // Tell SceneService where the game viewport is on screen
+            // rlImGuiImageRenderTextureFit centers the image maintaining aspect ratio
+            float fbW = (float)sceneService.GetFramebuffer().texture.width;
+            float fbH = (float)sceneService.GetFramebuffer().texture.height;
+            float fbAspect = fbW / fbH;
+            float regionAspect = avail.x / avail.y;
+
+            float drawW, drawH;
+            if (fbAspect > regionAspect) {
+                drawW = avail.x;
+                drawH = avail.x / fbAspect;
+            } else {
+                drawH = avail.y;
+                drawW = avail.y * fbAspect;
+            }
+            float drawX = pos.x + (avail.x - drawW) * 0.5f;
+            float drawY = pos.y + (avail.y - drawH) * 0.5f;
+
+            LOG_DEBUGF("SceneService", "Viewport Rect: x=%.1f y=%.1f w=%.1f h=%.1f", drawX, drawY, drawW, drawH);
+            sceneService.SetViewportRect(Rectangle{drawX, drawY, drawW, drawH});
+        }
+        ImGui::End();
+        ImGui::PopStyleVar();
+    } else {
+        ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_DockingEnable;
+
+        auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
+        auto& texture = sceneService.GetFramebuffer().texture;
+        auto letterboxRect = sceneService.GetLetterboxRect();
+        DrawTexturePro(
+            texture,
+            Rectangle{0, 0, (float)texture.width, -(float)texture.height},
+            letterboxRect, Vector2{0, 0}, 0.0f, WHITE);
+        sceneService.SetViewportRect(letterboxRect);
+    }
+
     for (auto& editor : editors_) {
         if (editor->IsVisible()) {
             editor->Draw(*this);
         }
     }
+
     rlImGuiEnd();
 
     EndDrawing();
@@ -194,43 +285,31 @@ void Application::ProcessEvents() {
     Profile;
 }
 
+void Application::SetMode(AppMode mode) {
+    if (mode_ == mode) return;
+    mode_ = mode;
+
+    if (mode_ == AppMode::Editor) {
+        for (auto& editor : editors_) {
+            editor->SetVisible(true);
+        }
+    } else {
+        for (auto& editor : editors_) {
+            editor->SetVisible(false);
+        }
+        editorLayoutBuilt_ = false;
+    }
+}
+
 void Application::ProcessInput() {
     Profile;
 
     if (IsKeyPressed(KEY_F1)) {
-        if (auto* editor = GetEditor<SceneEditor>()) {
-            editor->ToggleVisibility();
-        }
+        SetMode(AppMode::Editor);
     }
 
     if (IsKeyPressed(KEY_F2)) {
-        if (auto* editor = GetEditor<LogEditor>()) {
-            editor->ToggleVisibility();
-        }
-    }
-
-    if (IsKeyPressed(KEY_F3)) {
-        if (auto* editor = GetEditor<WorldEditor>()) {
-            editor->ToggleVisibility();
-        }
-    }
-
-    if (IsKeyPressed(KEY_F5)) {
-        if (auto* editor = GetEditor<AssetEditor>()) {
-            editor->ToggleVisibility();
-        }
-    }
-
-    if (IsKeyPressed(KEY_F6)) {
-        if (auto* editor = GetEditor<NetworkEditor>()) {
-            editor->ToggleVisibility();
-        }
-    }
-
-    if (IsKeyPressed(KEY_F7)) {
-        if (auto* editor = GetEditor<ScriptEditor>()) {
-            editor->ToggleVisibility();
-        }
+        SetMode(AppMode::Play);
     }
 }
 

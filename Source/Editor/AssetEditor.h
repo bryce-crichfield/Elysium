@@ -2,26 +2,37 @@
 
 #include <filesystem>
 #include <string>
+#include <map>
+#include <vector>
 #include "Core/Editor.h"
-
-namespace Elysium::Services {
-class AssetService;
-}
 
 namespace Elysium {
 
-class AssetEditor : public Editor {
-   public:
-    AssetEditor();
-
-    void Draw(Application& app) override;
-
-   private:
-    // File browser state
-    std::filesystem::path rootPath_;
-    std::filesystem::path currentPath_;
-    std::string selectedFile_;
-    char assetNameBuffer_[128] = "NewAsset";
+struct DiskFile {
+    std::filesystem::path path;
+    std::string relativePath;
+    bool isDirectory;
+    bool isLoaded; // Synced from AssetService
 };
 
-}  // namespace Elysium
+class AssetEditor : public Editor {
+public:
+    AssetEditor();
+    void Draw(Application& app) override;
+
+private:
+    void RefreshDiskCache();
+    void RenderTreeRecursive(const std::filesystem::path& currentPath, Application& app);
+
+    std::filesystem::path rootPath_;
+    
+    // Polling state
+    double lastRefreshTime_ = 0.0;
+    const double refreshInterval_ = 1.0; 
+
+    // Caching the directory structure to avoid heavy IO every frame
+    std::string selectedFile_;
+    std::map<std::string, std::vector<DiskFile>> directoryCache_;
+};
+
+} // namespace Elysium

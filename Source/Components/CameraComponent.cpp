@@ -1,13 +1,16 @@
 #include "Components/CameraComponent.h"
+#include "Core/Application.h"
 #include "Core/ComponentRegistry.h"
-#include "Core/Component.h" 
+#include "Core/Component.h"
 #include "Core/Xml.h"
 #include "imgui.h"
 
 namespace Elysium {
-    CameraComponent::CameraComponent() 
-        : viewport({0, 0, (float)GetScreenWidth(), (float)GetScreenHeight()}),
-          zoom(1.0f), renderOrder(0), isVisible(true) {}
+    CameraComponent::CameraComponent()
+        : zoom(1.0f), renderOrder(0), isVisible(true) {
+        const auto& config = Application::GetInstance().GetConfig();
+        viewport = {0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
+    }
 
     void CameraComponent::LoadXml(CameraComponent& c, tinyxml2::XMLElement* el) {
         std::string target = el->Attribute("target") ? el->Attribute("target") : "";

@@ -8,7 +8,7 @@
         <System type="SpriteSystem" />
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
-        <System type="PickSystem" />
+        <!-- <System type="PickSystem" /> -->
         <System type="CommandSystem" />
         <System type="AttackSystem" />
         <System type="ProjectileSystem" />

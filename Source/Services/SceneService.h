@@ -70,7 +70,7 @@ struct SceneRegistration {
 };
 
 class SceneService : public Elysium::Service {
-   public:
+public:
     friend class Elysium::SceneEditor;
 
     SceneService();
@@ -107,8 +107,14 @@ class SceneService : public Elysium::Service {
     const Rectangle& GetLetterboxRect() const { return letterboxRect_; }
     float GetScaleX() const { return scaleX_; }
     float GetScaleY() const { return scaleY_; }
+    RenderTexture2D& GetFramebuffer() { return framebuffer_; }
 
-   private:
+    // The viewport rect is where on the window the framebuffer is actually drawn.
+    // Application or editor sets this so input coordinates can be translated correctly.
+    void SetViewportRect(Rectangle rect);
+    const Rectangle& GetViewportRect() const { return viewportRect_; }
+
+private:
     void ProcessInput();
     Scene* CreateOrGetScene(const std::string& name);
     void EnterScene(Scene* scene, const std::string& name);
@@ -137,6 +143,9 @@ class SceneService : public Elysium::Service {
     float scaleX_ = 1.0f;
     float scaleY_ = 1.0f;
     Vector2 offset_ = {0, 0};
+
+    // Where on the window the framebuffer is actually drawn
+    Rectangle viewportRect_ = {0, 0, 0, 0};
 
     // Cached for systems that need it
     float cachedDeltaTime_ = 0.016f;

@@ -23,7 +23,7 @@ void LogEditor::Draw(Application& app) {
     auto& service = app.GetService<LogService>();
 
     ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(name_.c_str(), &isVisible_, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
         DrawHeader(service);
         ImGui::Separator();
 

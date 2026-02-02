@@ -18,7 +18,7 @@ void NetworkEditor::Draw(Application& app) {
     auto& service = app.GetService<NetworkService>();
 
     ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(name_.c_str(), &isVisible_, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
         // Status
         const char* modeStr = "None";
         if (service.GetMode() == NetworkMode::Server) {

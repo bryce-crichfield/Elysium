@@ -1,5 +1,6 @@
 #include "Systems/CameraSystem.h"
 #include "Core/Application.h"
+#include "Services/LogService.h"
 #include "Services/WorldService.h"
 #include "Services/SceneService.h"
 #include "Components/PositionComponent.h"
@@ -9,117 +10,141 @@
 
 namespace Elysium::Systems {
 
+void CameraSystem::OnMouseButtonPressed(MouseButtonPressedEvent& event) {
+    if (event.GetButton() == MOUSE_BUTTON_MIDDLE) {
+        isDragging_ = true;
+    }
+}
+
+void CameraSystem::OnMouseButtonReleased(MouseButtonReleasedEvent& event) {
+    if (event.GetButton() == MOUSE_BUTTON_MIDDLE) {
+        isDragging_ = false;
+    }
+}
+
+void CameraSystem::OnMouseMoved(MouseMovedEvent& event) {
+    mousePosition_ = event.GetPosition();
+    mouseDelta_ = event.GetDelta();
+}
+
+void CameraSystem::OnMouseWheel(MouseWheelEvent& event) {}
+
+void CameraSystem::OnMouseEnter(MouseEnterEvent& event) {
+    hasFocus_ = true;
+}
+
+void CameraSystem::OnMouseExit(MouseExitEvent& event) {
+    hasFocus_ = false;
+}
+
+void CameraSystem::OnKeyPressed(KeyPressedEvent& event) {
+    switch (event.GetKey()) {
+        case KEY_W: keyW_ = true; break;
+        case KEY_A: keyA_ = true; break;
+        case KEY_S: keyS_ = true; break;
+        case KEY_D: keyD_ = true; break;
+    }
+}
+
+void CameraSystem::OnKeyReleased(KeyReleasedEvent& event) {
+    switch (event.GetKey()) {
+        case KEY_W: keyW_ = false; break;
+        case KEY_A: keyA_ = false; break;
+        case KEY_S: keyS_ = false; break;
+        case KEY_D: keyD_ = false; break;
+    }
+}
+
 void CameraSystem::Update(float deltaTime) {
-    // RTS Camera Control
     const float edgeThreshold = 15.0f;
     const float panSpeed = 600.0f;
-    
+
     auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
-    Rectangle viewBounds = sceneService.GetLetterboxRect();
-    Vector2 mousePos = GetMousePosition();
+    const auto& config = Application::GetInstance().GetConfig();
+
+    // mousePosition_ is in framebuffer space (0..fbWidth, 0..fbHeight)
+    Rectangle viewBounds = {0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
 
     Vector2 panDir = {0, 0};
     bool shouldPan = false;
 
-    // Only pan if mouse is inside the view area OR if we are focused and outside (infinite edge)
-    // We check IsWindowFocused to prevent panning while alt-tabbed
-    if (IsWindowFocused()) {
+    if (hasFocus_) {
         // Edge Panning
-        // Left
-        if (mousePos.x <= viewBounds.x + edgeThreshold) {
+        if (mousePosition_.x <= edgeThreshold) {
             panDir.x -= 1.0f;
             shouldPan = true;
-        } 
-        // Right
-        else if (mousePos.x >= viewBounds.x + viewBounds.width - edgeThreshold) {
+        } else if (mousePosition_.x >= viewBounds.width - edgeThreshold) {
             panDir.x += 1.0f;
             shouldPan = true;
         }
 
-        // Up
-        if (mousePos.y <= viewBounds.y + edgeThreshold) {
+        if (mousePosition_.y <= edgeThreshold) {
             panDir.y -= 1.0f;
             shouldPan = true;
-        } 
-        // Down
-        else if (mousePos.y >= viewBounds.y + viewBounds.height - edgeThreshold) {
+        } else if (mousePosition_.y >= viewBounds.height - edgeThreshold) {
             panDir.y += 1.0f;
             shouldPan = true;
         }
 
         // WASD Panning
-        if (IsKeyDown(KEY_W)) { panDir.y -= 1.0f; shouldPan = true; }
-        if (IsKeyDown(KEY_S)) { panDir.y += 1.0f; shouldPan = true; }
-        if (IsKeyDown(KEY_A)) { panDir.x -= 1.0f; shouldPan = true; }
-        if (IsKeyDown(KEY_D)) { panDir.x += 1.0f; shouldPan = true; }
+        if (keyW_) { panDir.y -= 1.0f; shouldPan = true; }
+        if (keyS_) { panDir.y += 1.0f; shouldPan = true; }
+        if (keyA_) { panDir.x -= 1.0f; shouldPan = true; }
+        if (keyD_) { panDir.x += 1.0f; shouldPan = true; }
     }
-    
-    // Normalize vector to ensure consistent speed
+
     if (Vector2Length(panDir) > 0.0f) {
         panDir = Vector2Normalize(panDir);
     }
 
     // Middle Mouse Drag Panning
-    bool isDragging = IsMouseButtonDown(MOUSE_BUTTON_MIDDLE);
     Vector2 dragDelta = {0, 0};
-    if (isDragging) {
-        dragDelta = GetMouseDelta();
+    if (isDragging_) {
+        dragDelta = mouseDelta_;
         shouldPan = true;
     }
 
-    // Apply Panning
+    // Reset mouse delta after consuming it
+    mouseDelta_ = {0, 0};
+
     if (shouldPan) {
          world->Query<PositionComponent, CameraComponent>([&](Entity entity, auto& pos, auto& cam) {
-             // Apply Directional Pan (Edge + WASD)
              if (panDir.x != 0 || panDir.y != 0) {
                  pos.x += panDir.x * panSpeed * deltaTime;
                  pos.y += panDir.y * panSpeed * deltaTime;
              }
-             
-             // Apply Drag Pan
-             if (isDragging) {
+
+             if (isDragging_) {
                  float zoomFactor = (cam.zoom > 0) ? (1.0f / cam.zoom) : 1.0f;
                  pos.x -= dragDelta.x * zoomFactor;
                  pos.y -= dragDelta.y * zoomFactor;
              }
-             
-             // If we are manually panning, remove the FollowComponent so it doesn't snap back
+
              if (world->HasComponent<FollowComponent>(entity)) {
                  world->RemoveComponent<FollowComponent>(entity);
              }
          });
     } else {
-        // Only do follow logic if we aren't panning
-        // Update camera components that have follow behavior
         world->Query<PositionComponent, CameraComponent, FollowComponent>([&](Entity entity, auto& positionComp, auto& cameraComp, auto& followComp) {
-            // Find the target entity by name
             Entity targetEntity;
             if (world->GetEntityByName(followComp.targetEntityName, &targetEntity)) {
                 if (world->HasComponent<PositionComponent>(targetEntity)) {
                     auto& targetPos = world->GetComponent<PositionComponent>(targetEntity);
 
-                    // Lerp the camera position to follow the target
                     Vector2 targetCameraPos = {targetPos.x, targetPos.y};
                     Vector2 currentCameraPos = {positionComp.x, positionComp.y};
                     Vector2 newCameraPos = LerpVector2(currentCameraPos, targetCameraPos, followComp.speed * deltaTime);
 
-                    // Update camera position directly
                     positionComp.x = newCameraPos.x;
                     positionComp.y = newCameraPos.y;
                 }
             }
         });
     }
-
-    // Note: Viewport setup should be handled by the scene/application
-    // We don't modify viewport here since we respect framebuffer rendering
 }
 
 Vector2 CameraSystem::LerpVector2(Vector2 start, Vector2 end, float t) {
-    // Clamp t between 0 and 1
-    t = (t < 0.0f) ? 0.0f : (t > 1.0f) ? 1.0f
-                                       : t;
-
+    t = (t < 0.0f) ? 0.0f : (t > 1.0f) ? 1.0f : t;
     return {
         start.x + (end.x - start.x) * t,
         start.y + (end.y - start.y) * t};

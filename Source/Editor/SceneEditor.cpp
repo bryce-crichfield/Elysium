@@ -18,44 +18,14 @@ void SceneEditor::Draw(Application& app) {
     auto& service = app.GetService<SceneService>();
 
     ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(name_.c_str(), &isVisible_, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
         // Left side header
         ImGui::Text("Scenes");
-        ImGui::SameLine(leftPanelWidth_ + 10);
-        ImGui::Text("Scene Stack");
 
         // Left panel - Scenes Panel
-        ImGui::BeginChild("ScenesPanel", ImVec2(leftPanelWidth_, 0), true);
+        ImGui::BeginChild("ScenesPanel", ImVec2(0, 0), true);
         DrawScenesPanel(service);
         ImGui::EndChild();
-
-        ImGui::SameLine();
-
-        // Splitter
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
-        ImGui::Button("##splitter", ImVec2(4.0f, -1));
-
-        if (ImGui::IsItemActive()) {
-            if (!isDraggingSplitter_) {
-                isDraggingSplitter_ = true;
-            } else {
-                leftPanelWidth_ += ImGui::GetIO().MouseDelta.x;
-                if (leftPanelWidth_ < 200.0f)
-                    leftPanelWidth_ = 200.0f;
-                if (leftPanelWidth_ > ImGui::GetWindowWidth() - 200.0f)
-                    leftPanelWidth_ = ImGui::GetWindowWidth() - 200.0f;
-            }
-        } else {
-            isDraggingSplitter_ = false;
-        }
-
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        }
-        ImGui::PopStyleColor(3);
-        ImGui::SameLine();
 
         // Right panel - Scene Stack Panel
         ImGui::BeginChild("SceneStackPanel", ImVec2(0, 0), true);

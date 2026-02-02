@@ -3,6 +3,7 @@
         <System type="ScriptSystem" />
         <System type="PickSystem" />
         <System type="RenderSystem" />
+        <System type="AnimationSystem" />
     </Systems>
 
     <Layers>

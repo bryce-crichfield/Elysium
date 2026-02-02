@@ -11,6 +11,8 @@
 
 namespace Elysium {
 
+enum class AppMode { Play, Editor };
+
 struct ApplicationConfig {
     int windowWidth = 1280;
     int windowHeight = 720;
@@ -74,6 +76,12 @@ class Application {
 
     void RequestFontReload() { pendingFontReload_ = true; }
 
+    void SetMode(AppMode mode);
+    AppMode GetMode() const { return mode_; }
+
+    // Get time in seconds since application start
+    float GetTime() const { return startTime_; }
+
    private:
     Application() = default;
     ~Application() = default;
@@ -91,9 +99,14 @@ class Application {
     ServiceRegistry serviceRegistry_;
     std::vector<std::unique_ptr<Editor>> editors_;
 
+    AppMode mode_ = AppMode::Play;
+
     bool initialized_ = false;
     bool shouldClose_ = false;
     bool pendingFontReload_ = false;
+    bool editorLayoutBuilt_ = false;
+
+    float startTime_ = 0.0f;
 };
 
 }  // namespace Elysium

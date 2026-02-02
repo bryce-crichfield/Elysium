@@ -9,19 +9,18 @@ class SceneService;
 }
 
 class SceneEditor : public Editor {
-   public:
+public:
     SceneEditor();
 
     void Draw(Application& app) override;
 
-   private:
+private:
     void DrawScenesPanel(Services::SceneService& service);
     void DrawCurrentScenePanel(Services::SceneService& service);
     void DrawSystemsDrawer(Services::SceneService& service);
 
     // Panel state
     float leftPanelWidth_ = 300.0f;
-    bool isDraggingSplitter_ = false;
     int selectedSceneIndex_ = -1;
 };
 
