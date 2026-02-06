@@ -109,10 +109,7 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
     };
 
     componentSavers[std::type_index(typeid(SpriteComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& sprite = world->GetComponent<SpriteComponent>(entity);
-        builder.AddElement("SpriteComponent")
-            .SetAttribute("spriteName", sprite.sprite.name.c_str())
-            .SetAttribute("markerName", sprite.markerName.c_str());
+        // TODO: Reimplement saving of sprite component
     };
 
     componentSavers[std::type_index(typeid(CameraComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {

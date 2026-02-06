@@ -29,6 +29,7 @@
 #include "Components/SelectionComponent.h"
 #include "Components/DebugComponent.h"
 #include "Components/NameComponent.h"
+#include "Components/TileComponent.h"
 
 namespace Elysium::Systems {
 
@@ -241,11 +242,50 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
         using T = std::decay_t<decltype(component)>;
 
         if constexpr (std::is_same_v<T, RectangleComponent>) {
-            float topLeftX = object.position.x - component.width * 0.5f;
-            float topLeftY = object.position.y - component.height * 0.5f;
-            ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
-            if (component.border.a > 0) {
-                ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
+            // Check if this is an isometric tile
+            bool isIsometric = false;
+            float tileWidth = component.width;
+            float tileHeight = component.height;
+
+            if (world->HasComponent<TileComponent>(object.entity)) {
+                const auto& tile = world->GetComponent<TileComponent>(object.entity);
+                isIsometric = tile.isIsometric;
+                tileWidth = tile.tileWidth;
+                tileHeight = tile.tileHeight;
+            }
+
+            if (isIsometric) {
+                // Draw isometric diamond shape
+                float cx = object.position.x;
+                float cy = object.position.y;
+                float hw = tileWidth * 0.5f;   // half width
+                float hh = tileHeight * 0.5f;  // half height
+
+                // Diamond vertices: top, right, bottom, left
+                Vector2 top = {cx, cy - hh};
+                Vector2 right = {cx + hw, cy};
+                Vector2 bottom = {cx, cy + hh};
+                Vector2 left = {cx - hw, cy};
+
+                // Draw filled diamond as two triangles
+                DrawTriangle(top, left, bottom, component.background);
+                DrawTriangle(top, bottom, right, component.background);
+
+                // Draw border lines
+                if (component.border.a > 0) {
+                    DrawLineV(top, right, component.border);
+                    DrawLineV(right, bottom, component.border);
+                    DrawLineV(bottom, left, component.border);
+                    DrawLineV(left, top, component.border);
+                }
+            } else {
+                // Standard rectangle rendering
+                float topLeftX = object.position.x - component.width * 0.5f;
+                float topLeftY = object.position.y - component.height * 0.5f;
+                ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
+                if (component.border.a > 0) {
+                    ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
+                }
             }
         } else if constexpr (std::is_same_v<T, CircleComponent>) {
             ctx.DrawCircle(object.position.x, object.position.y, component.radius, component.background);
@@ -283,36 +323,68 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
                 ctx.DrawCircleGradient(object.position.x, object.position.y, layerRadius, layerColor, layerEdge);
             }
         } else if constexpr (std::is_same_v<T, SpriteComponent>) {
-            const Sprite& sprite = component.sprite;
-            const std::string& marker = component.markerName;
+            auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
 
-            Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
-            std::string textureName = sprite.GetMarkerTextureName(marker);
-
-            if (!textureName.empty() && sourceRect.width > 0 && sourceRect.height > 0) {
-                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
-                Texture2D texture = assets.GetTexture(textureName);
-
-                if (texture.id != 0) {
-                    float scaleX = 1.0f, scaleY = 1.0f;
-                    if (world->HasComponent<ScaleComponent>(object.entity)) {
-                        auto& scale = world->GetComponent<ScaleComponent>(object.entity);
-                        scaleX = scale.x;
-                        scaleY = scale.y;
-                    }
-
-                    float scaledWidth = sourceRect.width * scaleX;
-                    float scaledHeight = sourceRect.height * scaleY;
-
-                    Rectangle destRect = {
-                        object.position.x - scaledWidth * 0.5f,
-                        object.position.y - scaledHeight * 0.5f,
-                        scaledWidth,
-                        scaledHeight};
-                    Vector2 origin = {0, 0};
-                    ctx.DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
-                }
+            Sprite sprite = assets.GetSprite(component.spriteName);
+            if (sprite.name.empty()) {
+                return;
             }
+
+            auto sheetIt = sprite.sheets.find(component.sheetName);
+            if (sheetIt == sprite.sheets.end()) {
+                return;
+            }
+            const SpriteSheet& sheet = sheetIt->second;
+
+            auto seqIt = sheet.sequences.find(component.sequenceName);
+            if (seqIt == sheet.sequences.end()) {
+                return;
+            }
+            const SpriteSequence& sequence = seqIt->second;
+
+            if (sequence.indices.empty()) {
+                return;
+            }
+
+            size_t frameIdx = component.sequenceIndex % sequence.indices.size();
+            size_t linearIndex = sequence.indices[frameIdx];
+
+            Texture2D texture = assets.GetTexture(sheet.path);
+            if (texture.id == 0) {
+                return;
+            }
+
+            float frameWidth = (float)texture.width / (float)sheet.cols;
+            float frameHeight = (float)texture.height / (float)sheet.rows;
+
+            size_t col = linearIndex % sheet.cols;
+            size_t row = linearIndex / sheet.cols;
+
+            Rectangle sourceRect = {
+                col * frameWidth,
+                row * frameHeight,
+                frameWidth,
+                frameHeight
+            };
+
+            float scaleX = 1.0f, scaleY = 1.0f;
+            if (world->HasComponent<ScaleComponent>(object.entity)) {
+                auto& scale = world->GetComponent<ScaleComponent>(object.entity);
+                scaleX = scale.x;
+                scaleY = scale.y;
+            }
+
+            float scaledWidth = frameWidth * scaleX;
+            float scaledHeight = frameHeight * scaleY;
+
+            Rectangle destRect = {
+                object.position.x - scaledWidth * 0.5f,
+                object.position.y - scaledHeight * 0.5f,
+                scaledWidth,
+                scaledHeight
+            };
+            Vector2 origin = {0, 0};
+            ctx.DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
         } else if constexpr (std::is_same_v<T, DebugComponent>) {
             const DebugComponent& debug = component;
 

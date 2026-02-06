@@ -3,26 +3,33 @@
 #include "Core/Entity.h"
 #include "Components/SpriteComponent.h"
 
+#include "Core/Application.h"
+#include "Services/AssetService.h"
+
 namespace Elysium::Systems {
 
 SpriteSystem::SpriteSystem(Context context) : System(context) {
 }
 
 void SpriteSystem::Update(float deltaTime) {
-    // Update all sprite components with frame timing
     world->Query<SpriteComponent>([&](Entity entity, auto& spriteComp) {
-        // Advance frame timing
+        auto& assets = Application::GetInstance().GetService<Services::AssetService>();
+
         spriteComp.frameElapsed += deltaTime;
 
-        // Check if it's time to advance to the next frame
         if (spriteComp.frameElapsed >= spriteComp.frameDuration) {
-            spriteComp.frameElapsed -= spriteComp.frameDuration;  // Keep remainder for smooth timing
+            spriteComp.frameElapsed -= spriteComp.frameDuration;  
 
-            // Get frame count for current marker
-            int frameCount = spriteComp.sprite.GetMarkerFrameCount(spriteComp.markerName);
-            if (frameCount > 0) {
+            auto sprite = assets.GetSprite(spriteComp.spriteName);
+            if (sprite.name.empty()) {
+                return;
+            }
+
+            SpriteSheet sheet = sprite.sheets[spriteComp.sheetName];
+            SpriteSequence sequence = sheet.sequences[spriteComp.sequenceName];
+            if (sequence.indices.size() > 0) {
                 // Advance to next frame (loop back to 0 when reaching end)
-                spriteComp.frameIndex = (spriteComp.frameIndex + 1) % frameCount;
+                spriteComp.sequenceIndex = (spriteComp.sequenceIndex + 1) % sequence.indices.size();
             }
         }
     });

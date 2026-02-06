@@ -1,0 +1,18 @@
+<Sprite name="Bishop">
+    <Sequences>
+        <Sequence name="east"  indicies="0:*" />
+        <Sequence name="southeast"  indicies="1:*" />
+        <Sequence name="south"  indicies="2:*" />
+        <Sequence name="southwest"  indicies="3:*" />
+        <Sequence name="west"  indicies="4:*" />
+        <Sequence name="northwest"  indicies="5:*" />
+        <Sequence name="north"  indicies="6:*" />
+        <Sequence name="northeast"  indicies="7:*" />
+    </Sequences>
+
+    <Sheet name="Idle" path="Bishop/Idle.png" rows="8" columns="15" />
+    <Sheet name="Walk" path="Bishop/Walk.png" rows="8" columns="15" />
+    <Sheet name="Work" path="Bishop/Work.png" rows="8" columns="15" />
+    <Sheet name="Death" path="Bishop/Death.png" rows="8" columns="15" />
+    <Sheet name="Attack" path="Bishop/Attack.png" rows="8" columns="15" />
+</Sprite>

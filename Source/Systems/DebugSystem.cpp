@@ -83,14 +83,7 @@ void DebugSystem::Update(float deltaTime) {
                     halfW = textWidth * 0.5f;
                     halfH = scaledFontSize * 0.5f;
                 } else if constexpr (std::is_same_v<T, SpriteComponent>) {
-                    const Sprite& sprite = component.sprite;
-                    const std::string& marker = component.markerName;
-                    Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
-                    
-                    if (sourceRect.width > 0 && sourceRect.height > 0) {
-                        halfW = sourceRect.width * scaleX * 0.5f;
-                        halfH = sourceRect.height * scaleY * 0.5f;
-                    }
+                    // TODO: Reimplement sprite size calculation
                 } else if constexpr (std::is_same_v<T, LightComponent>) {
                     halfW = component.radius;
                     halfH = component.radius;

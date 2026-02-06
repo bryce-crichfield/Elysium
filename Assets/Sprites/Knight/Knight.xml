@@ -1,0 +1,18 @@
+<Sprite name="Knight">
+    <Sequences>
+        <Sequence name="east"  indicies="0:*" />
+        <Sequence name="southeast"  indicies="1:*" />
+        <Sequence name="south"  indicies="2:*" />
+        <Sequence name="southwest"  indicies="3:*" />
+        <Sequence name="west"  indicies="4:*" />
+        <Sequence name="northwest"  indicies="5:*" />
+        <Sequence name="north"  indicies="6:*" />
+        <Sequence name="northeast"  indicies="7:*" />
+    </Sequences>
+
+    <Sheet name="Idle" path="Knight/Idle.png" rows="8" columns="15" />
+    <Sheet name="Walk" path="Knight/Walk.png" rows="8" columns="15" />
+    <Sheet name="Run" path="Knight/Run.png" rows="8" columns="15" />
+    <Sheet name="Die" path="Knight/Die.png" rows="8" columns="15" />
+    <Sheet name="Attack" path="Knight/Attack.png" rows="8" columns="15" />
+</Sprite>

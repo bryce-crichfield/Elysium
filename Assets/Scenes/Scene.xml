@@ -10,7 +10,6 @@
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
         <System type="RenderSystem" />
-        <System type="PickSystem" />
         <System type="ScriptSystem" />
         <System type="DebugSystem" />
         <System type="CommandSystem" />

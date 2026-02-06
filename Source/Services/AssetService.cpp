@@ -295,6 +295,21 @@ void AssetService::LoadAssetByType(Asset& asset) {
             try {
                 Sprite sprite = Sprite::LoadFromXml(path);
                 LOG_DEBUGF("AssetService", "Loaded sprite '%s' with %d sheets", sprite.name.c_str(), (int)sprite.sheets.size());
+
+                // Load each sheet's texture as an asset
+                // Sheet paths like "Archer/Idle.png" are relative to Assets/Sprites/
+                for (auto& [sheetName, sheet] : sprite.sheets) {
+                    std::string relativePath = "Sprites/" + sheet.path;
+
+                    // Check if this texture is already loaded
+                    if (!IsAssetLoaded(sheet.path)) {
+                        LOG_DEBUGF("AssetService", "Loading sheet texture: %s -> %s", sheet.path.c_str(), relativePath.c_str());
+
+                        Asset textureAsset(AssetType::TEXTURE, sheet.path, relativePath);
+                        LoadAsset(textureAsset);
+                    }
+                }
+
                 asset.SetSprite(sprite);
                 LOG_DEBUGF("AssetService", "SetSprite completed, asset loaded = %s", asset.IsLoaded() ? "true" : "false");
             } catch (...) {

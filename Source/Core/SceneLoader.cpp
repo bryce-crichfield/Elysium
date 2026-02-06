@@ -17,12 +17,12 @@
 #include "Systems/CameraSystem.h"
 #include "Systems/CommandSystem.h"
 #include "Systems/MovementSystem.h"
-#include "Systems/PickSystem.h"
 #include "Systems/RenderSystem.h"
 #include "Systems/ScriptSystem.h"
 #include "Systems/SpriteSystem.h"
 #include "Systems/SpatialSystem.h"
 #include "Systems/KinematicsSystem.h"
+#include "Systems/CollisionSystem.h"
 
 using namespace tinyxml2;
 
@@ -48,7 +48,7 @@ void LoadLayers(XMLElement* root, Scene& scene) {
     });
 }
 
-void LoadTilemap(XMLElement* root, World* world) {
+void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& outTileHeight, bool& outIsIsometric) {
     VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
         struct TileDef {
             RectangleComponent rect;
@@ -57,6 +57,14 @@ void LoadTilemap(XMLElement* root, World* world) {
         std::unordered_map<int, TileDef> tileDefinitions;
         std::vector<int> tilemask;
         int tilemapWidth = tilemap->IntAttribute("width", 0);
+        float tileWidth = tilemap->FloatAttribute("tileWidth", 32.0f);
+        float tileHeight = tilemap->FloatAttribute("tileHeight", 32.0f);
+        bool isIsometric = tilemap->BoolAttribute("isIsometric", false);
+
+        // Output tilemap properties for position calculation
+        outTileWidth = tileWidth;
+        outTileHeight = tileHeight;
+        outIsIsometric = isIsometric;
 
         VisitElement(tilemap, "Tilemask", [&](XMLElement* xmlTileMask) {
             const char* textContent = xmlTileMask->GetText();
@@ -83,7 +91,7 @@ void LoadTilemap(XMLElement* root, World* world) {
                 const char* layerName = xmlTileDefinition->Attribute("layerName");
                 Color bgColor = ParseHexColor(bgHex, BLANK);
                 Color borderColor = ParseHexColor(borderHex, BLANK);
-                tileDefinitions[id] = {RectangleComponent(32, 32, bgColor, borderColor), layerName ? layerName : "tile"};
+                tileDefinitions[id] = {RectangleComponent(tileWidth, tileHeight, bgColor, borderColor), layerName ? layerName : "tile"};
             });
         });
 
@@ -96,7 +104,7 @@ void LoadTilemap(XMLElement* root, World* world) {
             world->AddComponent<LocationComponent>(entity, LocationComponent(x, y));
             world->AddComponent<RectangleComponent>(entity, tileDefinitions[id].rect);
             world->AddComponent<LayerComponent>(entity, LayerComponent(tileDefinitions[id].layerName));
-            world->AddComponent<TileComponent>(entity, TileComponent());
+            world->AddComponent<TileComponent>(entity, TileComponent(tileWidth, tileHeight, isIsometric));
         }
     });
 }
@@ -189,8 +197,6 @@ void LoadSystems(XMLElement* root, Scene& scene) {
                 scene.AddSystem(std::make_unique<Elysium::Systems::CameraSystem>(context));
             } else if (systemName == "SpriteSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::SpriteSystem>(context));
-            } else if (systemName == "PickSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::PickSystem>(context));
             } else if (systemName == "ScriptSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::ScriptSystem>(context));
             } else if (systemName == "CommandSystem") {
@@ -199,6 +205,8 @@ void LoadSystems(XMLElement* root, Scene& scene) {
                 scene.AddSystem(std::make_unique<Elysium::Systems::SpatialSystem>(context));
             } else if (systemName == "KinematicsSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::KinematicsSystem>(context));
+            } else if (systemName == "CollisionSystem") {
+                scene.AddSystem(std::make_unique<Elysium::Systems::CollisionSystem>(context));
             } else {
                 LOG_WARNINGF("Scene", "Unknown system type: %s", systemName.c_str());
             }
@@ -223,17 +231,32 @@ bool LoadScene(Scene& scene, const std::string& path) {
 
     World* world_ = scene.GetWorld();
 
+    // Tilemap properties for position calculation
+    float tileWidth = TILE_WIDTH;
+    float tileHeight = TILE_HEIGHT;
+    bool isIsometric = false;
+
     LoadLayers(root, scene);
-    LoadTilemap(root, world_);
+    LoadTilemap(root, world_, tileWidth, tileHeight, isIsometric);
     LoadEntities(root, world_);
     LoadSystems(root, scene);
 
     // We allow the user to define the location and have the position component be implicit
     // Position component represents the CENTER of the tile in world coordinates
     world_->Query<LocationComponent>([&](Entity entity, auto& loc) {
-        // Convert tile coordinates to centered world coordinates
-        float worldX = loc.x * TILE_WIDTH + TILE_WIDTH * 0.5f;
-        float worldY = loc.y * TILE_HEIGHT + TILE_HEIGHT * 0.5f;
+        float worldX, worldY;
+
+        if (isIsometric) {
+            // Isometric coordinate transformation
+            // screenX = (tileX - tileY) * (tileWidth / 2)
+            // screenY = (tileX + tileY) * (tileHeight / 2)
+            worldX = (loc.x - loc.y) * (tileWidth * 0.5f);
+            worldY = (loc.x + loc.y) * (tileHeight * 0.5f);
+        } else {
+            // Standard orthogonal grid
+            worldX = loc.x * tileWidth + tileWidth * 0.5f;
+            worldY = loc.y * tileHeight + tileHeight * 0.5f;
+        }
 
         if (!world_->HasComponent<PositionComponent>(entity)) {
             world_->AddComponent<PositionComponent>(entity, PositionComponent(worldX, worldY));

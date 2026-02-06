@@ -1,0 +1,18 @@
+<Sprite name="Worker">
+    <Sequences>
+        <Sequence name="east"  indicies="0:*" />
+        <Sequence name="southeast"  indicies="1:*" />
+        <Sequence name="south"  indicies="2:*" />
+        <Sequence name="southwest"  indicies="3:*" />
+        <Sequence name="west"  indicies="4:*" />
+        <Sequence name="northwest"  indicies="5:*" />
+        <Sequence name="north"  indicies="6:*" />
+        <Sequence name="northeast"  indicies="7:*" />
+    </Sequences>
+
+    <Sheet name="Idle" path="Worker/Idle.png" rows="8" columns="15" />
+    <Sheet name="Walk" path="Worker/Walk.png" rows="8" columns="15" />
+    <Sheet name="Work" path="Worker/Work.png" rows="8" columns="15" />
+    <Sheet name="Death" path="Worker/Death.png" rows="8" columns="15" />
+    <Sheet name="Attack" path="Worker/Attack.png" rows="8" columns="15" />
+</Sprite>

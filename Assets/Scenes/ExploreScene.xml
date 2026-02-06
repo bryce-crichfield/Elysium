@@ -7,6 +7,8 @@
         <System type="SpriteSystem" />
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
+		<System type="FollowSystem" />
+        <System type="CollisionSystem" />
         <System type="CommandSystem" />
         <System type="RenderSystem" />
     </Systems>
@@ -14,37 +16,35 @@
     <SceneConfiguration width="800" height="600">
         <SceneLayer name="background" z="-1" space="World" blend="Normal" />
         <SceneLayer name="default" z="0" space="World" blend="Normal" />
-        <SceneLayer name="tile" z="1" space="World" blend="Normal" />
+        <SceneLayer name="tile" z="0" space="World" blend="Normal" />
         <SceneLayer name="entity" z="2" space="World" blend="Normal" />
-        <SceneLayer name="light" z="3" space="World" blend="Multiply" opacity="1.0" isComposited="true" />
+		<SceneLayer name="light" z="4" space="World" blend="Additive"/> 
+		<SceneLayer name="shadow" z="5" space="World" blend="Multiply" opacity="1.0" isComposited="true" />
     </SceneConfiguration>
 
-    <Tilemap width="20" height="20">
+    <Tilemap width="16" height="16" isIsometric="true" tileWidth="64" tileHeight="32">
         <Tilemask>
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-        </Tilemask>
+			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+		</Tilemask>
 
         <TileDefinitions>
-            <TileDefinition id="0" background="#00cece91" border="#ffffff" layerName="tile" />
+            <TileDefinition id="0" background="#212121" border="#515151" layerName="tile" />
+			<TileDefinition id="1" background="#a0a0a0" boreder="#515151" layerName="tile" />
         </TileDefinitions>
     </Tilemap>
 
@@ -58,78 +58,50 @@
 
         <!-- PLAYER UNIT -->
         <Entity>
-            <NameComponent name="ENTITY_0" />
+            <NameComponent name="Archer" />
             <PositionComponent x="100" y="100" />
-            <MovementComponent>
-                <Waypoints></Waypoints>
-            </MovementComponent>
+
+			<MovementComponent />
             <KinematicsComponent maxSpeed="150" friction="5" />
-            <AnimationComponent />
-            <DirectionComponent />
-            <BoundsComponent />
-            <HealthComponent max="100" />
-            <AttackComponent range="150" damage="15" cooldown="1.0" />
-			<RectangleComponent width="32" height="32" background="#ff0000ff"/>
 
             <SpriteComponent
-                spriteName="mushroom_warrior"
-                markerName="idle/down"
-                layerName="entity" />
-
-        </Entity>
-
-		<Entity>
-			<NameComponent name="ENTITY_LIGHT" />
-			<PositionComponent x="100" y="100" />
-			<LayerComponent name="light" />
-			<LightComponent color="#ffffff" radius="100" />
+                spriteName="Archer"
+				sheetName="Idle"
+				sequenceName="south"/>
+			<ColliderComponent width="32" height="32" />
+			<ScriptComponent scriptName="Scripts\Unit.lua" />
+			<LayerComponent name="entity" />
 		</Entity>
 
-        <!-- ENEMY UNIT -->
-        <Entity>
-            <NameComponent name="ENTITY_1" />
-            <PositionComponent x="300" y="300" />
-            <MovementComponent>
-                <Waypoints></Waypoints>
-            </MovementComponent>
-            <KinematicsComponent maxSpeed="100" friction="5" />
-            <AnimationComponent />
-            <DirectionComponent />
-            <BoundsComponent />
-            <HealthComponent max="50" />
+		<Entity>
+			<FollowComponent target="Archer" />
 
-            <SpriteComponent
-            spriteName="mushroom_warrior"
-            markerName="idle/down"
-            layerName="entity" />
+			<PositionComponent />
+			<LayerComponent name="light" />
+			<LightComponent color="#ffffffff" radius="300" />
+		</Entity>
 
-        </Entity>
+		<Entity>
+			<NameComponent name="Knight" />
+			<PositionComponent x="0" y="100" />
 
-        <!-- BARRACKS -->
-        <Entity>
-            <NameComponent name="Barracks_1" />
-            <PositionComponent x="100" y="300" />
-        </Entity>
+			<MovementComponent />
+			<KinematicsComponent maxSpeed="150" friction="5" />
 
-        <Entity>
-            <NameComponent name="CommandCenter" />
-            <PositionComponent x="200" y="200" />
-        </Entity>
+			<SpriteComponent
+                spriteName="Knight"
+				sheetName="Idle"
+				sequenceName="south"/>
+			<ColliderComponent width="32" height="32" />
+			<ScriptComponent scriptName="Scripts\Unit.lua" />
+			<LayerComponent name="entity" />
+		</Entity>
 
-        <Entity>
-            <NameComponent name="MineralPatch1" />
-            <PositionComponent x="500" y="150" />
-        </Entity>
-
-        <Entity>
-            <NameComponent name="MineralPatch2" />
-            <PositionComponent x="550" y="220" />
-        </Entity>
-
-        <Entity>
-            <NameComponent name="MineralPatch3" />
-            <PositionComponent x="480" y="280" />
-        </Entity>
-
+		<Entity>
+			<PositionComponent />
+			<LayerComponent name="light" />
+			<LightComponent color="#ffffffff" radius="200" />
+			<FollowComponent target="Knight" />
+		</Entity>
     </Entities>
 </Scene>

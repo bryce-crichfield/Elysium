@@ -42,30 +42,6 @@ void ExploreScene::OnEnter() {
 
     // Setup network systems based on current network mode
     SetupNetworkSystems();
-
-    Entity patrolEntity;
-    if (world_->GetEntityByName("ENTITY_0", &patrolEntity)) {
-        if (world_->HasComponent<AnimationComponent>(patrolEntity) && world_->HasComponent<SpriteComponent>(patrolEntity)) {
-            auto& anim = world_->GetComponent<AnimationComponent>(patrolEntity);
-            auto& sprite = world_->GetComponent<SpriteComponent>(patrolEntity);
-
-            std::string markerName = "idle/down";
-            anim.marker = markerName;
-
-            // Get frame range from sprite data
-            auto frameRange = sprite.sprite.GetMarkerFrameRange(markerName);
-            anim.start = frameRange.first;
-            anim.end = frameRange.second;
-            anim.currentFrame = anim.start;
-            anim.frameDuration = 0.5f;  // 300ms per frame
-            anim.loop = true;
-            anim.elapsed = 0;
-
-            // Set initial sprite state
-            sprite.markerName = markerName;
-            sprite.frameIndex = anim.currentFrame;
-        }
-    }
 }
 
 void ExploreScene::OnMessage(Message& message) {

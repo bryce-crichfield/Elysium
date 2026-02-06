@@ -4,12 +4,6 @@
 
 namespace Elysium {
     struct AnimationComponent {
-        std::string marker;
-        int currentFrame = 0;
-        int start, end;
-        float frameDuration, elapsed = 0;
-        bool loop = false;
-
         AnimationComponent() = default;
         AnimationComponent(std::string marker);
 

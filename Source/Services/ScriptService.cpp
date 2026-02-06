@@ -14,8 +14,8 @@
 #include <cmath>
 #include "Components/CameraComponent.h"
 #include "Components/PositionComponent.h"
+#include "Systems/CollisionSystem.h"
 
-#include "Systems/PickSystem.h"
 
 namespace Elysium::Services {
 
@@ -305,6 +305,36 @@ void ScriptService::BindEntityAPI() {
         float dx = x2 - x1;
         float dy = y2 - y1;
         return std::sqrt(dx * dx + dy * dy);
+    });
+
+    // Collision queries
+    lua.set_function("AreColliding", [](Entity a, Entity b) -> bool {
+        auto& app = Elysium::Application::GetInstance();
+        auto* scene = app.GetService<Elysium::Services::SceneService>().GetScene();
+        if (!scene) return false;
+
+        auto* collisionSystem = scene->GetSystem<Elysium::Systems::CollisionSystem>();
+        if (!collisionSystem) return false;
+
+        return collisionSystem->AreColliding(a, b);
+    });
+
+    lua.set_function("GetCollisions", [this](Entity entity) -> sol::table {
+        sol::table result = lua.create_table();
+
+        auto& app = Elysium::Application::GetInstance();
+        auto* scene = app.GetService<Elysium::Services::SceneService>().GetScene();
+        if (!scene) return result;
+
+        auto* collisionSystem = scene->GetSystem<Elysium::Systems::CollisionSystem>();
+        if (!collisionSystem) return result;
+
+        auto collisions = collisionSystem->GetCollisionsWith(entity);
+        int index = 1;
+        for (Entity e : collisions) {
+            result[index++] = e;
+        }
+        return result;
     });
 }
 

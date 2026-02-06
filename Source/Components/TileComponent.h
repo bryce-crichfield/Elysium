@@ -3,8 +3,13 @@
 
 namespace Elysium {
     struct TileComponent {
-        // ACTS LIKE A TYPE FLAG
+        float tileWidth = 32.0f;
+        float tileHeight = 32.0f;
+        bool isIsometric = false;
+
         TileComponent() = default;
+        TileComponent(float width, float height, bool isometric = false)
+            : tileWidth(width), tileHeight(height), isIsometric(isometric) {}
 
         static constexpr const char* Name() { return "Tile"; }
         static constexpr const char* XmlTag() { return "TileComponent"; }

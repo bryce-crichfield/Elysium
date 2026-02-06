@@ -5,11 +5,12 @@
 
 namespace Elysium {
     struct SpriteComponent {
-        Sprite sprite;
-        std::string markerName;
-        int frameIndex = 0;          // Current frame within the marker
-        float frameDuration = 0.2f;  // Time per frame in seconds
-        float frameElapsed = 0.0f;   // Time elapsed on current frame
+        std::string spriteName;
+        std::string sheetName;
+        std::string sequenceName;
+        int sequenceIndex = 0;          
+        float frameDuration = 0.2f;  
+        float frameElapsed = 0.0f;  
 
         SpriteComponent() = default;
         SpriteComponent(const Sprite& sprite, const std::string& marker);
