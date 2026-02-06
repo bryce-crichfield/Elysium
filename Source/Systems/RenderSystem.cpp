@@ -1,299 +1,437 @@
 #include "Systems/RenderSystem.h"
+#include <algorithm>
+#include <cmath>
+#include <optional>
+#include <stdexcept>
+#include <variant>
+#include <vector>
+#include "Core/Common.h"
+#include "Core/Application.h"
+#include "Core/Entity.h"
+#include "Core/Scene.h"
+#include "Core/RenderContext.h"
+#include "Services/AssetService.h"
+#include "Services/SceneService.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
-#include "Application.h"
-#include "Scene.h"
-#include "Entity.h"
-#include "Services/AssetService.h"
-#include <vector>
-#include <algorithm>
-#include <stdexcept>
-#include <variant>
-#include <optional>
+#include "Components/CameraComponent.h"
+#include "Components/LayerComponent.h"
+#include "Components/PositionComponent.h"
+#include "Components/RectangleComponent.h"
+#include "Components/CircleComponent.h"
+#include "Components/TextComponent.h"
+#include "Components/SpriteComponent.h"
+#include "Components/LightComponent.h"
+#include "Components/BoundsComponent.h"
+#include "Components/ScaleComponent.h"
+#include "Components/HealthComponent.h"
+#include "Components/SelectionComponent.h"
+#include "Components/DebugComponent.h"
+#include "Components/NameComponent.h"
+
 namespace Elysium::Systems {
 
+RenderSystem::~RenderSystem() {
+    if (_lightMap.id != 0) {
+        UnloadRenderTexture(_lightMap);
+    }
+}
+
+RenderTexture2D& RenderSystem::EnsureLightMap(int width, int height) {
+    if (_lightMap.id == 0 || _lightMapWidth != width || _lightMapHeight != height) {
+        if (_lightMap.id != 0) {
+            UnloadRenderTexture(_lightMap);
+        }
+        _lightMap = LoadRenderTexture(width, height);
+        _lightMapWidth = width;
+        _lightMapHeight = height;
+    }
+    return _lightMap;
+}
+
 void RenderSystem::Draw() {
-    // Find the first active camera
-    Entity cameraEntity;
-    CameraComponent* camera = nullptr;
-    bool foundCamera = false;
+    FindCameras();
+    RenderContext ctx;
+    
+    for (auto& cameraEntity : _cameraEntities) {
+        RenderView(ctx, cameraEntity);
+    }
+}
+
+void RenderSystem::FindCameras() {
+    _cameraEntities.clear();
 
     world->Query<CameraComponent>([&](Entity entity, auto& cameraComp) {
-        if (!foundCamera) {
-            if (cameraComp.isVisible) {
-                cameraEntity = entity;
-                camera = &cameraComp;
-                foundCamera = true;
-            }
-        }
+        _cameraEntities.push_back(entity);
     });
 
-    if (!foundCamera || !camera) {
+    if (_cameraEntities.empty()) {
         ClearBackground(BLACK);
         DrawText("No active camera found", 10, 10, 20, RED);
         return;
-        // throw std::runtime_error("No active camera found. Scene must have at least one visible CameraComponent.");
     }
 
-    // Build layer definition lookup = layerIndex -> <Entity, LayerComponent>
-    Layers layers;
-    world->Query<LayerComponent>([&](Entity entity, auto& layer) {
-        if (layer.isVisible) {
-            int layerIndex = layer.zIndex;
-            layers[layerIndex] = {entity, &layer};
-        }
+    std::sort(_cameraEntities.begin(), _cameraEntities.end(), [&](Entity a, Entity b) {
+        auto& camA = world->GetComponent<CameraComponent>(a);
+        auto& camB = world->GetComponent<CameraComponent>(b);
+        return camA.renderOrder < camB.renderOrder;
     });
-
-    // Render the single camera view
-    RenderCamera(cameraEntity, *camera, layers);
 }
 
-void RenderSystem::RenderCamera(Entity cameraEntity, const CameraComponent& camera, const Layers& layers) {
-    // Get the camera's world transform
-    Vector2 cameraWorldPosition = {0, 0};
-    if (world->HasComponent<PositionComponent>(cameraEntity)) {
-        auto& pos = world->GetComponent<PositionComponent>(cameraEntity);
-        cameraWorldPosition.x = pos.x;
-        cameraWorldPosition.y = pos.y;
-    }
+void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
+    auto& camera = world->GetComponent<CameraComponent>(cameraEntity);
+    if (!camera.isVisible)
+        return;
 
-    BeginScissorMode(
-        camera.viewport.x,
-        camera.viewport.y,
-        camera.viewport.width,
-        camera.viewport.height
-    );
+    ctx.PushScissorMode(
+        (int)camera.viewport.x,
+        (int)camera.viewport.y,
+        (int)camera.viewport.width,
+        (int)camera.viewport.height);
 
-    // Collects and group renderable entities by layer;
-    std::unordered_map<int, std::vector<RenderItem>> layerItems;
+    // Collect and group renderable entities by layer name
+    std::unordered_map<std::string, std::vector<RenderableObject>> layerItems;
+    std::vector<RenderableObject> debugWorld2D;
+    std::vector<RenderableObject> debugScreen2D;
 
     world->Query<PositionComponent>([&](Entity entity, auto& pos) {
-        // Skip camera and layer definition entities (they don't render as game objects)
-        if (world->HasComponent<CameraComponent>(entity) ||
-            world->HasComponent<LayerComponent>(entity)) {
+        if (world->HasComponent<CameraComponent>(entity)) {
             return;
         }
 
-        // Get layer index - default to 0 if no LayerComponent
-        int layerIndex = 0;
-        if (world->HasComponent<LayerComponent>(entity)) {
-            layerIndex = world->GetComponent<LayerComponent>(entity).zIndex;
-        }
-
-        std::optional<Renderable> renderable = GetRenderable(entity);
-        if (!renderable.has_value()) {
+        std::vector<Renderable> renderable = GetRenderables(entity);
+        if (renderable.empty()) {
             return;
         }
 
-        std::string layerName = GetLayerName(renderable);
+        std::string layerName = GetLayerName(entity);
 
-        // Check if this camera can see this layer
-        if (!CanCameraSeeLayer(entity, camera, layerName, layers)) {
-            return;
+        for (auto& renderableComp : renderable) {
+            RenderableObject item;
+            item.entity = entity;
+            item.position = {pos.x, pos.y};
+            item.renderable = renderableComp;
+
+            // Intercept debug components
+            if (std::holds_alternative<DebugComponent>(renderableComp)) {
+                // Determine which debug layer based on entity's actual layer space
+                auto actualLayer = scene->GetLayer(layerName);
+                if (actualLayer && actualLayer->space == SceneLayerSpace::Screen2D) {
+                    debugScreen2D.push_back(item);
+                } else {
+                    debugWorld2D.push_back(item);
+                }
+            } else {
+                layerItems[layerName].push_back(item);
+            }
         }
-
-        // Create render item and add to layer
-        RenderItem item;
-        item.entity = entity;
-        item.position = {pos.x, pos.y};
-        item.renderable = renderable.value();
-
-        layerItems[layerIndex].push_back(item);
     });
+     
+    std::vector<SceneLayer> layers = scene->GetLayers();
 
-    // Render layers in order
-    std::vector<int> sortedLayers;
-    for (const auto& [layerIndex, items]: layerItems) {
-        sortedLayers.push_back(layerIndex);
-    }
-    std::sort(sortedLayers.begin(), sortedLayers.end());
+    // Render layers in their defined order (by zIndex/order in list)
+    for (const auto& layer : layers) {
+        if (!layer.isVisible)
+            continue;
 
-    for (int layerIndex : sortedLayers) {
-        auto layerIt = layers.find(layerIndex);
-        if (layerIt != layers.end()) {
-            RenderLayer(layerIndex, layerItems[layerIndex],
-                cameraEntity, *layerIt->second.second);
-        } else {
-            LayerComponent defaultLayer;
-            RenderLayer(layerIndex, layerItems[layerIndex], cameraEntity, defaultLayer);
+        auto it = layerItems.find(layer.name);
+        if (it != layerItems.end()) {
+            if (layer.isComposited) {
+                RenderCompositedLayer(ctx, cameraEntity, layer, it->second);
+            } else {
+                RenderImmediateLayer(ctx, cameraEntity, layer, it->second);
+            }
         }
     }
 
-    EndScissorMode();
-}
-
-bool RenderSystem::CanCameraSeeLayer(Entity entity, const CameraComponent& camera, const std::string& layerName, const Layers& layers) {
-    // For now, we'll assume all cameras can see all layers
-    // TODO: Implement proper layer filtering based on layerName
-    return true;
-}
-
-void RenderSystem::RenderLayer(int index, const std::vector<RenderItem>& items, Entity cameraEntity, const LayerComponent& layer)
-{
-    ApplyBlendMode(layer.blend);
-
-    Matrix transform = GetLayerTransform(layer, cameraEntity);
-
-    rlPushMatrix();
-    rlMultMatrixf(MatrixToFloat(transform));
-
-    for (const auto& item : items) {
-        RenderSingleItem(item, layer);
+    // Render debug overlays AFTER everything else
+    if (!debugWorld2D.empty()) {
+        SceneLayer debugLayerWorld;
+        debugLayerWorld.name = "__debug_world2d__";
+        debugLayerWorld.space = SceneLayerSpace::World2D;
+        debugLayerWorld.layerBlend = SceneLayerBlend::Alpha;
+        debugLayerWorld.isComposited = false;
+        debugLayerWorld.isVisible = true;
+        RenderImmediateLayer(ctx, cameraEntity, debugLayerWorld, debugWorld2D);
     }
 
-    rlPopMatrix();
+    if (!debugScreen2D.empty()) {
+        SceneLayer debugLayerScreen;
+        debugLayerScreen.name = "__debug_screen2d__";
+        debugLayerScreen.space = SceneLayerSpace::Screen2D;
+        debugLayerScreen.layerBlend = SceneLayerBlend::Alpha;
+        debugLayerScreen.isComposited = false;
+        debugLayerScreen.isVisible = true;
+        RenderImmediateLayer(ctx, cameraEntity, debugLayerScreen, debugScreen2D);
+    }
+    
+    ctx.PopScissorMode();
 }
 
-void RenderSystem::ApplyBlendMode(const LayerComponent::Blend& blend)
-{
-    switch (blend)
-    {
-    case LayerComponent::Blend::Normal:
-        BeginBlendMode(BLEND_ALPHA);
-        break;
-    case LayerComponent::Blend::Additive:
-        BeginBlendMode(BLEND_ADDITIVE);
-        break;
-    case LayerComponent::Blend::Multiply:
-        BeginBlendMode(BLEND_MULTIPLIED);
-        break;
-    case LayerComponent::Blend::Alpha:
-        BeginBlendMode(BLEND_ALPHA);
-        break;
-    default:
-        BeginBlendMode(BLEND_ALPHA);
-        break;
+void RenderSystem::RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, const std::vector<RenderableObject>& objects) {
+    ProfileN("Render Immediate Layer");
+    Matrix viewProjectionTransform = CalculateTransform(cameraEntity, layer);
+    PushBlendMode(ctx, layer.layerBlend);
+    ctx.PushMatrix();
+    ctx.MultiplyMatrix(viewProjectionTransform);
+
+    for (const auto& object : objects) {
+        RenderObject(ctx, object, layer);
+    }
+
+    ctx.PopMatrix();
+    ctx.PopBlendMode();
+}
+
+// Composited layers are those that render to an offscreen texture first (e.g. light layers)
+// This allows for blend modes to work correctly over the entire layer
+void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, const std::vector<RenderableObject>& objects) {
+    ProfileN("Render Composited Layer");
+    
+    auto& camera = world->GetComponent<CameraComponent>(cameraEntity);
+    Matrix layerTransform = CalculateTransform(cameraEntity, layer);
+
+    int w = (int)camera.viewport.width;
+    int h = (int)camera.viewport.height;
+    RenderTexture2D& compositionBuffer = EnsureLightMap(w, h);
+
+    ctx.PopScissorMode();
+
+    ctx.BeginTextureMode(compositionBuffer);
+    ClearBackground(layer.ambient);
+    
+    //ctx.PushBlendMode(BLEND_ADDITIVE);
+    PushBlendMode(ctx, layer.layerBlend);
+    ctx.PushMatrix();
+    ctx.MultiplyMatrix(layerTransform);
+
+    for (const auto& object : objects) {
+        RenderObject(ctx, object, layer);
+    }
+
+    ctx.PopMatrix();
+    ctx.PopBlendMode();
+    
+    ctx.EndTextureMode();
+
+    // Restore SceneService's framebuffer
+    auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
+    ctx.BeginTextureMode(sceneService.GetFramebuffer());
+
+    // Composite lightmap onto scene using layer's blend mode
+    //PushBlendMode(ctx, layer.blend);
+    PushBlendMode(ctx, layer.compositeBlend);
+    Rectangle src = {0, 0, (float)w, -(float)h};
+    Rectangle dst = {camera.viewport.x, camera.viewport.y, (float)w, (float)h};
+    ctx.DrawTexturePro(compositionBuffer.texture, src, dst, {0, 0}, 0.0f, WHITE);
+    
+    ctx.PopBlendMode();
+    
+    // Restore scissor mode for subsequent layers
+    ctx.PushScissorMode(
+        (int)camera.viewport.x,
+        (int)camera.viewport.y,
+        (int)camera.viewport.width,
+        (int)camera.viewport.height);
+}
+
+void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& object, const SceneLayer& layer) {
+    std::visit([&](const auto& component) {
+        using T = std::decay_t<decltype(component)>;
+
+        if constexpr (std::is_same_v<T, RectangleComponent>) {
+            float topLeftX = object.position.x - component.width * 0.5f;
+            float topLeftY = object.position.y - component.height * 0.5f;
+            ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
+            if (component.border.a > 0) {
+                ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
+            }
+        } else if constexpr (std::is_same_v<T, CircleComponent>) {
+            ctx.DrawCircle(object.position.x, object.position.y, component.radius, component.background);
+            if (component.border.a > 0) {
+                ctx.DrawCircleLines(object.position.x, object.position.y, component.radius, component.border);
+            }
+        } else if constexpr (std::is_same_v<T, TextComponent>) {
+            float scaleX = 1.0f, scaleY = 1.0f;
+            if (world->HasComponent<ScaleComponent>(object.entity)) {
+                auto& scale = world->GetComponent<ScaleComponent>(object.entity);
+                scaleX = scale.x;
+                scaleY = scale.y;
+            }
+
+            float avgScale = (scaleX + scaleY) / 2.0f;
+            int scaledFontSize = (int)(component.fontSize * avgScale);
+
+            int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
+            int centeredX = (int)(object.position.x - textWidth * 0.5f);
+            int centeredY = (int)(object.position.y - scaledFontSize * 0.5f);
+            ctx.DrawText(component.content.c_str(), (float)centeredX, (float)centeredY, scaledFontSize, component.color);
+        } else if constexpr (std::is_same_v<T, LightComponent>) {
+            const int layers = 8;
+
+            for (int i = 0; i < layers; i++) {
+                float t = (float)i / layers;
+                float power = 1.0f + component.intensity * 4.0f;
+                float curve = powf(1.0f - t, power);
+                float layerRadius = component.radius * curve;
+
+                Color layerColor = component.color;
+                layerColor.a = (unsigned char)(component.color.a / layers);
+                Color layerEdge = {layerColor.r, layerColor.g, layerColor.b, 0};
+
+                ctx.DrawCircleGradient(object.position.x, object.position.y, layerRadius, layerColor, layerEdge);
+            }
+        } else if constexpr (std::is_same_v<T, SpriteComponent>) {
+            const Sprite& sprite = component.sprite;
+            const std::string& marker = component.markerName;
+
+            Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
+            std::string textureName = sprite.GetMarkerTextureName(marker);
+
+            if (!textureName.empty() && sourceRect.width > 0 && sourceRect.height > 0) {
+                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+                Texture2D texture = assets.GetTexture(textureName);
+
+                if (texture.id != 0) {
+                    float scaleX = 1.0f, scaleY = 1.0f;
+                    if (world->HasComponent<ScaleComponent>(object.entity)) {
+                        auto& scale = world->GetComponent<ScaleComponent>(object.entity);
+                        scaleX = scale.x;
+                        scaleY = scale.y;
+                    }
+
+                    float scaledWidth = sourceRect.width * scaleX;
+                    float scaledHeight = sourceRect.height * scaleY;
+
+                    Rectangle destRect = {
+                        object.position.x - scaledWidth * 0.5f,
+                        object.position.y - scaledHeight * 0.5f,
+                        scaledWidth,
+                        scaledHeight};
+                    Vector2 origin = {0, 0};
+                    ctx.DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
+                }
+            }
+        } else if constexpr (std::is_same_v<T, DebugComponent>) {
+            const DebugComponent& debug = component;
+
+            if (!debug.isSelected) {
+                return;
+            }
+
+            auto aabbMin = debug.aabbMin;
+            auto aabbMax = debug.aabbMax;
+
+            ctx.DrawRectangleLinesEx(
+                Rectangle{
+                    aabbMin.x,
+                    aabbMin.y,
+                    aabbMax.x - aabbMin.x,
+                    aabbMax.y - aabbMin.y},
+                2.0f,
+                debug.isSelected ? debug.highlightColor : RED);
+
+            // Draw dog ear name tag if entity has a name
+            if (world->HasComponent<NameComponent>(object.entity)) {
+                auto& name = world->GetComponent<NameComponent>(object.entity);
+
+                int fontSize = 10;
+                int textWidth = MeasureText(name.name.c_str(), fontSize);
+
+                // Dog ear tab positioned at top-right corner
+                float tabWidth = textWidth + 6.0f;
+                float tabHeight = fontSize + 4.0f;
+                float tabX = aabbMax.x - tabWidth;
+                float tabY = aabbMin.y - tabHeight;
+
+                Color earColor = debug.isSelected ? debug.highlightColor : RED;
+
+                // Draw tab background
+                ctx.DrawRectangle(tabX, tabY, tabWidth, tabHeight, earColor);
+
+                // Draw text
+                ctx.DrawText(name.name.c_str(), tabX + 3, tabY + 2, fontSize, WHITE);
+            }
+        }
+    },
+    object.renderable);
+}
+
+void RenderSystem::PushBlendMode(RenderContext& ctx, const SceneLayerBlend& blend) {
+    switch (blend) {
+        case SceneLayerBlend::Normal:
+            ctx.PushBlendMode(BLEND_ALPHA);
+            break;
+        case SceneLayerBlend::Additive:
+            ctx.PushBlendMode(BLEND_ADDITIVE);
+            break;
+        case SceneLayerBlend::Multiply:
+            ctx.PushBlendMode(BLEND_MULTIPLIED);
+            break;
+        case SceneLayerBlend::Alpha:
+            ctx.PushBlendMode(BLEND_ALPHA);
+            break;
+        default:
+            ctx.PushBlendMode(BLEND_ALPHA);
+            break;
     }
 }
 
-Matrix RenderSystem::GetLayerTransform(const LayerComponent& layer, Entity cameraEntity)
-{
-    auto &cameraPosition = world->GetComponent<PositionComponent>(cameraEntity);
-    auto &camera = world->GetComponent<CameraComponent>(cameraEntity);
-
-
+Matrix RenderSystem::CalculateTransform(Entity cameraEntity, const SceneLayer& layer) {
+    auto& cameraPosition = world->GetComponent<PositionComponent>(cameraEntity);
+    auto& camera = world->GetComponent<CameraComponent>(cameraEntity);
 
     switch (layer.space) {
-        case LayerComponent::Space::Screen: {
+        case SceneLayerSpace::Screen2D: {
             return MatrixIdentity();
         }
-        case LayerComponent::Space::World: {
-            // Center the viewport - translate to center of camera viewport
+        case SceneLayerSpace::World2D: {
             Vector2 viewportCenter = {
                 camera.viewport.width * 0.5f,
-                camera.viewport.height * 0.5f
-            };
+                camera.viewport.height * 0.5f};
 
             Matrix centerTranslation = MatrixTranslate(viewportCenter.x, viewportCenter.y, 0);
             Matrix scale = MatrixScale(camera.zoom, camera.zoom, 1.0f);
             Matrix cameraTranslation = MatrixTranslate(-cameraPosition.x, -cameraPosition.y, 0);
 
-            // Apply in order: camera translation -> scale -> center in viewport
-            return MatrixMultiply(MatrixMultiply(cameraTranslation, scale), centerTranslation);
-        }
-        case LayerComponent::Space::Parallax: {
-            Vector2 parallaxOffset = {
-                -cameraPosition.x * layer.parallaxFactor.x,
-                -cameraPosition.y * layer.parallaxFactor.y
-            };
-
-            Matrix translation = MatrixTranslate(parallaxOffset.x, parallaxOffset.y, 0);
-
-            float parallaxZoom = 1.0f + (camera.zoom - 1.0f) * (layer.parallaxFactor.x + layer.parallaxFactor.y) * 0.5f;
-
-            Matrix scale = MatrixScale(parallaxZoom, parallaxZoom, 1.0f);
-
-            return MatrixMultiply(translation, scale);
+            return MatrixMultiply(MatrixMultiply(centerTranslation, scale), cameraTranslation);
         }
     }
 
     return MatrixIdentity();
 }
 
-std::optional<Renderable> RenderSystem::GetRenderable(Entity entity) {
+std::vector<Renderable> RenderSystem::GetRenderables(Entity entity) {
+    std::vector<Renderable> renderables;
+
     if (world->HasComponent<RectangleComponent>(entity)) {
-        return world->GetComponent<RectangleComponent>(entity);
+        renderables.push_back(world->GetComponent<RectangleComponent>(entity));
     }
     if (world->HasComponent<CircleComponent>(entity)) {
-        return world->GetComponent<CircleComponent>(entity);
+        renderables.push_back(world->GetComponent<CircleComponent>(entity));
     }
     if (world->HasComponent<TextComponent>(entity)) {
-        return world->GetComponent<TextComponent>(entity);
+        renderables.push_back(world->GetComponent<TextComponent>(entity));
     }
     if (world->HasComponent<SpriteComponent>(entity)) {
-        return world->GetComponent<SpriteComponent>(entity);
+        renderables.push_back(world->GetComponent<SpriteComponent>(entity));
     }
     if (world->HasComponent<LightComponent>(entity)) {
-        return world->GetComponent<LightComponent>(entity);
+        renderables.push_back(world->GetComponent<LightComponent>(entity));
     }
-    return std::nullopt;
-}
-
-std::string RenderSystem::GetLayerName(const std::optional<Renderable>& renderable) {
-    if (!renderable.has_value()) {
-        return "default";
+    if (world->HasComponent<DebugComponent>(entity)) {
+        renderables.push_back(world->GetComponent<DebugComponent>(entity));
     }
 
-    return std::visit([](const auto& component) -> std::string {
-        return component.layerName;
-    }, renderable.value());
+    return renderables;
 }
 
-void RenderSystem::RenderSingleItem(const RenderItem& item, const LayerComponent& layer) {
-    std::visit([&](const auto& component) {
-        using T = std::decay_t<decltype(component)>;
-
-        if constexpr (std::is_same_v<T, RectangleComponent>) {
-            float topLeftX = item.position.x - component.width * 0.5f;
-            float topLeftY = item.position.y - component.height * 0.5f;
-            DrawRectangleV({topLeftX, topLeftY}, {component.width, component.height}, component.background);
-            if (component.border.a > 0) {
-                DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
-            }
-        }
-        else if constexpr (std::is_same_v<T, CircleComponent>) {
-            DrawCircleV({item.position.x, item.position.y}, component.radius, component.background);
-            if (component.border.a > 0) {
-                DrawCircleLinesV({item.position.x, item.position.y}, component.radius, component.border);
-            }
-        }
-        else if constexpr (std::is_same_v<T, TextComponent>) {
-            int textWidth = MeasureText(component.content.c_str(), component.fontSize);
-            int centeredX = item.position.x - textWidth * 0.5f;
-            int centeredY = item.position.y - component.fontSize * 0.5f;
-            DrawText(component.content.c_str(), centeredX, centeredY, component.fontSize, component.color);
-        }
-        else if constexpr (std::is_same_v<T, LightComponent>) {
-            DrawCircleV({item.position.x, item.position.y}, component.radius, component.color);
-        }
-        else if constexpr (std::is_same_v<T, SpriteComponent>) {
-            const Sprite& sprite = component.sprite;
-            const std::string& marker = component.markerName;
-
-            // Use GetMarkerFrameClip to get the specific frame within the marker
-            Rectangle sourceRect = sprite.GetMarkerFrameClip(marker, component.frameIndex);
-            std::string textureName = sprite.GetMarkerTextureName(marker);
-
-            if (!textureName.empty() && sourceRect.width > 0 && sourceRect.height > 0) {
-                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>("AssetService");
-                Texture2D texture = assets.GetTexture(textureName);
-
-                if (texture.id != 0) {
-
-                    // For grid alignment, we want sprites to be centered on their tile position
-                    // Since sprites might be larger than tiles, we center them properly
-                    Rectangle destRect = {
-                        item.position.x - sourceRect.width * 0.5f,
-                        item.position.y - sourceRect.height * 0.5f,
-                        sourceRect.width,
-                        sourceRect.height
-                    };
-                    Vector2 origin = {0, 0};
-                    DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
-                }
-            }
-        }
-    }, item.renderable);
+std::string RenderSystem::GetLayerName(Entity entity) {
+    if (world->HasComponent<LayerComponent>(entity)) {
+        return world->GetComponent<LayerComponent>(entity).name;
+    }
+    return "default";
 }
-} // namespace Elysium::Systems
+
+}  // namespace Elysium::Systems

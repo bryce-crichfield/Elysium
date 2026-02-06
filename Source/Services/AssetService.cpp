@@ -1,16 +1,18 @@
 #include "Services/AssetService.h"
+#include <filesystem>
+#include "Core/Application.h"
+#include "Core/Common.h"
+#include "Services/LoadingService.h"
 #include "Services/LogService.h"
-#include "raylib.h"
 #include "imgui.h"
-#include "Common.h"
+#include "raylib.h"
 
-#include "Sprite.h"
+#include "Core/Sprite.h"
 
 namespace Elysium::Services {
 
 AssetService::AssetService() {
     name_ = "AssetService";
-    hasUi_ = false;
 }
 
 void AssetService::Initialize() {
@@ -41,11 +43,6 @@ void AssetService::Update(float deltaTime) {
     // This method is here to satisfy the Service interface
 }
 
-void AssetService::OnDebugDraw() {
-    Profile;
-    // This sucks, but we've removed this for now.  We do the drawing in the LoadingService
-}
-
 void AssetService::LoadAsset(const Asset& unloadedAsset) {
     const std::string& name = unloadedAsset.GetName();
     const std::string& path = unloadedAsset.GetPath();
@@ -72,7 +69,6 @@ void AssetService::LoadAsset(const Asset& unloadedAsset) {
         assetsByName_[name] = asset;
         pathToName_[path] = name;
 
-
         if (asset.IsLoaded()) {
             LOG_INFOF("AssetService", "Successfully loaded asset: %s -> %s", name.c_str(), path.c_str());
         } else {
@@ -80,6 +76,28 @@ void AssetService::LoadAsset(const Asset& unloadedAsset) {
         }
     } else {
         LOG_WARNINGF("AssetService", "Failed to load asset: %s -> %s", name.c_str(), path.c_str());
+    }
+}
+
+void AssetService::ReloadAsset(const AssetName& name) {
+    auto it = assetsByName_.find(name);
+    if (it == assetsByName_.end()) {
+        LOG_WARNINGF("AssetService", "Cannot reload asset '%s', not found", name.c_str());
+        return;
+    }
+
+    Asset& asset = it->second;
+    if (asset.IsLoaded()) {
+        asset.Unload();
+    }
+
+    LOG_INFOF("AssetService", "Reloading asset: %s", name.c_str());
+    LoadAssetByType(asset);
+
+    if (asset.IsLoaded() || asset.HasImageData() || asset.HasWaveData()) {
+        LOG_INFOF("AssetService", "Successfully reloaded asset: %s", name.c_str());
+    } else {
+        LOG_ERRORF("AssetService", "Failed to reload asset: %s", name.c_str());
     }
 }
 
@@ -166,6 +184,16 @@ Sprite AssetService::GetSprite(const AssetName& name) {
     return Sprite{};
 }
 
+Script AssetService::GetScript(const AssetName& name) {
+    Asset* asset = GetAsset(name);
+    if (asset && asset->GetType() == AssetType::SCRIPT) {
+        return asset->GetScript();
+    }
+
+    LOG_WARNINGF("AssetService", "Script not found: %s", name.c_str());
+    return "";
+}
+
 void AssetService::LoadAssetByType(Asset& asset) {
     const std::string& path = asset.GetPath();
 
@@ -179,7 +207,7 @@ void AssetService::LoadAssetByType(Asset& asset) {
             Image image = ::LoadImage(path.c_str());
             if (image.data != nullptr) {
                 LOG_DEBUGF("AssetService", "Image data loaded: %dx%d, format: %d, mipmaps: %d",
-                    image.width, image.height, image.format, image.mipmaps);
+                           image.width, image.height, image.format, image.mipmaps);
 
                 // Store image data for later texture creation on main thread
                 asset.SetImageData(image);
@@ -204,7 +232,7 @@ void AssetService::LoadAssetByType(Asset& asset) {
                 Wave wave = ::LoadWave(path.c_str());
                 if (wave.frameCount > 0) {
                     LOG_DEBUGF("AssetService", "Wave data loaded: %d frames, %d Hz, %d channels",
-                             wave.frameCount, wave.sampleRate, wave.channels);
+                               wave.frameCount, wave.sampleRate, wave.channels);
 
                     // Store wave data for later sound creation on main thread
                     asset.SetWaveData(wave);
@@ -275,6 +303,19 @@ void AssetService::LoadAssetByType(Asset& asset) {
             break;
         }
 
+        case AssetType::SCRIPT: {
+            LOG_DEBUGF("AssetService", "Loading SCRIPT asset from %s", path.c_str());
+            char* text = ::LoadFileText(path.c_str());
+            if (text) {
+                asset.SetScript(std::string(text));
+                ::UnloadFileText(text);
+                LOG_DEBUGF("AssetService", "Script loaded: %s", asset.GetName().c_str());
+            } else {
+                LOG_ERRORF("AssetService", "Failed to load script: %s", path.c_str());
+            }
+            break;
+        }
+
         default:
             LOG_WARNINGF("AssetService", "Unknown asset type for: %s", path.c_str());
             break;
@@ -295,7 +336,7 @@ void AssetService::FinalizeAssets() {
             if (texture.id != 0) {
                 asset.SetTexture(texture);
                 LOG_DEBUGF("AssetService", "Finalized texture: %s (ID: %d, %dx%d)",
-                         asset.GetName().c_str(), texture.id, texture.width, texture.height);
+                           asset.GetName().c_str(), texture.id, texture.width, texture.height);
             } else {
                 LOG_ERRORF("AssetService", "Failed to finalize texture: %s", asset.GetName().c_str());
             }
@@ -306,7 +347,7 @@ void AssetService::FinalizeAssets() {
             Wave waveData = asset.GetWaveData();
 
             LOG_INFOF("AssetService", "Creating sound from wave: %s (%d frames, %d Hz, %d channels)",
-                     asset.GetName().c_str(), waveData.frameCount, waveData.sampleRate, waveData.channels);
+                      asset.GetName().c_str(), waveData.frameCount, waveData.sampleRate, waveData.channels);
 
             // Try converting to mono if stereo
             Wave processedWave = waveData;
@@ -320,7 +361,7 @@ void AssetService::FinalizeAssets() {
             if (sound.frameCount > 0) {
                 asset.SetSound(sound);
                 LOG_INFOF("AssetService", "Finalized sound: %s (%d frames)",
-                         asset.GetName().c_str(), sound.frameCount);
+                          asset.GetName().c_str(), sound.frameCount);
             } else {
                 LOG_ERRORF("AssetService", "Failed to finalize sound: %s (tried mono conversion)", asset.GetName().c_str());
 
@@ -344,4 +385,4 @@ void AssetService::FinalizeAssets() {
     LOG_INFO("AssetService", "Asset finalization complete");
 }
 
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

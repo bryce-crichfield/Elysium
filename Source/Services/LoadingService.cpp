@@ -1,17 +1,17 @@
 #include "Services/LoadingService.h"
+#include <chrono>
+#include <cmath>
+#include <regex>
+#include <sstream>
+#include <tracy/Tracy.hpp>
+#include "Core/Application.h"
+#include "Core/Common.h"
+#include "Core/Path.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
-#include "Path.h"
+#include "imgui.h"
 #include "raylib.h"
 #include "tinyxml2.h"
-#include "imgui.h"
-#include <chrono>
-#include <sstream>
-#include <regex>
-#include <cmath>
-#include "Common.h"
-#include <tracy/Tracy.hpp>
-#include "Application.h"
 
 using namespace tinyxml2;
 
@@ -20,7 +20,9 @@ LoadTask::LoadTask(Asset asset) : asset_(std::move(asset)) {}
 
 void LoadTask::Execute() {
     ProfileN("Load Asset");
-    auto &assetService = Application::GetInstance().GetService<AssetService>("AssetService");
+
+    // TODO: Why call into someone do LoadAsset instead of LoadTask owning this load logic?
+    auto& assetService = Application::GetInstance().GetService<AssetService>();
     assetService.LoadAsset(asset_);
 }
 
@@ -31,4 +33,4 @@ std::string LoadTask::GetDescription() const {
 const Asset& LoadTask::GetAsset() const {
     return asset_;
 }
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

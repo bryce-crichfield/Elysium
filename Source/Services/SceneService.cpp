@@ -1,860 +1,493 @@
 #include "Services/SceneService.h"
+#include <typeinfo>
+#include "Core/Application.h"
+#include "Core/Common.h"
+#include "Core/Event.h"
+#include "Core/Path.h"
+#include "Services/InvokeService.h"
 #include "Services/LogService.h"
-#include "System.h"
-#include "Path.h"
+#include "Services/MessageService.h"
+#include "Core/System.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "tinyxml2.h"
-#include <typeinfo>
-#include "Common.h"
 
 using namespace tinyxml2;
 
-namespace Elysium::Services
-{
+namespace Elysium::Services {
 
 // =============================================================================
-// Constructor & State Machine Setup
+// Constructor
 // =============================================================================
 
-SceneService::SceneService()
-{
+SceneService::SceneService() {
     name_ = "SceneService";
 }
 
-void SceneService::Initialize()
-{
-    InitializeStateMachine();
-}
-
-void SceneService::InitializeStateMachine()
-{
-    // Scene transition states
-    constexpr auto NONE = "NONE";
-    constexpr auto EXITING = "EXITING";
-    constexpr auto LOADING_ASSETS = "LOADING_ASSETS";
-    constexpr auto ASSETS_LOADED = "ASSETS_LOADED";
-    constexpr auto ENTERING = "ENTERING";
-    constexpr auto ACTIVE = "ACTIVE";
-    constexpr auto ACTIVE_RUNNING = "ACTIVE_RUNNING";
-    constexpr auto ACTIVE_PAUSED = "ACTIVE_PAUSED";
-
-    // Valid state transitions: NONE/ACTIVE_* -> EXITING -> LOADING_ASSETS -> ASSETS_LOADED -> ENTERING -> ACTIVE ->
-    // ACTIVE_RUNNING <-> ACTIVE_PAUSED
-    transitionStateMachine_.AddValidTransition(NONE, EXITING);
-    transitionStateMachine_.AddValidTransition(NONE, LOADING_ASSETS);
-    transitionStateMachine_.AddValidTransition(ACTIVE_RUNNING, EXITING);
-    transitionStateMachine_.AddValidTransition(ACTIVE_PAUSED, EXITING);
-    transitionStateMachine_.AddValidTransition(EXITING, LOADING_ASSETS);
-    transitionStateMachine_.AddValidTransition(LOADING_ASSETS, ASSETS_LOADED);
-    transitionStateMachine_.AddValidTransition(ASSETS_LOADED, ENTERING);
-    transitionStateMachine_.AddValidTransition(ENTERING, ACTIVE);
-    transitionStateMachine_.AddValidTransition(ACTIVE, ACTIVE_RUNNING);
-    transitionStateMachine_.AddValidTransition(ACTIVE_RUNNING, ACTIVE_PAUSED);
-    transitionStateMachine_.AddValidTransition(ACTIVE_PAUSED, ACTIVE_RUNNING);
-
-    // State event handlers
-    transitionStateMachine_.RegisterOnEnter(EXITING, [this]() { OnEnterExiting(); });
-    transitionStateMachine_.RegisterOnUpdate(EXITING, [this]() { OnUpdateExiting(); });
-    transitionStateMachine_.RegisterOnEnter(LOADING_ASSETS, [this]() { OnEnterLoadingAssets(); });
-    transitionStateMachine_.RegisterOnEnter(ASSETS_LOADED, [this]() { OnEnterAssetsLoaded(); });
-    transitionStateMachine_.RegisterOnEnter(ENTERING, [this]() { OnEnterEntering(); });
-    transitionStateMachine_.RegisterOnUpdate(ENTERING, [this]() { OnUpdateEntering(); });
-    transitionStateMachine_.RegisterOnEnter(ACTIVE, [this]() { OnEnterActive(); });
-    transitionStateMachine_.RegisterOnEnter(ACTIVE_RUNNING, [this]() { OnEnterActiveRunning(); });
-    transitionStateMachine_.RegisterOnEnter(ACTIVE_PAUSED, [this]() { OnEnterActivePaused(); });
-
-    transitionStateMachine_.SetCurrentState(NONE);
-}
-
-// =============================================================================
-// State Machine Event Handlers
-// =============================================================================
-
-void SceneService::OnEnterExiting()
-{
+void SceneService::Initialize() {
     Profile;
-    transitionTimer_ = 0.0f;
-    transitionDuration_ = (sceneQueue_.size() > 1) ? 0.1f : 1.0f;
-}
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
 
-void SceneService::OnUpdateExiting()
-{
-    Profile;
-    transitionTimer_ += GetFrameTime();
-    if (transitionTimer_ >= transitionDuration_)
-    {
-        transitionStateMachine_.TransitionTo("LOADING_ASSETS");
-    }
-}
+    framebuffer_ = LoadRenderTexture(config.framebufferWidth, config.framebufferHeight);
+    CalculateLetterboxing();
 
-void SceneService::OnEnterLoadingAssets()
-{
-    Profile;
-    transitionTimer_ = 0.0f;
-
-    if (!sceneQueue_.empty())
-    {
-        const std::string &sceneName = sceneQueue_.front();
-        UpdateSceneStatus(sceneName, SceneStatus::LOADING_ASSETS);
-
-        Scene *scene = CreateOrGetScene(sceneName);
-        if (scene)
-        {
-            pendingAssets_ = scene->GetAssets();
-            LOG_INFOF("SceneService", "Scene '%s' requested %zu assets for loading", sceneName.c_str(),
-                      pendingAssets_.size());
-            for (const auto &asset : pendingAssets_)
-            {
-                LOG_DEBUGF("SceneService", "Asset requested: %s (%s) -> %s", asset.GetName().c_str(),
-                           asset.GetType() == AssetType::TEXTURE  ? "TEXTURE"
-                           : asset.GetType() == AssetType::SOUND  ? "SOUND"
-                           : asset.GetType() == AssetType::MUSIC  ? "MUSIC"
-                           : asset.GetType() == AssetType::FONT   ? "FONT"
-                           : asset.GetType() == AssetType::MODEL  ? "MODEL"
-                           : asset.GetType() == AssetType::SHADER ? "SHADER"
-                           : asset.GetType() == AssetType::SPRITE ? "SPRITE"
-                                                                  : "UNKNOWN",
-                           asset.GetPath().c_str());
+    auto& invokeService = Application::GetInstance().GetService<InvokeService>();
+    invokeService.Register<SceneChange>(
+        std::function<SceneChangeResponseMessage(NetworkPeer, const SceneChangeRequestMessage&)>(
+        [this](NetworkPeer, const SceneChangeRequestMessage& req) -> SceneChangeResponseMessage {
+            SceneChangeResponseMessage resp;
+            switch (req.op) {
+                case SceneChangeOp::Push:
+                    Push(req.sceneName);
+                    resp.success = true;
+                    break;
+                case SceneChangeOp::Pop:
+                    Pop();
+                    resp.success = true;
+                    break;
+                case SceneChangeOp::Replace:
+                    Replace(req.sceneName);
+                    resp.success = true;
+                    break;
+                case SceneChangeOp::Clear:
+                    Clear();
+                    resp.success = true;
+                    break;
+                default:
+                    resp.success = false;
+                    break;
             }
-        }
-        else
-        {
-            LOG_ERRORF("SceneService", "Failed to create/get scene '%s' for asset loading", sceneName.c_str());
-        }
-    }
-}
-
-void SceneService::OnEnterAssetsLoaded()
-{
-    Profile;
-    if (!sceneQueue_.empty())
-    {
-        UpdateSceneStatus(sceneQueue_.front(), SceneStatus::ASSETS_LOADED);
-    }
-    transitionStateMachine_.TransitionTo("ENTERING");
-}
-
-void SceneService::OnEnterEntering()
-{
-    Profile;
-    transitionTimer_ = 0.0f;
-    if (!sceneQueue_.empty())
-    {
-        UpdateSceneStatus(sceneQueue_.front(), SceneStatus::ENTERING);
-    }
-}
-
-void SceneService::OnUpdateEntering()
-{
-    Profile;
-    transitionTimer_ += GetFrameTime();
-    if (transitionTimer_ >= transitionDuration_)
-    {
-        transitionStateMachine_.TransitionTo("ACTIVE");
-    }
-}
-
-void SceneService::OnEnterActive()
-{
-    Profile;
-    if (!sceneQueue_.empty())
-    {
-        const std::string sceneName = sceneQueue_.front();
-        sceneQueue_.pop();
-
-        // Cleanup old scene
-        if (activeScene_)
-        {
-            activeScene_->OnExit();
-            UpdateActiveSceneStatus(SceneStatus::SUSPENDED);
-        }
-
-        // Activate new scene
-        activeScene_ = CreateOrGetScene(sceneName);
-        if (activeScene_)
-        {
-            EnterScene(sceneName);
-            UpdateSceneStatus(sceneName, SceneStatus::ACTIVE);
-        }
-    }
-
-    // Automatically transition to ACTIVE_RUNNING
-    transitionStateMachine_.TransitionTo("ACTIVE_RUNNING");
-}
-
-void SceneService::OnEnterActiveRunning()
-{
-    // Scene is now running - updates will be called
-}
-
-void SceneService::OnEnterActivePaused()
-{
-    // Scene is paused - updates will not be called, but rendering continues
+            return resp;
+        }));
 }
 
 // =============================================================================
-// Helper Methods
+// Stack Operations
 // =============================================================================
 
-void SceneService::UpdateSceneStatus(const std::string &name, SceneStatus status)
-{
-    Profile;
-    auto it = scenes_.find(name);
-    if (it != scenes_.end())
-    {
-        it->second.status = status;
-    }
+void SceneService::Push(const std::string& sceneName) {
+    pendingOperations_.push_back({SceneOperationType::Push, sceneName});
 }
 
-void SceneService::UpdateActiveSceneStatus(SceneStatus status)
-{
-    for (auto &[name, data] : scenes_)
-    {
-        if (data.scene == activeScene_)
-        {
-            data.status = status;
-            break;
-        }
-    }
+void SceneService::Pop() {
+    pendingOperations_.push_back({SceneOperationType::Pop, ""});
 }
 
-std::string PrintSceneStatus(SceneStatus status)
-{
-    switch (status)
-    {
-    case SceneStatus::UNLOADED:
-        return "UNLOADED";
-    case SceneStatus::LOADING_ASSETS:
-        return "LOADING_ASSETS";
-    case SceneStatus::ASSETS_LOADED:
-        return "ASSETS_LOADED";
-    case SceneStatus::INITIALIZING:
-        return "INITIALIZING";
-    case SceneStatus::ENTERING:
-        return "ENTERING";
-    case SceneStatus::ACTIVE:
-        return "ACTIVE";
-    case SceneStatus::EXITING:
-        return "EXITING";
-    case SceneStatus::SUSPENDED:
-        return "SUSPENDED";
-    }
-    return "UNKNOWN";
+void SceneService::Replace(const std::string& sceneName) {
+    pendingOperations_.push_back({SceneOperationType::Replace, sceneName});
 }
 
-// =============================================================================
-// Public Interface
-// =============================================================================
-
-Elysium::Scene *SceneService::GetScene() const
-{
-    return activeScene_;
+void SceneService::Clear() {
+    pendingOperations_.push_back({SceneOperationType::Clear, ""});
 }
 
-bool SceneService::IsTransitioning() const
-{
-    const std::string &state = transitionStateMachine_.GetCurrentState();
-    return state != "NONE" && state != "ACTIVE_RUNNING" && state != "ACTIVE_PAUSED";
-}
+void SceneService::ApplySceneOperations() {
+    if (pendingOperations_.empty()) return;
 
-void SceneService::SetScene(std::string name)
-{
-    // Clear queue and force immediate scene transition
-    while (!sceneQueue_.empty())
-    {
-        sceneQueue_.pop();
-    }
+    // Process all pending operations
+    for (const auto& op : pendingOperations_) {
+        switch (op.type) {
+            case SceneOperationType::Push: {
+                auto it = scenes_.find(op.name);
+                if (it == scenes_.end()) {
+                    LOG_ERRORF("SceneService", "Cannot push scene. Scene not found: %s", op.name.c_str());
+                    continue;
+                }
 
-    sceneQueue_.push(name);
-    transitionDuration_ = 0.0f; // Immediate transition
+                Scene* scene = CreateOrGetScene(op.name);
+                if (!scene) {
+                    LOG_ERRORF("SceneService", "Failed to create scene: %s", op.name.c_str());
+                    continue;
+                }
 
-    if (activeScene_)
-    {
-        transitionStateMachine_.TransitionTo("EXITING");
-    }
-    else
-    {
-        transitionStateMachine_.TransitionTo("LOADING_ASSETS");
-    }
-}
+                // Check duplicates
+                bool found = false;
+                for (Scene* s : sceneStack_) {
+                    if (s == scene) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    LOG_WARNINGF("SceneService", "Scene '%s' is already in the stack", op.name.c_str());
+                    continue;
+                }
 
-void SceneService::RegisterScene(const std::string &name, std::string xmlPath, SceneFactory factory)
-{
-    SceneData data{name, nullptr, factory, {}, xmlPath, false, SceneStatus::UNLOADED};
-    scenes_.emplace(name, data);
-    LOG_INFOF("SceneService", "Registered scene: %s", name.c_str());
-}
+                sceneStack_.push_back(scene);
+                EnterScene(scene, op.name);
+                LOG_INFOF("SceneService", "Pushed scene: %s (stack size: %zu)", op.name.c_str(), sceneStack_.size());
 
-void SceneService::QueueScene(std::string name)
-{
-    auto it = scenes_.find(name);
-    if (it == scenes_.end())
-    {
-        LOG_ERRORF("SceneService", "Scene not found: %s", name.c_str());
-        return;
-    }
+                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                messageService.Post<SceneChangedMessage>(SceneChangeOp::Push, op.name);
+                break;
+            }
+            case SceneOperationType::Pop: {
+                if (sceneStack_.empty()) {
+                    LOG_WARNING("SceneService", "Cannot pop. Scene stack is empty");
+                    continue;
+                }
 
-    sceneQueue_.push(name);
-    LOG_INFOF("SceneService", "Queued scene: %s", name.c_str());
-}
+                Scene* scene = sceneStack_.back();
+                sceneStack_.pop_back();
 
-void SceneService::Update(float deltaTime)
-{
-    Profile;
-    // Cache deltaTime for smooth pause/unpause transitions
-    if (deltaTime > 0.0f && deltaTime < 0.1f)
-    { // Reasonable deltaTime bounds
-        cachedDeltaTime_ = deltaTime;
-    }
+                if (scene) {
+                    scene->OnExit();
+                }
 
-    const std::string &currentState = transitionStateMachine_.GetCurrentState();
+                LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
 
-    // Start transition if we have queued scenes and can transition
-    if (!sceneQueue_.empty() &&
-        (currentState == "NONE" || currentState == "ACTIVE_RUNNING" || currentState == "ACTIVE_PAUSED"))
-    {
-        if (activeScene_ && (currentState == "ACTIVE_RUNNING" || currentState == "ACTIVE_PAUSED"))
-        {
-            transitionStateMachine_.TransitionTo("EXITING");
-        }
-        else if (!activeScene_ && currentState == "NONE")
-        {
-            transitionStateMachine_.TransitionTo("LOADING_ASSETS");
-        }
-    }
+                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                messageService.Post<SceneChangedMessage>(SceneChangeOp::Pop, "");
+                break;
+            }
+            case SceneOperationType::Replace: {
+                 if (!sceneStack_.empty()) {
+                    Scene* oldScene = sceneStack_.back();
+                    sceneStack_.pop_back();
+                    if (oldScene) {
+                        oldScene->OnExit();
+                    }
+                }
 
-    transitionStateMachine_.Update();
+                auto it = scenes_.find(op.name);
+                if (it == scenes_.end()) {
+                    LOG_ERRORF("SceneService", "Cannot replace with scene. Scene not found: %s", op.name.c_str());
+                    continue;
+                }
 
-    // Update active scene when running
-    if (activeScene_ && currentState == "ACTIVE_RUNNING")
-    {
-        activeScene_->OnUpdate(cachedDeltaTime_);
+                Scene* scene = CreateOrGetScene(op.name);
+                if (!scene) {
+                    LOG_ERRORF("SceneService", "Failed to create scene: %s", op.name.c_str());
+                    continue;
+                }
 
-        // Handle timeout if active
-        if (isTimingOut_)
-        {
-            timeoutTimer_ += cachedDeltaTime_ * 1000.0f; // Convert to milliseconds
+                sceneStack_.push_back(scene);
+                EnterScene(scene, op.name);
+                LOG_INFOF("SceneService", "Replaced top scene with: %s", op.name.c_str());
 
-            // Check if timeout duration has been reached
-            if (timeoutTimer_ >= timeoutDuration_)
-            {
-                isTimingOut_ = false;
-                timeoutTimer_ = 0.0f;
-                transitionStateMachine_.TransitionTo("ACTIVE_PAUSED");
+                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                messageService.Post<SceneChangedMessage>(SceneChangeOp::Replace, op.name);
+                break;
+            }
+            case SceneOperationType::Clear: {
+                 while (!sceneStack_.empty()) {
+                    Scene* scene = sceneStack_.back();
+                    sceneStack_.pop_back();
+                    if (scene) {
+                        scene->OnExit();
+                    }
+                }
+                LOG_INFO("SceneService", "Cleared scene stack");
+
+                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                messageService.Post<SceneChangedMessage>(SceneChangeOp::Clear, "");
+                break;
             }
         }
     }
+    pendingOperations_.clear();
+
+    // Reset selection if selected scene is no longer in stack
+    if (selectedScene_) {
+        bool found = false;
+        for (Scene* s : sceneStack_) {
+            if (s == selectedScene_) { found = true; break; }
+        }
+        if (!found) selectedScene_ = nullptr;
+    }
+}
+
+Scene* SceneService::GetTopScene() const {
+    return sceneStack_.empty() ? nullptr : sceneStack_.back();
 }
 
 // =============================================================================
 // Scene Management
 // =============================================================================
 
-Scene *SceneService::CreateOrGetScene(const std::string &name)
-{
+void SceneService::RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory) {
+    SceneRegistration data{name, nullptr, factory, xmlPath, false};
+    scenes_.emplace(name, data);
+    LOG_INFOF("SceneService", "Registered scene: %s", name.c_str());
+}
+
+Scene* SceneService::CreateOrGetScene(const std::string& name) {
     auto it = scenes_.find(name);
-    if (it == scenes_.end())
-    {
+    if (it == scenes_.end()) {
         LOG_ERRORF("SceneService", "Scene not found: %s", name.c_str());
         return nullptr;
     }
 
-    SceneData &sceneData = it->second;
-    if (!sceneData.scene)
-    {
+    SceneRegistration& sceneData = it->second;
+    if (!sceneData.scene) {
         sceneData.scene = sceneData.factory();
     }
 
     return sceneData.scene;
 }
 
-void SceneService::EnterScene(const std::string &name)
-{
+void SceneService::EnterScene(Scene* scene, const std::string& name) {
     auto it = scenes_.find(name);
-    if (it == scenes_.end())
-    {
+    if (it == scenes_.end()) {
         LOG_ERRORF("SceneService", "Cannot enter scene. Scene not found: %s", name.c_str());
         return;
     }
 
-    SceneData &sceneData = it->second;
-    Scene *scene = CreateOrGetScene(name);
+    SceneRegistration& sceneData = it->second;
 
-    if (!scene)
-    {
-        LOG_ERRORF("SceneService", "Cannot enter scene. Scene not found: %s", name.c_str());
-        return;
-    }
-
-    sceneData.status = SceneStatus::INITIALIZING;
-    if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded)
-    {
-        LoadScene(*sceneData.scene, Path(sceneData.xmlPath).GetFullPath());
+    // Load XML if needed
+    if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded) {
+        LoadScene(*scene, Path(sceneData.xmlPath).GetFullPath());
         sceneData.xmlLoaded = true;
     }
-    sceneData.status = SceneStatus::ENTERING;
+
     scene->OnEnter();
 }
 
 // =============================================================================
-// Debug & Utility
+// Update Loop
 // =============================================================================
 
-void SceneService::OnDebugDraw()
-{
+void SceneService::OnMessage(const Message& message) {
     Profile;
-    // Left side header
-    ImGui::Text("Scenes");
-    ImGui::SameLine(leftPanelWidth + 10); // Position right side header
-    ImGui::Text("Current Scene");
 
-    // Left panel - Scenes Panel
-    ImGui::BeginChild("ScenesPanel", ImVec2(leftPanelWidth, 0), true);
-    DrawScenesPanel();
-    ImGui::EndChild();
+    // Dispatch message to all scenes in the stack (bottom to top)
+    for (Scene* scene : sceneStack_) {
+        scene->OnMessage(const_cast<Message&>(message));
+    }
+}
 
-    ImGui::SameLine();
+void SceneService::Update(float deltaTime) {
+    Profile;
 
-    // Splitter
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
-    ImGui::Button("##splitter", ImVec2(4.0f, -1));
+    ApplySceneOperations();
 
-    // Handle dragging - only use mouse delta when already dragging
-    if (ImGui::IsItemActive())
-    {
-        if (!isDraggingSplitter)
-        {
-            // First frame of dragging - don't apply delta yet, just mark as dragging
-            isDraggingSplitter = true;
+    if (paused_) return;
+
+    if (deltaTime > 0.0f && deltaTime < 0.1f) {
+        cachedDeltaTime_ = deltaTime;
+    }
+
+    ProcessInput();
+
+    if (!pendingOperations_.empty()) {
+        ApplySceneOperations();
+    }
+
+    for (Scene* scene : sceneStack_) {
+        scene->OnUpdate(cachedDeltaTime_);
+    }
+}
+
+// =============================================================================
+// Rendering
+// =============================================================================
+
+void SceneService::CalculateLetterboxing() {
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+
+    int windowWidth = GetScreenWidth();
+    int windowHeight = GetScreenHeight();
+
+    float screenAspect = (float)windowWidth / windowHeight;
+    float framebufferAspect = (float)config.framebufferWidth / config.framebufferHeight;
+
+    if (framebufferAspect > screenAspect) {
+        scaleX_ = scaleY_ = (float)windowWidth / config.framebufferWidth;
+        float scaledHeight = config.framebufferHeight * scaleY_;
+        offset_.x = 0;
+        offset_.y = (windowHeight - scaledHeight) * 0.5f;
+        letterboxRect_ = Rectangle{offset_.x, offset_.y, (float)windowWidth, scaledHeight};
+    } else {
+        scaleX_ = scaleY_ = (float)windowHeight / config.framebufferHeight;
+        float scaledWidth = config.framebufferWidth * scaleX_;
+        offset_.x = (windowWidth - scaledWidth) * 0.5f;
+        offset_.y = 0;
+        letterboxRect_ = Rectangle{offset_.x, offset_.y, scaledWidth, (float)windowHeight};
+    }
+
+    // In play mode the viewport matches the letterbox
+    if (Application::GetInstance().GetMode() == AppMode::Play) {
+        viewportRect_ = letterboxRect_;
+    }
+}
+
+// Renders to the framebuffer, but it's up to the caller to blit it to the screen
+void SceneService::Render() {
+    Profile;
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+
+    // Recalculate letterboxing if window was resized
+    if (IsWindowResized()) {
+        CalculateLetterboxing();
+    }
+
+    auto screenRect = Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
+
+    // Render all scenes to framebuffer (bottom-to-top)
+    BeginTextureMode(framebuffer_);
+    ClearBackground(config.backgroundColor);
+
+    for (Scene* scene : sceneStack_) {
+        if (scene) {
+            scene->OnDraw(screenRect);
         }
-        else
-        {
-            // Subsequent frames - apply mouse delta
-            leftPanelWidth += ImGui::GetIO().MouseDelta.x;
-            if (leftPanelWidth < 200.0f)
-                leftPanelWidth = 200.0f;
-            if (leftPanelWidth > ImGui::GetWindowWidth() - 200.0f)
-                leftPanelWidth = ImGui::GetWindowWidth() - 200.0f;
+    }
+
+    EndTextureMode();
+
+    // In editor mode, the ImGui "Game" panel blits the framebuffer
+    if (Application::GetInstance().GetMode() == AppMode::Editor) {
+        return;
+    }
+
+    // Draw framebuffer to screen with letterboxing
+
+}
+
+// =============================================================================
+// Event Handling
+// =============================================================================
+
+void SceneService::SetViewportRect(Rectangle rect) {
+    viewportRect_ = rect;
+}
+
+Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const {
+    auto& app = Application::GetInstance();
+    const auto& config = app.GetConfig();
+
+    // Use viewport rect to translate screen coords to framebuffer coords
+    float fbX = (screenPos.x - viewportRect_.x) / viewportRect_.width * config.framebufferWidth;
+    float fbY = (screenPos.y - viewportRect_.y) / viewportRect_.height * config.framebufferHeight;
+
+    return Vector2{fbX, fbY};
+}
+
+void SceneService::ProcessInput() {
+    Profile;
+    if (sceneStack_.empty())
+        return;
+
+    // Check if ImGui wants the mouse - if so, don't send events to scene
+    /*ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) {
+        return;
+    }*/
+
+    Vector2 mousePos = GetMousePosition();
+    bool isInside = CheckCollisionPointRec(mousePos, viewportRect_);
+
+    static bool wasInside = false;
+    if (isInside && !wasInside) {
+        MouseEnterEvent event;
+        for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+            (*it)->OnEvent(event);
+            if (event.handled) break;
+        }
+    } else if (!isInside && wasInside) {
+        MouseExitEvent event;
+        for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+            (*it)->OnEvent(event);
+            if (event.handled) break;
         }
     }
-    else
-    {
-        isDraggingSplitter = false;
+    wasInside = isInside;
+
+    // Only process mouse events if mouse is inside the framebuffer
+    if (isInside) {
+        Vector2 fbPos = ScreenToFramebuffer(mousePos);
+
+        // Mouse button events
+        for (int button = 0; button < 3; button++) {
+            if (IsMouseButtonPressed(button)) {
+                MouseButtonPressedEvent event(button, fbPos);
+                // Dispatch top-down through stack
+                for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+                    (*it)->OnEvent(event);
+                    if (event.handled)
+                        break;
+                }
+            } else if (IsMouseButtonReleased(button)) {
+                MouseButtonReleasedEvent event(button, fbPos);
+                for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+                    (*it)->OnEvent(event);
+                    if (event.handled)
+                        break;
+                }
+            }
+        }
+
+        // Mouse wheel
+        float wheelMove = GetMouseWheelMove();
+        if (wheelMove != 0.0f) {
+            MouseWheelEvent event(wheelMove, fbPos);
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+                (*it)->OnEvent(event);
+                if (event.handled)
+                    break;
+            }
+        }
+
+        // Mouse move
+        static Vector2 lastMousePos = mousePos;
+        if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y) {
+            Vector2 fbLastMousePos = ScreenToFramebuffer(lastMousePos);
+            Vector2 delta = {fbPos.x - fbLastMousePos.x, fbPos.y - fbLastMousePos.y};
+            MouseMovedEvent event(fbPos, delta);
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+                (*it)->OnEvent(event);
+                if (event.handled)
+                    break;
+            }
+            lastMousePos = mousePos;
+        }
     }
 
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-    }
-    ImGui::PopStyleColor(3);
-    ImGui::SameLine();
+    // Keyboard events
+    const int keysToCheck[] = {
+        KEY_SPACE, KEY_ENTER, KEY_ESCAPE,
+        KEY_W, KEY_A, KEY_S, KEY_D,
+        KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
+        KEY_LEFT_SHIFT, KEY_LEFT_CONTROL, KEY_LEFT_ALT};
 
-    // Right panel - Current Scene Panel
-    ImGui::BeginChild("CurrentScenePanel", ImVec2(0, 0), true);
-    DrawCurrentScenePanel();
-    ImGui::EndChild();
+    for (int key : keysToCheck) {
+        if (IsKeyPressed(key)) {
+            KeyPressedEvent event(key);
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+                (*it)->OnEvent(event);
+                if (event.handled)
+                    break;
+            }
+        } else if (IsKeyReleased(key)) {
+            KeyReleasedEvent event(key);
+            for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+                (*it)->OnEvent(event);
+                if (event.handled)
+                    break;
+            }
+        }
+    }
 }
 
-float SceneService::GetTransitionProgress() const
-{
-    if (!IsTransitioning() || transitionDuration_ == 0.0f)
-    {
-        return 0.0f;
-    }
-    return transitionTimer_ / transitionDuration_;
-}
+void SceneService::Shutdown() {
+    Profile;
+    UnloadRenderTexture(framebuffer_);
 
-void SceneService::StartTimeout()
-{
-    // Only allow timeout when paused and not already timing out
-    if (transitionStateMachine_.IsInState("ACTIVE_PAUSED") && !isTimingOut_)
-    {
-        isTimingOut_ = true;
-        timeoutTimer_ = 0.0f;
-        transitionStateMachine_.TransitionTo("ACTIVE_RUNNING");
+    // Exit all scenes in stack
+    for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
+        (*it)->OnExit();
     }
-}
+    sceneStack_.clear();
 
-void SceneService::OnAssetsLoaded()
-{
-    if (transitionStateMachine_.IsInState("LOADING_ASSETS"))
-    {
-        transitionStateMachine_.TransitionTo("ASSETS_LOADED");
-    }
-}
-
-void SceneService::Shutdown()
-{
-    if (activeScene_)
-    {
-        activeScene_->OnExit();
-        activeScene_ = nullptr;
-    }
-
-    while (!sceneQueue_.empty())
-    {
-        sceneQueue_.pop();
-    }
-
-    for (auto &[name, data] : scenes_)
-    {
+    // Delete all scene instances
+    for (auto& [name, data] : scenes_) {
         delete data.scene;
     }
-
     scenes_.clear();
-    pendingAssets_.clear();
-    transitionTimer_ = 0.0f;
 }
 
-// =============================================================================
-// Dual Panel UI Methods
-// =============================================================================
-
-void SceneService::DrawScenesPanel()
-{
-    // Scene Management Buttons
-    if (ImGui::Button("Create"))
-    {
-        // TODO: Implement scene creation
-    }
-    ImGui::SameLine();
-
-    bool hasSelection = selectedSceneIndex >= 0 && selectedSceneIndex < scenes_.size();
-
-    if (ImGui::Button("Load") && hasSelection)
-    {
-        auto it = scenes_.begin();
-        std::advance(it, selectedSceneIndex);
-        QueueScene(it->first);
-    }
-    if (!hasSelection)
-    {
-        ImGui::SetItemTooltip("Select a scene to load");
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Remove") && hasSelection)
-    {
-        // TODO: Implement scene removal
-    }
-    if (!hasSelection)
-    {
-        ImGui::SetItemTooltip("Select a scene to remove");
-    }
-
-    ImGui::Separator();
-
-    // Scene Registry Table
-    ImGui::Text("Scene Registry:");
-    if (ImGui::BeginTable("SceneTable", 4,
-                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
-                              ImGuiTableFlags_ScrollY,
-                          ImVec2(0, -80)))
-    {
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 100);
-        ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("XML Path", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Assets", ImGuiTableColumnFlags_WidthFixed, 50);
-        ImGui::TableSetupScrollFreeze(0, 1);
-        ImGui::TableHeadersRow();
-
-        int index = 0;
-        for (const auto &[name, sceneData] : scenes_)
-        {
-            ImGui::TableNextRow();
-
-            // Name column with selection
-            ImGui::TableSetColumnIndex(0);
-            if (ImGui::Selectable(name.c_str(), selectedSceneIndex == index, ImGuiSelectableFlags_SpanAllColumns))
-            {
-                selectedSceneIndex = index;
-            }
-
-            // Status column
-            ImGui::TableSetColumnIndex(1);
-            std::string statusText = PrintSceneStatus(sceneData.status);
-            ImGui::Text("%s", statusText.c_str());
-
-            // XML Path column
-            ImGui::TableSetColumnIndex(2);
-            ImGui::Text("%s", sceneData.xmlPath.c_str());
-
-            // Assets column
-            ImGui::TableSetColumnIndex(3);
-            ImGui::Text("%zu", sceneData.assets.size());
-
-            index++;
-        }
-        ImGui::EndTable();
-    }
-
-    ImGui::Separator();
-
-    // Scene Queue Table
-    ImGui::Text("Scene Queue:");
-    if (ImGui::BeginTable("QueueTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg, ImVec2(0, 0)))
-    {
-        ImGui::TableSetupColumn("Order", ImGuiTableColumnFlags_WidthFixed, 40);
-        ImGui::TableSetupColumn("Scene Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableHeadersRow();
-
-        std::queue<std::string> tempQueue = sceneQueue_;
-        int order = 1;
-        while (!tempQueue.empty())
-        {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%d", order++);
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%s", tempQueue.front().c_str());
-            ImGui::TableSetColumnIndex(2);
-            auto it = scenes_.find(tempQueue.front());
-            if (it != scenes_.end())
-            {
-                std::string statusText = PrintSceneStatus(it->second.status);
-                ImGui::Text("%s", statusText.c_str());
-            }
-            tempQueue.pop();
-        }
-        ImGui::EndTable();
-    }
-}
-
-void SceneService::DrawCurrentScenePanel()
-{
-    // Active scene info and controls
-    if (activeScene_)
-    {
-        std::string activeSceneName = "Unknown";
-        for (const auto &[name, data] : scenes_)
-        {
-            if (data.scene == activeScene_)
-            {
-                activeSceneName = name;
-                break;
-            }
-        }
-
-        ImGui::Text("Active Scene: %s", activeSceneName.c_str());
-
-        // Play/Pause/Step controls
-        const std::string &currentState = transitionStateMachine_.GetCurrentState();
-        if (currentState == "ACTIVE_RUNNING")
-        {
-            if (ImGui::Button("Pause"))
-            {
-                transitionStateMachine_.TransitionTo("ACTIVE_PAUSED");
-            }
-        }
-        else if (currentState == "ACTIVE_PAUSED")
-        {
-            if (ImGui::Button("Play"))
-            {
-                transitionStateMachine_.TransitionTo("ACTIVE_RUNNING");
-            }
-            ImGui::SameLine();
-
-            // Timeout configuration
-            ImGui::PushItemWidth(80);
-            ImGui::InputFloat("##timeout", &timeoutDuration_, 10.0f, 100.0f, "%.0f");
-            if (ImGui::IsItemHovered())
-            {
-                ImGui::SetTooltip("Timeout duration in milliseconds\nRun for this duration then pause");
-            }
-            ImGui::PopItemWidth();
-            if (timeoutDuration_ < 1.0f)
-                timeoutDuration_ = 1.0f;
-
-            ImGui::SameLine();
-            ImGui::Text("ms");
-            ImGui::SameLine();
-
-            if (ImGui::Button("Timeout"))
-            {
-                StartTimeout();
-            }
-
-            // Show timeout progress if currently timing out
-            if (isTimingOut_)
-            {
-                ImGui::SameLine();
-                float remaining = timeoutDuration_ - timeoutTimer_;
-                ImGui::Text("(%.0fms left)", remaining);
-            }
-        }
-
-        ImGui::Text("State: %s", currentState.c_str());
-        if (IsTransitioning())
-        {
-            ImGui::Text("Progress: %.2f", GetTransitionProgress());
-        }
-
-        ImGui::Separator();
-
-        // Systems drawer
-        DrawSystemsDrawer();
-
-        ImGui::Separator();
-
-        // Assets drawer
-        DrawAssetsDrawer();
-    }
-    else
-    {
-        ImGui::Text("No active scene");
-        ImGui::Text("Select a scene from the left panel and click 'Load' to begin.");
-    }
-}
-
-void SceneService::DrawSystemsDrawer()
-{
-    static bool systemsOpen = true;
-    if (ImGui::CollapsingHeader("Systems", systemsOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0))
-    {
-        if (!activeScene_)
-        {
-            ImGui::Text("No active scene");
-            return;
-        }
-
-        const auto &systems = activeScene_->GetSystems();
-        if (systems.empty())
-        {
-            ImGui::Text("No systems in current scene");
-            return;
-        }
-
-        if (ImGui::BeginTable("SystemsTable", 3,
-                              ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
-                                  ImGuiTableFlags_ScrollY,
-                              ImVec2(0, 150)))
-        {
-            ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 40);
-            ImGui::TableSetupColumn("System Type", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 60);
-            ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableHeadersRow();
-
-            for (size_t i = 0; i < systems.size(); ++i)
-            {
-                ImGui::TableNextRow();
-
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%zu", i);
-
-                ImGui::TableSetColumnIndex(1);
-                // Get system type name using typeid - this is basic but functional
-                const std::type_info &typeInfo = typeid(*systems[i]);
-                std::string systemName = typeInfo.name();
-
-                // Clean up the type name (remove namespace prefixes if present)
-                size_t lastColon = systemName.find_last_of(':');
-                if (lastColon != std::string::npos && lastColon < systemName.length() - 1)
-                {
-                    systemName = systemName.substr(lastColon + 1);
-                }
-
-                ImGui::Text("%s", systemName.c_str());
-
-                ImGui::TableSetColumnIndex(2);
-                ImGui::Text("Active"); // All systems in the list are active
-            }
-
-            ImGui::EndTable();
-        }
-
-        ImGui::Text("Total Systems: %zu", systems.size());
-    }
-}
-
-void SceneService::DrawAssetsDrawer()
-{
-    static bool assetsOpen = true;
-    if (ImGui::CollapsingHeader("Assets", assetsOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0))
-    {
-        if (!activeScene_)
-        {
-            ImGui::Text("No active scene");
-            return;
-        }
-
-        // Get assets from the current scene
-        std::vector<Asset> sceneAssets = activeScene_->GetAssets();
-
-        if (sceneAssets.empty())
-        {
-            ImGui::Text("No assets declared by current scene");
-            return;
-        }
-
-        if (ImGui::BeginTable("AssetsTable", 4,
-                              ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
-                                  ImGuiTableFlags_ScrollY,
-                              ImVec2(0, 150)))
-        {
-            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 120);
-            ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80);
-            ImGui::TableSetupColumn("Path", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 60);
-            ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableHeadersRow();
-
-            for (const auto &asset : sceneAssets)
-            {
-                ImGui::TableNextRow();
-
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%s", asset.GetName().c_str());
-
-                ImGui::TableSetColumnIndex(1);
-                // Convert AssetType to string
-                std::string typeStr;
-                switch (asset.GetType())
-                {
-                case AssetType::TEXTURE:
-                    typeStr = "TEXTURE";
-                    break;
-                case AssetType::SOUND:
-                    typeStr = "SOUND";
-                    break;
-                case AssetType::MUSIC:
-                    typeStr = "MUSIC";
-                    break;
-                case AssetType::FONT:
-                    typeStr = "FONT";
-                    break;
-                case AssetType::MODEL:
-                    typeStr = "MODEL";
-                    break;
-                case AssetType::SHADER:
-                    typeStr = "SHADER";
-                    break;
-                case AssetType::SPRITE:
-                    typeStr = "SPRITE";
-                    break;
-                default:
-                    typeStr = "UNKNOWN";
-                    break;
-                }
-                ImGui::Text("%s", typeStr.c_str());
-
-                ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%s", asset.GetPath().c_str());
-
-                ImGui::TableSetColumnIndex(3);
-                // For now, just show "Loaded" - in the future this could check AssetService
-                ImGui::Text("Loaded");
-            }
-
-            ImGui::EndTable();
-        }
-
-        ImGui::Text("Total Assets: %zu", sceneAssets.size());
-    }
-}
-
-} // namespace Elysium::Services
+}  // namespace Elysium::Services

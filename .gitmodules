@@ -10,9 +10,18 @@
 [submodule "Vendor/tinyxml2"]
 	path = Vendor/tinyxml2
 	url = https://github.com/leethomason/tinyxml2.git
-[submodule "third_party/SQLiteCpp"]
+[submodule "Vendor/SQLiteCpp"]
 	path = Vendor/SQLiteCpp
 	url = https://github.com/SRombauts/SQLiteCpp.git
 [submodule "Vendor/tracy"]
 	path = Vendor/tracy
 	url = https://github.com/wolfpld/tracy.git
+[submodule "Vendor/enet"]
+	path = Vendor/enet
+	url = https://github.com/lsalzman/enet.git
+[submodule "Vendor/lua"]
+	path = Vendor/lua
+	url = https://github.com/lua/lua
+[submodule "Vendor/sol2"]
+	path = Vendor/sol2
+	url = https://github.com/ThePhD/sol2.git

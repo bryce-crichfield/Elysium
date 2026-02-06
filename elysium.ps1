@@ -44,7 +44,7 @@ function Elysium_Setup {
     & "$msys64Path\usr\bin\bash.exe" -lc "pacman -Syu --noconfirm"
     
     # Install development packages
-    & "$msys64Path\usr\bin\bash.exe" -lc "pacman -S --noconfirm base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja"
+    & "$msys64Path\usr\bin\bash.exe" -lc "pacman -S --noconfirm base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-gdb"
     
     # Clean package cache
     & "$msys64Path\usr\bin\bash.exe" -lc "pacman -Scc --noconfirm"
@@ -76,9 +76,9 @@ function Elysium_Build {
         # Use Ninja generator with MinGW and override shell
         $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
         $env:ComSpec = "C:\Windows\System32\cmd.exe"
-        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja -DTRACY_ENABLE=ON ..
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE=Debug -DTRACY_ENABLE=ON ..
         if ($LASTEXITCODE -eq 0) {
-            cmake --build . --config Release
+            cmake --build .
         }
     }
     finally {

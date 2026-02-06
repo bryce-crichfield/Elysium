@@ -1,0 +1,135 @@
+<Scene type="ExploreScene">
+    <Systems>
+        <System type="SpatialSystem" />
+        <System type="MovementSystem" />
+        <System type="KinematicsSystem" />
+        <System type="ScriptSystem" />
+        <System type="SpriteSystem" />
+        <System type="AnimationSystem" />
+        <System type="CameraSystem" />
+        <System type="CommandSystem" />
+        <System type="RenderSystem" />
+    </Systems>
+
+    <SceneConfiguration width="800" height="600">
+        <SceneLayer name="background" z="-1" space="World" blend="Normal" />
+        <SceneLayer name="default" z="0" space="World" blend="Normal" />
+        <SceneLayer name="tile" z="1" space="World" blend="Normal" />
+        <SceneLayer name="entity" z="2" space="World" blend="Normal" />
+        <SceneLayer name="light" z="3" space="World" blend="Multiply" opacity="1.0" isComposited="true" />
+    </SceneConfiguration>
+
+    <Tilemap width="20" height="20">
+        <Tilemask>
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+            0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+        </Tilemask>
+
+        <TileDefinitions>
+            <TileDefinition id="0" background="#00cece91" border="#ffffff" layerName="tile" />
+        </TileDefinitions>
+    </Tilemap>
+
+
+    <Entities >
+        <Entity>
+            <NameComponent name="CAMERA" />
+            <PositionComponent />
+            <CameraComponent target="ENTITY_0" />
+        </Entity>
+
+        <!-- PLAYER UNIT -->
+        <Entity>
+            <NameComponent name="ENTITY_0" />
+            <PositionComponent x="100" y="100" />
+            <MovementComponent>
+                <Waypoints></Waypoints>
+            </MovementComponent>
+            <KinematicsComponent maxSpeed="150" friction="5" />
+            <AnimationComponent />
+            <DirectionComponent />
+            <BoundsComponent />
+            <HealthComponent max="100" />
+            <AttackComponent range="150" damage="15" cooldown="1.0" />
+			<RectangleComponent width="32" height="32" background="#ff0000ff"/>
+
+            <SpriteComponent
+                spriteName="mushroom_warrior"
+                markerName="idle/down"
+                layerName="entity" />
+
+        </Entity>
+
+		<Entity>
+			<NameComponent name="ENTITY_LIGHT" />
+			<PositionComponent x="100" y="100" />
+			<LayerComponent name="light" />
+			<LightComponent color="#ffffff" radius="100" />
+		</Entity>
+
+        <!-- ENEMY UNIT -->
+        <Entity>
+            <NameComponent name="ENTITY_1" />
+            <PositionComponent x="300" y="300" />
+            <MovementComponent>
+                <Waypoints></Waypoints>
+            </MovementComponent>
+            <KinematicsComponent maxSpeed="100" friction="5" />
+            <AnimationComponent />
+            <DirectionComponent />
+            <BoundsComponent />
+            <HealthComponent max="50" />
+
+            <SpriteComponent
+            spriteName="mushroom_warrior"
+            markerName="idle/down"
+            layerName="entity" />
+
+        </Entity>
+
+        <!-- BARRACKS -->
+        <Entity>
+            <NameComponent name="Barracks_1" />
+            <PositionComponent x="100" y="300" />
+        </Entity>
+
+        <Entity>
+            <NameComponent name="CommandCenter" />
+            <PositionComponent x="200" y="200" />
+        </Entity>
+
+        <Entity>
+            <NameComponent name="MineralPatch1" />
+            <PositionComponent x="500" y="150" />
+        </Entity>
+
+        <Entity>
+            <NameComponent name="MineralPatch2" />
+            <PositionComponent x="550" y="220" />
+        </Entity>
+
+        <Entity>
+            <NameComponent name="MineralPatch3" />
+            <PositionComponent x="480" y="280" />
+        </Entity>
+
+    </Entities>
+</Scene>
