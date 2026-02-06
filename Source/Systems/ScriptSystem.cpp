@@ -11,6 +11,7 @@ ScriptSystem::ScriptSystem(Context context) : System(context) {}
 
 void ScriptSystem::Update(float deltaTime) {
     auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+    scriptService.SetActiveWorld(world);
 
     world->Query<ScriptComponent>([&](Entity entity, auto& scriptComp) {
         if (scriptComp.isActive && !scriptComp.scriptName.empty()) {
@@ -25,6 +26,7 @@ void ScriptSystem::Update(float deltaTime) {
 
 void ScriptSystem::OnEvent(Event& event) {
     auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+    scriptService.SetActiveWorld(world);
 
     // Handle PickEvents specially - only dispatch to the target entity
     if (auto* pickEvent = event.As<PickEvent>()) {

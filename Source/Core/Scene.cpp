@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include "Application.h"
@@ -65,6 +66,52 @@ void Scene::OnMessage(Message& message) {
 void Scene::AddSystem(std::unique_ptr<System> system) {
     systems_.emplace_back(std::move(system));
     LOG_DEBUGF("Scene", "Added system: %s", typeid(*systems_.back()).name());
+}
+
+void Scene::RemoveSystem(System* system) {
+    auto it = std::find_if(systems_.begin(), systems_.end(),
+        [system](const std::unique_ptr<System>& s) { return s.get() == system; });
+    if (it != systems_.end()) {
+        LOG_DEBUGF("Scene", "Removing system: %s", typeid(**it).name());
+        systems_.erase(it);
+    }
+}
+
+std::vector<SceneLayer>& Scene::GetLayers() {
+    return layers_;
+}
+
+const std::vector<SceneLayer>& Scene::GetLayers() const {
+    return layers_;
+}
+
+SceneLayer* Scene::GetLayer(const std::string& name) {
+    for (auto& layer : layers_) {
+        if (layer.name == name) return &layer;
+    }
+    return nullptr;
+}
+
+const SceneLayer* Scene::GetLayer(const std::string& name) const {
+    for (const auto& layer : layers_) {
+        if (layer.name == name) return &layer;
+    }
+    return nullptr;
+}
+
+void Scene::AddLayer(const SceneLayer& layer) {
+    // Replace if exists
+    for (auto& existing : layers_) {
+        if (existing.name == layer.name) {
+            existing = layer;
+            return;
+        }
+    }
+    layers_.push_back(layer);
+    // Keep sorted by zIndex
+    std::sort(layers_.begin(), layers_.end(), [](const SceneLayer& a, const SceneLayer& b) {
+        return a.zIndex < b.zIndex;
+    });
 }
 
 }  // namespace Elysium

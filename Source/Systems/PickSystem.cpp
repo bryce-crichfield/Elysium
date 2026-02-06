@@ -267,22 +267,18 @@ Entity PickSystem::FindEntityAtPoint(Vector2 worldPos) {
 Entity PickSystem::FindScreenSpaceEntityAtPoint(Vector2 screenPos) {
     Entity foundEntity = 0;
 
-    // Build layer lookup for screen-space detection
+    // Build layer lookup for screen-space detection from scene configuration
     std::unordered_map<std::string, bool> screenSpaceLayers;
-    world->Query<LayerComponent>([&](Entity entity, auto& layer) {
-        screenSpaceLayers[layer.name] = (layer.space == LayerComponent::Space::Screen);
-    });
+    for (const auto& layer : scene->GetLayers()) {
+        screenSpaceLayers[layer.name] = (layer.space == SceneLayerSpace::Screen2D);
+    }
 
     // Check entities with bounds - prefer screen-space entities (higher z-order typically)
     world->Query<BoundsComponent>([&](Entity entity, auto& bounds) {
-        // Get the layer name from the entity's renderable component
+        // Get the layer name from the entity's LayerComponent
         std::string layerName = "default";
-        if (world->HasComponent<RectangleComponent>(entity)) {
-            layerName = world->GetComponent<RectangleComponent>(entity).layerName;
-        } else if (world->HasComponent<TextComponent>(entity)) {
-            layerName = world->GetComponent<TextComponent>(entity).layerName;
-        } else if (world->HasComponent<CircleComponent>(entity)) {
-            layerName = world->GetComponent<CircleComponent>(entity).layerName;
+        if (world->HasComponent<LayerComponent>(entity)) {
+            layerName = world->GetComponent<LayerComponent>(entity).name;
         }
 
         // Check if this is a screen-space layer

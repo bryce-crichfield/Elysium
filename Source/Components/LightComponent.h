@@ -7,9 +7,9 @@ namespace Elysium {
     struct LightComponent {
         Color color;
         float radius;
-        std::string layerName = "default";
+        float intensity; // 0 = soft diffuse falloff, 1 = hard solid edge
 
-        LightComponent(Color c = WHITE, float r = 50.0f, const std::string& layer = "default") : color(c), radius(r), layerName(layer) {}
+        LightComponent(Color c = WHITE, float r = 50.0f, float i = 0.5f) : color(c), radius(r), intensity(i) {}
 
         static constexpr const char* Name() { return "Light"; }
         static constexpr const char* XmlTag() { return "LightComponent"; }

@@ -19,7 +19,6 @@ class MenuScene : public Scene {
 
    private:
     float rotation_;
-    Color backgroundColor_;
 };
 
 }  // namespace Elysium::Scenes

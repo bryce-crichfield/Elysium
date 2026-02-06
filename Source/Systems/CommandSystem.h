@@ -25,8 +25,6 @@ class CommandSystem : public System, public IMouseListener {
 private:
     Vector2 FramebufferToWorld(Vector2 fbPos);
     void IssueMoveCommand(Vector2 targetPos);
-    void IssueAttackCommand(Entity targetEntity);
-    Entity FindEntityAtPoint(Vector2 worldPos);
 };
 
 }  // namespace Elysium::Systems

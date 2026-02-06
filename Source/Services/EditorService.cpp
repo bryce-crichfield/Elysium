@@ -1,34 +1,25 @@
-#include "Services/WorldService.h"
-#include <algorithm>
-#include <iostream>
-#include <set>
+#include "Services/EditorService.h"
 #include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Components.h"
 #include "Core/Entity.h"
-#include "Services/AssetService.h"
 #include "Services/SceneService.h"
-#include "Services/ScriptService.h"
-#include "imgui.h"
-#include "raylib.h"
 
 namespace Elysium::Services {
 
-WorldService::WorldService() {
-    name_ = "WorldService";
+EditorService::EditorService() {
+    name_ = "EditorService";
 }
 
-void WorldService::Initialize() {
+void EditorService::Initialize() {
     RegisterComponentTypes();
 }
 
-void WorldService::Shutdown() {
-    // Service cleanup if needed
+void EditorService::Shutdown() {
 }
 
-void WorldService::RegisterComponentTypes() {
-    // Register components from the central registry
+void EditorService::RegisterComponentTypes() {
     const auto& inspectors = ComponentRegistry::Instance().GetInspectors();
     for (const auto& [name, inspectorFunc] : inspectors) {
         ComponentPlaceholder placeholder;
@@ -46,23 +37,27 @@ void WorldService::RegisterComponentTypes() {
                 access->add(w, e);
             };
         }
-        
+
         componentPlaceholders.push_back(placeholder);
     }
 
-    // Register legacy components manually
-    // All components migrated to registry.
+    std::sort(componentPlaceholders.begin(), componentPlaceholders.end(),
+              [](const ComponentPlaceholder& a, const ComponentPlaceholder& b) {
+                  return a.name < b.name;
+              });
 }
 
-void WorldService::Update(float deltaTime) {
-    Profile;
+Elysium::World* EditorService::GetWorld() const {
     auto& app = Elysium::Application::GetInstance();
     auto& sceneService = app.GetService<SceneService>();
-    auto newWorld = sceneService.GetScene() ? sceneService.GetScene()->GetWorld() : nullptr;
+    auto* scene = sceneService.GetScene();
+    return scene ? scene->GetWorld() : nullptr;
+}
 
-    if (newWorld != world) {
-        world = newWorld;
-    }
+void EditorService::Update(float deltaTime) {
+    Profile;
+
+    auto* world = GetWorld();
 
     // Auto-select dragged entities
     if (world) {

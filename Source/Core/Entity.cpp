@@ -93,27 +93,19 @@ World::World() {
     RegisterComponent<RectangleComponent>();
     RegisterComponent<CircleComponent>();
     RegisterComponent<SpriteComponent>();
-    RegisterComponent<TextureComponent>();
     RegisterComponent<TextComponent>();
     RegisterComponent<CameraComponent>();
     RegisterComponent<FollowComponent>();
     RegisterComponent<TileComponent>();
-    RegisterComponent<TeamComponent>();
     RegisterComponent<CooldownComponent>();
-    RegisterComponent<CharacterComponent>();
     RegisterComponent<UnitComponent>();
     RegisterComponent<BoundsComponent>();
     RegisterComponent<SelectionComponent>();
-    RegisterComponent<PathRequestComponent>();
     RegisterComponent<ScriptComponent>();
     RegisterComponent<KinematicsComponent>();
     RegisterComponent<HealthComponent>();
     RegisterComponent<AttackComponent>();
-    RegisterComponent<ProjectileComponent>();
-    RegisterComponent<FactionComponent>();
     RegisterComponent<ResourceComponent>();
-    RegisterComponent<CarryComponent>();
-    RegisterComponent<StorageComponent>();
 }
 
 void World::AddWorldListener(IWorldListener* listener) {

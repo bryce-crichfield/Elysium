@@ -4,16 +4,14 @@
 #include "imgui.h"
 
 namespace Elysium {
-    RectangleComponent::RectangleComponent(float width, float height, Color background, Color border, const std::string& layer)
-        : width(width), height(height), background(background), border(border), layerName(layer) {}
+    RectangleComponent::RectangleComponent(float width, float height, Color background, Color border)
+        : width(width), height(height), background(background), border(border) {}
 
     void RectangleComponent::LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el) {
         c.width = el->FloatAttribute("width", 100.0f);
         c.height = el->FloatAttribute("height", 100.0f);
         std::string backgroundHex = el->Attribute("background") ? el->Attribute("background") : "";
         std::string borderHex = el->Attribute("border") ? el->Attribute("border") : "";
-        const char* layerName = el->Attribute("layerName");
-        c.layerName = layerName ? layerName : "tile";
 
         c.background = ParseHexColor(backgroundHex, BLANK);
         c.border = ParseHexColor(borderHex, BLANK);
@@ -52,15 +50,6 @@ namespace Elysium {
             c.border = {(unsigned char)(border[0] * 255), (unsigned char)(border[1] * 255),
                         (unsigned char)(border[2] * 255), (unsigned char)(border[3] * 255)};
         }
-
-        static char layerBuffer[256];
-        strncpy(layerBuffer, c.layerName.c_str(), sizeof(layerBuffer) - 1);
-        layerBuffer[sizeof(layerBuffer) - 1] = '\0';
-
-        Label("Layer Name: ");
-        if (ImGui::InputText("##LayerName", layerBuffer, sizeof(layerBuffer))) {
-            c.layerName = std::string(layerBuffer);
-        }
     }
 
     void RectangleComponent::BindLua(sol::usertype<RectangleComponent>& ut) {
@@ -72,7 +61,6 @@ namespace Elysium {
         ut["border"] = sol::property(
             [](RectangleComponent& r) { return r.border; },
             [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); });
-        ut["layerName"] = &RectangleComponent::layerName;
     }
 
     void RectangleComponent::SetFromLua(RectangleComponent& c, sol::object v) {
@@ -80,7 +68,6 @@ namespace Elysium {
             sol::table t = v.as<sol::table>();
             c.width = t.get_or("width", c.width);
             c.height = t.get_or("height", c.height);
-            c.layerName = t.get_or("layerName", c.layerName);
             if (t["background"].valid()) c.background = ObjectToColor(t["background"]);
             if (t["border"].valid()) c.border = ObjectToColor(t["border"]);
         }

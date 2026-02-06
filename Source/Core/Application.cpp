@@ -13,6 +13,7 @@
 #include "Editor/AssetEditor.h"
 #include "Editor/NetworkEditor.h"
 #include "Editor/ScriptEditor.h"
+#include "Systems/DebugSystem.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "rlImGui.h"
@@ -45,7 +46,7 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterService(std::make_unique<Elysium::Services::NetworkService>());
     RegisterService(std::make_unique<Elysium::Services::InvokeService>());
     RegisterService(std::make_unique<Elysium::Services::AssetService>());
-    RegisterService(std::make_unique<Elysium::Services::WorldService>());
+    RegisterService(std::make_unique<Elysium::Services::EditorService>());
     RegisterService(std::make_unique<Elysium::Services::LoadingService>());
     RegisterService(std::make_unique<Elysium::Services::SceneService>());
     RegisterService(std::make_unique<Elysium::Services::ScriptService>());
@@ -214,12 +215,12 @@ void Application::Draw() {
 
             // Assign windows
             ImGui::DockBuilderDockWindow("World Editor", dockLeft);
+            ImGui::DockBuilderDockWindow("Script Editor", dockCenter);
             ImGui::DockBuilderDockWindow("Game", dockCenter);
             ImGui::DockBuilderDockWindow("Log Viewer", dockBottom);
             ImGui::DockBuilderDockWindow("Scene Editor", dockRight);
             ImGui::DockBuilderDockWindow("Asset Browser", dockRight);
             ImGui::DockBuilderDockWindow("Network", dockRight);
-            ImGui::DockBuilderDockWindow("Script Editor", dockCenter);
 
             ImGui::DockBuilderFinish(dockspaceId);
         }
@@ -252,7 +253,6 @@ void Application::Draw() {
             float drawX = pos.x + (avail.x - drawW) * 0.5f;
             float drawY = pos.y + (avail.y - drawH) * 0.5f;
 
-            LOG_DEBUGF("SceneService", "Viewport Rect: x=%.1f y=%.1f w=%.1f h=%.1f", drawX, drawY, drawW, drawH);
             sceneService.SetViewportRect(Rectangle{drawX, drawY, drawW, drawH});
         }
         ImGui::End();
@@ -289,15 +289,35 @@ void Application::SetMode(AppMode mode) {
     if (mode_ == mode) return;
     mode_ = mode;
 
+    auto& sceneService = GetService<Services::SceneService>();
+
     if (mode_ == AppMode::Editor) {
         for (auto& editor : editors_) {
             editor->SetVisible(true);
+        }
+
+        // Add DebugSystem to all scenes in the stack
+        for (Scene* scene : sceneService.GetStack()) {
+            if (!scene->GetSystem<Systems::DebugSystem>()) {
+                Context ctx;
+                ctx.application = this;
+                ctx.scene = scene;
+                ctx.world = scene->GetWorld();
+                scene->AddSystem(std::make_unique<Systems::DebugSystem>(ctx));
+            }
         }
     } else {
         for (auto& editor : editors_) {
             editor->SetVisible(false);
         }
         editorLayoutBuilt_ = false;
+
+        // Remove DebugSystem from all scenes in the stack
+        for (Scene* scene : sceneService.GetStack()) {
+            if (auto* debugSystem = scene->GetSystem<Systems::DebugSystem>()) {
+                scene->RemoveSystem(debugSystem);
+            }
+        }
     }
 }
 

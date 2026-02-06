@@ -1,27 +1,23 @@
 <Scene type="ExploreScene">
     <Systems>
         <System type="SpatialSystem" />
-        <System type="PathfindingSystem" />
         <System type="MovementSystem" />
         <System type="KinematicsSystem" />
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
         <System type="AnimationSystem" />
         <System type="CameraSystem" />
-        <!-- <System type="PickSystem" /> -->
         <System type="CommandSystem" />
-        <System type="AttackSystem" />
-        <System type="ProjectileSystem" />
         <System type="RenderSystem" />
     </Systems>
 
-    <Layers>
-        <Layer name="background" z="-1" type="Background" space="World" blend="Normal" />
-        <Layer name="default" z="0" type="World" space="World" blend="Normal" />
-        <Layer name="tile" z="1" type="World" space="World" blend="Normal" />
-        <Layer name="entity" z="2" type="World" space="World" blend="Normal" />
-        <Layer name="light" z="3" type="Lighting" space="World" blend="Additive" opacity="0.8" />
-    </Layers>
+    <SceneConfiguration width="800" height="600">
+        <SceneLayer name="background" z="-1" space="World" blend="Normal" />
+        <SceneLayer name="default" z="0" space="World" blend="Normal" />
+        <SceneLayer name="tile" z="1" space="World" blend="Normal" />
+        <SceneLayer name="entity" z="2" space="World" blend="Normal" />
+        <SceneLayer name="light" z="3" space="World" blend="Multiply" opacity="1.0" isComposited="true" />
+    </SceneConfiguration>
 
     <Tilemap width="20" height="20">
         <Tilemask>
@@ -71,17 +67,23 @@
             <AnimationComponent />
             <DirectionComponent />
             <BoundsComponent />
-            <FactionComponent name="Player" /> <!-- Player -->
             <HealthComponent max="100" />
             <AttackComponent range="150" damage="15" cooldown="1.0" />
+			<RectangleComponent width="32" height="32" background="#ff0000ff"/>
 
             <SpriteComponent
-            spriteName="mushroom_warrior"
-            markerName="idle/down"
-            layerName="entity" />
+                spriteName="mushroom_warrior"
+                markerName="idle/down"
+                layerName="entity" />
 
-            <ScriptComponent scriptName="Scripts/test.lua" />
         </Entity>
+
+		<Entity>
+			<NameComponent name="ENTITY_LIGHT" />
+			<PositionComponent x="100" y="100" />
+			<LayerComponent name="light" />
+			<LightComponent color="#ffffff" radius="100" />
+		</Entity>
 
         <!-- ENEMY UNIT -->
         <Entity>
@@ -94,26 +96,19 @@
             <AnimationComponent />
             <DirectionComponent />
             <BoundsComponent />
-            <FactionComponent name="Enemy" /> <!-- Enemy -->
             <HealthComponent max="50" />
-            <!-- No attack for now, just a dummy -->
 
             <SpriteComponent
             spriteName="mushroom_warrior"
             markerName="idle/down"
             layerName="entity" />
-            
-            <!-- Tint it red to look like enemy -->
-            <!-- <CircleComponent radius="5" background="#FF0000" layerName="entity" /> (optional visual aid) -->
 
-            <ScriptComponent scriptName="Scripts/test.lua" />
         </Entity>
 
         <!-- BARRACKS -->
         <Entity>
             <NameComponent name="Barracks_1" />
             <PositionComponent x="100" y="300" />
-            <ScriptComponent scriptName="Scripts/barracks.lua" />
         </Entity>
 
         <Entity>
@@ -124,19 +119,16 @@
         <Entity>
             <NameComponent name="MineralPatch1" />
             <PositionComponent x="500" y="150" />
-            <ScriptComponent scriptName="Scripts/resource_node.lua" />
         </Entity>
 
         <Entity>
             <NameComponent name="MineralPatch2" />
             <PositionComponent x="550" y="220" />
-            <ScriptComponent scriptName="Scripts/resource_node.lua" />
         </Entity>
 
         <Entity>
             <NameComponent name="MineralPatch3" />
             <PositionComponent x="480" y="280" />
-            <ScriptComponent scriptName="Scripts/resource_node.lua" />
         </Entity>
 
     </Entities>

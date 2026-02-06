@@ -22,70 +22,39 @@
 #include "Systems/ScriptSystem.h"
 #include "Systems/SpriteSystem.h"
 #include "Systems/SpatialSystem.h"
-#include "Systems/PathfindingSystem.h"
 #include "Systems/KinematicsSystem.h"
-#include "Systems/AttackSystem.h"
-#include "Systems/ProjectileSystem.h"
 
 using namespace tinyxml2;
 
 namespace Elysium {
 
-LayerComponent::Type ParseLayerType(const char* typeStr) {
-    if (!typeStr) return LayerComponent::Type::World;
-    std::string type = typeStr;
-    if (type == "Background") return LayerComponent::Type::Background;
-    else if (type == "Lighting") return LayerComponent::Type::Lighting;
-    else if (type == "Overlay") return LayerComponent::Type::Overlay;
-    return LayerComponent::Type::World;
-}
+void LoadLayers(XMLElement* root, Scene& scene) {
+    VisitElement(root, "SceneConfiguration", [&](XMLElement* configElement) {
+        LOG_DEBUG("Scene", "Processing SceneConfiguration section");
 
-LayerComponent::Space ParseLayerSpace(const char* spaceStr) {
-    if (!spaceStr) return LayerComponent::Space::World;
-    std::string space = spaceStr;
-    if (space == "Screen") return LayerComponent::Space::Screen;
-    else if (space == "Parallax") return LayerComponent::Space::Parallax;
-    return LayerComponent::Space::World;
-}
+        SceneConfiguration config;
+        config.resolutionWidth = configElement->FloatAttribute("width", 640.0f);
+        config.resolutionHeight = configElement->FloatAttribute("height", 480.0f);
 
-LayerComponent::Blend ParseLayerBlend(const char* blendStr) {
-    if (!blendStr) return LayerComponent::Blend::Normal;
-    std::string blend = blendStr;
-    if (blend == "Additive") return LayerComponent::Blend::Additive;
-    else if (blend == "Multiply") return LayerComponent::Blend::Multiply;
-    else if (blend == "Alpha") return LayerComponent::Blend::Alpha;
-    return LayerComponent::Blend::Normal;
-}
-
-LayerComponent CreateLayerComponent(XMLElement* xmlLayer) {
-    LayerComponent layerComp;
-    const char* name = xmlLayer->Attribute("name");
-    layerComp.name = name ? name : "default";
-    layerComp.zIndex = xmlLayer->IntAttribute("z", 0);
-    layerComp.opacity = xmlLayer->FloatAttribute("opacity", 1.0f);
-    layerComp.isVisible = xmlLayer->BoolAttribute("isVisible", true);
-    layerComp.type = ParseLayerType(xmlLayer->Attribute("type"));
-    layerComp.space = ParseLayerSpace(xmlLayer->Attribute("space"));
-    layerComp.blend = ParseLayerBlend(xmlLayer->Attribute("blend"));
-    return layerComp;
-}
-
-void LoadLayers(XMLElement* root, World* world) {
-    VisitElement(root, "Layers", [&](XMLElement* layersElement) {
-        LOG_DEBUG("Scene", "Processing Layers section");
-        ForEachElement(layersElement, "Layer", [&](XMLElement* xmlLayer) {
-            LayerComponent layerComp = CreateLayerComponent(xmlLayer);
-            Entity layerEntity = world->CreateEntity();
-            world->AddComponent<NameComponent>(layerEntity, NameComponent(std::string("Layer_") + layerComp.name));
-            world->AddComponent(layerEntity, layerComp);
-            LOG_DEBUGF("Scene", "Created layer '%s' with z-index %d", layerComp.name.c_str(), layerComp.zIndex);
+        ForEachElement(configElement, "SceneLayer", [&](XMLElement* xmlLayer) {
+            SceneLayer layer;
+            SceneLayer::LoadXml(layer, xmlLayer);
+            scene.AddLayer(layer);
+            config.layers.push_back(layer);
+            LOG_DEBUGF("Scene", "Created scene layer '%s' with z-index %d", layer.name.c_str(), layer.zIndex);
         });
+
+        scene.SetConfiguration(config);
     });
 }
 
 void LoadTilemap(XMLElement* root, World* world) {
     VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
-        std::unordered_map<int, RectangleComponent> tileDefinitions;
+        struct TileDef {
+            RectangleComponent rect;
+            std::string layerName;
+        };
+        std::unordered_map<int, TileDef> tileDefinitions;
         std::vector<int> tilemask;
         int tilemapWidth = tilemap->IntAttribute("width", 0);
 
@@ -114,7 +83,7 @@ void LoadTilemap(XMLElement* root, World* world) {
                 const char* layerName = xmlTileDefinition->Attribute("layerName");
                 Color bgColor = ParseHexColor(bgHex, BLANK);
                 Color borderColor = ParseHexColor(borderHex, BLANK);
-                tileDefinitions[id] = RectangleComponent(32, 32, bgColor, borderColor, layerName ? layerName : "tile");
+                tileDefinitions[id] = {RectangleComponent(32, 32, bgColor, borderColor), layerName ? layerName : "tile"};
             });
         });
 
@@ -125,7 +94,8 @@ void LoadTilemap(XMLElement* root, World* world) {
             auto entity = world->CreateEntity();
             world->AddComponent<NameComponent>(entity, NameComponent(std::string("Tile_") + std::to_string(i)));
             world->AddComponent<LocationComponent>(entity, LocationComponent(x, y));
-            world->AddComponent<RectangleComponent>(entity, tileDefinitions[id]);
+            world->AddComponent<RectangleComponent>(entity, tileDefinitions[id].rect);
+            world->AddComponent<LayerComponent>(entity, LayerComponent(tileDefinitions[id].layerName));
             world->AddComponent<TileComponent>(entity, TileComponent());
         }
     });
@@ -182,6 +152,13 @@ void LoadEntities(XMLElement* root, World* world) {
                 if (parser != ComponentLoaders().end()) {
                     LOG_DEBUGF("Scene", "Processing component: %s", componentType.c_str());
                     parser->second(component, world, entity);
+
+                    // Backward compatibility: if a component has a layerName attribute, 
+                    // add a LayerComponent to the entity if it doesn't have one.
+                    const char* layerName = component->Attribute("layerName");
+                    if (layerName && !world->HasComponent<LayerComponent>(entity)) {
+                        world->AddComponent<LayerComponent>(entity, LayerComponent(layerName));
+                    }
                 } else {
                     LOG_WARNINGF("Scene", "Unknown component type: %s", componentType.c_str());
                 }
@@ -220,14 +197,8 @@ void LoadSystems(XMLElement* root, Scene& scene) {
                 scene.AddSystem(std::make_unique<Elysium::Systems::CommandSystem>(context));
             } else if (systemName == "SpatialSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::SpatialSystem>(context));
-            } else if (systemName == "PathfindingSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::PathfindingSystem>(context));
             } else if (systemName == "KinematicsSystem") {
                 scene.AddSystem(std::make_unique<Elysium::Systems::KinematicsSystem>(context));
-            } else if (systemName == "AttackSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::AttackSystem>(context));
-            } else if (systemName == "ProjectileSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::ProjectileSystem>(context));
             } else {
                 LOG_WARNINGF("Scene", "Unknown system type: %s", systemName.c_str());
             }
@@ -252,7 +223,7 @@ bool LoadScene(Scene& scene, const std::string& path) {
 
     World* world_ = scene.GetWorld();
 
-    LoadLayers(root, world_);
+    LoadLayers(root, scene);
     LoadTilemap(root, world_);
     LoadEntities(root, world_);
     LoadSystems(root, scene);

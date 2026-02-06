@@ -39,6 +39,9 @@ public:
 
     sol::state& GetLua() { return lua; }
 
+    // Set the active world for script execution context
+    static void SetActiveWorld(Elysium::World* w);
+
 private:
     sol::state lua;
     

@@ -22,50 +22,6 @@ using namespace tinyxml2;
 
 namespace Elysium {
 
-// Helper functions for enum-to-string conversion
-std::string LayerTypeToString(LayerComponent::Type type) {
-    switch (type) {
-        case LayerComponent::Type::Background:
-            return "Background";
-        case LayerComponent::Type::World:
-            return "World";
-        case LayerComponent::Type::Lighting:
-            return "Lighting";
-        case LayerComponent::Type::Overlay:
-            return "Overlay";
-        default:
-            return "World";
-    }
-}
-
-std::string LayerSpaceToString(LayerComponent::Space space) {
-    switch (space) {
-        case LayerComponent::Space::Screen:
-            return "Screen";
-        case LayerComponent::Space::World:
-            return "World";
-        case LayerComponent::Space::Parallax:
-            return "Parallax";
-        default:
-            return "World";
-    }
-}
-
-std::string LayerBlendToString(LayerComponent::Blend blend) {
-    switch (blend) {
-        case LayerComponent::Blend::Normal:
-            return "Normal";
-        case LayerComponent::Blend::Additive:
-            return "Additive";
-        case LayerComponent::Blend::Multiply:
-            return "Multiply";
-        case LayerComponent::Blend::Alpha:
-            return "Alpha";
-        default:
-            return "Normal";
-    }
-}
-
 std::string ColorToHex(Color color) {
     if (color.a == 0)
         return "";
@@ -111,21 +67,14 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
     componentSavers[std::type_index(typeid(LayerComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
         auto& layer = world->GetComponent<LayerComponent>(entity);
         builder.AddElement("LayerComponent")
-            .SetAttribute("name", layer.name.c_str())
-            .SetAttribute("z", layer.zIndex)
-            .SetAttribute("type", LayerTypeToString(layer.type).c_str())
-            .SetAttribute("space", LayerSpaceToString(layer.space).c_str())
-            .SetAttribute("blend", LayerBlendToString(layer.blend).c_str())
-            .SetAttribute("opacity", layer.opacity)
-            .SetAttribute("isVisible", layer.isVisible);
+            .SetAttribute("name", layer.name.c_str());
     };
 
     componentSavers[std::type_index(typeid(RectangleComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
         auto& rect = world->GetComponent<RectangleComponent>(entity);
         auto rectBuilder = builder.AddElement("RectangleComponent")
                                .SetAttribute("width", rect.width)
-                               .SetAttribute("height", rect.height)
-                               .SetAttribute("layerName", rect.layerName.c_str());
+                               .SetAttribute("height", rect.height);
 
         std::string bgHex = ColorToHex(rect.background);
         std::string borderHex = ColorToHex(rect.border);
@@ -138,8 +87,7 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
     componentSavers[std::type_index(typeid(CircleComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
         auto& circle = world->GetComponent<CircleComponent>(entity);
         auto circleBuilder = builder.AddElement("CircleComponent")
-                                 .SetAttribute("radius", circle.radius)
-                                 .SetAttribute("layerName", circle.layerName.c_str());
+                                 .SetAttribute("radius", circle.radius);
 
         std::string fillHex = ColorToHex(circle.background);
         std::string borderHex = ColorToHex(circle.border);
@@ -157,16 +105,14 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
             .SetAttribute("r", text.color.r)
             .SetAttribute("g", text.color.g)
             .SetAttribute("b", text.color.b)
-            .SetAttribute("a", text.color.a)
-            .SetAttribute("layerName", text.layerName.c_str());
+            .SetAttribute("a", text.color.a);
     };
 
     componentSavers[std::type_index(typeid(SpriteComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
         auto& sprite = world->GetComponent<SpriteComponent>(entity);
         builder.AddElement("SpriteComponent")
             .SetAttribute("spriteName", sprite.sprite.name.c_str())
-            .SetAttribute("markerName", sprite.markerName.c_str())
-            .SetAttribute("layerName", sprite.layerName.c_str());
+            .SetAttribute("markerName", sprite.markerName.c_str());
     };
 
     componentSavers[std::type_index(typeid(CameraComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
@@ -184,8 +130,7 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
             .SetAttribute("r", light.color.r)
             .SetAttribute("g", light.color.g)
             .SetAttribute("b", light.color.b)
-            .SetAttribute("a", light.color.a)
-            .SetAttribute("layerName", light.layerName.c_str());
+            .SetAttribute("a", light.color.a);
     };
 
     componentSavers[std::type_index(typeid(AnimationComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
@@ -198,12 +143,6 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
 
     componentSavers[std::type_index(typeid(TileComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
         builder.AddElement("TileComponent");
-    };
-
-    componentSavers[std::type_index(typeid(TeamComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& team = world->GetComponent<TeamComponent>(entity);
-        builder.AddElement("TeamComponent")
-            .SetAttribute("teamId", team.teamId);
     };
 
     componentSavers[std::type_index(typeid(ScriptComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
@@ -222,39 +161,65 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
     return componentSavers;
 }
 
-void SaveLayers(XMLBuilder& builder, World* world) {
+std::string LayerSpaceToString(SceneLayerSpace space) {
+    switch (space) {
+        case SceneLayerSpace::Screen2D:
+            return "Screen2D";
+        case SceneLayerSpace::World2D:
+            return "World2D";
+        default:
+            return "World2D";
+    }
+}
+
+std::string LayerBlendToString(SceneLayerBlend blend) {
+    switch (blend) {
+        case SceneLayerBlend::Normal:
+            return "Normal";
+        case SceneLayerBlend::Additive:
+            return "Additive";
+        case SceneLayerBlend::Multiply:
+            return "Multiply";
+        case SceneLayerBlend::Alpha:
+            return "Alpha";
+        default:
+            return "Normal";
+    }
+}
+
+void SaveLayers(XMLBuilder& builder, const Scene& scene) {
     auto layersBuilder = builder.AddElement("Layers");
 
-    world->Query<LayerComponent>([&](Entity entity, const LayerComponent& layer) {
-        // Only save entities that are specifically layer entities (have Layer_ prefix)
-        std::string entityName = world->GetEntityName(entity);
-        if (entityName.length() >= 6 && entityName.substr(0, 6) == "Layer_") {
-            layersBuilder.AddElement("Layer")
-                .SetAttribute("name", layer.name.c_str())
-                .SetAttribute("z", layer.zIndex)
-                .SetAttribute("type", LayerTypeToString(layer.type).c_str())
-                .SetAttribute("space", LayerSpaceToString(layer.space).c_str())
-                .SetAttribute("blend", LayerBlendToString(layer.blend).c_str())
-                .SetAttribute("opacity", layer.opacity)
-                .SetAttribute("isVisible", layer.isVisible);
-        }
-    });
+    for (const auto& layer : scene.GetLayers()) {
+        layersBuilder.AddElement("Layer")
+            .SetAttribute("name", layer.name.c_str())
+            .SetAttribute("z", layer.zIndex)
+            .SetAttribute("space", LayerSpaceToString(layer.space).c_str())
+            .SetAttribute("layerBlend", LayerBlendToString(layer.layerBlend).c_str())
+            .SetAttribute("compositeBlend", LayerBlendToString(layer.compositeBlend).c_str())
+            .SetAttribute("opacity", layer.opacity)
+            .SetAttribute("isVisible", layer.isVisible);
+    }
 }
 
 void SaveTilemap(XMLBuilder& builder, World* world) {
     // Collect all tile entities and their definitions
-    std::unordered_map<int, RectangleComponent> tileDefinitions;
+    struct TileDef {
+        RectangleComponent rect;
+        std::string layerName;
+    };
+    std::unordered_map<int, TileDef> tileDefinitions;
     std::vector<int> tilemask;
     int maxX = 0, maxY = 0;
 
-    world->Query<LocationComponent, TileComponent, RectangleComponent>([&](Entity entity, const LocationComponent& loc, const TileComponent& tile, const RectangleComponent& rect) {
+    world->Query<LocationComponent, TileComponent, RectangleComponent, LayerComponent>([&](Entity entity, const LocationComponent& loc, const TileComponent& tile, const RectangleComponent& rect, const LayerComponent& layer) {
         // Create a simple ID based on the rectangle properties
         int tileId = static_cast<int>(rect.width * 1000 + rect.height);  // Simple hash
-        tileDefinitions[tileId] = rect;
+        tileDefinitions[tileId] = {rect, layer.name};
 
         // Ensure tilemask is large enough
         int index = loc.y * (maxX + 1) + loc.x;
-        if (index >= tilemask.size()) {
+        if (index >= (int)tilemask.size()) {
             tilemask.resize(index + 1, 0);
         }
         tilemask[index] = tileId;
@@ -270,13 +235,13 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
 
         // Save tile definitions
         auto tileDefsBuilder = tilemapBuilder.AddElement("TileDefinitions");
-        for (const auto& [id, rect] : tileDefinitions) {
+        for (const auto& [id, def] : tileDefinitions) {
             auto tileDefBuilder = tileDefsBuilder.AddElement("TileDefinition")
                                       .SetAttribute("id", id)
-                                      .SetAttribute("layerName", rect.layerName.c_str());
+                                      .SetAttribute("layerName", def.layerName.c_str());
 
-            std::string bgHex = ColorToHex(rect.background);
-            std::string borderHex = ColorToHex(rect.border);
+            std::string bgHex = ColorToHex(def.rect.background);
+            std::string borderHex = ColorToHex(def.rect.border);
             if (!bgHex.empty())
                 tileDefBuilder.SetAttribute("background", bgHex.c_str());
             if (!borderHex.empty())
@@ -351,9 +316,6 @@ void SaveEntities(XMLBuilder& builder, World* world) {
         if (world->HasComponent<TileComponent>(entity)) {
             savers.at(std::type_index(typeid(TileComponent)))(entityBuilder, world, entity);
         }
-        if (world->HasComponent<TeamComponent>(entity)) {
-            savers.at(std::type_index(typeid(TeamComponent)))(entityBuilder, world, entity);
-        }
         if (world->HasComponent<ScriptComponent>(entity)) {
             savers.at(std::type_index(typeid(ScriptComponent)))(entityBuilder, world, entity);
         }
@@ -385,7 +347,7 @@ bool SaveScene(Scene& scene, const std::string& path) {
     XMLBuilder builder(&doc, root);
     World* world = scene.GetWorld();
 
-    SaveLayers(builder, world);
+    SaveLayers(builder, scene);
     SaveTilemap(builder, world);
     SaveEntities(builder, world);
     SaveSystems(builder, scene);

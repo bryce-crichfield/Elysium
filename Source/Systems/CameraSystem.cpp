@@ -1,7 +1,6 @@
 #include "Systems/CameraSystem.h"
 #include "Core/Application.h"
 #include "Services/LogService.h"
-#include "Services/WorldService.h"
 #include "Services/SceneService.h"
 #include "Components/PositionComponent.h"
 #include "Components/CameraComponent.h"

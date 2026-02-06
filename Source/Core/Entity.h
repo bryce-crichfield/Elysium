@@ -404,6 +404,4 @@ void World::Query(Func&& func) {
     }
 }
 
-
-
 }  // namespace Elysium

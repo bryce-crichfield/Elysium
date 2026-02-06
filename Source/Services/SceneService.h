@@ -100,8 +100,9 @@ public:
     bool IsEmpty() const { return sceneStack_.empty(); }
     const std::vector<Scene*>& GetStack() const { return sceneStack_; }
 
-    // Legacy compatibility - returns top scene
-    Scene* GetScene() const { return GetTopScene(); }
+    // Returns selected scene if set, otherwise top scene
+    Scene* GetScene() const { return selectedScene_ ? selectedScene_ : GetTopScene(); }
+    void SetSelectedScene(Scene* scene) { selectedScene_ = scene; }
 
     // Rendering info getters
     const Rectangle& GetLetterboxRect() const { return letterboxRect_; }
@@ -136,6 +137,7 @@ private:
     // Scene registry and stack
     std::unordered_map<std::string, SceneRegistration> scenes_;
     std::vector<Scene*> sceneStack_;
+    Scene* selectedScene_ = nullptr;
 
     // Rendering
     RenderTexture2D framebuffer_;
@@ -149,6 +151,9 @@ private:
 
     // Cached for systems that need it
     float cachedDeltaTime_ = 0.016f;
+
+    // Editor pause flag — stops scene updates and input processing
+    bool paused_ = false;
 };
 
 }  // namespace Elysium::Services

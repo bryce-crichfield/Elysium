@@ -8,9 +8,8 @@ namespace Elysium {
         std::string content;
         int fontSize;
         Color color;
-        std::string layerName = "default";
 
-        TextComponent(const std::string& text = "", int size = 20, Color c = {}, const std::string& layer = "default");
+        TextComponent(const std::string& text = "", int size = 20, Color c = {});
 
         static constexpr const char* Name() { return "Text"; }
         static constexpr const char* XmlTag() { return "TextComponent"; }

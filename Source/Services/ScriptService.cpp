@@ -60,14 +60,19 @@ void ScriptService::InitLuaContext() {
     lua["package"]["path"] = assetsPath + "?.lua;" + assetsPath + "?/init.lua";
 }
 
-// Helper to get World from active scene
+// Active world set by ScriptSystem before executing scripts
+static Elysium::World* s_activeWorld = nullptr;
+
+void ScriptService::SetActiveWorld(Elysium::World* w) {
+    s_activeWorld = w;
+}
+
 static Elysium::World* GetActiveWorld() {
+    if (s_activeWorld) return s_activeWorld;
+    // Fallback for scripts run outside ScriptSystem (e.g. editor Lua filter)
     auto& app = Elysium::Application::GetInstance();
     auto* scene = app.GetService<Elysium::Services::SceneService>().GetScene();
-    if (scene) {
-        return scene->GetWorld();
-    }
-    return nullptr;
+    return scene ? scene->GetWorld() : nullptr;
 }
 
 static Vector2 ScreenToWorld(Vector2 screenPos) {

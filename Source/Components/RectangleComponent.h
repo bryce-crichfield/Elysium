@@ -8,9 +8,8 @@ namespace Elysium {
         float width, height;
         Color background;
         Color border;
-        std::string layerName = "default";
 
-        RectangleComponent(float width = 1, float height = 1, Color background = {}, Color border = {}, const std::string& layer = "default");
+        RectangleComponent(float width = 1, float height = 1, Color background = {}, Color border = {});
 
         static constexpr const char* Name() { return "Rectangle"; }
         static constexpr const char* XmlTag() { return "RectangleComponent"; }

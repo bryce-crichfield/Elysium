@@ -187,6 +187,15 @@ void SceneService::ApplySceneOperations() {
         }
     }
     pendingOperations_.clear();
+
+    // Reset selection if selected scene is no longer in stack
+    if (selectedScene_) {
+        bool found = false;
+        for (Scene* s : sceneStack_) {
+            if (s == selectedScene_) { found = true; break; }
+        }
+        if (!found) selectedScene_ = nullptr;
+    }
 }
 
 Scene* SceneService::GetTopScene() const {
@@ -253,6 +262,8 @@ void SceneService::Update(float deltaTime) {
     Profile;
 
     ApplySceneOperations();
+
+    if (paused_) return;
 
     if (deltaTime > 0.0f && deltaTime < 0.1f) {
         cachedDeltaTime_ = deltaTime;
@@ -362,10 +373,10 @@ void SceneService::ProcessInput() {
         return;
 
     // Check if ImGui wants the mouse - if so, don't send events to scene
-    ImGuiIO& io = ImGui::GetIO();
+    /*ImGuiIO& io = ImGui::GetIO();
     if (io.WantCaptureMouse) {
         return;
-    }
+    }*/
 
     Vector2 mousePos = GetMousePosition();
     bool isInside = CheckCollisionPointRec(mousePos, viewportRect_);
@@ -424,7 +435,8 @@ void SceneService::ProcessInput() {
         // Mouse move
         static Vector2 lastMousePos = mousePos;
         if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y) {
-            Vector2 delta = {mousePos.x - lastMousePos.x, mousePos.y - lastMousePos.y};
+            Vector2 fbLastMousePos = ScreenToFramebuffer(lastMousePos);
+            Vector2 delta = {fbPos.x - fbLastMousePos.x, fbPos.y - fbLastMousePos.y};
             MouseMovedEvent event(fbPos, delta);
             for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                 (*it)->OnEvent(event);

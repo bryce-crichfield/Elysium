@@ -13,7 +13,6 @@ int main() {
 
     auto& sceneService = app.GetService<Elysium::Services::SceneService>();
     sceneService.RegisterScene("MenuScene", "Scenes/MenuScene.xml", []() { return new Elysium::Scenes::MenuScene(); });
-    sceneService.RegisterScene("OverworldScene", "", []() { return new Elysium::Scenes::OverworldScene(); });
     sceneService.RegisterScene("ExploreScene", "Scenes/ExploreScene.xml", []() { return new Elysium::Scenes::ExploreScene(); });
     sceneService.Push("MenuScene");
 

@@ -16,12 +16,12 @@ function Unit.Initialize(self, entity)
     Component.Add(entity, "Movement")
     Component.Add(entity, "Unit")
 
+    Component.Add(entity, "Layer", { name = "default" })
     Component.Add(entity, "Rectangle", {
         width = 40,
         height = 40,
         border = self.colors.normal,
-        background = {r = 50, g = 50, b = 50, a = 200},
-        layerName = "default"
+        background = {r = 50, g = 50, b = 50, a = 200}
     })
 
     Component.Update(entity, "Movement", function(move)

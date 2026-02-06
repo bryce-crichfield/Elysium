@@ -3,7 +3,7 @@
 #include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
-#include "Services/WorldService.h"
+#include "Services/EditorService.h"
 #include "Services/ScriptService.h"
 #include "imgui.h"
 #include "Components/NameComponent.h"
@@ -18,7 +18,7 @@ WorldEditor::WorldEditor() : Editor("World Editor") {}
 void WorldEditor::Draw(Application& app) {
     Profile;
 
-    auto& service = app.GetService<WorldService>();
+    auto& service = app.GetService<EditorService>();
     auto* world = service.GetWorld();
 
     ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_FirstUseEver);
@@ -54,7 +54,7 @@ void WorldEditor::Draw(Application& app) {
     ImGui::End();
 }
 
-void WorldEditor::DrawEntityToolbar(WorldService& service) {
+void WorldEditor::DrawEntityToolbar(EditorService& service) {
     auto* world = service.GetWorld();
     const auto& componentPlaceholders = service.GetComponentPlaceholders();
 
@@ -142,7 +142,7 @@ void WorldEditor::DrawEntityToolbar(WorldService& service) {
     }
 }
 
-void WorldEditor::DrawEntityList(WorldService& service) {
+void WorldEditor::DrawEntityList(EditorService& service) {
     auto* world = service.GetWorld();
     Entity selectedEntity = service.GetSelectedEntity();
 
@@ -219,7 +219,7 @@ void WorldEditor::DrawEntityList(WorldService& service) {
     }
 }
 
-void WorldEditor::DrawInspectorToolbar(WorldService& service) {
+void WorldEditor::DrawInspectorToolbar(EditorService& service) {
     auto* world = service.GetWorld();
     Entity selectedEntity = service.GetSelectedEntity();
     const auto& componentPlaceholders = service.GetComponentPlaceholders();
@@ -275,7 +275,7 @@ void WorldEditor::DrawInspectorToolbar(WorldService& service) {
     }
 }
 
-void WorldEditor::DrawInspectorPanel(WorldService& service) {
+void WorldEditor::DrawInspectorPanel(EditorService& service) {
     Entity selectedEntity = service.GetSelectedEntity();
     if (selectedEntity == INVALID_ENTITY)
         return;
@@ -303,12 +303,12 @@ void WorldEditor::DrawInspectorPanel(WorldService& service) {
     }
 }
 
-void WorldEditor::DrawComponentPanel(WorldService& service, size_t placeholderIndex) {
+void WorldEditor::DrawComponentPanel(EditorService& service, size_t placeholderIndex) {
     Entity selectedEntity = service.GetSelectedEntity();
     auto* world = service.GetWorld();
     const auto& placeholder = service.GetComponentPlaceholders()[placeholderIndex];
 
-    ImGuiTreeNodeFlags treeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed;
+    ImGuiTreeNodeFlags treeFlags =  ImGuiTreeNodeFlags_Framed;
 
     bool nodeOpen = ImGui::TreeNodeEx(placeholder.name.c_str(), treeFlags);
 

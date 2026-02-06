@@ -7,19 +7,17 @@
 #include <set>
 
 namespace Elysium {
-    SpriteComponent::SpriteComponent(const Sprite& sprite, const std::string& marker, const std::string& layer)
-        : sprite(sprite), markerName(marker), layerName(layer) {}
+    SpriteComponent::SpriteComponent(const Sprite& sprite, const std::string& marker)
+        : sprite(sprite), markerName(marker) {}
 
     void SpriteComponent::LoadXml(SpriteComponent& c, tinyxml2::XMLElement* el) {
         const char* spriteName = el->Attribute("spriteName");
         const char* markerName = el->Attribute("markerName");
-        const char* layerName = el->Attribute("layerName");
 
         if (spriteName && markerName) {
             auto& assetService = Application::GetInstance().GetService<Elysium::Services::AssetService>();
             c.sprite = assetService.GetSprite(spriteName);
             c.markerName = markerName;
-            c.layerName = layerName ? layerName : "default";
         } else {
             LOG_WARNING("Scene", "SpriteComponent missing required attributes: spriteName or markerName");
         }
@@ -133,16 +131,6 @@ namespace Elysium {
             }
         }
 
-        static char layerBuffer[256];
-        strncpy(layerBuffer, c.layerName.c_str(), sizeof(layerBuffer) - 1);
-        layerBuffer[sizeof(layerBuffer) - 1] = '\0';
-
-        Label("Layer Name: ");
-        std::string layerInputId = "##SpriteLayerName_" + std::to_string(e);
-        if (ImGui::InputText(layerInputId.c_str(), layerBuffer, sizeof(layerBuffer))) {
-            c.layerName = std::string(layerBuffer);
-        }
-
         Label("Frame Index: ");
         std::string frameIndexId = "##SpriteFrameIndex_" + std::to_string(e);
         ImGui::DragInt(frameIndexId.c_str(), &c.frameIndex, 1.0f, 0);
@@ -158,14 +146,12 @@ namespace Elysium {
 
     void SpriteComponent::BindLua(sol::usertype<SpriteComponent>& ut) {
         ut["marker"] = &SpriteComponent::markerName;
-        ut["layer"] = &SpriteComponent::layerName;
     }
 
     void SpriteComponent::SetFromLua(SpriteComponent& c, sol::object v) {
         if (v.is<sol::table>()) {
             sol::table t = v.as<sol::table>();
             c.markerName = t.get_or("marker", c.markerName);
-            c.layerName = t.get_or("layer", c.layerName);
         }
     }
 

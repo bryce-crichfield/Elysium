@@ -7,7 +7,6 @@ namespace Elysium::Scenes {
 
 MenuScene::MenuScene() : Scene() {
     rotation_ = 0.0f;
-    backgroundColor_ = DARKBLUE;
 }
 
 void MenuScene::OnEnter() {
@@ -24,9 +23,6 @@ void MenuScene::OnUpdate(float deltaTime) {
 }
 
 void MenuScene::OnDraw(Rectangle screen) {
-    // Draw background
-    ClearBackground(backgroundColor_);
-
     // Let base class render via RenderSystem
     Scene::OnDraw(screen);
 }

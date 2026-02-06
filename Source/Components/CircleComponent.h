@@ -8,9 +8,8 @@ namespace Elysium {
         float radius;
         Color background;
         Color border;
-        std::string layerName = "default";
 
-        CircleComponent(float r = 10.0f, Color background = {}, Color border = {}, const std::string& layer = "default");
+        CircleComponent(float r = 10.0f, Color background = {}, Color border = {});
 
         static constexpr const char* Name() { return "Circle"; }
         static constexpr const char* XmlTag() { return "CircleComponent"; }

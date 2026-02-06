@@ -11,7 +11,7 @@ class World;
 }
 
 namespace Elysium::Services {
-class WorldService;
+class EditorService;
 }
 
 namespace Elysium {
@@ -23,11 +23,11 @@ class WorldEditor : public Editor {
     void Draw(Application& app) override;
 
    private:
-    void DrawEntityToolbar(Services::WorldService& service);
-    void DrawEntityList(Services::WorldService& service);
-    void DrawInspectorToolbar(Services::WorldService& service);
-    void DrawInspectorPanel(Services::WorldService& service);
-    void DrawComponentPanel(Services::WorldService& service, size_t placeholderIndex);
+    void DrawEntityToolbar(Services::EditorService& service);
+    void DrawEntityList(Services::EditorService& service);
+    void DrawInspectorToolbar(Services::EditorService& service);
+    void DrawInspectorPanel(Services::EditorService& service);
+    void DrawComponentPanel(Services::EditorService& service, size_t placeholderIndex);
 
     // Panel state
     float leftPanelWidth_ = 240.0f;

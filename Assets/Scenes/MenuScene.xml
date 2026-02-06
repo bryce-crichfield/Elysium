@@ -6,10 +6,10 @@
         <System type="AnimationSystem" />
     </Systems>
 
-    <Layers>
-        <Layer name="background" z="0" type="Background" space="Screen" blend="Normal" />
-        <Layer name="ui" z="1" type="Overlay" space="Screen" blend="Normal" />
-    </Layers>
+    <SceneConfiguration width="640" height="480">
+        <SceneLayer name="background" z="0" space="Screen" blend="Normal" />
+        <SceneLayer name="ui" z="1" space="Screen" blend="Normal" />
+    </SceneConfiguration>
 
     <Entities>
         <!-- Camera (required for rendering) -->
@@ -23,6 +23,7 @@
         <Entity>
             <NameComponent name="Title" />
             <PositionComponent x="400" y="80" />
+            <BoundsComponent />
             <TextComponent text="ELYSIUM" fontSize="60" color="#FFFFFF" layerName="ui" />
         </Entity>
 
@@ -38,14 +39,10 @@
             <NameComponent name="PlayButton" />
             <PositionComponent x="400" y="250" />
             <RectangleComponent width="200" height="50" background="#2266AA" border="#44AAFF" layerName="ui" />
-            <BoundsComponent />
-            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
+			<TextComponent text="Play Game" fontSize="24" color="#FFFFFF" layerName="ui" />
+			<BoundsComponent />
         </Entity>
-        <Entity>
-            <NameComponent name="PlayButtonText" />
-            <PositionComponent x="400" y="250" />
-            <TextComponent text="Play Game" fontSize="24" color="#FFFFFF" layerName="ui" />
-        </Entity>
+
 
         <!-- Options Button -->
         <Entity>
@@ -53,7 +50,6 @@
             <PositionComponent x="400" y="320" />
             <RectangleComponent width="200" height="50" background="#226644" border="#44AA66" layerName="ui" />
             <BoundsComponent />
-            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
         </Entity>
         <Entity>
             <NameComponent name="OptionsButtonText" />
@@ -67,7 +63,6 @@
             <PositionComponent x="400" y="390" />
             <RectangleComponent width="200" height="50" background="#662222" border="#AA4444" layerName="ui" />
             <BoundsComponent />
-            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
         </Entity>
         <Entity>
             <NameComponent name="QuitButtonText" />
