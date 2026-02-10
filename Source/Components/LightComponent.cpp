@@ -1,16 +1,25 @@
 #include "Components/LightComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Core/Xml.h"
 #include "imgui.h"
 
 namespace Elysium {
     void LightComponent::LoadXml(LightComponent& c, tinyxml2::XMLElement* el) {
         c.radius = el->FloatAttribute("radius", 50.0f);
         c.intensity = el->FloatAttribute("intensity", 0.5f);
-        int r = el->IntAttribute("r", 255);
-        int g = el->IntAttribute("g", 255);
-        int b = el->IntAttribute("b", 255);
-        int a = el->IntAttribute("a", 100);
-        c.color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+
+        // Support hex color format: color="#RRGGBBAA" or color="#RRGGBB"
+        const char* colorAttr = el->Attribute("color");
+        if (colorAttr) {
+            c.color = ParseHexColor(colorAttr, WHITE);
+        } else {
+            // Fallback to individual r/g/b/a attributes
+            int r = el->IntAttribute("r", 255);
+            int g = el->IntAttribute("g", 255);
+            int b = el->IntAttribute("b", 255);
+            int a = el->IntAttribute("a", 255);
+            c.color = {(unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a};
+        }
     }
 
     static Color ObjectToColor(const sol::object& obj) {

@@ -4,7 +4,8 @@
 
 namespace Elysium {
     void FollowComponent::LoadXml(FollowComponent& c, tinyxml2::XMLElement* el) {
-        // Attributes not standard in loader
+        const char* name = el->Attribute("target");
+        c.targetEntityName = name ? name : "default";
     }
 
     void FollowComponent::Inspect(FollowComponent& c, Entity e) {

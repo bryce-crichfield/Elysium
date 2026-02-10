@@ -1,4 +1,5 @@
 #include "Systems/CollisionSystem.h"
+#include "Core/SystemRegistry.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
 #include "Components/PositionComponent.h"
@@ -62,4 +63,6 @@ std::vector<Entity> CollisionSystem::GetCollisionsWith(Entity entity) const {
     return result;
 }
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::CollisionSystem)

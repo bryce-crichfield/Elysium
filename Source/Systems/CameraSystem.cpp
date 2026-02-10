@@ -1,4 +1,5 @@
 #include "Systems/CameraSystem.h"
+#include "Core/SystemRegistry.h"
 #include "Core/Application.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
@@ -8,6 +9,15 @@
 #include "raymath.h"
 
 namespace Elysium::Systems {
+
+void CameraSystem::OnEvent(Event& event) {
+    // Skip input processing in Editor mode - let DebugSystem handle it
+    if (Application::GetInstance().GetMode() == AppMode::Editor) {
+        return;
+    }
+    IMouseListener::DispatchMouseEvent(event);
+    IKeyboardListener::DispatchKeyboardEvent(event);
+}
 
 void CameraSystem::OnMouseButtonPressed(MouseButtonPressedEvent& event) {
     if (event.GetButton() == MOUSE_BUTTON_MIDDLE) {
@@ -150,3 +160,5 @@ Vector2 CameraSystem::LerpVector2(Vector2 start, Vector2 end, float t) {
 }
 
 }  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::CameraSystem)

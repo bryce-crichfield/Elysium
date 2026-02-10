@@ -17,6 +17,10 @@ class Path {
     const std::string& GetRelativePath() const { return relativePath_; }
     const char* c_str() const;
 
+    bool operator==(const Path& other) const {
+        return GetFullPath() == other.GetFullPath();
+    }
+
    private:
     std::string relativePath_;
     mutable std::string cachedFullPath_;
@@ -24,5 +28,13 @@ class Path {
 
     void UpdateFullPath() const;
 };
-
 }  // namespace Elysium
+
+namespace std {
+template <>
+struct hash<Elysium::Path> {
+    std::size_t operator()(const Elysium::Path& p) const {
+        return std::hash<std::string>()(p.GetFullPath());
+    }
+};
+}  // namespace std

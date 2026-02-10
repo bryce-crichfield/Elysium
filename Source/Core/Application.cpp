@@ -45,9 +45,9 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterService(std::make_unique<Elysium::Services::MessageService>());
     RegisterService(std::make_unique<Elysium::Services::NetworkService>());
     RegisterService(std::make_unique<Elysium::Services::InvokeService>());
+    RegisterService(std::make_unique<Elysium::TaskService>());
     RegisterService(std::make_unique<Elysium::Services::AssetService>());
     RegisterService(std::make_unique<Elysium::Services::EditorService>());
-    RegisterService(std::make_unique<Elysium::Services::LoadingService>());
     RegisterService(std::make_unique<Elysium::Services::SceneService>());
     RegisterService(std::make_unique<Elysium::Services::ScriptService>());
 
@@ -145,19 +145,61 @@ void Application::Update(float deltaTime) {
         service->Update(deltaTime);
     }
 
-    // Finalize assets when loading completes (for assets loaded manually via AssetService UI)
-    auto& loadingService = serviceRegistry_.GetService<Elysium::Services::LoadingService>();
-    auto& assetService = serviceRegistry_.GetService<Elysium::Services::AssetService>();
+}
 
-    static bool wasLoadingPrevFrame = false;
-    bool isLoadingNow = loadingService.IsProcessing();
+void Application::DrawMenuBar()
+{
+    // Add menu bar
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
+                // Handle new scene
+            }
+            if (ImGui::MenuItem("Open Scene", "Ctrl+O")) {
+                // Handle open scene
+            }
+            if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
+                // Handle save scene
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit", "Alt+F4")) {
+                shouldClose_ = true;
+            }
+            ImGui::EndMenu();
+        }
 
-    if (wasLoadingPrevFrame && !isLoadingNow && loadingService.IsComplete()) {
-        LOG_INFO("Application", "Asset loading complete, finalizing assets");
-        assetService.FinalizeAssets();
+        if (ImGui::BeginMenu("Edit")) {
+            if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
+                // Handle undo
+            }
+            if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
+                // Handle redo
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("View")) {
+            for (auto& editor : editors_) {
+                bool visible = editor->IsVisible();
+                if (ImGui::MenuItem(editor->GetName().c_str(), nullptr, &visible)) {
+                    editor->SetVisible(visible);
+                }
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Mode")) {
+            if (ImGui::MenuItem("Editor", "F1", mode_ == AppMode::Editor)) {
+                SetMode(AppMode::Editor);
+            }
+            if (ImGui::MenuItem("Play", "F2", mode_ == AppMode::Play)) {
+                SetMode(AppMode::Play);
+            }
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
     }
-
-    wasLoadingPrevFrame = isLoadingNow;
 }
 
 void Application::Draw() {
@@ -189,7 +231,7 @@ void Application::Draw() {
         // Enable docking and prevent tab close via middle-click
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         ImGui::GetIO().ConfigDockingAlwaysTabBar = true;
-
+        DrawMenuBar();
         // Full-window dockspace
         ImGuiID dockspaceId = ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
 

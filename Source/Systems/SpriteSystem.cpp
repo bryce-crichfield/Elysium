@@ -1,4 +1,6 @@
 #include "Systems/SpriteSystem.h"
+#include "Core/Path.h"
+#include "Core/SystemRegistry.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "Components/SpriteComponent.h"
@@ -20,7 +22,7 @@ void SpriteSystem::Update(float deltaTime) {
         if (spriteComp.frameElapsed >= spriteComp.frameDuration) {
             spriteComp.frameElapsed -= spriteComp.frameDuration;  
 
-            auto sprite = assets.GetSprite(spriteComp.spriteName);
+            auto sprite = assets.GetSprite(Path(spriteComp.spriteName));
             if (sprite.name.empty()) {
                 return;
             }
@@ -36,3 +38,5 @@ void SpriteSystem::Update(float deltaTime) {
 }
 
 }  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::SpriteSystem)

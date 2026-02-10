@@ -1,4 +1,5 @@
 #include "Systems/CommandSystem.h"
+#include "Core/SystemRegistry.h"
 #include "Core/Application.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
@@ -19,6 +20,10 @@ void CommandSystem::Update(float deltaTime) {
 }
 
 void CommandSystem::OnEvent(Event& event) {
+    // Skip input processing in Editor mode
+    if (Application::GetInstance().GetMode() == AppMode::Editor) {
+        return;
+    }
     DispatchMouseEvent(event);
 }
 
@@ -104,3 +109,5 @@ void CommandSystem::IssueMoveCommand(Vector2 targetPos) {
 }
 
 }  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::CommandSystem)

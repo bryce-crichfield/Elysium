@@ -14,12 +14,12 @@
     </Systems>
 
     <SceneConfiguration width="800" height="600">
-        <SceneLayer name="background" z="-1" space="World" blend="Normal" />
-        <SceneLayer name="default" z="0" space="World" blend="Normal" />
-        <SceneLayer name="tile" z="0" space="World" blend="Normal" />
-        <SceneLayer name="entity" z="2" space="World" blend="Normal" />
-		<SceneLayer name="light" z="4" space="World" blend="Additive"/> 
-		<SceneLayer name="shadow" z="5" space="World" blend="Multiply" opacity="1.0" isComposited="true" />
+        <SceneLayer name="background" z="-1"	space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
+		<SceneLayer name="default" z="0"		space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
+		<SceneLayer name="tile" z="0"			space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
+		<SceneLayer name="entity" z="2"			space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
+		<SceneLayer name="light" z="4"			space="World"	layerBlend="Additive"	compositeBlend="Normal"   isComposited="false" /> 
+		<SceneLayer name="shadow" z="5"			space="World"	layerBlend="Normal"		compositeBlend="Multiply" isComposited="true" ambient="#000000"/>
     </SceneConfiguration>
 
     <Tilemap width="16" height="16" isIsometric="true" tileWidth="64" tileHeight="32">
@@ -65,11 +65,11 @@
             <KinematicsComponent maxSpeed="150" friction="5" />
 
             <SpriteComponent
-                spriteName="Archer"
+                spriteName="Sprites/Archer/Archer.xml"
 				sheetName="Idle"
 				sequenceName="south"/>
 			<ColliderComponent width="32" height="32" />
-			<ScriptComponent scriptName="Scripts\Unit.lua" />
+			<ScriptComponent scriptName="Scripts/Unit.lua" />
 			<LayerComponent name="entity" />
 		</Entity>
 
@@ -77,7 +77,7 @@
 			<FollowComponent target="Archer" />
 
 			<PositionComponent />
-			<LayerComponent name="light" />
+			<LayerComponent name="shadow" />
 			<LightComponent color="#ffffffff" radius="300" />
 		</Entity>
 
@@ -89,17 +89,17 @@
 			<KinematicsComponent maxSpeed="150" friction="5" />
 
 			<SpriteComponent
-                spriteName="Knight"
+                spriteName="Sprites/Knight/Knight.xml"
 				sheetName="Idle"
 				sequenceName="south"/>
 			<ColliderComponent width="32" height="32" />
-			<ScriptComponent scriptName="Scripts\Unit.lua" />
+			<ScriptComponent scriptName="Scripts/Unit.lua" />
 			<LayerComponent name="entity" />
 		</Entity>
 
 		<Entity>
 			<PositionComponent />
-			<LayerComponent name="light" />
+			<LayerComponent name="shadow" />
 			<LightComponent color="#ffffffff" radius="200" />
 			<FollowComponent target="Knight" />
 		</Entity>

@@ -1,4 +1,5 @@
 #include "Systems/SpatialSystem.h"
+#include "Core/SystemRegistry.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
 #include "Core/Component.h"
@@ -237,4 +238,6 @@ std::vector<Vector2> SpatialSystem::FindPath(Vector2 startPos, Vector2 endPos) {
     return path;
 }
 
-} // namespace Elysium::Systems
+}  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::SpatialSystem)

@@ -8,21 +8,10 @@
 #include "System.h"
 #include "Core/Xml.h"
 #include "Core/ComponentRegistry.h"
+#include "Core/SystemRegistry.h"
 #include "Core/Components.h"
 #include "raylib.h"
 #include "tinyxml2.h"
-
-// System includes still needed for LoadSystems
-#include "Systems/AnimationSystem.h"
-#include "Systems/CameraSystem.h"
-#include "Systems/CommandSystem.h"
-#include "Systems/MovementSystem.h"
-#include "Systems/RenderSystem.h"
-#include "Systems/ScriptSystem.h"
-#include "Systems/SpriteSystem.h"
-#include "Systems/SpatialSystem.h"
-#include "Systems/KinematicsSystem.h"
-#include "Systems/CollisionSystem.h"
 
 using namespace tinyxml2;
 
@@ -187,28 +176,9 @@ void LoadSystems(XMLElement* root, Scene& scene) {
             Context context =
                 Context{.application = &Application::GetInstance(), .scene = &scene, .world = scene.GetWorld()};
 
-            if (systemName == "RenderSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::RenderSystem>(context));
-            } else if (systemName == "MovementSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::MovementSystem>(context));
-            } else if (systemName == "AnimationSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::AnimationSystem>(context));
-            } else if (systemName == "CameraSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::CameraSystem>(context));
-            } else if (systemName == "SpriteSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::SpriteSystem>(context));
-            } else if (systemName == "ScriptSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::ScriptSystem>(context));
-            } else if (systemName == "CommandSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::CommandSystem>(context));
-            } else if (systemName == "SpatialSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::SpatialSystem>(context));
-            } else if (systemName == "KinematicsSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::KinematicsSystem>(context));
-            } else if (systemName == "CollisionSystem") {
-                scene.AddSystem(std::make_unique<Elysium::Systems::CollisionSystem>(context));
-            } else {
-                LOG_WARNINGF("Scene", "Unknown system type: %s", systemName.c_str());
+            auto system = SystemRegistry::Instance().Create(systemName, context);
+            if (system) {
+                scene.AddSystem(std::move(system));
             }
         });
     });

@@ -1,4 +1,5 @@
 #include "Systems/MovementSystem.h"
+#include "Core/SystemRegistry.h"
 #include "Systems/SpatialSystem.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
@@ -40,3 +41,5 @@ void MovementSystem::Update(float deltaTime) {
     );
 }
 }  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::MovementSystem)

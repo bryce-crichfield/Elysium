@@ -1,8 +1,14 @@
 #pragma once
 
 #include <sol/forward.hpp>
+#include "Core/Path.h"
 
 namespace Elysium {
+    struct Script {
+        std::string source;
+        Path path;
+    };
+
     // Concept for components that can be bound to Lua
     template<typename T>
     concept Scriptable = requires(sol::usertype<T>& ut) {
@@ -14,4 +20,5 @@ namespace Elysium {
     concept LuaSettable = requires(T& c, sol::object v) {
         { T::SetFromLua(c, v) } -> std::same_as<void>;
     };
-}
+
+    }

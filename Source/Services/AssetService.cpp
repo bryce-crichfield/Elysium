@@ -2,8 +2,8 @@
 #include <filesystem>
 #include "Core/Application.h"
 #include "Core/Common.h"
-#include "Services/LoadingService.h"
 #include "Services/LogService.h"
+#include "Services/TaskService.h"
 #include "imgui.h"
 #include "raylib.h"
 
@@ -16,200 +16,213 @@ AssetService::AssetService() {
 }
 
 void AssetService::Initialize() {
-    assetsByName_.clear();
-    pathToName_.clear();
+    assetsByPath_.clear();
     LOG_INFO("AssetService", "Initialized");
 }
 
 void AssetService::Shutdown() {
-    // Unload all assets and track memory deallocations
-    for (auto& pair : assetsByName_) {
+    for (auto& pair : assetsByPath_) {
         Asset& asset = pair.second;
         if (asset.IsLoaded()) {
             asset.Unload();
-            // Note: We can't track exact deallocation size for raylib assets
-            LOG_INFOF("AssetService", "Unloaded asset: %s", asset.GetName().c_str());
+            LOG_INFOF("AssetService", "Unloaded asset: %s", asset.GetPath().c_str());
         }
     }
 
-    assetsByName_.clear();
-    pathToName_.clear();
+    assetsByPath_.clear();
+    pendingFutures_.clear();
     LOG_INFO("AssetService", "Shutdown complete");
 }
 
 void AssetService::Update(float deltaTime) {
     Profile;
-    // AssetService doesn't need per-frame updates currently
-    // This method is here to satisfy the Service interface
-}
 
-void AssetService::LoadAsset(const Asset& unloadedAsset) {
-    const std::string& name = unloadedAsset.GetName();
-    const std::string& path = unloadedAsset.GetPath();
-
-    // Check if already loaded by name
-    if (IsAssetLoaded(name)) {
-        LOG_DEBUGF("AssetService", "Asset already loaded: %s", name.c_str());
-        return;
-    }
-
-    // Check path deduplication - if this path is already loaded under another name
-    auto pathIt = pathToName_.find(path);
-    if (pathIt != pathToName_.end()) {
-        LOG_DEBUGF("AssetService", "Path %s already loaded as %s, skipping duplicate", path.c_str(), pathIt->second.c_str());
-        return;
-    }
-
-    // Create a copy of the asset template and attempt to load it
-    Asset asset = unloadedAsset;
-    LoadAssetByType(asset);
-
-    if (asset.IsLoaded() || asset.HasImageData() || asset.HasWaveData()) {
-        // Store the asset (either loaded or with raw data)
-        assetsByName_[name] = asset;
-        pathToName_[path] = name;
-
-        if (asset.IsLoaded()) {
-            LOG_INFOF("AssetService", "Successfully loaded asset: %s -> %s", name.c_str(), path.c_str());
-        } else {
-            LOG_INFOF("AssetService", "Raw data loaded for asset: %s -> %s (will finalize on main thread)", name.c_str(), path.c_str());
+    // Check if all pending futures have resolved — if so, finalize
+    if (needsFinalization_) {
+        bool allDone = true;
+        for (auto& f : pendingFutures_) {
+            if (!f.IsReady()) {
+                allDone = false;
+                break;
+            }
         }
-    } else {
-        LOG_WARNINGF("AssetService", "Failed to load asset: %s -> %s", name.c_str(), path.c_str());
+        if (allDone) {
+            FinalizeAssets();
+            pendingFutures_.clear();
+            needsFinalization_ = false;
+        }
     }
 }
 
-void AssetService::ReloadAsset(const AssetName& name) {
-    auto it = assetsByName_.find(name);
-    if (it == assetsByName_.end()) {
-        LOG_WARNINGF("AssetService", "Cannot reload asset '%s', not found", name.c_str());
-        return;
+Future<Asset> AssetService::LoadAsset(AssetType type, Path path) {
+    if (IsAssetLoaded(path)) {
+        LOG_DEBUGF("AssetService", "Asset already loaded: %s", path.c_str());
+        Future<Asset> future;
+        future.Resolve(assetsByPath_[path]);
+        return future;
     }
 
-    Asset& asset = it->second;
-    if (asset.IsLoaded()) {
-        asset.Unload();
-    }
+    auto& taskService = Application::GetInstance().GetService<TaskService>();
 
-    LOG_INFOF("AssetService", "Reloading asset: %s", name.c_str());
-    LoadAssetByType(asset);
+    Future<Asset> future = taskService.Submit<Asset>(
+        std::function<Asset()>([type, path]() -> Asset {
+            return LoadAssetData(type, path);
+        }));
 
-    if (asset.IsLoaded() || asset.HasImageData() || asset.HasWaveData()) {
-        LOG_INFOF("AssetService", "Successfully reloaded asset: %s", name.c_str());
-    } else {
-        LOG_ERRORF("AssetService", "Failed to reload asset: %s", name.c_str());
-    }
+    // Capture 'this' for cache insertion — runs on main thread via TaskService::Update()
+    future.Then([this, path](const Asset& asset) {
+        if (asset.IsLoaded() || asset.HasImageData() || asset.HasWaveData()) {
+            assetsByPath_[path] = asset;
+
+            if (asset.IsLoaded()) {
+                LOG_INFOF("AssetService", "Loaded asset: %s", path.c_str());
+            } else {
+                LOG_INFOF("AssetService", "Raw data loaded: %s (needs finalization)", path.c_str());
+                needsFinalization_ = true;
+            }
+
+            // For sprites, kick off sheet texture loads on the main thread
+            if (asset.GetType() == AssetType::SPRITE) {
+                Sprite sprite = asset.GetSprite();
+                for (auto& [sheetName, sheet] : sprite.sheets) {
+                    std::string relativePath = "Sprites/" + sheet.path;
+                    Path sheetPath = Path(relativePath);
+                    if (!IsAssetLoaded(sheetPath)) {
+                        LOG_DEBUGF("AssetService", "Loading sheet texture: %s", sheetPath.c_str());
+                        LoadAsset(AssetType::TEXTURE, sheetPath);
+                    }
+                }
+            }
+        } else {
+            LOG_WARNINGF("AssetService", "Failed to load asset: %s", path.c_str());
+        }
+    });
+
+    pendingFutures_.push_back(future);
+    needsFinalization_ = true;
+
+    return future;
 }
 
-bool AssetService::IsAssetLoaded(const AssetName& name) const {
-    auto it = assetsByName_.find(name);
-    return it != assetsByName_.end() && it->second.IsLoaded();
+Future<Asset> AssetService::ReloadAsset(AssetType type, Path path) {
+    // Unload existing asset on main thread before submitting reload
+    auto it = assetsByPath_.find(path);
+    if (it != assetsByPath_.end()) {
+        if (it->second.IsLoaded()) {
+            it->second.Unload();
+        }
+        assetsByPath_.erase(it);
+    }
+
+    LOG_INFOF("AssetService", "Reloading asset: %s", path.c_str());
+    return LoadAsset(type, path);
 }
 
-Asset* AssetService::GetAsset(const AssetName& name) {
-    auto it = assetsByName_.find(name);
-    if (it != assetsByName_.end() && it->second.IsLoaded()) {
+bool AssetService::IsAssetLoaded(Path path) const {
+    auto it = assetsByPath_.find(path);
+    return it != assetsByPath_.end() && it->second.IsLoaded();
+}
+
+Asset* AssetService::GetAsset(Path path) {
+    auto it = assetsByPath_.find(path);
+    if (it != assetsByPath_.end() && it->second.IsLoaded()) {
         return &it->second;
     }
     return nullptr;
 }
 
-Texture2D AssetService::GetTexture(const AssetName& name) {
-    Asset* asset = GetAsset(name);
+Texture2D AssetService::GetTexture(Path path) {
+    Asset* asset = GetAsset(path);
     if (asset && asset->GetType() == AssetType::TEXTURE) {
         return asset->GetTexture();
     }
 
-    LOG_WARNINGF("AssetService", "Texture not found: %s", name.c_str());
+    LOG_WARNINGF("AssetService", "Texture not found: %s", path.c_str());
     return Texture2D{0, 0, 0, 0, 0};
 }
 
-Sound AssetService::GetSound(const AssetName& name) {
-    Asset* asset = GetAsset(name);
+Sound AssetService::GetSound(Path path) {
+    Asset* asset = GetAsset(path);
     if (asset && asset->GetType() == AssetType::SOUND) {
         return asset->GetSound();
     }
 
-    LOG_WARNINGF("AssetService", "Sound not found: %s", name.c_str());
+    LOG_WARNINGF("AssetService", "Sound not found: %s", path.c_str());
     return Sound{nullptr, 0, 0, 0, 0};
 }
 
-Music AssetService::GetMusic(const AssetName& name) {
-    Asset* asset = GetAsset(name);
+Music AssetService::GetMusic(Path path) {
+    Asset* asset = GetAsset(path);
     if (asset && asset->GetType() == AssetType::MUSIC) {
         return asset->GetMusic();
     }
 
-    LOG_WARNINGF("AssetService", "Music not found: %s", name.c_str());
+    LOG_WARNINGF("AssetService", "Music not found: %s", path.c_str());
     return Music{nullptr, 0, 0, 0, 0};
 }
 
-Font AssetService::GetFont(const AssetName& name) {
-    Asset* asset = GetAsset(name);
+Font AssetService::GetFont(Path path) {
+    Asset* asset = GetAsset(path);
     if (asset && asset->GetType() == AssetType::FONT) {
         return asset->GetFont();
     }
 
-    LOG_WARNINGF("AssetService", "Font not found: %s", name.c_str());
+    LOG_WARNINGF("AssetService", "Font not found: %s", path.c_str());
     return Font{};
 }
 
-Model AssetService::GetModel(const AssetName& name) {
-    Asset* asset = GetAsset(name);
+Model AssetService::GetModel(Path path) {
+    Asset* asset = GetAsset(path);
     if (asset && asset->GetType() == AssetType::MODEL) {
         return asset->GetModel();
     }
 
-    LOG_WARNINGF("AssetService", "Model not found: %s", name.c_str());
+    LOG_WARNINGF("AssetService", "Model not found: %s", path.c_str());
     return Model{};
 }
 
-Shader AssetService::GetShader(const AssetName& name) {
-    Asset* asset = GetAsset(name);
+Shader AssetService::GetShader(Path path) {
+    Asset* asset = GetAsset(path);
     if (asset && asset->GetType() == AssetType::SHADER) {
         return asset->GetShader();
     }
 
-    LOG_WARNINGF("AssetService", "Shader not found: %s", name.c_str());
+    LOG_WARNINGF("AssetService", "Shader not found: %s", path.c_str());
     return Shader{};
 }
 
-Sprite AssetService::GetSprite(const AssetName& name) {
-    Asset* asset = GetAsset(name);
+Sprite AssetService::GetSprite(Path path) {
+    Asset* asset = GetAsset(path);
     if (asset && asset->GetType() == AssetType::SPRITE) {
         return asset->GetSprite();
     }
 
-    LOG_WARNINGF("AssetService", "Sprite not found: %s", name.c_str());
+    LOG_WARNINGF("AssetService", "Sprite not found: %s", path.c_str());
     return Sprite{};
 }
 
-Script AssetService::GetScript(const AssetName& name) {
-    Asset* asset = GetAsset(name);
+Script AssetService::GetScript(Path path) {
+    Asset* asset = GetAsset(path);
     if (asset && asset->GetType() == AssetType::SCRIPT) {
         return asset->GetScript();
     }
 
-    LOG_WARNINGF("AssetService", "Script not found: %s", name.c_str());
-    return "";
+    LOG_WARNINGF("AssetService", "Script not found: %s", path.c_str());
+    return Script{};
 }
 
-void AssetService::LoadAssetByType(Asset& asset) {
-    const std::string& path = asset.GetPath();
+// Thread-safe I/O — does NOT touch assetsByPath_
+Asset AssetService::LoadAssetData(AssetType type, Path path) {
+    Asset asset(type, path);
 
-    LOG_DEBUGF("AssetService", "Loading asset type %d from path %s", (int)asset.GetType(), path.c_str());
+    LOG_DEBUGF("AssetService", "Loading asset type %d from path %s", (int)type, path.c_str());
 
-    switch (asset.GetType()) {
+    switch (type) {
         case AssetType::TEXTURE: {
-            LOG_DEBUGF("AssetService", "Loading texture: %s -> %s", asset.GetName().c_str(), path.c_str());
-
-            // Load image data only (thread-safe)
             Image image = ::LoadImage(path.c_str());
             if (image.data != nullptr) {
                 LOG_DEBUGF("AssetService", "Image data loaded: %dx%d, format: %d, mipmaps: %d",
                            image.width, image.height, image.format, image.mipmaps);
-
-                // Store image data for later texture creation on main thread
                 asset.SetImageData(image);
             } else {
                 LOG_ERRORF("AssetService", "Failed to load image data: %s", path.c_str());
@@ -218,33 +231,19 @@ void AssetService::LoadAssetByType(Asset& asset) {
         }
 
         case AssetType::SOUND: {
-            LOG_DEBUGF("AssetService", "Loading sound: %s -> %s", asset.GetName().c_str(), path.c_str());
-
-            // Try loading sound directly (not thread-safe but for testing)
-            Sound sound = ::LoadSound(path.c_str());
-            if (sound.frameCount > 0) {
-                asset.SetSound(sound);
-                LOG_DEBUGF("AssetService", "Sound loaded: %d frames", sound.frameCount);
+            // Load wave data (thread-safe) for later conversion on main thread
+            Wave wave = ::LoadWave(path.c_str());
+            if (wave.frameCount > 0) {
+                LOG_DEBUGF("AssetService", "Wave data loaded: %d frames, %d Hz, %d channels",
+                           wave.frameCount, wave.sampleRate, wave.channels);
+                asset.SetWaveData(wave);
             } else {
-                LOG_WARNINGF("AssetService", "Direct sound load failed, trying wave method: %s", path.c_str());
-
-                // Fallback to wave data approach
-                Wave wave = ::LoadWave(path.c_str());
-                if (wave.frameCount > 0) {
-                    LOG_DEBUGF("AssetService", "Wave data loaded: %d frames, %d Hz, %d channels",
-                               wave.frameCount, wave.sampleRate, wave.channels);
-
-                    // Store wave data for later sound creation on main thread
-                    asset.SetWaveData(wave);
-                } else {
-                    LOG_ERRORF("AssetService", "Failed to load sound or wave data: %s", path.c_str());
-                }
+                LOG_ERRORF("AssetService", "Failed to load wave data: %s", path.c_str());
             }
             break;
         }
 
         case AssetType::MUSIC: {
-            LOG_DEBUGF("AssetService", "Loading music: %s -> %s", asset.GetName().c_str(), path.c_str());
             Music music = ::LoadMusicStream(path.c_str());
             if (music.frameCount > 0) {
                 asset.SetMusic(music);
@@ -278,8 +277,6 @@ void AssetService::LoadAssetByType(Asset& asset) {
         }
 
         case AssetType::SHADER: {
-            // For shaders, we might need vertex and fragment paths
-            // For now, load as a fragment shader
             Shader shader = ::LoadShader(nullptr, path.c_str());
             if (shader.id != 0) {
                 asset.SetShader(shader);
@@ -293,25 +290,10 @@ void AssetService::LoadAssetByType(Asset& asset) {
         case AssetType::SPRITE: {
             LOG_DEBUGF("AssetService", "Loading SPRITE asset from %s", path.c_str());
             try {
-                Sprite sprite = Sprite::LoadFromXml(path);
-                LOG_DEBUGF("AssetService", "Loaded sprite '%s' with %d sheets", sprite.name.c_str(), (int)sprite.sheets.size());
-
-                // Load each sheet's texture as an asset
-                // Sheet paths like "Archer/Idle.png" are relative to Assets/Sprites/
-                for (auto& [sheetName, sheet] : sprite.sheets) {
-                    std::string relativePath = "Sprites/" + sheet.path;
-
-                    // Check if this texture is already loaded
-                    if (!IsAssetLoaded(sheet.path)) {
-                        LOG_DEBUGF("AssetService", "Loading sheet texture: %s -> %s", sheet.path.c_str(), relativePath.c_str());
-
-                        Asset textureAsset(AssetType::TEXTURE, sheet.path, relativePath);
-                        LoadAsset(textureAsset);
-                    }
-                }
-
+                Sprite sprite = Sprite::LoadFromXml(path.GetFullPath());
+                LOG_DEBUGF("AssetService", "Loaded sprite '%s' with %d sheets",
+                           sprite.name.c_str(), (int)sprite.sheets.size());
                 asset.SetSprite(sprite);
-                LOG_DEBUGF("AssetService", "SetSprite completed, asset loaded = %s", asset.IsLoaded() ? "true" : "false");
             } catch (...) {
                 LOG_ERRORF("AssetService", "Failed to load sprite: %s", path.c_str());
             }
@@ -322,9 +304,10 @@ void AssetService::LoadAssetByType(Asset& asset) {
             LOG_DEBUGF("AssetService", "Loading SCRIPT asset from %s", path.c_str());
             char* text = ::LoadFileText(path.c_str());
             if (text) {
-                asset.SetScript(std::string(text));
+                Script script = {std::string(text), path};
+                asset.SetScript(script);
                 ::UnloadFileText(text);
-                LOG_DEBUGF("AssetService", "Script loaded: %s", asset.GetName().c_str());
+                LOG_DEBUGF("AssetService", "Script loaded: %s", path.c_str());
             } else {
                 LOG_ERRORF("AssetService", "Failed to load script: %s", path.c_str());
             }
@@ -335,12 +318,14 @@ void AssetService::LoadAssetByType(Asset& asset) {
             LOG_WARNINGF("AssetService", "Unknown asset type for: %s", path.c_str());
             break;
     }
+
+    return asset;
 }
 
 void AssetService::FinalizeAssets() {
     LOG_INFO("AssetService", "Finalizing assets on main thread");
 
-    for (auto& pair : assetsByName_) {
+    for (auto& pair : assetsByPath_) {
         Asset& asset = pair.second;
 
         // Convert image data to texture
@@ -351,9 +336,9 @@ void AssetService::FinalizeAssets() {
             if (texture.id != 0) {
                 asset.SetTexture(texture);
                 LOG_DEBUGF("AssetService", "Finalized texture: %s (ID: %d, %dx%d)",
-                           asset.GetName().c_str(), texture.id, texture.width, texture.height);
+                           asset.GetPath().c_str(), texture.id, texture.width, texture.height);
             } else {
-                LOG_ERRORF("AssetService", "Failed to finalize texture: %s", asset.GetName().c_str());
+                LOG_ERRORF("AssetService", "Failed to finalize texture: %s", asset.GetPath().c_str());
             }
         }
 
@@ -362,12 +347,11 @@ void AssetService::FinalizeAssets() {
             Wave waveData = asset.GetWaveData();
 
             LOG_INFOF("AssetService", "Creating sound from wave: %s (%d frames, %d Hz, %d channels)",
-                      asset.GetName().c_str(), waveData.frameCount, waveData.sampleRate, waveData.channels);
+                      asset.GetPath().c_str(), waveData.frameCount, waveData.sampleRate, waveData.channels);
 
-            // Try converting to mono if stereo
             Wave processedWave = waveData;
             if (waveData.channels == 2) {
-                LOG_INFOF("AssetService", "Converting stereo to mono for: %s", asset.GetName().c_str());
+                LOG_INFOF("AssetService", "Converting stereo to mono for: %s", asset.GetPath().c_str());
                 ::WaveFormat(&processedWave, 44100, 16, 1);
             }
 
@@ -376,21 +360,19 @@ void AssetService::FinalizeAssets() {
             if (sound.frameCount > 0) {
                 asset.SetSound(sound);
                 LOG_INFOF("AssetService", "Finalized sound: %s (%d frames)",
-                          asset.GetName().c_str(), sound.frameCount);
+                          asset.GetPath().c_str(), sound.frameCount);
             } else {
-                LOG_ERRORF("AssetService", "Failed to finalize sound: %s (tried mono conversion)", asset.GetName().c_str());
+                LOG_ERRORF("AssetService", "Failed to finalize sound: %s (tried mono conversion)", asset.GetPath().c_str());
 
-                // Try the original wave as fallback
                 sound = ::LoadSoundFromWave(waveData);
                 if (sound.frameCount > 0) {
                     asset.SetSound(sound);
-                    LOG_INFOF("AssetService", "Fallback sound creation succeeded: %s", asset.GetName().c_str());
+                    LOG_INFOF("AssetService", "Fallback sound creation succeeded: %s", asset.GetPath().c_str());
                 } else {
-                    LOG_ERRORF("AssetService", "Both mono and stereo sound creation failed: %s", asset.GetName().c_str());
+                    LOG_ERRORF("AssetService", "Both mono and stereo sound creation failed: %s", asset.GetPath().c_str());
                 }
             }
 
-            // Clean up processed wave if we modified it
             if (processedWave.data != waveData.data) {
                 ::UnloadWave(processedWave);
             }

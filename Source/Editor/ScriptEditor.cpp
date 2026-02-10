@@ -1,5 +1,6 @@
 #include "ScriptEditor.h"
 #include "Core/Application.h"
+#include "Core/Script.h"
 #include "Services/ScriptService.h"
 #include "Services/AssetService.h"
 #include "Core/Path.h"
@@ -26,13 +27,14 @@ void ScriptEditor::Draw(Application& app) {
         if (ImGui::BeginCombo("Select Script", selectedAssetName.c_str())) {
             for (const auto& [name, asset] : allAssets) {
                 if (asset.GetType() == AssetType::SCRIPT) {
-                    bool isSelected = (selectedAssetName == name);
-                    if (ImGui::Selectable(name.c_str(), isSelected)) {
-                        selectedAssetName = name;
+                    std::string nameStr = name.GetRelativePath();
+                    bool isSelected = (selectedAssetName == nameStr);
+                    if (ImGui::Selectable(nameStr.c_str(), isSelected)) {
+                        selectedAssetName = nameStr;
                         // Load script content
-                        std::string content = assetService.GetScript(name);
-                        strncpy(scriptBuffer, content.c_str(), sizeof(scriptBuffer) - 1);
-                        statusMessage = "Loaded script: " + name;
+                        Script script = assetService.GetScript(name);
+                        strncpy(scriptBuffer, script.source.c_str(), sizeof(scriptBuffer) - 1);
+                        statusMessage = "Loaded script: " + nameStr;
                     }
                     if (isSelected) {
                         ImGui::SetItemDefaultFocus();
@@ -44,16 +46,16 @@ void ScriptEditor::Draw(Application& app) {
         
         if (ImGui::Button("Save")) {
             if (!selectedAssetName.empty()) {
-                Asset* asset = assetService.GetAsset(selectedAssetName);
+                Asset* asset = assetService.GetAsset(Path(selectedAssetName));
                 if (asset) {
-                    std::string fullPath = asset->GetPath();
+                    std::string fullPath = asset->GetPath().GetFullPath();
                     if (SaveFileText(fullPath.c_str(), scriptBuffer)) {
                         // Reload in AssetService
-                        assetService.ReloadAsset(selectedAssetName);
-                        
+                        assetService.ReloadAsset(asset->GetType(), asset->GetPath());
+
                         // Reload in ScriptService (using relative path as identifier)
                         auto& scriptService = app.GetService<Services::ScriptService>();
-                        scriptService.ReloadScript(asset->GetAssetPath().GetRelativePath());
+                        scriptService.ReloadScript(asset->GetPath());
                         
                         statusMessage = "Saved and Reloaded " + selectedAssetName;
                     } else {

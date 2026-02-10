@@ -1,4 +1,5 @@
 #include "Systems/KinematicsSystem.h"
+#include "Core/SystemRegistry.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
@@ -59,3 +60,5 @@ void KinematicsSystem::Update(float deltaTime) {
 }
 
 }  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::KinematicsSystem)

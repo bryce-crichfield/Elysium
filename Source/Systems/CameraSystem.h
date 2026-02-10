@@ -11,10 +11,7 @@ public:
 
     void Update(float deltaTime) override;
 
-    void OnEvent(Event& event) override {
-        IMouseListener::DispatchMouseEvent(event);
-        IKeyboardListener::DispatchKeyboardEvent(event);
-    }
+    void OnEvent(Event& event) override;
 
     void OnMouseButtonPressed(MouseButtonPressedEvent& event) override;
     void OnMouseButtonReleased(MouseButtonReleasedEvent& event) override;

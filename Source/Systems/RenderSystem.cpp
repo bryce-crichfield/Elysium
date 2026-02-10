@@ -1,4 +1,5 @@
 #include "Systems/RenderSystem.h"
+#include "Core/SystemRegistry.h"
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -7,6 +8,7 @@
 #include <vector>
 #include "Core/Common.h"
 #include "Core/Application.h"
+#include "Core/Path.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
 #include "Core/RenderContext.h"
@@ -325,7 +327,7 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
         } else if constexpr (std::is_same_v<T, SpriteComponent>) {
             auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
 
-            Sprite sprite = assets.GetSprite(component.spriteName);
+            Sprite sprite = assets.GetSprite(Path(component.spriteName));
             if (sprite.name.empty()) {
                 return;
             }
@@ -349,7 +351,7 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
             size_t frameIdx = component.sequenceIndex % sequence.indices.size();
             size_t linearIndex = sequence.indices[frameIdx];
 
-            Texture2D texture = assets.GetTexture(sheet.path);
+            Texture2D texture = assets.GetTexture(Path("Sprites/" + sheet.path));
             if (texture.id == 0) {
                 return;
             }
@@ -507,3 +509,5 @@ std::string RenderSystem::GetLayerName(Entity entity) {
 }
 
 }  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::RenderSystem)

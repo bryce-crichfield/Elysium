@@ -33,9 +33,6 @@ end
 
 function CommandCenter.OnEvent(self, entity, event)
     -- We can do logic set rally point or other interactions here
-    if event.type == "PickEvent" then
-        Log("CommandCenter picked: " .. entity)
-    end
 end
 
 function CommandCenter.SpawnWorker(buildingEntity)

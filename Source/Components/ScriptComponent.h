@@ -1,15 +1,28 @@
 #pragma once
 #include "Core/Component.h"
 #include <string>
+#include <vector>
 
 namespace Elysium {
     struct ScriptComponent {
-        std::string scriptName;
+        std::vector<std::string> scriptNames;
+        std::vector<bool> isInitialized;
         bool isActive = true;
-        bool isInitialized = false;
 
         ScriptComponent() = default;
-        ScriptComponent(const std::string& name) : scriptName(name) {}
+        ScriptComponent(const std::string& name) { AddScript(name); }
+
+        void AddScript(const std::string& name) {
+            scriptNames.push_back(name);
+            isInitialized.push_back(false);
+        }
+
+        void RemoveScript(size_t index) {
+            if (index < scriptNames.size()) {
+                scriptNames.erase(scriptNames.begin() + index);
+                isInitialized.erase(isInitialized.begin() + index);
+            }
+        }
 
         static constexpr const char* Name() { return "Script"; }
         static constexpr const char* XmlTag() { return "ScriptComponent"; }

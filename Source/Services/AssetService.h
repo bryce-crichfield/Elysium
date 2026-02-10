@@ -2,9 +2,15 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "Asset.h"
+#include "Core/Future.h"
 #include "Service.h"
 #include "raylib.h"
+
+namespace Elysium {
+class TaskService;
+}
 
 namespace Elysium::Services {
 
@@ -17,34 +23,38 @@ class AssetService : public Elysium::Service {
     void Shutdown() override;
     void Update(float deltaTime) override;
 
-    // Core asset loading - takes Asset object with name, path, type
-    void LoadAsset(const Asset& asset);
-    void ReloadAsset(const AssetName& name);
+    // Async asset loading — I/O runs on background thread,
+    // cache insertion happens on main thread via Future continuations
+    Future<Asset> LoadAsset(AssetType type, Path path);
+    Future<Asset> ReloadAsset(AssetType type, Path path);
+
     void FinalizeAssets();  // Convert raw data to GPU resources on main thread
-    bool IsAssetLoaded(const AssetName& name) const;
+    bool IsAssetLoaded(Path path) const;
 
     // Get assets by name
-    Asset* GetAsset(const AssetName& name);
-    Texture2D GetTexture(const AssetName& name);
-    Sound GetSound(const AssetName& name);
-    Music GetMusic(const AssetName& name);
-    Font GetFont(const AssetName& name);
-    Model GetModel(const AssetName& name);
-    Shader GetShader(const AssetName& name);
-    Sprite GetSprite(const AssetName& name);
-    Script GetScript(const AssetName& name);
+    Asset* GetAsset(Path path);
+    Texture2D GetTexture(Path path);
+    Sound GetSound(Path path);
+    Music GetMusic(Path path);
+    Font GetFont(Path path);
+    Model GetModel(Path path);
+    Shader GetShader(Path path);
+    Sprite GetSprite(Path path);
+    Script GetScript(Path path);
 
     // Asset enumeration
-    const std::unordered_map<AssetName, Asset>& GetAllAssets() const { return assetsByName_; }
+    const std::unordered_map<Path, Asset>& GetAllAssets() const { return assetsByPath_; }
 
    private:
-    void LoadAssetByType(Asset& asset);
+    // Performs I/O to load raw asset data — thread-safe, does NOT touch assetsByPath_
+    static Asset LoadAssetData(AssetType type, Path path);
 
-    // Asset storage by name
-    std::unordered_map<AssetName, Asset> assetsByName_;
+    // Asset storage by path (only written from main thread)
+    std::unordered_map<Path, Asset> assetsByPath_;
 
-    // Path deduplication - path -> name mapping
-    std::unordered_map<std::string, AssetName> pathToName_;
+    // Track pending futures so we know when to finalize
+    std::vector<Future<Asset>> pendingFutures_;
+    bool needsFinalization_ = false;
 };
 
 }  // namespace Elysium::Services

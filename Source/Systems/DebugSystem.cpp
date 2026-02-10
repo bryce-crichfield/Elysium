@@ -1,4 +1,5 @@
 #include "Systems/DebugSystem.h"
+#include "Core/SystemRegistry.h"
 #include "Core/Scene.h"
 #include "Core/Application.h"
 #include "Components/LayerComponent.h"
@@ -318,3 +319,5 @@ Entity DebugSystem::FindEntityAtPoint(Vector2 fbPos) {
 }
 
 }  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::DebugSystem)

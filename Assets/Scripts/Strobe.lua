@@ -2,9 +2,9 @@ local Strobe = {}
 
 function Strobe.Initialize(self, entity)
     self.timeAccumulator = 0.0
-    self.cycleDuration = 2.0 -- Total time for one complete up/down cycle
+    self.cycleDuration = 21 -- Total time for one complete up/down cycle
     self.minIntensity = 0.0
-    self.maxIntensity = 1.0
+    self.maxIntensity = 2.0
 end
 
 function Strobe.Update(self, entity, dt)

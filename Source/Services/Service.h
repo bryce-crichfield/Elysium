@@ -23,12 +23,6 @@ class Service {
     std::string name_ = "UndefinedService";
 };
 
-struct Task {
-    virtual ~Task() = default;
-    virtual void Execute() = 0;
-    virtual std::string GetDescription() const = 0;
-};
-
 class ServiceRegistry {
    public:
     template <typename T>

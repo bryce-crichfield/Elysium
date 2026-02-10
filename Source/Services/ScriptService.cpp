@@ -4,6 +4,7 @@
 #include "Core/Application.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
+#include "Services/AssetService.h"
 #include "Core/Scene.h"
 #include "Core/Component.h"
 #include "Core/ComponentRegistry.h"
@@ -368,39 +369,54 @@ void ScriptService::BindRaylibConstants() {
     lua["MOUSE_MIDDLE"] = 2;
 }
 
-sol::table ScriptService::GetOrLoadScript(const std::string& scriptName) {
-    auto it = scriptRegistry.find(scriptName);
+sol::table ScriptService::GetOrLoadScript(Path path) {
+    auto it = scriptRegistry.find(path);
     if (it != scriptRegistry.end()) {
         return it->second;
     }
 
-    Path path(scriptName);
-    auto result = lua.load_file(path.c_str());
+    auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+    auto asset = assetService.GetAsset(path);
+    if (!asset) {
+        LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: Asset not found", path.c_str());
+        return sol::nil;
+    }
+
+    auto script= asset->GetScript();
+    if (script.source.empty()) {
+        LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: Script is empty", path.c_str());
+        return sol::nil;
+    }
+
+    auto result = lua.load(script.source);
     if (!result.valid()) {
         sol::error err = result;
-        LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: %s", scriptName.c_str(), err.what());
+        LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: %s", path.c_str(), err.what());
         return sol::nil;
     }
 
     sol::table scriptTable = result();
     if (scriptTable == sol::nil || !scriptTable.is<sol::table>()) {
-        LOG_WARNINGF("ScriptService", "Script %s did not return a table.", scriptName.c_str());
+        LOG_WARNINGF("ScriptService", "Script %s did not return a table.", path.c_str());
         return sol::nil;
     }
 
-    scriptRegistry[scriptName] = scriptTable;
+    scriptRegistry[path] = scriptTable;
     return scriptTable;
 }
 
-sol::table ScriptService::GetEntityInstance(Entity entity, const std::string& scriptName, bool create) {
-    auto it = entityScriptInstances.find(entity);
-    if (it != entityScriptInstances.end()) {
-        return it->second;
+sol::table ScriptService::GetEntityInstance(Entity entity, Path scriptPath, bool create) {
+    auto entityIt = entityScriptInstances.find(entity);
+    if (entityIt != entityScriptInstances.end()) {
+        auto scriptIt = entityIt->second.find(scriptPath);
+        if (scriptIt != entityIt->second.end()) {
+            return scriptIt->second;
+        }
     }
 
     if (!create) return sol::nil;
 
-    sol::table proto = GetOrLoadScript(scriptName);
+    sol::table proto = GetOrLoadScript(scriptPath);
     if (!proto.valid()) return sol::nil;
 
     sol::table instance = lua.create_table();
@@ -408,11 +424,11 @@ sol::table ScriptService::GetEntityInstance(Entity entity, const std::string& sc
     mt["__index"] = proto;
     instance[sol::metatable_key] = mt;
 
-    entityScriptInstances[entity] = instance;
+    entityScriptInstances[entity][scriptPath] = instance;
     return instance;
 }
 
-bool ScriptService::InitEntity(Entity entity, const std::string& scriptName) {
+bool ScriptService::InitializeEntity(Entity entity, Path scriptName) {
     sol::table instance = GetEntityInstance(entity, scriptName, true);
     if (!instance.valid()) return false;
 
@@ -428,7 +444,7 @@ bool ScriptService::InitEntity(Entity entity, const std::string& scriptName) {
     return true;
 }
 
-bool ScriptService::UpdateEntity(Entity entity, const std::string& scriptName, float deltaTime) {
+bool ScriptService::UpdateEntity(Entity entity, Path scriptName, float deltaTime) {
     sol::table instance = GetEntityInstance(entity, scriptName, false);
     if (!instance.valid()) return false;
 
@@ -444,8 +460,8 @@ bool ScriptService::UpdateEntity(Entity entity, const std::string& scriptName, f
     return true;
 }
 
-void ScriptService::OnEntityEvent(Entity entity, const std::string& scriptName, Event& event) {
-    sol::table instance = GetEntityInstance(entity, scriptName, false);
+void ScriptService::OnEntityEvent(Entity entity, Path scriptPath, Event& event) {
+    sol::table instance = GetEntityInstance(entity, scriptPath, false);
     if (!instance.valid()) return;
 
     sol::function onEventFunc = instance["OnEvent"];
@@ -489,53 +505,146 @@ void ScriptService::OnEntityEvent(Entity entity, const std::string& scriptName, 
         eventData["dy"] = e->GetDelta().y;
         AddWorldCoords(e->GetPosition().x, e->GetPosition().y);
     }
-    else if (auto* e = event.As<Elysium::Systems::PickEvent>()) {
-        switch (e->type) {
-            case Elysium::Systems::PickEvent::Type::PRESS: eventData["type"] = "PickPress"; break;
-            case Elysium::Systems::PickEvent::Type::RELEASE: eventData["type"] = "PickRelease"; break;
-            case Elysium::Systems::PickEvent::Type::MOVE: eventData["type"] = "PickMove"; break;
-        }
-        eventData["wx"] = e->position.x;
-        eventData["wy"] = e->position.y;
-    }
 
     auto result = onEventFunc(instance, entity, eventData);
     if (!result.valid()) {
         sol::error err = result;
-        LOG_ERRORF("ScriptService", "Error in %s:onEvent: %s", scriptName.c_str(), err.what());
+        LOG_ERRORF("ScriptService", "Error in %s:onEvent: %s", scriptPath.c_str(), err.what());
     }
 }
 
-void ScriptService::ReloadScript(const std::string& scriptName) {
-    scriptRegistry.erase(scriptName);
-    LOG_INFOF("ScriptService", "Unloaded script: %s", scriptName.c_str());
+void ScriptService::ReloadScript(Path scriptPath) {
+    scriptRegistry.erase(scriptPath);
+    LOG_INFOF("ScriptService", "Unloaded script: %s", scriptPath.c_str());
 }
 
-void ScriptService::InspectEntityScript(Entity entity) {
-    auto it = entityScriptInstances.find(entity);
-    if (it == entityScriptInstances.end()) {
+void ScriptService::InspectEntityScript(Entity entity, Path scriptPath) {
+    auto entityIt = entityScriptInstances.find(entity);
+    if (entityIt == entityScriptInstances.end()) {
         ImGui::TextDisabled("No script instance.");
         return;
     }
 
-    sol::table instance = it->second;
+    auto scriptIt = entityIt->second.find(scriptPath);
+    if (scriptIt == entityIt->second.end()) {
+        ImGui::TextDisabled("No script instance.");
+        return;
+    }
+
+    sol::table instance = scriptIt->second;
+
+    // Track which fields we've seen to detect new ones
+    static std::unordered_map<Entity, std::unordered_set<std::string>> seenFields;
+    auto& seen = seenFields[entity];
+
     for (auto& kv : instance) {
         sol::object key = kv.first;
         sol::object val = kv.second;
 
-        if (!key.is<std::string>()) continue;
+        if (!key.is<std::string>())
+            continue;
         std::string keyStr = key.as<std::string>();
-        if (keyStr.empty() || keyStr[0] == '_') continue;
+        if (keyStr.empty() || keyStr[0] == '_')
+            continue;
 
-        ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "%s:", keyStr.c_str());
+        seen.insert(keyStr);
+
+        // Skip functions and tables for now
+        if (val.is<sol::function>() || val.is<sol::table>()) {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s:", keyStr.c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled(val.is<sol::function>() ? "(function)" : "(table)");
+            continue;
+        }
+
+        ImGui::PushID(keyStr.c_str());
+
+        // Editable fields
+        if (val.is<float>() || val.is<double>()) {
+            float value = val.as<float>();
+            ImGui::SetNextItemWidth(150);
+            if (ImGui::DragFloat(keyStr.c_str(), &value, 0.1f)) {
+                instance[keyStr] = value;
+            }
+        } else if (val.is<int>()) {
+            int value = val.as<int>();
+            ImGui::SetNextItemWidth(150);
+            if (ImGui::DragInt(keyStr.c_str(), &value)) {
+                instance[keyStr] = value;
+            }
+        } else if (val.is<bool>()) {
+            bool value = val.as<bool>();
+            if (ImGui::Checkbox(keyStr.c_str(), &value)) {
+                instance[keyStr] = value;
+            }
+        } else if (val.is<std::string>()) {
+            std::string value = val.as<std::string>();
+            char buffer[256];
+            strncpy(buffer, value.c_str(), sizeof(buffer) - 1);
+            buffer[sizeof(buffer) - 1] = '\0';
+
+            ImGui::SetNextItemWidth(200);
+            if (ImGui::InputText(keyStr.c_str(), buffer, sizeof(buffer))) {
+                instance[keyStr] = std::string(buffer);
+            }
+        } else {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s:", keyStr.c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled("(unknown type)");
+        }
+
+        ImGui::PopID();
+    }
+
+    // Optional: Add button to add new fields
+    ImGui::Separator();
+    if (ImGui::Button("+ Add Field")) {
+        ImGui::OpenPopup("AddFieldPopup");
+    }
+
+    if (ImGui::BeginPopup("AddFieldPopup")) {
+        static char fieldName[64] = "";
+        static int fieldType = 0;  // 0=float, 1=int, 2=bool, 3=string
+        static char fieldValue[256] = "";
+
+        ImGui::InputText("Name", fieldName, sizeof(fieldName));
+        ImGui::Combo("Type", &fieldType, "Float\0Int\0Bool\0String\0");
+
+        if (fieldType != 2) {  // Not bool
+            ImGui::InputText("Value", fieldValue, sizeof(fieldValue));
+        } else {
+            static bool boolValue = false;
+            ImGui::Checkbox("Value", &boolValue);
+            strcpy(fieldValue, boolValue ? "true" : "false");
+        }
+
+        if (ImGui::Button("Add")) {
+            if (strlen(fieldName) > 0) {
+                switch (fieldType) {
+                    case 0:
+                        instance[fieldName] = (float)atof(fieldValue);
+                        break;
+                    case 1:
+                        instance[fieldName] = atoi(fieldValue);
+                        break;
+                    case 2:
+                        instance[fieldName] = (strcmp(fieldValue, "true") == 0);
+                        break;
+                    case 3:
+                        instance[fieldName] = std::string(fieldValue);
+                        break;
+                }
+                fieldName[0] = '\0';
+                fieldValue[0] = '\0';
+                ImGui::CloseCurrentPopup();
+            }
+        }
         ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+        }
 
-        if (val.is<float>()) ImGui::Text("%.2f", val.as<float>());
-        else if (val.is<std::string>()) ImGui::Text("%s", val.as<std::string>().c_str());
-        else if (val.is<bool>()) ImGui::Text("%s", val.as<bool>() ? "true" : "false");
-        else if (val.is<sol::function>()) ImGui::TextDisabled("(function)");
-        else if (val.is<sol::table>()) ImGui::TextDisabled("(table)");
-        else ImGui::TextDisabled("?");
+        ImGui::EndPopup();
     }
 }
 

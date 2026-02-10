@@ -140,7 +140,7 @@ Entity World::CloneEntity(Entity source) {
     // Special handling for ScriptComponent: Reset initialization flag
     if (HasComponent<ScriptComponent>(newEntity)) {
         auto& script = GetComponent<ScriptComponent>(newEntity);
-        script.isInitialized = false;
+        std::fill(script.isInitialized.begin(), script.isInitialized.end(), false);
     }
 
     // Notify listeners after clone is complete

@@ -1,7 +1,7 @@
 #include "AssetEditor.h"
 #include "Core/Application.h"
+#include "Core/Path.h"
 #include "Services/AssetService.h"
-#include "Services/LoadingService.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -49,7 +49,6 @@ void AssetEditor::Draw(Application& app) {
 
 void AssetEditor::RenderTreeRecursive(const fs::path& currentPath, Application& app) {
     auto& assetService = app.GetService<AssetService>();
-    auto& loadingService = app.GetService<LoadingService>();
     
     std::string pathKey = currentPath.generic_string();
     if (directoryCache_.find(pathKey) == directoryCache_.end()) return;
@@ -68,17 +67,18 @@ void AssetEditor::RenderTreeRecursive(const fs::path& currentPath, Application& 
                 ImGui::TreePop();
             }
         } else {
-            // Optimization: AssetService has pathToName_, use that if you can 
+            // Optimization: AssetService has pathToName_, use that if you can
             // otherwise we'll stick to the scan for now.
             const Asset* activeAsset = nullptr;
             for (const auto& [assetName, asset] : assetService.GetAllAssets()) {
-                if (asset.GetPath() == file.relativePath) {
+                // Compare relative paths (GetPath returns full path, use GetRelativePath instead)
+                if (asset.GetPath().GetRelativePath() == file.relativePath) {
                     activeAsset = &asset;
                     break;
                 }
             }
             
-            bool isLoaded = (activeAsset != nullptr);
+            bool isLoaded = (activeAsset != nullptr && activeAsset->IsLoaded());
             
             // Apply status coloring
             if (isLoaded) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 1.0f, 0.2f, 1.0f)); 
@@ -101,15 +101,14 @@ void AssetEditor::RenderTreeRecursive(const fs::path& currentPath, Application& 
                         else if (ext == ".xml") type = AssetType::SPRITE;
                         else if (ext == ".lua") type = AssetType::SCRIPT;
 
-                        std::vector<Asset> toLoad;
-                        toLoad.emplace_back(type, file.path.stem().string(), file.relativePath);
-                        loadingService.LoadAssets(toLoad);
+                        assetService.LoadAsset(type, Path(file.relativePath));
                     }
                 } else {
                     if (ImGui::MenuItem("Reload Asset")) {
-                        std::vector<Asset> toLoad;
-                        toLoad.push_back(*activeAsset);
-                        loadingService.LoadAssets(toLoad);
+                        assetService.ReloadAsset(activeAsset->GetType(), activeAsset->GetPath());
+                    }
+                    if (ImGui::MenuItem("Unload Asset")) {
+                        assetService.GetAsset(activeAsset->GetPath())->Unload();
                     }
                 }
                 ImGui::EndPopup();

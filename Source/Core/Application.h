@@ -90,6 +90,7 @@ class Application {
 
     void Update(float deltaTime);
     void Draw();
+    void DrawMenuBar();
     void ProcessEvents();
 
     void ProcessInput();

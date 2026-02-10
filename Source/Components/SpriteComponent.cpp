@@ -48,7 +48,7 @@ namespace Elysium {
 
         for (const auto& [name, asset] : allAssets) {
             if (asset.GetType() == AssetType::SPRITE && asset.IsLoaded()) {
-                spriteAssetNames.push_back(name);
+                spriteAssetNames.push_back(name.GetRelativePath());
             }
         }
 
@@ -81,7 +81,7 @@ namespace Elysium {
         // Get sprite for sheet/sequence pickers
         Sprite sprite;
         if (!c.spriteName.empty()) {
-            sprite = assetService.GetSprite(c.spriteName);
+            sprite = assetService.GetSprite(Path(c.spriteName));
         }
 
         // Sheet picker

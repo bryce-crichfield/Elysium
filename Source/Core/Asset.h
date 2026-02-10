@@ -2,7 +2,9 @@
 
 #include <string>
 #include <variant>
+#include "Core/Event.h"
 #include "Core/Path.h"
+#include "Core/Script.h"
 #include "Sprite.h"
 #include "raylib.h"
 
@@ -11,9 +13,6 @@
 #endif
 
 namespace Elysium {
-
-using AssetName = std::string;
-using Script = std::string;
 
 enum class AssetType {
     TEXTURE,
@@ -29,15 +28,11 @@ enum class AssetType {
 class Asset {
    public:
     Asset() = default;
-    Asset(AssetType type, const AssetName& name, const std::string& path);
+    Asset(AssetType type, Path path);
     ~Asset() = default;
 
     AssetType GetType() const { return type_; }
-    const AssetName& GetName() const { return name_; }
-    std::string GetPath() const {
-        return path_.GetFullPath();
-    }
-    const Path& GetAssetPath() const { return path_; }
+    Path GetPath() const { return path_; }
     bool IsLoaded() const { return loaded_; }
     bool HasImageData() const { return hasImageData_; }
     bool HasWaveData() const { return hasWaveData_; }
@@ -68,7 +63,6 @@ class Asset {
 
    private:
     AssetType type_;
-    std::string name_;
     Path path_;
     bool loaded_ = false;
     bool hasImageData_ = false;
@@ -77,6 +71,30 @@ class Asset {
     std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite, Script> data_;
     Image imageData_{};
     Wave waveData_{};
+};
+
+enum class AssetEventType {
+    LOADED,
+    UNLOADED,
+    RELOADED
+};
+
+class AssetEvent : public Event {
+public:
+    AssetEvent(Path path, AssetEventType type) : path_(path), type_(type) {}
+
+    Path GetPath() const { return path_; }
+    AssetEventType GetType() const { return type_; }
+
+private:
+    Path path_;
+    AssetEventType type_;
+};
+
+class IAssetEventListener : public IEventListener {
+public:
+    virtual ~IAssetEventListener() = default;
+    virtual void OnAssetEvent(const AssetEvent& event) = 0;
 };
 
 }  // namespace Elysium

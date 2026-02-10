@@ -3,6 +3,7 @@
         <System type="ScriptSystem" />
         <System type="RenderSystem" />
         <System type="AnimationSystem" />
+		<System type="ScriptSystem" />
     </Systems>
 
     <SceneConfiguration width="640" height="480">
@@ -24,6 +25,7 @@
             <PositionComponent x="400" y="80" />
             <BoundsComponent />
             <TextComponent text="ELYSIUM" fontSize="60" color="#FFFFFF" layerName="ui" />
+			<ScriptComponent scriptName="Scripts\SlideIn.lua" />
         </Entity>
 
         <!-- Subtitle -->

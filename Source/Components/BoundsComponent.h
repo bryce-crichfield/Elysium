@@ -19,7 +19,6 @@ namespace Elysium {
         BoundsComponent(Rectangle rect, Color color)
             : bounds(rect), isDragging(false), debugColor(color) {}
 
-        Signal<Event> OnPickEvent;
 
         static constexpr const char* Name() { return "Bounds"; }
         static constexpr const char* XmlTag() { return "BoundsComponent"; }
