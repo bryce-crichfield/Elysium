@@ -24,12 +24,18 @@ add_subdirectory(Vendor/raylib)
 add_subdirectory(Vendor/tinyxml2)
 add_subdirectory(Vendor/SQLiteCpp)
 add_subdirectory(Vendor/enet)
-add_subdirectory(Vendor/lua)
 
 # sol2
 set(SOL2_TESTS OFF CACHE BOOL "" FORCE)
 set(SOL2_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(Vendor/sol2)
+
+# Lua, since it doesn't have a CMakeLists.txt, we have to build it ourselves
+set (LUA_DIR ${CMAKE_SOURCE_DIR}/Vendor/lua)
+file (GLOB LUA_SOURCES ${LUA_DIR}/*.c)
+list (FILTER LUA_SOURCES EXCLUDE REGEX ".*(lua|luac)\\.c$")
+add_library (lua STATIC ${LUA_SOURCES})
+target_include_directories(lua PUBLIC ${LUA_DIR})
 
 # ImGui library, since it doesn't have a CMakeLists.txt, we have to build it ourselves
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/imgui)
