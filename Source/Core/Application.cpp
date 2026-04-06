@@ -77,12 +77,13 @@ bool Application::Initialize(const std::string& configPath) {
     rlImGuiSetup(true);
     // SetTargetFPS(config_.targetFPS);
 
+
     for (auto service : serviceRegistry_.GetAllServices()) {
         service->Initialize();
     }
 
     for (auto& editor : editors_) {
-        editor->Initialize();
+        editor->Initialize(config_);
     }
 
     initialized_ = true;
@@ -210,10 +211,10 @@ void Application::Draw() {
         rlImGuiBeginInitImGui();
         rlImGuiEndInitImGui();
         for (auto& editor : editors_) {
-            editor->Initialize();
+            editor->Initialize(config_);
         }
         pendingFontReload_ = false;
-    }
+    }   
 
     // Begin frame
     BeginDrawing();

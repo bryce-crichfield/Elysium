@@ -9,13 +9,16 @@
 
 namespace Elysium {
 
-ScriptEditor::ScriptEditor() : Editor("Script Editor") {
-    memset(scriptBuffer, 0, sizeof(scriptBuffer));
+ScriptEditor::ScriptEditor() : Editor("Scripts") {
 }
 
-void ScriptEditor::Initialize() {
-    Path hermitCodeFontPath("Fonts/Hermit-Regular.otf");
-    font_ = ImGui::GetIO().Fonts->AddFontFromFileTTF(hermitCodeFontPath.GetFullPath().c_str(), (float)fontSize_);
+void ScriptEditor::Initialize(const ApplicationConfig& config) {
+    const std::string editorFontName = config.editorFontName;
+    Path editorFontPath("Fonts/" + editorFontName);
+    font_ = ImGui::GetIO().Fonts->AddFontFromFileTTF(editorFontPath.GetFullPath().c_str(), (float)fontSize_);
+
+    textEditor_.SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());
+
 }
 
 void ScriptEditor::Draw(Application& app) {
@@ -33,7 +36,7 @@ void ScriptEditor::Draw(Application& app) {
                         selectedAssetName = nameStr;
                         // Load script content
                         Script script = assetService.GetScript(name);
-                        strncpy(scriptBuffer, script.source.c_str(), sizeof(scriptBuffer) - 1);
+                        textEditor_.SetText(script.source);
                         statusMessage = "Loaded script: " + nameStr;
                     }
                     if (isSelected) {
@@ -49,7 +52,8 @@ void ScriptEditor::Draw(Application& app) {
                 Asset* asset = assetService.GetAsset(Path(selectedAssetName));
                 if (asset) {
                     std::string fullPath = asset->GetPath().GetFullPath();
-                    if (SaveFileText(fullPath.c_str(), scriptBuffer)) {
+                    auto scriptSource = textEditor_.GetText();
+                    if (SaveFileText(fullPath.c_str(), scriptSource.c_str())) {
                         // Reload in AssetService
                         assetService.ReloadAsset(asset->GetType(), asset->GetPath());
 
@@ -70,7 +74,8 @@ void ScriptEditor::Draw(Application& app) {
         ImGui::SameLine();
         if (ImGui::Button("Run")) {
             auto& scriptService = app.GetService<Services::ScriptService>();
-            scriptService.ExecuteString(scriptBuffer);
+            std::string scriptSource = textEditor_.GetText();
+            scriptService.ExecuteString(scriptSource);
             statusMessage = "Executed script";
         }
         
@@ -87,7 +92,7 @@ void ScriptEditor::Draw(Application& app) {
         }
 
         ImGui::PushFont(static_cast<ImFont*>(font_));   
-        ImGui::InputTextMultiline("##source", scriptBuffer, sizeof(scriptBuffer), ImVec2(-1.0f, -1.0f), ImGuiInputTextFlags_AllowTabInput);
+        textEditor_.Render("Script Editor Text Area", ImVec2(-1.0f, -1.0f), false);
         ImGui::PopFont();
     }
     ImGui::End();

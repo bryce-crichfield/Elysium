@@ -22,5 +22,9 @@
         <ShowDemoWindow>true</ShowDemoWindow>
         <ShowMetrics>false</ShowMetrics>
         <LogLevel>INFO</LogLevel>
-    </Debug>~
+    </Debug>
+
+    <Editor>
+        <FontName>PixelCode-Regular.otf</FontName>
+    </Editor>
 </GameConfig>

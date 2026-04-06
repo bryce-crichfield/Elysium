@@ -53,6 +53,16 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_DIR}/backends
 )
 
+# ImGui Text Editor 
+# ImGuiColorTextEdit
+set(COLORTEXTEDIT_DIR ${CMAKE_SOURCE_DIR}/Vendor/ImGuiColorTextEdit)
+add_library(colortextedit STATIC ${COLORTEXTEDIT_DIR}/TextEditor.cpp)
+target_include_directories(colortextedit PUBLIC
+    ${COLORTEXTEDIT_DIR}
+    ${IMGUI_DIR}
+)
+target_link_libraries(colortextedit PUBLIC imgui)
+
 # rlImGui library, since it's header only it's a bit more complicated
 set(RLIMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/rlImGui)
 add_library(rlimgui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
@@ -82,6 +92,7 @@ target_link_libraries(${PROJECT_NAME}
     raylib
     rlimgui
     imgui
+    colortextedit
     tinyxml2
     SQLiteCpp
     enet
@@ -125,6 +136,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/enet/include
     ${CMAKE_SOURCE_DIR}/Vendor/lua
     ${CMAKE_SOURCE_DIR}/Vendor/sol2/include
+    ${CMAKE_SOURCE_DIR}/Vendor/ImGuiColorTextEdit
 )
 
 if(TRACY_ENABLE)

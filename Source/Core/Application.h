@@ -29,6 +29,8 @@ struct ApplicationConfig {
     bool showMetrics = false;
     std::string logLevel = "INFO";
 
+    std::string editorFontName = "";
+
     static bool FromXML(const std::string& path, ApplicationConfig& out);
 };
 

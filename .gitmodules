@@ -25,3 +25,6 @@
 [submodule "Vendor/sol2"]
 	path = Vendor/sol2
 	url = https://github.com/ThePhD/sol2.git
+[submodule "Vendor/ImGuiColorTextEdit"]
+	path = Vendor/ImGuiColorTextEdit
+	url = https://github.com/BalazsJako/ImGuiColorTextEdit

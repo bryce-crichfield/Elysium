@@ -8,6 +8,7 @@
 
 namespace Elysium {
 
+struct ApplicationConfig;
 class Application;
 
 template<typename T>
@@ -20,7 +21,7 @@ class Editor {
     explicit Editor(const std::string& name) : name_(name) {}
     virtual ~Editor() = default;
 
-    virtual void Initialize() {}
+    virtual void Initialize(const ApplicationConfig& config) {}
     virtual void Draw(Application& app) = 0;
 
     bool IsVisible() const { return isVisible_; }
