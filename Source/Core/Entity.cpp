@@ -82,12 +82,9 @@ World::World() {
     ComponentRegistry::Instance().RegisterAllComponents(*this);
 
     // RegisterComponent<NameComponent>(); // Handled by Registry
-    RegisterComponent<LocationComponent>();
     // RegisterComponent<PositionComponent>(); // Handled by Registry
     RegisterComponent<ScaleComponent>();
     RegisterComponent<MovementComponent>();
-    RegisterComponent<DirectionComponent>();
-    RegisterComponent<AnimationComponent>();
     RegisterComponent<LayerComponent>();
     RegisterComponent<LightComponent>();
     RegisterComponent<RectangleComponent>();

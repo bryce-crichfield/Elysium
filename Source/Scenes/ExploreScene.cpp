@@ -6,7 +6,6 @@
 #include "Services/SceneService.h"
 #include "Systems/ClientNetworkSystem.h"
 #include "Systems/ServerNetworkSystem.h"
-#include "Components/AnimationComponent.h"
 #include "Components/SpriteComponent.h"
 
 namespace Elysium::Scenes {

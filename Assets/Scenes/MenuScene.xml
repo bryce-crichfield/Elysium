@@ -2,7 +2,6 @@
     <Systems>
         <System type="ScriptSystem" />
         <System type="RenderSystem" />
-        <System type="AnimationSystem" />
 		<System type="ScriptSystem" />
     </Systems>
 

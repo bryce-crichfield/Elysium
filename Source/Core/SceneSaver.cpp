@@ -9,7 +9,6 @@
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "System.h"
-#include "Systems/AnimationSystem.h"
 #include "Systems/CameraSystem.h"
 #include "Systems/MovementSystem.h"
 #include "Systems/RenderSystem.h"
@@ -42,13 +41,6 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
         builder.AddElement("PositionComponent")
             .SetAttribute("x", pos.x)
             .SetAttribute("y", pos.y);
-    };
-
-    componentSavers[std::type_index(typeid(LocationComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& loc = world->GetComponent<LocationComponent>(entity);
-        builder.AddElement("LocationComponent")
-            .SetAttribute("x", loc.x)
-            .SetAttribute("y", loc.y);
     };
 
     componentSavers[std::type_index(typeid(MovementComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
@@ -130,14 +122,6 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
             .SetAttribute("a", light.color.a);
     };
 
-    componentSavers[std::type_index(typeid(AnimationComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        builder.AddElement("AnimationComponent");
-    };
-
-    componentSavers[std::type_index(typeid(DirectionComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        builder.AddElement("DirectionComponent");
-    };
-
     componentSavers[std::type_index(typeid(TileComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
         builder.AddElement("TileComponent");
     };
@@ -213,22 +197,6 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
     std::vector<int> tilemask;
     int maxX = 0, maxY = 0;
 
-    world->Query<LocationComponent, TileComponent, RectangleComponent, LayerComponent>([&](Entity entity, const LocationComponent& loc, const TileComponent& tile, const RectangleComponent& rect, const LayerComponent& layer) {
-        // Create a simple ID based on the rectangle properties
-        int tileId = static_cast<int>(rect.width * 1000 + rect.height);  // Simple hash
-        tileDefinitions[tileId] = {rect, layer.name};
-
-        // Ensure tilemask is large enough
-        int index = loc.y * (maxX + 1) + loc.x;
-        if (index >= (int)tilemask.size()) {
-            tilemask.resize(index + 1, 0);
-        }
-        tilemask[index] = tileId;
-
-        maxX = std::max(maxX, loc.x);
-        maxY = std::max(maxY, loc.y);
-    });
-
     if (!tileDefinitions.empty()) {
         auto tilemapBuilder = builder.AddElement("Tilemap")
                                   .SetAttribute("width", maxX + 1)
@@ -281,9 +249,6 @@ void SaveEntities(XMLBuilder& builder, World* world) {
         if (world->HasComponent<PositionComponent>(entity)) {
             savers.at(std::type_index(typeid(PositionComponent)))(entityBuilder, world, entity);
         }
-        if (world->HasComponent<LocationComponent>(entity)) {
-            savers.at(std::type_index(typeid(LocationComponent)))(entityBuilder, world, entity);
-        }
         if (world->HasComponent<MovementComponent>(entity)) {
             savers.at(std::type_index(typeid(MovementComponent)))(entityBuilder, world, entity);
         }
@@ -307,12 +272,6 @@ void SaveEntities(XMLBuilder& builder, World* world) {
         }
         if (world->HasComponent<LightComponent>(entity)) {
             savers.at(std::type_index(typeid(LightComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<AnimationComponent>(entity)) {
-            savers.at(std::type_index(typeid(AnimationComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<DirectionComponent>(entity)) {
-            savers.at(std::type_index(typeid(DirectionComponent)))(entityBuilder, world, entity);
         }
         if (world->HasComponent<TileComponent>(entity)) {
             savers.at(std::type_index(typeid(TileComponent)))(entityBuilder, world, entity);

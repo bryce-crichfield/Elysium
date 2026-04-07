@@ -86,11 +86,13 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
 
         for (size_t i = 0; i < tilemask.size(); i++) {
             int id = tilemask[i];
-            int x = i % tilemapWidth;
-            int y = i / tilemapWidth;
+            int tileX = i % tilemapWidth;
+            int tileY = i / tilemapWidth;
+            int worldX = isIsometric ? (tileX - tileY) * (tileWidth / 2) : tileX * tileWidth;
+            int worldY = isIsometric ? (tileX + tileY) * (tileHeight / 2) : tileY * tileHeight;
             auto entity = world->CreateEntity();
+            world->AddComponent<PositionComponent>(entity, PositionComponent(worldX, worldY));
             world->AddComponent<NameComponent>(entity, NameComponent(std::string("Tile_") + std::to_string(i)));
-            world->AddComponent<LocationComponent>(entity, LocationComponent(x, y));
             world->AddComponent<RectangleComponent>(entity, tileDefinitions[id].rect);
             world->AddComponent<LayerComponent>(entity, LayerComponent(tileDefinitions[id].layerName));
             world->AddComponent<TileComponent>(entity, TileComponent(tileWidth, tileHeight, isIsometric));
@@ -218,33 +220,6 @@ bool LoadScene(Scene& scene, const std::string& path) {
             auto& assetService = Application::GetInstance().GetService<Services::AssetService>();
             assetService.LoadAsset(AssetType::SCRIPT, Path(path));
         }
-    });
-
-    // We allow the user to define the location and have the position component be implicit
-    // Position component represents the CENTER of the tile in world coordinates
-    world_->Query<LocationComponent>([&](Entity entity, auto& loc) {
-        float worldX, worldY;
-
-        if (isIsometric) {
-            // Isometric coordinate transformation
-            // screenX = (tileX - tileY) * (tileWidth / 2)
-            // screenY = (tileX + tileY) * (tileHeight / 2)
-            worldX = (loc.x - loc.y) * (tileWidth * 0.5f);
-            worldY = (loc.x + loc.y) * (tileHeight * 0.5f);
-        } else {
-            // Standard orthogonal grid
-            worldX = loc.x * tileWidth + tileWidth * 0.5f;
-            worldY = loc.y * tileHeight + tileHeight * 0.5f;
-        }
-
-        if (!world_->HasComponent<PositionComponent>(entity)) {
-            world_->AddComponent<PositionComponent>(entity, PositionComponent(worldX, worldY));
-            return;
-        }
-
-        auto& pos = world_->GetComponent<PositionComponent>(entity);
-        pos.x = worldX;
-        pos.y = worldY;
     });
 
     // Allow subclasses to create additional custom systems

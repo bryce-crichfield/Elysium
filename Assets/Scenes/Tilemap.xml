@@ -9,7 +9,6 @@
     fn TileDefintion(id, background, border) => (x, y, tileSize) => {
         <Entity>
             <TileComponent />                       // Just having the tile component tells us this is tile.  This is how we type check
-            <LocationComponent x="$x" y="$y" />
             <RectangleComponent width="$tileSize" height="$tileSize" background="$background" border="$border" />
         </Entity>
     }
@@ -17,7 +16,7 @@
     In our game we represent tiles using Entities.  Tilemaps are just objects that contains useful functions
     for dealing with all the entities in a single tilemap.
     -->
-    <Tilemap width="8" height="8" z="-1">
+    <Tilemap width="8" height="8" z="-1" tileWidth="64" tileHeight="64" isIsometric="false">
         <Tilemask>
             0 0 0 0 0 0 0 0
             0 0 0 0 0 0 0 0

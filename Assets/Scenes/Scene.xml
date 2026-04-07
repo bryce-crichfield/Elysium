@@ -7,7 +7,6 @@
     <Systems>
         <System type="MovementSystem" />
         <System type="SpriteSystem" />
-        <System type="AnimationSystem" />
         <System type="CameraSystem" />
         <System type="RenderSystem" />
         <System type="ScriptSystem" />
@@ -51,7 +50,6 @@
 
         <Entity>
             <NameComponent name="CURSOR" />
-            <LocationComponent x="0" y="0" />
             <PositionComponent />
             <MovementComponent />
             <RectangleComponent width="32" height="32" background="#aaffffaa" border="#000000" layerName="entity" />
@@ -59,33 +57,25 @@
 
         <Entity>
             <NameComponent name="ENTITY_0" />
-            <LocationComponent x="0" y="0" />
             <PositionComponent />
-            <AnimationComponent />
         </Entity>
 
         <Entity>
             <NameComponent name="ENTITY_1" />
-            <LocationComponent x="1" y="0" />
             <PositionComponent />
             <CircleComponent radius="8" background="#00a2be" layerName="entity" />
-            <AnimationComponent />
         </Entity>
 
         <Entity>
             <NameComponent name="ENTITY_2" />
-            <LocationComponent x="5" y="6" />
             <PositionComponent />
             <CircleComponent radius="8" background="#ad0000" layerName="entity" />
-            <AnimationComponent />
         </Entity>
 
         <Entity>
             <NameComponent name="ENTITY_3" />
-            <LocationComponent x="6" y="5" />
             <PositionComponent />
             <CircleComponent radius="8" background="#ad0000" layerName="entity" />
-            <AnimationComponent />
         </Entity>
     </Entities>
 </Scene>

@@ -10,7 +10,6 @@
 #include "Components/PositionComponent.h"
 #include "Components/BoundsComponent.h"
 #include "Components/KinematicsComponent.h"
-#include "Components/DirectionComponent.h"
 #include "Components/FollowComponent.h"
 namespace Elysium::Systems {
 

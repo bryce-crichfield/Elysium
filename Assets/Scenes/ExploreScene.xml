@@ -1,5 +1,5 @@
 <Scene type="ExploreScene">
-    <SceneScript path="Scripts/ExploreScene.lua" />
+    <SceneScript path="Scripts/Scenes/ExploreScene.lua" />
 
     <Systems>
         <System type="SpatialSystem" />
@@ -7,11 +7,10 @@
         <System type="KinematicsSystem" />
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
-        <System type="AnimationSystem" />
         <System type="CameraSystem" />
 		<System type="FollowSystem" />
         <System type="CollisionSystem" />
-        <System type="CommandSystem" />
+        <!-- <System type="CommandSystem" /> -->
         <System type="RenderSystem" />
     </Systems>
 
@@ -71,7 +70,7 @@
 				sheetName="Idle"
 				sequenceName="south"/>
 			<ColliderComponent width="32" height="32" />
-			<ScriptComponent scriptName="Scripts/Unit.lua" />
+			<ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
 			<LayerComponent name="entity" />
 		</Entity>
 
@@ -95,7 +94,7 @@
 				sheetName="Idle"
 				sequenceName="south"/>
 			<ColliderComponent width="32" height="32" />
-			<ScriptComponent scriptName="Scripts/Unit.lua" />
+			<ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
 			<LayerComponent name="entity" />
 		</Entity>
 
