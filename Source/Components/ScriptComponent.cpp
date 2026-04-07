@@ -7,17 +7,24 @@
 
 namespace Elysium {
     void ScriptComponent::LoadXml(ScriptComponent& c, tinyxml2::XMLElement* el) {
+        auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+
+        auto loadScript = [&](const char* name) {
+            c.AddScript(name);
+            assetService.LoadAsset(AssetType::SCRIPT, Path(name));
+        };
+
         // Backward compat: single scriptName attribute
         const char* scriptName = el->Attribute("scriptName");
         if (scriptName && scriptName[0] != '\0') {
-            c.AddScript(scriptName);
+            loadScript(scriptName);
         }
 
         // New format: child <Script name="..." /> elements
         for (auto* child = el->FirstChildElement("Script"); child; child = child->NextSiblingElement("Script")) {
             const char* name = child->Attribute("name");
             if (name && name[0] != '\0') {
-                c.AddScript(name);
+                loadScript(name);
             }
         }
     }

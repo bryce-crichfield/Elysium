@@ -21,7 +21,9 @@ void ScriptSystem::Update(float deltaTime) {
             if (scriptComp.scriptNames[i].empty()) continue;
 
             if (!scriptComp.isInitialized[i]) {
-                scriptService.InitializeEntity(entity, Path(scriptComp.scriptNames[i]));
+                if (!scriptService.InitializeEntity(entity, Path(scriptComp.scriptNames[i]))) {
+                    continue; // Asset not ready yet — retry next frame
+                }
                 scriptComp.isInitialized[i] = true;
             }
             scriptService.UpdateEntity(entity, Path(scriptComp.scriptNames[i]), deltaTime);
