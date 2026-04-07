@@ -1,4 +1,6 @@
 <Scene type="ExploreScene">
+    <SceneScript path="Scripts/ExploreScene.lua" />
+
     <Systems>
         <System type="SpatialSystem" />
         <System type="MovementSystem" />

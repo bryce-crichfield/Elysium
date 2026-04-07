@@ -1,3 +1,5 @@
+---@type EntityScript
+---@class Unit
 local Unit = {}
 
 -- Compute 8-direction name from velocity vector
@@ -35,12 +37,12 @@ local function GetDirectionName(vx, vy)
     end
 end
 
-function Unit.Initialize(self, entity)
+function Unit:Initialize(entity)
     -- Store last known direction so we keep facing that way when idle
     self.lastDirection = "south"
 end
 
-function Unit.Update(self, entity, dt)
+function Unit:Update(entity, dt)
     local kin = GetComponent(entity, "Kinematics")
     local spr = GetComponent(entity, "Sprite")
 
@@ -76,7 +78,7 @@ function Unit.Update(self, entity, dt)
     end
 end
 
-function Unit.OnEvent(self, entity, event)
+function Unit:OnEvent(entity, event)
 end
 
 return Unit

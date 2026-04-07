@@ -25,8 +25,11 @@ public:
 
     bool InitializeEntity(Entity entity, Path scriptPath);
     bool UpdateEntity(Entity entity, Path scriptPath, float deltaTime);
-
     void OnEntityEvent(Entity entity, Path scriptPath, Event& event);
+
+    bool InitializeScene(Path scriptPath);
+    bool UpdateScene(Path scriptPath, float deltaTime);
+    void OnSceneEvent(Path scriptPath, Event& event);
 
     void ReloadScript(Path scriptPath);
 
@@ -47,6 +50,10 @@ private:
     // Key: Entity ID -> Script Path -> Instance table
     std::unordered_map<Entity, std::unordered_map<Path, sol::table>> entityScriptInstances;
 
+    // Active Instances per Scene Script
+    // Key: Script Path -> Instance table
+    std::unordered_map<Path, sol::table> sceneScriptInstances;
+
     void InitLuaContext();
     void BindEntityAPI();
     void BindRaylibConstants();
@@ -55,9 +62,8 @@ private:
     // Loads the script if not already loaded, returns the table
     sol::table GetOrLoadScript(Path path);
 
-    // Helper to get or create the instance for an entity+script pair
-    // If create is true, it will instantiate from the script template
     sol::table GetEntityInstance(Entity entity, Path scriptPath, bool create = false);
+    sol::table GetSceneInstance(Path scriptPath, bool create = false);
 };
 
 } // namespace Elysium::Services

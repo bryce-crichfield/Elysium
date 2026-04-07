@@ -1,0 +1,4 @@
+{
+  "workspace.library": ["Assets/Scripts/Elysium.lua"],
+  "diagnostics.globals": ["Vector2", "Color", "Rectangle"]
+}

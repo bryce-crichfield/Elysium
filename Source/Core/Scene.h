@@ -70,12 +70,17 @@ class Scene : public IEventListener, IMessageListener {
     // Called during XML loading to create scene-specific systems
     virtual void CreateCustomSystems() {}
 
+    void SetSceneScript(const std::string& path) { sceneScriptPath_ = path; }
+    const std::string& GetSceneScript() const { return sceneScriptPath_; }
+
 protected:
     // Core scene components
     std::unique_ptr<World> world_;
     std::vector<std::unique_ptr<System>> systems_;
     SceneConfiguration configuration_;
     std::vector<SceneLayer> layers_;
+    std::string sceneScriptPath_;
+    bool isSceneScriptInitialized_ = false;
 };
 
 // Scene factory function type - declared after Scene class is defined

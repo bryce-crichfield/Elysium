@@ -513,6 +513,108 @@ void ScriptService::OnEntityEvent(Entity entity, Path scriptPath, Event& event) 
     }
 }
 
+sol::table ScriptService::GetSceneInstance(Path scriptPath, bool create) {
+    auto it = sceneScriptInstances.find(scriptPath);
+    if (it != sceneScriptInstances.end()) return it->second;
+    if (!create) return sol::nil;
+
+    sol::table proto = GetOrLoadScript(scriptPath);
+    if (!proto.valid()) return sol::nil;
+
+    sol::table instance = lua.create_table();
+    sol::table mt = lua.create_table();
+    mt["__index"] = proto;
+    instance[sol::metatable_key] = mt;
+
+    sceneScriptInstances[scriptPath] = instance;
+    return instance;
+}
+
+bool ScriptService::InitializeScene(Path scriptPath) {
+    sol::table instance = GetSceneInstance(scriptPath, true);
+    if (!instance.valid()) return false;
+
+    sol::function initFunc = instance["Initialize"];
+    if (initFunc.valid()) {
+        auto result = initFunc(instance);
+        if (!result.valid()) {
+            sol::error err = result;
+            LOG_ERRORF("ScriptService", "Error in scene %s:Initialize: %s", scriptPath.c_str(), err.what());
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ScriptService::UpdateScene(Path scriptPath, float deltaTime) {
+    sol::table instance = GetSceneInstance(scriptPath, false);
+    if (!instance.valid()) return false;
+
+    sol::function updateFunc = instance["Update"];
+    if (updateFunc.valid()) {
+        auto result = updateFunc(instance, deltaTime);
+        if (!result.valid()) {
+            sol::error err = result;
+            LOG_ERRORF("ScriptService", "Error in scene %s:Update: %s", scriptPath.c_str(), err.what());
+            return false;
+        }
+    }
+    return true;
+}
+
+void ScriptService::OnSceneEvent(Path scriptPath, Event& event) {
+    sol::table instance = GetSceneInstance(scriptPath, false);
+    if (!instance.valid()) return;
+
+    sol::function onEventFunc = instance["OnEvent"];
+    if (!onEventFunc.valid()) return;
+
+    sol::table eventData = lua.create_table();
+
+    auto AddWorldCoords = [&](float screenX, float screenY) {
+        Vector2 worldPos = ScreenToWorld({screenX, screenY});
+        eventData["wx"] = worldPos.x;
+        eventData["wy"] = worldPos.y;
+    };
+
+    if (auto* e = event.As<KeyPressedEvent>()) {
+        eventData["type"] = "KeyPressed";
+        eventData["key"] = e->GetKey();
+    }
+    else if (auto* e = event.As<KeyReleasedEvent>()) {
+        eventData["type"] = "KeyReleased";
+        eventData["key"] = e->GetKey();
+    }
+    else if (auto* e = event.As<MouseButtonPressedEvent>()) {
+        eventData["type"] = "MouseButtonPressed";
+        eventData["button"] = e->GetButton();
+        eventData["x"] = e->GetPosition().x;
+        eventData["y"] = e->GetPosition().y;
+        AddWorldCoords(e->GetPosition().x, e->GetPosition().y);
+    }
+    else if (auto* e = event.As<MouseButtonReleasedEvent>()) {
+        eventData["type"] = "MouseButtonReleased";
+        eventData["button"] = e->GetButton();
+        eventData["x"] = e->GetPosition().x;
+        eventData["y"] = e->GetPosition().y;
+        AddWorldCoords(e->GetPosition().x, e->GetPosition().y);
+    }
+    else if (auto* e = event.As<MouseMovedEvent>()) {
+        eventData["type"] = "MouseMoved";
+        eventData["x"] = e->GetPosition().x;
+        eventData["y"] = e->GetPosition().y;
+        eventData["dx"] = e->GetDelta().x;
+        eventData["dy"] = e->GetDelta().y;
+        AddWorldCoords(e->GetPosition().x, e->GetPosition().y);
+    }
+
+    auto result = onEventFunc(instance, eventData);
+    if (!result.valid()) {
+        sol::error err = result;
+        LOG_ERRORF("ScriptService", "Error in scene %s:OnEvent: %s", scriptPath.c_str(), err.what());
+    }
+}
+
 void ScriptService::ReloadScript(Path scriptPath) {
     scriptRegistry.erase(scriptPath);
     LOG_INFOF("ScriptService", "Unloaded script: %s", scriptPath.c_str());

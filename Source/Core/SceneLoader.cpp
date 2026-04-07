@@ -211,6 +211,11 @@ bool LoadScene(Scene& scene, const std::string& path) {
     LoadEntities(root, world_);
     LoadSystems(root, scene);
 
+    VisitElement(root, "SceneScript", [&](XMLElement* el) {
+        const char* path = el->Attribute("path");
+        if (path) {
+            scene.SetSceneScript(path);
+            auto& assetService = Application::GetInstance().GetService<Services::AssetService>();
     // We allow the user to define the location and have the position component be implicit
     // Position component represents the CENTER of the tile in world coordinates
     world_->Query<LocationComponent>([&](Entity entity, auto& loc) {

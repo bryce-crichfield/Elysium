@@ -7,6 +7,7 @@
 #include "Event.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
+#include "Services/ScriptService.h"
 #include "System.h"
 #include "Systems/AnimationSystem.h"
 #include "Systems/CameraSystem.h"
@@ -14,6 +15,7 @@
 #include "Systems/RenderSystem.h"
 #include "Systems/SpriteSystem.h"
 #include "Core/Xml.h"
+#include "Core/Path.h"
 #include "raylib.h"
 #include "tinyxml2.h"
 
@@ -36,6 +38,18 @@ void Scene::OnUpdate(float deltaTime) {
         if (system->IsEnabled())
             system->Update(deltaTime);
     }
+
+    if (!sceneScriptPath_.empty()) {
+        auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+        scriptService.SetActiveWorld(world_.get());
+        if (!isSceneScriptInitialized_) {
+            if (scriptService.InitializeScene(Path(sceneScriptPath_))) {
+                isSceneScriptInitialized_ = true;
+            }
+        } else {
+            scriptService.UpdateScene(Path(sceneScriptPath_), deltaTime);
+        }
+    }
 }
 
 void Scene::OnDraw(Rectangle screen) {
@@ -48,10 +62,17 @@ void Scene::OnDraw(Rectangle screen) {
 }
 
 void Scene::OnEvent(Event& event) {
+    // Scene script gets first crack at events
+    if (!sceneScriptPath_.empty() && isSceneScriptInitialized_) {
+        auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+        scriptService.SetActiveWorld(world_.get());
+        scriptService.OnSceneEvent(Path(sceneScriptPath_), event);
+    }
+
     // Forward events to all systems
     for (auto& system : systems_) {
         if (event.handled)
-            break;  // Stop propagation if handled
+            break;
         system->OnEvent(event);
     }
 }
