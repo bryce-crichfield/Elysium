@@ -216,6 +216,10 @@ bool LoadScene(Scene& scene, const std::string& path) {
         if (path) {
             scene.SetSceneScript(path);
             auto& assetService = Application::GetInstance().GetService<Services::AssetService>();
+            assetService.LoadAsset(AssetType::SCRIPT, Path(path));
+        }
+    });
+
     // We allow the user to define the location and have the position component be implicit
     // Position component represents the CENTER of the tile in world coordinates
     world_->Query<LocationComponent>([&](Entity entity, auto& loc) {
