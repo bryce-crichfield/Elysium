@@ -137,7 +137,6 @@ Texture2D AssetService::GetTexture(Path path) {
         return asset->GetTexture();
     }
 
-    LOG_WARNINGF("AssetService", "Texture not found: %s", path.c_str());
     return Texture2D{0, 0, 0, 0, 0};
 }
 
@@ -147,7 +146,6 @@ Sound AssetService::GetSound(Path path) {
         return asset->GetSound();
     }
 
-    LOG_WARNINGF("AssetService", "Sound not found: %s", path.c_str());
     return Sound{nullptr, 0, 0, 0, 0};
 }
 
@@ -157,7 +155,6 @@ Music AssetService::GetMusic(Path path) {
         return asset->GetMusic();
     }
 
-    LOG_WARNINGF("AssetService", "Music not found: %s", path.c_str());
     return Music{nullptr, 0, 0, 0, 0};
 }
 
@@ -167,7 +164,6 @@ Font AssetService::GetFont(Path path) {
         return asset->GetFont();
     }
 
-    LOG_WARNINGF("AssetService", "Font not found: %s", path.c_str());
     return Font{};
 }
 
@@ -177,7 +173,6 @@ Model AssetService::GetModel(Path path) {
         return asset->GetModel();
     }
 
-    LOG_WARNINGF("AssetService", "Model not found: %s", path.c_str());
     return Model{};
 }
 
@@ -187,7 +182,6 @@ Shader AssetService::GetShader(Path path) {
         return asset->GetShader();
     }
 
-    LOG_WARNINGF("AssetService", "Shader not found: %s", path.c_str());
     return Shader{};
 }
 
@@ -197,7 +191,6 @@ Sprite AssetService::GetSprite(Path path) {
         return asset->GetSprite();
     }
 
-    LOG_WARNINGF("AssetService", "Sprite not found: %s", path.c_str());
     return Sprite{};
 }
 
@@ -207,7 +200,6 @@ Script AssetService::GetScript(Path path) {
         return asset->GetScript();
     }
 
-    LOG_WARNINGF("AssetService", "Script not found: %s", path.c_str());
     return Script{};
 }
 

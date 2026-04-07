@@ -17,6 +17,10 @@ namespace Elysium {
 
         if (spriteName) {
             c.spriteName = spriteName;
+
+            // Load the sprite if not already loaded
+            auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+            assetService.LoadAsset(AssetType::SPRITE, Path(spriteName));
         }
         if (sheetName) {
             c.sheetName = sheetName;
