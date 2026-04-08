@@ -17,7 +17,6 @@
 #include "Components/UnitComponent.h"
 #include "Components/CooldownComponent.h"
 #include "Components/AttackComponent.h"
-#include "Components/ResourceComponent.h"
 #include "Components/ScriptComponent.h"
 #include "Components/TileComponent.h"
 #include "Components/SelectionComponent.h"

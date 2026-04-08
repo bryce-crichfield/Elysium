@@ -102,7 +102,6 @@ World::World() {
     RegisterComponent<KinematicsComponent>();
     RegisterComponent<HealthComponent>();
     RegisterComponent<AttackComponent>();
-    RegisterComponent<ResourceComponent>();
 }
 
 void World::AddWorldListener(IWorldListener* listener) {
