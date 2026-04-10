@@ -18,7 +18,7 @@ void CollisionSystem::Update(float deltaTime) {
     // Collect all collidable entities
     struct CollidableEntity {
         Entity entity;
-        Rectangle rect;
+        ColliderComponent collider;
         bool isTrigger;
     };
     std::vector<CollidableEntity> collidables;
@@ -27,20 +27,29 @@ void CollisionSystem::Update(float deltaTime) {
         [&](Entity e, auto& pos, auto& collider) {
             CollidableEntity ce;
             ce.entity = e;
-            ce.rect = collider.GetRect(pos.x, pos.y);
+            ce.collider = collider;
             ce.isTrigger = collider.isTrigger;
             collidables.push_back(ce);
         });
 
     // O(n^2) broad phase - simple for now
+    // TODO: Support other shapes (circles, polygons) and use appropriate collision checks
     // TODO: Use SpatialSystem for broad phase optimization
+    // TODO: Consider camera and viewport for math. (if we change zoom, collisions break because colliders are sized for 1:1 pixels)
     for (size_t i = 0; i < collidables.size(); ++i) {
         for (size_t j = i + 1; j < collidables.size(); ++j) {
             const auto& a = collidables[i];
             const auto& b = collidables[j];
 
             // AABB intersection test
-            if (CheckCollisionRecs(a.rect, b.rect)) {
+            auto aRect = a.collider.GetRect(
+                world->GetComponent<PositionComponent>(a.entity).x,
+                world->GetComponent<PositionComponent>(a.entity).y);
+            auto bRect = b.collider.GetRect(
+                world->GetComponent<PositionComponent>(b.entity).x,
+                world->GetComponent<PositionComponent>(b.entity).y);
+
+            if (CheckCollisionRecs(aRect, bRect)) {
                 collisions_.insert(CollisionPair(a.entity, b.entity));
             }
         }

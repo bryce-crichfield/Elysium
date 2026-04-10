@@ -16,6 +16,7 @@
 #include "Components/CameraComponent.h"
 #include "Components/PositionComponent.h"
 #include "Systems/CollisionSystem.h"
+#include "Systems/MovementSystem.h"
 
 
 namespace Elysium::Services {
@@ -318,6 +319,17 @@ void ScriptService::BindEntityAPI() {
         if (!collisionSystem) return false;
 
         return collisionSystem->AreColliding(a, b);
+    });
+
+    lua.set_function("IssueMoveCommand", [](Entity entity, float x, float y) {
+        auto& app = Elysium::Application::GetInstance();
+        auto* scene = app.GetService<Elysium::Services::SceneService>().GetScene();
+        if (!scene) return;
+
+        auto* movementSystem = scene->GetSystem<Elysium::Systems::MovementSystem>();
+        if (!movementSystem) return;
+
+        movementSystem->IssueMoveCommand(entity, {x, y});
     });
 
     lua.set_function("GetCollisions", [this](Entity entity) -> sol::table {

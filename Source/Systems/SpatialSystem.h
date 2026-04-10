@@ -28,7 +28,7 @@ public:
     void Update(float deltaTime) override;
     
     // Grid management
-    void BuildGrid(int width, int height, int cellSize);
+    void BuildGrid(int width, int height, float tileWidth, float tileHeight, bool isIsometric);
     GridNode* GetNode(int x, int y);
     GridNode* GetNodeFromWorld(Vector2 position);
     Vector2 GetWorldPosition(GridNode* node);
@@ -44,7 +44,9 @@ private:
     std::vector<GridNode> grid_;
     int gridWidth_ = 0;
     int gridHeight_ = 0;
-    int cellSize_ = 64;
+    float tileWidth_ = 64.0f;
+    float tileHeight_ = 32.0f;
+    bool isIsometric_ = false;
     
     // A* Helpers
     float CalculateDistance(GridNode* a, GridNode* b);

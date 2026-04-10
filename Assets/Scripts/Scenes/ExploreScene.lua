@@ -5,34 +5,11 @@ local ExploreScene = {}
 local SELECTION_RADIUS = 32.0
 
 function ExploreScene:Initialize()
-    self.selected    = {}   -- entity -> true
-    self.moveTargets = {}   -- entity -> { x, y }
+    self.selected = {}   -- entity -> true
     Log("ExploreScene initialized")
 end
 
 function ExploreScene:Update(dt)
-    -- Steer selected units toward their move targets
-    for entity, target in pairs(self.moveTargets) do
-        local pos = GetComponent(entity, "Position")
-        local kin = GetComponent(entity, "Kinematics")
-        if pos and kin then
-            local dx = target.x - pos.x
-            local dy = target.y - pos.y
-            local dist = math.sqrt(dx * dx + dy * dy)
-            if dist > 5.0 then
-                local speed = kin.maxSpeed or 150.0
-                kin.velocity.x = (dx / dist) * speed
-                kin.velocity.y = (dy / dist) * speed
-                SetComponent(entity, "Kinematics", kin)
-            else
-                -- Arrived
-                kin.velocity.x = 0
-                kin.velocity.y = 0
-                SetComponent(entity, "Kinematics", kin)
-                self.moveTargets[entity] = nil
-            end
-        end
-    end
 end
 
 function ExploreScene:OnEvent(event)
@@ -46,7 +23,6 @@ function ExploreScene:OnEvent(event)
 end
 
 function ExploreScene:HandleSelection(wx, wy)
-    -- Deselect all current selections
     for entity, _ in pairs(self.selected) do
         if HasComponent(entity, "Selection") then
             RemoveComponent(entity, "Selection")
@@ -54,7 +30,6 @@ function ExploreScene:HandleSelection(wx, wy)
     end
     self.selected = {}
 
-    -- Find nearest unit and select if within radius
     local nearest = FindNearestEntity(wx, wy, "Kinematics")
     if nearest ~= 0 then
         local pos = GetComponent(nearest, "Position")
@@ -69,7 +44,7 @@ end
 function ExploreScene:HandleMoveOrder(wx, wy)
     local count = 0
     for entity, _ in pairs(self.selected) do
-        self.moveTargets[entity] = { x = wx, y = wy }
+        IssueMoveCommand(entity, wx, wy)
         count = count + 1
     end
     if count > 0 then

@@ -62,7 +62,7 @@
             <NameComponent name="Archer" />
             <PositionComponent x="100" y="100" />
 
-			<MovementComponent />
+			<MovementComponent state="Idle" goalX="100" goalY="100" />
             <KinematicsComponent maxSpeed="150" friction="5" />
 
             <SpriteComponent
@@ -86,7 +86,7 @@
 			<NameComponent name="Knight" />
 			<PositionComponent x="0" y="100" />
 
-			<MovementComponent />
+			<MovementComponent state="Idle" goalX="0" goalY="100" />
 			<KinematicsComponent maxSpeed="150" friction="5" />
 
 			<SpriteComponent

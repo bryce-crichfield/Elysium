@@ -44,16 +44,7 @@ const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
     };
 
     componentSavers[std::type_index(typeid(MovementComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& movement = world->GetComponent<MovementComponent>(entity);
-        auto movementBuilder = builder.AddElement("MovementComponent");
-        if (!movement.waypoints.empty()) {
-            auto waypointsBuilder = movementBuilder.AddElement("Waypoints");
-            for (const auto& waypoint : movement.waypoints) {
-                waypointsBuilder.AddElement("Waypoint")
-                    .SetAttribute("x", (int)waypoint.x)
-                    .SetAttribute("y", (int)waypoint.y);
-            }
-        }
+        // TODO: Implement saving of movement component
     };
 
     componentSavers[std::type_index(typeid(LayerComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {

@@ -10,6 +10,7 @@
 #include "Core/ComponentRegistry.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Components.h"
+#include "Systems/SpatialSystem.h"
 #include "raylib.h"
 #include "tinyxml2.h"
 
@@ -212,6 +213,21 @@ bool LoadScene(Scene& scene, const std::string& path) {
     LoadTilemap(root, world_, tileWidth, tileHeight, isIsometric);
     LoadEntities(root, world_);
     LoadSystems(root, scene);
+
+    // Wire tilemap dimensions into SpatialSystem now that it exists.
+    // We also need the tilemap width/height in grid cells, not world units.
+    {
+        int tilemapGridW = 0, tilemapGridH = 0;
+        VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
+            tilemapGridW = tilemap->IntAttribute("width",  0);
+            tilemapGridH = tilemap->IntAttribute("height", 0);
+        });
+        if (tilemapGridW > 0 && tilemapGridH > 0) {
+            if (auto* spatial = scene.GetSystem<Elysium::Systems::SpatialSystem>()) {
+                spatial->BuildGrid(tilemapGridW, tilemapGridH, tileWidth, tileHeight, isIsometric);
+            }
+        }
+    }
 
     VisitElement(root, "SceneScript", [&](XMLElement* el) {
         const char* path = el->Attribute("path");

@@ -4,18 +4,25 @@
 #include <vector>
 
 namespace Elysium {
+    // The pathfinding system operates at two layers. 
+    // GlobalSteeringSystem routes entities along the tilemap.
+    // LocalSteeringSystem handles local movement and obstacle avoidance.
+    // Collision
+    enum class MovementState {
+        Idle,
+        Moving,
+        Waiting
+    };
+
     struct MovementComponent {
-        std::vector<Vector2> waypoints;
-        size_t currentWaypointIndex = 0;
-        float speed = 100.0f;
-        bool isMoving = false;
-        bool loop = true;  // should it loop back to start when done?
-
-        void AddWaypoint(const Vector2& waypoint);
-        void ClearWaypoints();
-
-        MovementComponent() = default;
-        MovementComponent(const std::vector<Vector2>& waypoints);
+        MovementState state;
+        std::vector<Vector2> waypoints;     
+        Vector2 goal;  
+        int waitTimeMs;
+        int stuckRetryCount;
+        int stuckCheckAccumMs;
+        int currentWaypointIndex;
+        Vector2 lastPosition;
 
         static constexpr const char* Name() { return "Movement"; }
         static constexpr const char* XmlTag() { return "MovementComponent"; }

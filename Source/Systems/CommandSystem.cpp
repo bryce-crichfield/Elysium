@@ -82,25 +82,7 @@ Vector2 CommandSystem::FramebufferToWorld(Vector2 fbPos) {
 void CommandSystem::IssueMoveCommand(Vector2 targetPos) {
     int commandedCount = 0;
 
-    // Query entities that have SelectionComponent (are selected) and can move
-    world->Query<SelectionComponent, MovementComponent, PositionComponent>(
-        [&](Entity entity, auto& sel, auto& movement, auto& pos) {
-            // Cancel any attack
-            if (world->HasComponent<AttackComponent>(entity)) {
-                auto& attack = world->GetComponent<AttackComponent>(entity);
-                attack.isAttacking = false;
-                attack.targetId = 0;
-            }
-
-            LOG_INFOF("CommandSystem", "Entity %zu selected at (%.1f, %.1f) issuing move to (%.1f, %.1f)",
-                      entity, pos.x, pos.y, targetPos.x, targetPos.y);
-
-            // Set direct waypoint for movement
-            movement.waypoints.clear();
-            movement.waypoints.push_back(targetPos);
-
-            commandedCount++;
-        });
+    // TODO: Support issuing commands through CommandSystem.
 
     if (commandedCount > 0) {
         LOG_INFOF("CommandSystem", "Issued move command to %d units -> (%.1f, %.1f)",

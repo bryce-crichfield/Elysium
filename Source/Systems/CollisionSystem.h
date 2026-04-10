@@ -7,6 +7,30 @@
 
 namespace Elysium::Systems {
 
+struct CollisionPair;
+
+// Collision systems job is to detect collisions.
+// Typically it would run after movement systems and 
+// before any systems that react to collisions (like damage or physics).
+class CollisionSystem : public System {
+public:
+    CollisionSystem(Context context);
+
+    void Update(float deltaTime) override;
+
+    // Access collision pairs from current frame
+    const std::set<CollisionPair>& GetCollisions() const { return collisions_; }
+
+    // Check if two specific entities are colliding
+    bool AreColliding(Entity a, Entity b) const;
+
+    // Get all entities colliding with a given entity
+    std::vector<Entity> GetCollisionsWith(Entity entity) const;
+
+private:
+    std::set<CollisionPair> collisions_;
+};
+
 // Unordered pair of entities - (A, B) == (B, A)
 struct CollisionPair {
     Entity a;
@@ -31,25 +55,6 @@ struct CollisionPair {
     bool operator==(const CollisionPair& other) const {
         return a == other.a && b == other.b;
     }
-};
-
-class CollisionSystem : public System {
-public:
-    CollisionSystem(Context context);
-
-    void Update(float deltaTime) override;
-
-    // Access collision pairs from current frame
-    const std::set<CollisionPair>& GetCollisions() const { return collisions_; }
-
-    // Check if two specific entities are colliding
-    bool AreColliding(Entity a, Entity b) const;
-
-    // Get all entities colliding with a given entity
-    std::vector<Entity> GetCollisionsWith(Entity entity) const;
-
-private:
-    std::set<CollisionPair> collisions_;
 };
 
 } // namespace Elysium::Systems

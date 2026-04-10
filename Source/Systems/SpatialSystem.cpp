@@ -13,18 +13,20 @@
 namespace Elysium::Systems {
 
 SpatialSystem::SpatialSystem(Context context) : System(context) {
-    // Initialize a default grid size. In a real scenario, this matches the map size.
-    BuildGrid(100, 100, 64);
+    // Grid is built from the tilemap in LoadScene via BuildGrid.
+    // Nothing to do here.
 }
 
-void SpatialSystem::BuildGrid(int width, int height, int cellSize) {
+void SpatialSystem::BuildGrid(int width, int height, float tileWidth, float tileHeight, bool isIsometric) {
     gridWidth_ = width;
     gridHeight_ = height;
-    cellSize_ = cellSize;
-    
+    tileWidth_ = tileWidth;
+    tileHeight_ = tileHeight;
+    isIsometric_ = isIsometric;
+
     grid_.clear();
     grid_.resize(width * height);
-    
+
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             GridNode& node = grid_[y * width + x];
@@ -64,16 +66,35 @@ GridNode* SpatialSystem::GetNode(int x, int y) {
 }
 
 GridNode* SpatialSystem::GetNodeFromWorld(Vector2 position) {
-    int x = static_cast<int>(position.x) / cellSize_;
-    int y = static_cast<int>(position.y) / cellSize_;
-    return GetNode(x, y);
+    int tileX, tileY;
+    if (isIsometric_) {
+        // Inverse of: worldX = (tileX - tileY) * (tileWidth/2)
+        //             worldY = (tileX + tileY) * (tileHeight/2)
+        float halfW = tileWidth_ * 0.5f;
+        float halfH = tileHeight_ * 0.5f;
+        float u = position.x / halfW;  // tileX - tileY
+        float v = position.y / halfH;  // tileX + tileY
+        tileX = static_cast<int>(std::floor((u + v) * 0.5f));
+        tileY = static_cast<int>(std::floor((v - u) * 0.5f));
+    } else {
+        tileX = static_cast<int>(std::floor(position.x / tileWidth_));
+        tileY = static_cast<int>(std::floor(position.y / tileHeight_));
+    }
+    return GetNode(tileX, tileY);
 }
 
 Vector2 SpatialSystem::GetWorldPosition(GridNode* node) {
-    if (!node) return {0, 0};
+    if (!node) return {0.0f, 0.0f};
+    if (isIsometric_) {
+        // Center of the tile diamond
+        return Vector2{
+            static_cast<float>((node->x - node->y)) * (tileWidth_  * 0.5f) + tileWidth_  * 0.5f,
+            static_cast<float>((node->x + node->y)) * (tileHeight_ * 0.5f) + tileHeight_ * 0.5f
+        };
+    }
     return Vector2{
-        static_cast<float>(node->x * cellSize_ + cellSize_ / 2),
-        static_cast<float>(node->y * cellSize_ + cellSize_ / 2)
+        node->x * tileWidth_  + tileWidth_  * 0.5f,
+        node->y * tileHeight_ + tileHeight_ * 0.5f
     };
 }
 
@@ -84,7 +105,9 @@ std::vector<Entity> SpatialSystem::GetNearbyEntities(Vector2 position, float rad
     if (!centerNode) return result;
     
     // Check neighbor nodes roughly covering the radius
-    int cellRange = static_cast<int>(std::ceil(radius / cellSize_));
+    // Use the smaller tile dimension so we don't under-cover narrow isometric cells.
+    float minTileDim = std::min(tileWidth_, tileHeight_);
+    int cellRange = static_cast<int>(std::ceil(radius / minTileDim));
     
     for (int y = centerNode->y - cellRange; y <= centerNode->y + cellRange; ++y) {
         for (int x = centerNode->x - cellRange; x <= centerNode->x + cellRange; ++x) {
