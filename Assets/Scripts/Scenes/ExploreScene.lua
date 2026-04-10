@@ -12,6 +12,21 @@ end
 function ExploreScene:Update(dt)
 end
 
+function ExploreScene:Render()
+    for entity, _ in pairs(self.selected) do
+        local pos = GetComponent(entity, "Position")
+        if pos then
+            -- draw isometric oval around the entity tileWidth = 64, tileHeight = 32, draw with ellipse radius of 32x16
+            local centerX = pos.x
+            local centerY = pos.y
+            local radiusX = 32
+            local radiusY = 16
+
+            DrawEllipse(centerX, centerY, radiusX, radiusY, {r= 255, g = 255, b = 0, a = 255}, "entity")
+        end
+    end
+end
+
 function ExploreScene:OnEvent(event)
     if event.type == "MouseButtonPressed" then
         if event.button == MOUSE_LEFT then

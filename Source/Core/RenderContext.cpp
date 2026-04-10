@@ -93,6 +93,10 @@ void RenderContext::DrawRectangleLinesEx(Rectangle rec, float lineThick, Color c
     ::DrawRectangleLinesEx(rec, lineThick, color);
 }
 
+void RenderContext::DrawLine(float x1, float y1, float x2, float y2, Color color) {
+    DrawLineV({x1, y1}, {x2, y2}, color);
+}
+
 void RenderContext::DrawCircle(float x, float y, float radius, Color color) {
     DrawCircleV({x, y}, radius, color);
 }
@@ -103,6 +107,10 @@ void RenderContext::DrawCircleLines(float x, float y, float radius, Color color)
 
 void RenderContext::DrawCircleGradient(float x, float y, float radius, Color color1, Color color2) {
     ::DrawCircleGradient((int)x, (int)y, radius, color1, color2);
+}
+
+void RenderContext::DrawEllipseLines(float centerX, float centerY, float radiusH, float radiusV, Color color) {
+    ::DrawEllipseLines((int)centerX, (int)centerY, radiusH, radiusV, color);
 }
 
 void RenderContext::DrawText(const char* text, float x, float y, int fontSize, Color color) {

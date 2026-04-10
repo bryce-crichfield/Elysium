@@ -14,7 +14,7 @@
 #include <map>
 #include <variant>
 #include <optional>
-#include <vector>
+#include <string>
 #include "Core/RenderContext.h"
 
 namespace Elysium::Systems {
@@ -36,12 +36,23 @@ struct RenderableObject {
 
 using RenderableObjects = std::vector<RenderableObject>;
 
+// Deferred draw commands issued by Lua scripts
+struct DrawCircleCmd { std::string layer; float x, y, radius; Color color; };
+struct DrawEllipseCmd { std::string layer; float x, y, radiusH, radiusV; Color color; };
+struct DrawLineCmd   { std::string layer; float x1, y1, x2, y2; Color color; };
+struct DrawRectCmd   { std::string layer; float x, y, width, height; Color color; };
+
+using DrawCommand = std::variant<DrawCircleCmd, DrawLineCmd, DrawRectCmd, DrawEllipseCmd>;
+
 class RenderSystem : public System {
 public:
     using CameraEntity = std::pair<Entity, CameraComponent>;
 
-    RenderSystem(Context context) : System(context) {}
+    RenderSystem(Context context);
     ~RenderSystem();
+
+    static RenderSystem* GetCurrent();
+    void IssueDrawCommand(DrawCommand cmd);
 
     void Draw() override;
 
@@ -62,6 +73,7 @@ protected:
     RenderTexture2D& EnsureLightMap(int width, int height);
 
     std::vector<Entity> _cameraEntities;
+    std::vector<DrawCommand> _drawCommands;
     RenderTexture2D _lightMap = {0};  // Cached light map render target
     int _lightMapWidth = 0;
     int _lightMapHeight = 0;

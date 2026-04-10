@@ -29,6 +29,7 @@ public:
 
     bool InitializeScene(Path scriptPath);
     bool UpdateScene(Path scriptPath, float deltaTime);
+    bool RenderScene(Path scriptPath);
     void OnSceneEvent(Path scriptPath, Event& event);
 
     void ReloadScript(Path scriptPath);

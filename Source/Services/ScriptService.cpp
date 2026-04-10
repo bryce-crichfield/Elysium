@@ -17,6 +17,7 @@
 #include "Components/PositionComponent.h"
 #include "Systems/CollisionSystem.h"
 #include "Systems/MovementSystem.h"
+#include "Systems/RenderSystem.h"
 
 
 namespace Elysium::Services {
@@ -349,6 +350,41 @@ void ScriptService::BindEntityAPI() {
         }
         return result;
     });
+
+    // Deferred draw commands — queued here, fulfilled by RenderSystem at the correct time
+    // Color is passed as a Lua table: { r=255, g=255, b=255, a=255 }
+    auto tableToColor = [](sol::table t) -> Color {
+        return Color{
+            (unsigned char)t.get_or("r", 255),
+            (unsigned char)t.get_or("g", 255),
+            (unsigned char)t.get_or("b", 255),
+            (unsigned char)t.get_or("a", 255)
+        };
+    };
+
+    lua.set_function("DrawCircle", [tableToColor](float x, float y, float radius, sol::table color, const std::string& layer) {
+        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+            rs->IssueDrawCommand(Elysium::Systems::DrawCircleCmd{layer, x, y, radius, tableToColor(color)});
+        }
+    });
+
+    lua.set_function("DrawEllipse", [tableToColor](float x, float y, float radiusH, float radiusV, sol::table color, const std::string& layer) {
+        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+            rs->IssueDrawCommand(Elysium::Systems::DrawEllipseCmd{layer, x, y, radiusH, radiusV, tableToColor(color)});
+        }
+    });
+
+    lua.set_function("DrawLine", [tableToColor](float x1, float y1, float x2, float y2, sol::table color, const std::string& layer) {
+        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+            rs->IssueDrawCommand(Elysium::Systems::DrawLineCmd{layer, x1, y1, x2, y2, tableToColor(color)});
+        }
+    });
+
+    lua.set_function("FillRect", [tableToColor](float x, float y, float width, float height, sol::table color, const std::string& layer) {
+        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+            rs->IssueDrawCommand(Elysium::Systems::DrawRectCmd{layer, x, y, width, height, tableToColor(color)});
+        }
+    });
 }
 
 void ScriptService::BindRaylibConstants() {
@@ -568,6 +604,22 @@ bool ScriptService::UpdateScene(Path scriptPath, float deltaTime) {
         if (!result.valid()) {
             sol::error err = result;
             LOG_ERRORF("ScriptService", "Error in scene %s:Update: %s", scriptPath.c_str(), err.what());
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ScriptService::RenderScene(Path scriptPath) {
+    sol::table instance = GetSceneInstance(scriptPath, false);
+    if (!instance.valid()) return false;
+
+    sol::function renderFunc = instance["Render"];
+    if (renderFunc.valid()) {
+        auto result = renderFunc(instance);
+        if (!result.valid()) {
+            sol::error err = result;
+            LOG_ERRORF("ScriptService", "Error in scene %s:Render: %s", scriptPath.c_str(), err.what());
             return false;
         }
     }

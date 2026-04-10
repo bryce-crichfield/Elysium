@@ -1,6 +1,7 @@
 #include "Systems/RenderSystem.h"
 #include "Core/SystemRegistry.h"
 #include <algorithm>
+#include <string>
 #include <cmath>
 #include <optional>
 #include <stdexcept>
@@ -35,10 +36,26 @@
 
 namespace Elysium::Systems {
 
+static RenderSystem* s_currentRenderSystem = nullptr;
+
+RenderSystem::RenderSystem(Context context) : System(context) {
+    s_currentRenderSystem = this;
+}
+
 RenderSystem::~RenderSystem() {
+    if (s_currentRenderSystem == this)
+        s_currentRenderSystem = nullptr;
     if (_lightMap.id != 0) {
         UnloadRenderTexture(_lightMap);
     }
+}
+
+RenderSystem* RenderSystem::GetCurrent() {
+    return s_currentRenderSystem;
+}
+
+void RenderSystem::IssueDrawCommand(DrawCommand cmd) {
+    _drawCommands.push_back(std::move(cmd));
 }
 
 RenderTexture2D& RenderSystem::EnsureLightMap(int width, int height) {
@@ -56,10 +73,12 @@ RenderTexture2D& RenderSystem::EnsureLightMap(int width, int height) {
 void RenderSystem::Draw() {
     FindCameras();
     RenderContext ctx;
-    
+
     for (auto& cameraEntity : _cameraEntities) {
         RenderView(ctx, cameraEntity);
     }
+
+    _drawCommands.clear();
 }
 
 void RenderSystem::FindCameras() {
@@ -183,6 +202,22 @@ void RenderSystem::RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity,
         RenderObject(ctx, object, layer);
     }
 
+    for (const auto& cmd : _drawCommands) {
+        std::visit([&](const auto& c) {
+            if (c.layer != layer.name) return;
+            using T = std::decay_t<decltype(c)>;
+            if constexpr (std::is_same_v<T, DrawCircleCmd>) {
+                ctx.DrawCircleLines(c.x, c.y, c.radius, c.color);
+            } else if constexpr (std::is_same_v<T, DrawLineCmd>) {
+                ctx.DrawLine(c.x1, c.y1, c.x2, c.y2, c.color);
+            } else if constexpr (std::is_same_v<T, DrawRectCmd>) {
+                ctx.DrawRectangle(c.x, c.y, c.width, c.height, c.color);
+            } else if constexpr (std::is_same_v<T, DrawEllipseCmd>) {
+                ctx.DrawEllipseLines(c.x, c.y, c.radiusH, c.radiusV, c.color);
+            }
+        }, cmd);
+    }
+
     ctx.PopMatrix();
     ctx.PopBlendMode();
 }
@@ -213,9 +248,25 @@ void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity
         RenderObject(ctx, object, layer);
     }
 
+    for (const auto& cmd : _drawCommands) {
+        std::visit([&](const auto& c) {
+            if (c.layer != layer.name) return;
+            using T = std::decay_t<decltype(c)>;
+            if constexpr (std::is_same_v<T, DrawCircleCmd>) {
+                ctx.DrawCircle(c.x, c.y, c.radius, c.color);
+            } else if constexpr (std::is_same_v<T, DrawLineCmd>) {
+                ctx.DrawLine(c.x1, c.y1, c.x2, c.y2, c.color);
+            } else if constexpr (std::is_same_v<T, DrawRectCmd>) {
+                ctx.DrawRectangle(c.x, c.y, c.width, c.height, c.color);
+            } else if constexpr (std::is_same_v<T, DrawEllipseCmd>) {
+                ctx.DrawEllipseLines(c.x, c.y, c.radiusH, c.radiusV, c.color);
+            }
+        }, cmd);
+    }
+
     ctx.PopMatrix();
     ctx.PopBlendMode();
-    
+
     ctx.EndTextureMode();
 
     // Restore SceneService's framebuffer

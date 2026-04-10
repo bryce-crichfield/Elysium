@@ -47,6 +47,7 @@ void Scene::OnUpdate(float deltaTime) {
             }
         } else {
             scriptService.UpdateScene(Path(sceneScriptPath_), deltaTime);
+            scriptService.RenderScene(Path(sceneScriptPath_));
         }
     }
 }
