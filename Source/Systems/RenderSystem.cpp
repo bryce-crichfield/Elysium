@@ -158,11 +158,18 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
             continue;
 
         auto it = layerItems.find(layer.name);
-        if (it != layerItems.end()) {
+
+        bool hasDrawCmds = std::any_of(_drawCommands.begin(), _drawCommands.end(), [&](const DrawCommand& cmd) {
+            return std::visit([&](const auto& c) { return c.layer == layer.name; }, cmd);
+        });
+
+        if (it != layerItems.end() || hasDrawCmds) {
+            static const std::vector<RenderableObject> empty;
+            const auto& items = (it != layerItems.end()) ? it->second : empty;
             if (layer.isComposited) {
-                RenderCompositedLayer(ctx, cameraEntity, layer, it->second);
+                RenderCompositedLayer(ctx, cameraEntity, layer, items);
             } else {
-                RenderImmediateLayer(ctx, cameraEntity, layer, it->second);
+                RenderImmediateLayer(ctx, cameraEntity, layer, items);
             }
         }
     }
@@ -214,6 +221,8 @@ void RenderSystem::RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity,
                 ctx.DrawRectangle(c.x, c.y, c.width, c.height, c.color);
             } else if constexpr (std::is_same_v<T, DrawEllipseCmd>) {
                 ctx.DrawEllipseLines(c.x, c.y, c.radiusH, c.radiusV, c.color);
+            } else if constexpr (std::is_same_v<T, DrawTextCmd>) {
+                ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color);
             }
         }, cmd);
     }
@@ -260,6 +269,8 @@ void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity
                 ctx.DrawRectangle(c.x, c.y, c.width, c.height, c.color);
             } else if constexpr (std::is_same_v<T, DrawEllipseCmd>) {
                 ctx.DrawEllipseLines(c.x, c.y, c.radiusH, c.radiusV, c.color);
+            } else if constexpr (std::is_same_v<T, DrawTextCmd>) {
+                ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color); 
             }
         }, cmd);
     }

@@ -23,6 +23,7 @@ void LoadLayers(XMLElement* root, Scene& scene) {
         LOG_DEBUG("Scene", "Processing SceneConfiguration section");
 
         SceneConfiguration config;
+        // TODO: Utilize configured scene resolution for render target setup and coordinate calculations
         config.resolutionWidth = configElement->FloatAttribute("width", 640.0f);
         config.resolutionHeight = configElement->FloatAttribute("height", 480.0f);
 

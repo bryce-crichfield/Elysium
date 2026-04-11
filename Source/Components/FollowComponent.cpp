@@ -6,6 +6,8 @@ namespace Elysium {
     void FollowComponent::LoadXml(FollowComponent& c, tinyxml2::XMLElement* el) {
         const char* name = el->Attribute("target");
         c.targetEntityName = name ? name : "default";
+
+        el->QueryFloatAttribute("followSpeed", &c.speed);
     }
 
     void FollowComponent::Inspect(FollowComponent& c, Entity e) {

@@ -380,6 +380,12 @@ void ScriptService::BindEntityAPI() {
         }
     });
 
+    lua.set_function("DrawText", [tableToColor](const std::string& text, float x, float y, int fontSize, sol::table color, const std::string& layer) {
+        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+            rs->IssueDrawCommand(Elysium::Systems::DrawTextCmd{layer, text, x, y, fontSize, tableToColor(color)});
+        }
+    });
+
     lua.set_function("FillRect", [tableToColor](float x, float y, float width, float height, sol::table color, const std::string& layer) {
         if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
             rs->IssueDrawCommand(Elysium::Systems::DrawRectCmd{layer, x, y, width, height, tableToColor(color)});
