@@ -4,6 +4,7 @@
 #include "Core/Common.h"
 #include "Core/Event.h"
 #include "Core/Path.h"
+#include <filesystem>
 #include "Services/InvokeService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
@@ -15,6 +16,28 @@
 using namespace tinyxml2;
 
 namespace Elysium::Services {
+
+// Build the AppData save path for a scene by name.
+// e.g. name="ExploreScene" -> AppData/Scenes/ExploreScene.save.xml
+static Path AppDataSavePath(const std::string& sceneName) {
+    return Path("Scenes/" + sceneName + ".save.xml", PathRoot::AppData);
+}
+
+// Save scene state and release its memory, resetting the registration for fresh load next push.
+static void SaveAndFreeScene(SceneRegistration& data, const std::string& name) {
+    if (!data.xmlPath.empty()) {
+        Path savePath = AppDataSavePath(name);
+        // Ensure the AppData/Scenes/ directory exists before writing
+        std::filesystem::create_directories(
+            std::filesystem::path(savePath.GetFullPath()).parent_path());
+        if (!SaveScene(*data.scene, savePath.GetFullPath())) {
+            LOG_WARNINGF("SceneService", "Failed to save scene '%s' on pop", name.c_str());
+        }
+    }
+    delete data.scene;
+    data.scene = nullptr;
+    data.xmlLoaded = false;
+}
 
 // =============================================================================
 // Constructor
@@ -148,6 +171,13 @@ void SceneService::ApplySceneOperations() {
 
                 if (scene) {
                     scene->OnExit();
+                    for (auto& [name, data] : scenes_) {
+                        if (data.scene == scene) {
+                            LOG_INFOF("SceneService", "Saving and freeing scene '%s' on pop", name.c_str());
+                            SaveAndFreeScene(data, name);
+                            break;
+                        }
+                    }
                 }
 
                 LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
@@ -157,11 +187,18 @@ void SceneService::ApplySceneOperations() {
                 break;
             }
             case SceneOperationType::Replace: {
-                 if (!sceneStack_.empty()) {
+                if (!sceneStack_.empty()) {
                     Scene* oldScene = sceneStack_.back();
                     sceneStack_.pop_back();
                     if (oldScene) {
                         oldScene->OnExit();
+                        for (auto& [name, data] : scenes_) {
+                            if (data.scene == oldScene) {
+                                LOG_INFOF("SceneService", "Saving and freeing scene '%s' on replace", name.c_str());
+                                SaveAndFreeScene(data, name);
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -186,11 +223,18 @@ void SceneService::ApplySceneOperations() {
                 break;
             }
             case SceneOperationType::Clear: {
-                 while (!sceneStack_.empty()) {
+                while (!sceneStack_.empty()) {
                     Scene* scene = sceneStack_.back();
                     sceneStack_.pop_back();
                     if (scene) {
                         scene->OnExit();
+                        for (auto& [name, data] : scenes_) {
+                            if (data.scene == scene) {
+                                LOG_INFOF("SceneService", "Saving and freeing scene '%s' on clear", name.c_str());
+                                SaveAndFreeScene(data, name);
+                                break;
+                            }
+                        }
                     }
                 }
                 LOG_INFO("SceneService", "Cleared scene stack");
@@ -202,15 +246,6 @@ void SceneService::ApplySceneOperations() {
         }
     }
     pendingOperations_.clear();
-
-    // Reset selection if selected scene is no longer in stack
-    if (selectedScene_) {
-        bool found = false;
-        for (Scene* s : sceneStack_) {
-            if (s == selectedScene_) { found = true; break; }
-        }
-        if (!found) selectedScene_ = nullptr;
-    }
 }
 
 Scene* SceneService::GetTopScene() const {
@@ -244,9 +279,13 @@ void SceneService::EnterScene(Scene* scene, const std::string& name) {
 
     SceneRegistration& sceneData = it->second;
 
-    // Load XML if needed
+    // Load XML if needed. Prefer an AppData save file over the canonical Assets XML.
     if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded) {
-        LoadScene(*scene, sceneData.xmlPath);
+        Path savePath = AppDataSavePath(name);
+        const std::string loadPath = FileExists(savePath.GetFullPath().c_str())
+            ? savePath.GetFullPath()
+            : sceneData.xmlPath;
+        LoadScene(*scene, loadPath);
         sceneData.xmlLoaded = true;
     }
 
@@ -283,8 +322,10 @@ void SceneService::Update(float deltaTime) {
         ApplySceneOperations();
     }
 
-    for (Scene* scene : sceneStack_) {
-        scene->OnUpdate(cachedDeltaTime_);
+    // Only the top scene runs its update loop.
+    // Lower scenes are suspended until they become the top again.
+    if (Scene* top = GetTopScene()) {
+        top->OnUpdate(cachedDeltaTime_);
     }
 }
 
@@ -485,15 +526,25 @@ void SceneService::Shutdown() {
     Profile;
     UnloadRenderTexture(framebuffer_);
 
-    // Exit all scenes in stack
-    for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
-        (*it)->OnExit();
+    // Exit, save, and free any scenes still on the stack
+    while (!sceneStack_.empty()) {
+        Scene* scene = sceneStack_.back();
+        sceneStack_.pop_back();
+        if (scene) {
+            scene->OnExit();
+            for (auto& [name, data] : scenes_) {
+                if (data.scene == scene) {
+                    SaveAndFreeScene(data, name);
+                    break;
+                }
+            }
+        }
     }
-    sceneStack_.clear();
 
-    // Delete all scene instances
+    // Any remaining allocated scenes not in the stack (shouldn't happen, but clean up)
     for (auto& [name, data] : scenes_) {
         delete data.scene;
+        data.scene = nullptr;
     }
     scenes_.clear();
 }

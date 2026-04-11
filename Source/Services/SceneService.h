@@ -97,10 +97,6 @@ public:
     bool IsEmpty() const { return sceneStack_.empty(); }
     const std::vector<Scene*>& GetStack() const { return sceneStack_; }
 
-    // Returns selected scene if set, otherwise top scene
-    Scene* GetScene() const { return selectedScene_ ? selectedScene_ : GetTopScene(); }
-    void SetSelectedScene(Scene* scene) { selectedScene_ = scene; }
-
     // Rendering info getters
     const Rectangle& GetLetterboxRect() const { return letterboxRect_; }
     float GetScaleX() const { return scaleX_; }
@@ -134,7 +130,6 @@ private:
     // Scene registry and stack
     std::unordered_map<std::string, SceneRegistration> scenes_;
     std::vector<Scene*> sceneStack_;
-    Scene* selectedScene_ = nullptr;
 
     // Rendering
     RenderTexture2D framebuffer_;

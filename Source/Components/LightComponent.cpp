@@ -5,13 +5,11 @@
 
 namespace Elysium {
     void LightComponent::SaveXml(const LightComponent& c, XMLBuilder& builder) {
-        builder.AddElement("LightComponent")
+        auto el = builder.AddElement("LightComponent")
             .SetAttribute("radius", c.radius)
-            .SetAttribute("intensity", c.intensity)
-            .SetAttribute("r", c.color.r)
-            .SetAttribute("g", c.color.g)
-            .SetAttribute("b", c.color.b)
-            .SetAttribute("a", c.color.a);
+            .SetAttribute("intensity", c.intensity);
+        std::string colorHex = ColorToHex(c.color);
+        if (!colorHex.empty()) el.SetAttribute("color", colorHex.c_str());
     }
 
     void LightComponent::LoadXml(LightComponent& c, tinyxml2::XMLElement* el) {

@@ -16,7 +16,9 @@ void SystemRegistry::Register(const std::string& name, SystemFactory factory) {
 std::unique_ptr<System> SystemRegistry::Create(const std::string& name, Context context) const {
     auto it = factories_.find(name);
     if (it != factories_.end()) {
-        return it->second(context);
+        auto system = it->second(context);
+        if (system) system->SetName(name);
+        return system;
     }
     LOG_WARNINGF("SystemRegistry", "Unknown system type: %s", name.c_str());
     return nullptr;

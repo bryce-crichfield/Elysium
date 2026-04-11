@@ -50,7 +50,7 @@ void EditorService::RegisterComponentTypes() {
 Elysium::World* EditorService::GetWorld() const {
     auto& app = Elysium::Application::GetInstance();
     auto& sceneService = app.GetService<SceneService>();
-    auto* scene = sceneService.GetScene();
+    auto* scene = sceneService.GetTopScene();
     return scene ? scene->GetWorld() : nullptr;
 }
 

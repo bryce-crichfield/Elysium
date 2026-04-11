@@ -146,26 +146,29 @@ if(TRACY_ENABLE)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
-    # In debug, define ASSETS_PATH to point to source directory
-    target_compile_definitions(${PROJECT_NAME} PRIVATE 
+    # In debug, both assets and appdata resolve relative to the source directory
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
         ASSETS_PATH="${CMAKE_SOURCE_DIR}/Assets/"
+        APPDATA_PATH="${CMAKE_SOURCE_DIR}/AppData/"
     )
-    message(STATUS "Debug build: Assets will be loaded from ${CMAKE_SOURCE_DIR}/Assets/")
+    message(STATUS "Debug build: Assets -> ${CMAKE_SOURCE_DIR}/Assets/")
+    message(STATUS "Debug build: AppData -> ${CMAKE_SOURCE_DIR}/AppData/")
 else()
-    # In release, copy assets and define ASSETS_PATH to point to binary directory
+    # In release, copy assets and define paths relative to the binary directory
     file(GLOB_RECURSE ASSET_FILES "${CMAKE_SOURCE_DIR}/Assets/*")
-    
+
     add_custom_target(copy_assets
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/Assets ${CMAKE_SOURCE_DIR}/Binary/Assets
         DEPENDS ${ASSET_FILES}
         COMMENT "Copying Assets to Binary directory"
     )
-    
+
     add_dependencies(${PROJECT_NAME} copy_assets)
-    
-    target_compile_definitions(${PROJECT_NAME} PRIVATE 
+
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
         ASSETS_PATH="Assets/"
+        APPDATA_PATH="AppData/"
     )
     message(STATUS "Release build: Assets will be copied to Binary/Assets/")
 endif()

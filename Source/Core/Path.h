@@ -6,17 +6,28 @@
 #define ASSETS_PATH "./Assets/"
 #endif
 
+#ifndef APPDATA_PATH
+#define APPDATA_PATH "./AppData/"
+#endif
+
 namespace Elysium {
+
+// Determines which root directory a Path resolves relative to.
+enum class PathRoot {
+    Assets,   // Resolves relative to ASSETS_PATH  (read-only game content)
+    AppData,  // Resolves relative to APPDATA_PATH (runtime saves, user data)
+};
 
 class Path {
    public:
     Path() = default;
-    explicit Path(const std::string& relativePath);
-    explicit Path(const char* relativePath);
+    explicit Path(const std::string& relativePath, PathRoot root = PathRoot::Assets);
+    explicit Path(const char* relativePath, PathRoot root = PathRoot::Assets);
 
     std::string GetFullPath() const;
     const std::string& GetRelativePath() const { return relativePath_; }
-   
+    PathRoot GetRoot() const { return root_; }
+
     std::string GetFilename(const std::string& extension = "") const;
 
     const char* c_str() const;
@@ -30,6 +41,7 @@ class Path {
 
    private:
     std::string relativePath_;
+    PathRoot root_ = PathRoot::Assets;
     mutable std::string cachedFullPath_;
     mutable bool fullPathCached_ = false;
 

@@ -1,6 +1,7 @@
 #include "Components/SpriteComponent.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Application.h"
+#include "Core/Xml.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "imgui.h"
@@ -9,6 +10,14 @@
 namespace Elysium {
     SpriteComponent::SpriteComponent(const Sprite& sprite, const std::string& sequence)
         : spriteName(sprite.name), sequenceName(sequence) {}
+
+    void SpriteComponent::SaveXml(const SpriteComponent& c, XMLBuilder& builder) {
+        if (c.spriteName.empty()) return;
+        builder.AddElement("SpriteComponent")
+            .SetAttribute("spriteName", c.spriteName.c_str())
+            .SetAttribute("sheetName", c.sheetName.c_str())
+            .SetAttribute("sequenceName", c.sequenceName.c_str());
+    }
 
     void SpriteComponent::LoadXml(SpriteComponent& c, tinyxml2::XMLElement* el) {
         const char* spriteName = el->Attribute("spriteName");

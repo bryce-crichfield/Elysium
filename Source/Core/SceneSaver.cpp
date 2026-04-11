@@ -1,5 +1,9 @@
+#include <algorithm>
+#include <cmath>
+#include <map>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include "Application.h"
 #include "Entity.h"
 #include "Scene.h"
@@ -9,6 +13,8 @@
 #include "Core/Xml.h"
 #include "Components/CameraComponent.h"
 #include "Components/FollowComponent.h"
+#include "Components/LayerComponent.h"
+#include "Components/PositionComponent.h"
 #include "Components/RectangleComponent.h"
 #include "Components/TileComponent.h"
 #include "raylib.h"
@@ -45,58 +51,114 @@ std::string LayerBlendToString(SceneLayerBlend blend) {
 }
 
 void SaveLayers(XMLBuilder& builder, const Scene& scene) {
-    auto layersBuilder = builder.AddElement("Layers");
+    const auto& config = scene.GetConfiguration();
+    auto configBuilder = builder.AddElement("SceneConfiguration")
+        .SetAttribute("width", config.resolutionWidth)
+        .SetAttribute("height", config.resolutionHeight);
 
     for (const auto& layer : scene.GetLayers()) {
-        layersBuilder.AddElement("Layer")
+        auto layerBuilder = configBuilder.AddElement("SceneLayer")
             .SetAttribute("name", layer.name.c_str())
             .SetAttribute("z", layer.zIndex)
             .SetAttribute("space", LayerSpaceToString(layer.space).c_str())
             .SetAttribute("layerBlend", LayerBlendToString(layer.layerBlend).c_str())
             .SetAttribute("compositeBlend", LayerBlendToString(layer.compositeBlend).c_str())
-            .SetAttribute("opacity", layer.opacity)
-            .SetAttribute("isVisible", layer.isVisible);
+            .SetAttribute("isComposited", layer.isComposited)
+            .SetAttribute("isVisible", layer.isVisible)
+            .SetAttribute("opacity", layer.opacity);
+        // Only write ambient if it has a non-zero value
+        if (layer.ambient.r != 0 || layer.ambient.g != 0 || layer.ambient.b != 0 || layer.ambient.a != 0) {
+            layerBuilder.SetAttribute("ambient", ColorToHex(layer.ambient).c_str());
+        }
     }
 }
 
 void SaveTilemap(XMLBuilder& builder, World* world) {
-    // Collect all tile entities and their definitions
-    struct TileDef {
-        RectangleComponent rect;
+    struct TileEntry {
+        int tileX = 0, tileY = 0;
+        Color background = BLANK;
+        Color border = BLANK;
         std::string layerName;
     };
-    std::unordered_map<int, TileDef> tileDefinitions;
-    std::vector<int> tilemask;
-    int maxX = 0, maxY = 0;
 
-    if (!tileDefinitions.empty()) {
-        auto tilemapBuilder = builder.AddElement("Tilemap")
-                                  .SetAttribute("width", maxX + 1)
-                                  .SetAttribute("height", maxY + 1);
+    std::vector<TileEntry> tiles;
+    float tileWidth = 32.0f, tileHeight = 32.0f;
+    bool isIsometric = false;
 
-        auto tileDefsBuilder = tilemapBuilder.AddElement("TileDefinitions");
-        for (const auto& [id, def] : tileDefinitions) {
-            auto tileDefBuilder = tileDefsBuilder.AddElement("TileDefinition")
-                                      .SetAttribute("id", id)
-                                      .SetAttribute("layerName", def.layerName.c_str());
+    world->Query<TileComponent, PositionComponent, RectangleComponent, LayerComponent>(
+        [&](Entity, TileComponent& tile, PositionComponent& pos, RectangleComponent& rect, LayerComponent& layer) {
+            tileWidth = tile.tileWidth;
+            tileHeight = tile.tileHeight;
+            isIsometric = tile.isIsometric;
 
-            std::string bgHex = ColorToHex(def.rect.background);
-            std::string borderHex = ColorToHex(def.rect.border);
-            if (!bgHex.empty())
-                tileDefBuilder.SetAttribute("background", bgHex.c_str());
-            if (!borderHex.empty())
-                tileDefBuilder.SetAttribute("border", borderHex.c_str());
-        }
+            int tx, ty;
+            if (isIsometric) {
+                float sum  = 2.0f * pos.y / tileHeight;
+                float diff = 2.0f * pos.x / tileWidth;
+                tx = (int)std::round((sum + diff) / 2.0f);
+                ty = (int)std::round((sum - diff) / 2.0f);
+            } else {
+                tx = (int)std::round(pos.x / tileWidth);
+                ty = (int)std::round(pos.y / tileHeight);
+            }
 
-        auto tilemaskBuilder = tilemapBuilder.AddElement("Tilemask");
-        std::ostringstream maskStream;
-        for (size_t i = 0; i < tilemask.size(); ++i) {
-            if (i > 0)
-                maskStream << " ";
-            maskStream << tilemask[i];
-        }
-        tilemaskBuilder.SetText(maskStream.str().c_str());
+            tiles.push_back({tx, ty, rect.background, rect.border, layer.name});
+        });
+
+    if (tiles.empty()) return;
+
+    int gridW = 0, gridH = 0;
+    for (const auto& t : tiles) {
+        gridW = std::max(gridW, t.tileX + 1);
+        gridH = std::max(gridH, t.tileY + 1);
     }
+
+    // Build unique tile definitions ordered by first appearance
+    using TileKey = std::tuple<unsigned int, unsigned int, std::string>;
+    std::map<TileKey, int> tileDefMap;
+    int nextId = 0;
+    for (const auto& t : tiles) {
+        TileKey key{(unsigned int)ColorToInt(t.background), (unsigned int)ColorToInt(t.border), t.layerName};
+        if (tileDefMap.find(key) == tileDefMap.end()) {
+            tileDefMap[key] = nextId++;
+        }
+    }
+
+    // Build tilemask grid
+    std::vector<int> tilemask(gridW * gridH, 0);
+    for (const auto& t : tiles) {
+        TileKey key{(unsigned int)ColorToInt(t.background), (unsigned int)ColorToInt(t.border), t.layerName};
+        tilemask[t.tileY * gridW + t.tileX] = tileDefMap[key];
+    }
+
+    auto tilemapBuilder = builder.AddElement("Tilemap")
+        .SetAttribute("width", gridW)
+        .SetAttribute("height", gridH)
+        .SetAttribute("isIsometric", isIsometric)
+        .SetAttribute("tileWidth", (int)tileWidth)
+        .SetAttribute("tileHeight", (int)tileHeight);
+
+    auto tileDefsBuilder = tilemapBuilder.AddElement("TileDefinitions");
+    for (const auto& [key, id] : tileDefMap) {
+        const auto& [bg, border, layerName] = key;
+        auto defBuilder = tileDefsBuilder.AddElement("TileDefinition")
+            .SetAttribute("id", id)
+            .SetAttribute("layerName", layerName.c_str());
+        std::string bgHex = ColorToHex(GetColor(bg));
+        std::string borderHex = ColorToHex(GetColor(border));
+        if (!bgHex.empty()) defBuilder.SetAttribute("background", bgHex.c_str());
+        if (!borderHex.empty()) defBuilder.SetAttribute("border", borderHex.c_str());
+    }
+
+    std::ostringstream maskStream;
+    for (int y = 0; y < gridH; ++y) {
+        if (y > 0) maskStream << "\n\t\t\t";
+        for (int x = 0; x < gridW; ++x) {
+            if (x > 0) maskStream << " ";
+            maskStream << tilemask[y * gridW + x];
+        }
+    }
+    tilemapBuilder.AddElement("Tilemask").SetText(maskStream.str().c_str());
 }
 
 void SaveEntities(XMLBuilder& builder, World* world) {
@@ -138,7 +200,8 @@ void SaveSystems(XMLBuilder& builder, const Scene& scene) {
 
     const auto& systems = scene.GetSystems();
     for (const auto& system : systems) {
-        std::string systemName = system->GetName();
+        const std::string& systemName = system->GetName();
+        if (systemName.empty()) continue;  // Skip systems not created through the registry
         systemsBuilder.AddElement("System")
             .SetAttribute("type", systemName.c_str());
     }
@@ -153,10 +216,15 @@ bool SaveScene(Scene& scene, const std::string& path) {
     XMLBuilder builder(&doc, root);
     World* world = scene.GetWorld();
 
+    if (!scene.GetSceneScript().empty()) {
+        builder.AddElement("SceneScript")
+            .SetAttribute("path", scene.GetSceneScript().c_str());
+    }
+
+    SaveSystems(builder, scene);
     SaveLayers(builder, scene);
     SaveTilemap(builder, world);
     SaveEntities(builder, world);
-    SaveSystems(builder, scene);
 
     if (!SaveXml(path, doc)) {
         LOG_ERROR("Scene", "Failed to save scene file.");

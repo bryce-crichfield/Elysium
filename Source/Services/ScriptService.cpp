@@ -74,7 +74,7 @@ static Elysium::World* GetActiveWorld() {
     if (s_activeWorld) return s_activeWorld;
     // Fallback for scripts run outside ScriptSystem (e.g. editor Lua filter)
     auto& app = Elysium::Application::GetInstance();
-    auto* scene = app.GetService<Elysium::Services::SceneService>().GetScene();
+    auto* scene = app.GetService<Elysium::Services::SceneService>().GetTopScene();
     return scene ? scene->GetWorld() : nullptr;
 }
 
@@ -313,7 +313,7 @@ void ScriptService::BindEntityAPI() {
     // Collision queries
     lua.set_function("AreColliding", [](Entity a, Entity b) -> bool {
         auto& app = Elysium::Application::GetInstance();
-        auto* scene = app.GetService<Elysium::Services::SceneService>().GetScene();
+        auto* scene = app.GetService<Elysium::Services::SceneService>().GetTopScene();
         if (!scene) return false;
 
         auto* collisionSystem = scene->GetSystem<Elysium::Systems::CollisionSystem>();
@@ -324,7 +324,7 @@ void ScriptService::BindEntityAPI() {
 
     lua.set_function("IssueMoveCommand", [](Entity entity, float x, float y) {
         auto& app = Elysium::Application::GetInstance();
-        auto* scene = app.GetService<Elysium::Services::SceneService>().GetScene();
+        auto* scene = app.GetService<Elysium::Services::SceneService>().GetTopScene();
         if (!scene) return;
 
         auto* movementSystem = scene->GetSystem<Elysium::Systems::MovementSystem>();
@@ -337,7 +337,7 @@ void ScriptService::BindEntityAPI() {
         sol::table result = lua.create_table();
 
         auto& app = Elysium::Application::GetInstance();
-        auto* scene = app.GetService<Elysium::Services::SceneService>().GetScene();
+        auto* scene = app.GetService<Elysium::Services::SceneService>().GetTopScene();
         if (!scene) return result;
 
         auto* collisionSystem = scene->GetSystem<Elysium::Systems::CollisionSystem>();

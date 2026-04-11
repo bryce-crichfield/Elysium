@@ -10,7 +10,6 @@
         <System type="CameraSystem" />
 		<System type="FollowSystem" />
         <System type="CollisionSystem" />
-        <!-- <System type="CommandSystem" /> -->
         <System type="RenderSystem" />
     </Systems>
 

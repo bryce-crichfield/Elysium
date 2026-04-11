@@ -5,10 +5,12 @@
 
 namespace Elysium {
 
-Path::Path(const std::string& relativePath) : relativePath_(relativePath) {
+Path::Path(const std::string& relativePath, PathRoot root)
+    : relativePath_(relativePath), root_(root) {
 }
 
-Path::Path(const char* relativePath) : relativePath_(relativePath) {
+Path::Path(const char* relativePath, PathRoot root)
+    : relativePath_(relativePath), root_(root) {
 }
 
 std::string Path::GetFilename(const std::string& extension) const {
@@ -50,7 +52,8 @@ std::vector<Path> Path::GetFolders() const {
 
 void Path::UpdateFullPath() const {
     if (!fullPathCached_) {
-        cachedFullPath_ = std::string(ASSETS_PATH) + relativePath_;
+        const char* base = (root_ == PathRoot::AppData) ? APPDATA_PATH : ASSETS_PATH;
+        cachedFullPath_ = std::string(base) + relativePath_;
         fullPathCached_ = true;
     }
 }

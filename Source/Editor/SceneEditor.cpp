@@ -1,6 +1,5 @@
 #include "SceneEditor.h"
 #include <algorithm>
-#include <typeinfo>
 #include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/SceneLayer.h"
@@ -13,6 +12,17 @@ namespace Elysium {
 using namespace Services;
 
 SceneEditor::SceneEditor() : Editor("Scene Editor") {}
+
+Scene* SceneEditor::GetEditorScene(SceneService& service) {
+    if (editorSelectedScene_) {
+        for (Scene* s : service.GetStack()) {
+            if (s == editorSelectedScene_) return editorSelectedScene_;
+        }
+        // Selection is stale — scene was freed
+        editorSelectedScene_ = nullptr;
+    }
+    return service.GetTopScene();
+}
 
 void SceneEditor::Draw(Application& app) {
     Profile;
@@ -146,9 +156,9 @@ void SceneEditor::DrawScenesTab(SceneService& service) {
                     break;
                 }
             }
-            bool isSelected = (stack[i] == service.GetScene());
+            bool isSelected = (stack[i] == editorSelectedScene_);
             if (ImGui::Selectable(sceneName.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
-                service.SetSelectedScene(stack[i]);
+                editorSelectedScene_ = stack[i];
             }
         }
 
@@ -165,7 +175,7 @@ void SceneEditor::DrawScenesTab(SceneService& service) {
 }
 
 void SceneEditor::DrawSceneTab(SceneService& service) {
-    Scene* topScene = service.GetScene();
+    Scene* topScene = GetEditorScene(service);
     if (!topScene) {
         ImGui::Text("No scenes in stack");
         ImGui::Text("Select a scene from the Scenes tab and click 'Push' to begin.");
@@ -317,7 +327,7 @@ void SceneEditor::DrawSceneTab(SceneService& service) {
 }
 
 void SceneEditor::DrawSystemsTab(SceneService& service) {
-    Scene* topScene = service.GetScene();
+    Scene* topScene = GetEditorScene(service);
     if (!topScene) {
         ImGui::Text("No active scene");
         return;
@@ -347,15 +357,7 @@ void SceneEditor::DrawSystemsTab(SceneService& service) {
             ImGui::Text("%zu", i);
 
             ImGui::TableSetColumnIndex(1);
-            const std::type_info& typeInfo = typeid(*systems[i]);
-            std::string systemName = typeInfo.name();
-
-            size_t lastColon = systemName.find_last_of(':');
-            if (lastColon != std::string::npos && lastColon < systemName.length() - 1) {
-                systemName = systemName.substr(lastColon + 1);
-            }
-
-            ImGui::Text("%s", systemName.c_str());
+            ImGui::Text("%s", systems[i]->GetName().c_str());
 
             ImGui::TableSetColumnIndex(2);
             bool isEnabled = systems[i]->IsEnabled();

@@ -9,7 +9,7 @@ namespace Elysium {
 std::string ColorToHex(Color color) {
     if (color.a == 0)
         return "";
-    char hex[9];
+    char hex[10];  // '#' + 8 hex digits + null terminator
     snprintf(hex, sizeof(hex), "#%02X%02X%02X%02X", color.r, color.g, color.b, color.a);
     return std::string(hex);
 }

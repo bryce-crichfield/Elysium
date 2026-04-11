@@ -1,5 +1,6 @@
 #include "Components/NameComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Core/Xml.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -8,6 +9,11 @@ namespace Elysium {
     void NameComponent::LoadXml(NameComponent& c, tinyxml2::XMLElement* el) {
         const char* val = el->Attribute("name");
         if(val) c.name = val;
+    }
+
+    void NameComponent::SaveXml(const NameComponent& c, XMLBuilder& builder) {
+        builder.AddElement("NameComponent")
+            .SetAttribute("name", c.name.c_str());
     }
 
     void NameComponent::Inspect(NameComponent& c, Entity e) {

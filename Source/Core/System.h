@@ -1,6 +1,5 @@
 #pragma once
 #include <string>
-#include <typeinfo>
 
 #include "Core/Event.h"
 #include "Core/Message.h"
@@ -27,6 +26,7 @@ protected:
 
     bool isEnabled_ = true;
     bool isVisible_ = true;
+    std::string name_;
 
 public:
     System(Context context) : application(context.application), scene(context.scene), world(context.world) {
@@ -39,7 +39,11 @@ public:
     virtual void OnEvent(Event& event) override {}
     virtual void OnMessage(Message& message) override {}
 
-    std::string GetName() const { return typeid(*this).name(); }
+    // Name is set by SystemRegistry::Create() from the registered key.
+    // Returns empty string if the system was not created through the registry.
+    const std::string& GetName() const { return name_; }
+    void SetName(const std::string& name) { name_ = name; }
+
     Scene* GetScene() const { return scene; }
 
     bool IsEnabled() const { return isEnabled_; }
