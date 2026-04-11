@@ -1,9 +1,18 @@
 #include "Core/Xml.h"
 #include <tinyxml2.h>
 #include <stdexcept>
+#include <cstdio>
 #include "Services/LogService.h"
 
 namespace Elysium {
+
+std::string ColorToHex(Color color) {
+    if (color.a == 0)
+        return "";
+    char hex[9];
+    snprintf(hex, sizeof(hex), "#%02X%02X%02X%02X", color.r, color.g, color.b, color.a);
+    return std::string(hex);
+}
 Color ParseHexColor(const std::string& hex, Color defaultColor) {
     if (hex.empty() || hex[0] != '#')
         return defaultColor;

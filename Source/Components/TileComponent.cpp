@@ -3,6 +3,10 @@
 #include "imgui.h"
 
 namespace Elysium {
+    void TileComponent::SaveXml(const TileComponent& c, XMLBuilder& builder) {
+        builder.AddElement("TileComponent");
+    }
+
     void TileComponent::LoadXml(TileComponent& c, tinyxml2::XMLElement* el) {
         c.tileWidth = el->FloatAttribute("tileWidth", 32.0f);
         c.tileHeight = el->FloatAttribute("tileHeight", 32.0f);

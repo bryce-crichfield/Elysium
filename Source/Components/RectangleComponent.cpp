@@ -7,6 +7,16 @@ namespace Elysium {
     RectangleComponent::RectangleComponent(float width, float height, Color background, Color border)
         : width(width), height(height), background(background), border(border) {}
 
+    void RectangleComponent::SaveXml(const RectangleComponent& c, XMLBuilder& builder) {
+        auto b = builder.AddElement("RectangleComponent")
+            .SetAttribute("width", c.width)
+            .SetAttribute("height", c.height);
+        std::string bgHex = ColorToHex(c.background);
+        std::string borderHex = ColorToHex(c.border);
+        if (!bgHex.empty()) b.SetAttribute("background", bgHex.c_str());
+        if (!borderHex.empty()) b.SetAttribute("border", borderHex.c_str());
+    }
+
     void RectangleComponent::LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el) {
         c.width = el->FloatAttribute("width", 100.0f);
         c.height = el->FloatAttribute("height", 100.0f);

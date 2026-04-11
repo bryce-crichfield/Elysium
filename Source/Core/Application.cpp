@@ -154,13 +154,16 @@ void Application::DrawMenuBar()
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
-                // Handle new scene
+                // TODO: Handle new scene
             }
             if (ImGui::MenuItem("Open Scene", "Ctrl+O")) {
-                // Handle open scene
+                // TODO: Handle open scene
             }
             if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
-                // Handle save scene
+                // TODO: Handle save scene
+            }
+            if (ImGui::MenuItem("Save Scene As", "Ctrl+Shift+S")) {
+                
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Exit", "Alt+F4")) {

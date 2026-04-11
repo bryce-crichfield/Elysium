@@ -4,6 +4,16 @@
 #include "imgui.h"
 
 namespace Elysium {
+    void LightComponent::SaveXml(const LightComponent& c, XMLBuilder& builder) {
+        builder.AddElement("LightComponent")
+            .SetAttribute("radius", c.radius)
+            .SetAttribute("intensity", c.intensity)
+            .SetAttribute("r", c.color.r)
+            .SetAttribute("g", c.color.g)
+            .SetAttribute("b", c.color.b)
+            .SetAttribute("a", c.color.a);
+    }
+
     void LightComponent::LoadXml(LightComponent& c, tinyxml2::XMLElement* el) {
         c.radius = el->FloatAttribute("radius", 50.0f);
         c.intensity = el->FloatAttribute("intensity", 0.5f);

@@ -7,6 +7,16 @@ namespace Elysium {
     TextComponent::TextComponent(const std::string& text, int size, Color c)
         : content(text), fontSize(size), color(c) {}
 
+    void TextComponent::SaveXml(const TextComponent& c, XMLBuilder& builder) {
+        builder.AddElement("TextComponent")
+            .SetAttribute("text", c.content.c_str())
+            .SetAttribute("fontSize", c.fontSize)
+            .SetAttribute("r", c.color.r)
+            .SetAttribute("g", c.color.g)
+            .SetAttribute("b", c.color.b)
+            .SetAttribute("a", c.color.a);
+    }
+
     void TextComponent::LoadXml(TextComponent& c, tinyxml2::XMLElement* el) {
         c.content = el->Attribute("text") ? el->Attribute("text") : "";
         c.fontSize = el->IntAttribute("fontSize", 12);

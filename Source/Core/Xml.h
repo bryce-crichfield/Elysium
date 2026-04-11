@@ -18,6 +18,8 @@ using namespace tinyxml2;
 
 namespace Elysium {
 
+class XMLBuilder;  // forward declaration for XmlSavable concept
+
 // Concept for components that can be loaded from XML
 template<typename T>
 concept XmlLoadable = requires(T& c, XMLElement* el) {
@@ -26,9 +28,11 @@ concept XmlLoadable = requires(T& c, XMLElement* el) {
 
 // Concept for components that can be saved to XML
 template<typename T>
-concept XmlSavable = requires(const T& c, XMLPrinter& printer) {
-    { T::SaveXml(c, printer) } -> std::same_as<void>;
+concept XmlSavable = requires(const T& c, XMLBuilder& builder) {
+    { T::SaveXml(c, builder) } -> std::same_as<void>;
 };
+
+std::string ColorToHex(Color color);
 
 Color ParseHexColor(const std::string& hex, Color defaultColor = BLANK);
 

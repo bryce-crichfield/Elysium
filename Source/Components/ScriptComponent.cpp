@@ -6,6 +6,15 @@
 #include "imgui.h"
 
 namespace Elysium {
+    void ScriptComponent::SaveXml(const ScriptComponent& c, XMLBuilder& builder) {
+        auto el = builder.AddElement("ScriptComponent");
+        for (const auto& name : c.scriptNames) {
+            if (!name.empty()) {
+                el.AddElement("Script").SetAttribute("name", name.c_str());
+            }
+        }
+    }
+
     void ScriptComponent::LoadXml(ScriptComponent& c, tinyxml2::XMLElement* el) {
         auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
 

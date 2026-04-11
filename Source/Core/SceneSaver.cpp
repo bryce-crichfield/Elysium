@@ -1,141 +1,22 @@
 #include <sstream>
 #include <string>
-#include <typeindex>
-#include "Core/Components.h"
-#include <unordered_map>
 #include "Application.h"
 #include "Entity.h"
 #include "Scene.h"
-#include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "System.h"
-#include "Systems/CameraSystem.h"
-#include "Systems/MovementSystem.h"
-#include "Systems/RenderSystem.h"
-#include "Systems/SpriteSystem.h"
+#include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
+#include "Components/CameraComponent.h"
+#include "Components/FollowComponent.h"
+#include "Components/RectangleComponent.h"
+#include "Components/TileComponent.h"
 #include "raylib.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;
 
 namespace Elysium {
-
-std::string ColorToHex(Color color) {
-    if (color.a == 0)
-        return "";
-    char hex[9];
-    snprintf(hex, sizeof(hex), "#%02X%02X%02X%02X", color.r, color.g, color.b, color.a);
-    return std::string(hex);
-}
-
-using ComponentSaver = std::function<void(XMLBuilder&, World*, Entity)>;
-const std::unordered_map<std::type_index, ComponentSaver>& ComponentSavers() {
-    static std::unordered_map<std::type_index, ComponentSaver> componentSavers;
-
-    if (!componentSavers.empty())
-        return componentSavers;
-
-    componentSavers[std::type_index(typeid(PositionComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& pos = world->GetComponent<PositionComponent>(entity);
-        builder.AddElement("PositionComponent")
-            .SetAttribute("x", pos.x)
-            .SetAttribute("y", pos.y);
-    };
-
-    componentSavers[std::type_index(typeid(MovementComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        // TODO: Implement saving of movement component
-    };
-
-    componentSavers[std::type_index(typeid(LayerComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& layer = world->GetComponent<LayerComponent>(entity);
-        builder.AddElement("LayerComponent")
-            .SetAttribute("name", layer.name.c_str());
-    };
-
-    componentSavers[std::type_index(typeid(RectangleComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& rect = world->GetComponent<RectangleComponent>(entity);
-        auto rectBuilder = builder.AddElement("RectangleComponent")
-                               .SetAttribute("width", rect.width)
-                               .SetAttribute("height", rect.height);
-
-        std::string bgHex = ColorToHex(rect.background);
-        std::string borderHex = ColorToHex(rect.border);
-        if (!bgHex.empty())
-            rectBuilder.SetAttribute("background", bgHex.c_str());
-        if (!borderHex.empty())
-            rectBuilder.SetAttribute("border", borderHex.c_str());
-    };
-
-    componentSavers[std::type_index(typeid(CircleComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& circle = world->GetComponent<CircleComponent>(entity);
-        auto circleBuilder = builder.AddElement("CircleComponent")
-                                 .SetAttribute("radius", circle.radius);
-
-        std::string fillHex = ColorToHex(circle.background);
-        std::string borderHex = ColorToHex(circle.border);
-        if (!fillHex.empty())
-            circleBuilder.SetAttribute("fill", fillHex.c_str());
-        if (!borderHex.empty())
-            circleBuilder.SetAttribute("border", borderHex.c_str());
-    };
-
-    componentSavers[std::type_index(typeid(TextComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& text = world->GetComponent<TextComponent>(entity);
-        builder.AddElement("TextComponent")
-            .SetAttribute("text", text.content.c_str())
-            .SetAttribute("fontSize", text.fontSize)
-            .SetAttribute("r", text.color.r)
-            .SetAttribute("g", text.color.g)
-            .SetAttribute("b", text.color.b)
-            .SetAttribute("a", text.color.a);
-    };
-
-    componentSavers[std::type_index(typeid(SpriteComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        // TODO: Reimplement saving of sprite component
-    };
-
-    componentSavers[std::type_index(typeid(CameraComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto cameraBuilder = builder.AddElement("CameraComponent");
-        if (world->HasComponent<FollowComponent>(entity)) {
-            auto& follow = world->GetComponent<FollowComponent>(entity);
-            cameraBuilder.SetAttribute("target", follow.targetEntityName.c_str());
-        }
-    };
-
-    componentSavers[std::type_index(typeid(LightComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& light = world->GetComponent<LightComponent>(entity);
-        builder.AddElement("LightComponent")
-            .SetAttribute("radius", light.radius)
-            .SetAttribute("r", light.color.r)
-            .SetAttribute("g", light.color.g)
-            .SetAttribute("b", light.color.b)
-            .SetAttribute("a", light.color.a);
-    };
-
-    componentSavers[std::type_index(typeid(TileComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        builder.AddElement("TileComponent");
-    };
-
-    componentSavers[std::type_index(typeid(ScriptComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& script = world->GetComponent<ScriptComponent>(entity);
-        auto scriptEl = builder.AddElement("ScriptComponent");
-        for (const auto& name : script.scriptNames) {
-            if (!name.empty()) {
-                scriptEl.AddElement("Script").SetAttribute("name", name.c_str());
-            }
-        }
-    };
-
-    componentSavers[std::type_index(typeid(KinematicsComponent))] = [](XMLBuilder& builder, World* world, Entity entity) {
-        auto& kin = world->GetComponent<KinematicsComponent>(entity);
-        builder.AddElement("KinematicsComponent")
-            .SetAttribute("friction", kin.friction)
-            .SetAttribute("maxSpeed", kin.maxSpeed);
-    };
-
-    return componentSavers;
-}
 
 std::string LayerSpaceToString(SceneLayerSpace space) {
     switch (space) {
@@ -193,7 +74,6 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
                                   .SetAttribute("width", maxX + 1)
                                   .SetAttribute("height", maxY + 1);
 
-        // Save tile definitions
         auto tileDefsBuilder = tilemapBuilder.AddElement("TileDefinitions");
         for (const auto& [id, def] : tileDefinitions) {
             auto tileDefBuilder = tileDefsBuilder.AddElement("TileDefinition")
@@ -208,7 +88,6 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
                 tileDefBuilder.SetAttribute("border", borderHex.c_str());
         }
 
-        // Save tilemask
         auto tilemaskBuilder = tilemapBuilder.AddElement("Tilemask");
         std::ostringstream maskStream;
         for (size_t i = 0; i < tilemask.size(); ++i) {
@@ -223,55 +102,33 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
 void SaveEntities(XMLBuilder& builder, World* world) {
     auto entitiesBuilder = builder.AddElement("Entities");
 
+    const auto& savers = ComponentRegistry::Instance().GetXmlSavers();
+
     const auto& entities = world->GetLivingEntities();
     for (Entity entity : entities) {
         std::string entityName = world->GetEntityName(entity);
 
         // Skip layer entities and tile entities as they're saved separately
-        if ((entityName.length() >= 6 && entityName.substr(0, 6) == "Layer_") || world->HasComponent<TileComponent>(entity)) {
+        if ((entityName.length() >= 6 && entityName.substr(0, 6) == "Layer_") ||
+            world->HasComponent<TileComponent>(entity)) {
             continue;
         }
 
         auto entityBuilder = entitiesBuilder.AddElement("Entity")
                                  .SetAttribute("name", entityName.c_str());
 
-        // Check each component type individually
-        const auto& savers = ComponentSavers();
-        if (world->HasComponent<PositionComponent>(entity)) {
-            savers.at(std::type_index(typeid(PositionComponent)))(entityBuilder, world, entity);
+        // Dispatch to each registered saver (each checks HasComponent internally)
+        for (const auto& [name, saver] : savers) {
+            saver(entityBuilder, world, entity);
         }
-        if (world->HasComponent<MovementComponent>(entity)) {
-            savers.at(std::type_index(typeid(MovementComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<LayerComponent>(entity)) {
-            savers.at(std::type_index(typeid(LayerComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<RectangleComponent>(entity)) {
-            savers.at(std::type_index(typeid(RectangleComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<CircleComponent>(entity)) {
-            savers.at(std::type_index(typeid(CircleComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<TextComponent>(entity)) {
-            savers.at(std::type_index(typeid(TextComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<SpriteComponent>(entity)) {
-            savers.at(std::type_index(typeid(SpriteComponent)))(entityBuilder, world, entity);
-        }
+
+        // CameraComponent special case: needs FollowComponent access
         if (world->HasComponent<CameraComponent>(entity)) {
-            savers.at(std::type_index(typeid(CameraComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<LightComponent>(entity)) {
-            savers.at(std::type_index(typeid(LightComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<TileComponent>(entity)) {
-            savers.at(std::type_index(typeid(TileComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<ScriptComponent>(entity)) {
-            savers.at(std::type_index(typeid(ScriptComponent)))(entityBuilder, world, entity);
-        }
-        if (world->HasComponent<KinematicsComponent>(entity)) {
-            savers.at(std::type_index(typeid(KinematicsComponent)))(entityBuilder, world, entity);
+            auto cameraBuilder = entityBuilder.AddElement("CameraComponent");
+            if (world->HasComponent<FollowComponent>(entity)) {
+                auto& follow = world->GetComponent<FollowComponent>(entity);
+                cameraBuilder.SetAttribute("target", follow.targetEntityName.c_str());
+            }
         }
     }
 }
@@ -279,8 +136,6 @@ void SaveEntities(XMLBuilder& builder, World* world) {
 void SaveSystems(XMLBuilder& builder, const Scene& scene) {
     auto systemsBuilder = builder.AddElement("Systems");
 
-    // Save active systems - this is a simplified approach
-    // In a real implementation, you'd need to track which systems are active
     const auto& systems = scene.GetSystems();
     for (const auto& system : systems) {
         std::string systemName = system->GetName();

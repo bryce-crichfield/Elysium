@@ -15,6 +15,7 @@ namespace Elysium {
         static constexpr const char* XmlTag() { return "CircleComponent"; }
 
         static void LoadXml(CircleComponent& c, tinyxml2::XMLElement* el);
+        static void SaveXml(const CircleComponent& c, XMLBuilder& builder);
         static void Inspect(CircleComponent& c, Entity e);
         static void BindLua(sol::usertype<CircleComponent>& ut);
         static void SetFromLua(CircleComponent& c, sol::object v);

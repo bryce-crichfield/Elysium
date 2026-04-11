@@ -14,6 +14,7 @@ namespace Elysium {
         static constexpr const char* XmlTag() { return "LayerComponent"; }
 
         static void LoadXml(LayerComponent& c, tinyxml2::XMLElement* el);
+        static void SaveXml(const LayerComponent& c, XMLBuilder& builder);
         static void Inspect(LayerComponent& c, Entity e);
         static void BindLua(sol::usertype<LayerComponent>& ut);
         static void SetFromLua(LayerComponent& c, sol::object v);

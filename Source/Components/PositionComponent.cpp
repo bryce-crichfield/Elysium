@@ -10,6 +10,12 @@ namespace Elysium {
         c.y = el->FloatAttribute("y", 0.0f);
     }
 
+    void PositionComponent::SaveXml(const PositionComponent& c, XMLBuilder& builder) {
+        builder.AddElement("PositionComponent")
+            .SetAttribute("x", c.x)
+            .SetAttribute("y", c.y);
+    }
+
     void PositionComponent::Inspect(PositionComponent& c, Entity e) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();

@@ -10,6 +10,7 @@ namespace Elysium {
         static constexpr const char* XmlTag() { return "PositionComponent"; }
 
         static void LoadXml(PositionComponent& c, tinyxml2::XMLElement* el);
+        static void SaveXml(const PositionComponent& c, XMLBuilder& builder);
         static void Inspect(PositionComponent& c, Entity e);
         static void BindLua(sol::usertype<PositionComponent>& ut);
         static void SetFromLua(PositionComponent& c, sol::object v);

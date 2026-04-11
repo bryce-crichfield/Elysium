@@ -12,6 +12,11 @@ namespace Elysium {
         c.name = name ? name : "default";
     }
 
+    void LayerComponent::SaveXml(const LayerComponent& c, XMLBuilder& builder) {
+        builder.AddElement("LayerComponent")
+            .SetAttribute("name", c.name.c_str());
+    }
+
     void LayerComponent::Inspect(LayerComponent& c, Entity e) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();

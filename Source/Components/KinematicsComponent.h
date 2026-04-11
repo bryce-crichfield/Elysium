@@ -16,6 +16,7 @@ namespace Elysium {
         static constexpr const char* XmlTag() { return "KinematicsComponent"; }
 
         static void LoadXml(KinematicsComponent& c, tinyxml2::XMLElement* el);
+        static void SaveXml(const KinematicsComponent& c, XMLBuilder& builder);
         static void Inspect(KinematicsComponent& c, Entity e);
         static void BindLua(sol::usertype<KinematicsComponent>& ut);
         static void SetFromLua(KinematicsComponent& c, sol::object v);

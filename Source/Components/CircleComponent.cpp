@@ -7,6 +7,15 @@ namespace Elysium {
     CircleComponent::CircleComponent(float r, Color background, Color border)
         : radius(r), background(background), border(border) {}
 
+    void CircleComponent::SaveXml(const CircleComponent& c, XMLBuilder& builder) {
+        auto b = builder.AddElement("CircleComponent")
+            .SetAttribute("radius", c.radius);
+        std::string fillHex = ColorToHex(c.background);
+        std::string borderHex = ColorToHex(c.border);
+        if (!fillHex.empty()) b.SetAttribute("fill", fillHex.c_str());
+        if (!borderHex.empty()) b.SetAttribute("border", borderHex.c_str());
+    }
+
     void CircleComponent::LoadXml(CircleComponent& c, tinyxml2::XMLElement* el) {
         c.radius = el->FloatAttribute("radius", 50.0f);
         std::string fillHex = el->Attribute("fill") ? el->Attribute("fill") : "";

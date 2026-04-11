@@ -3,6 +3,12 @@
 #include "imgui.h"
 
 namespace Elysium {
+    void KinematicsComponent::SaveXml(const KinematicsComponent& c, XMLBuilder& builder) {
+        builder.AddElement("KinematicsComponent")
+            .SetAttribute("friction", c.friction)
+            .SetAttribute("maxSpeed", c.maxSpeed);
+    }
+
     void KinematicsComponent::LoadXml(KinematicsComponent& c, tinyxml2::XMLElement* el) {
         c.friction = el->FloatAttribute("friction", 5.0f);
         c.maxSpeed = el->FloatAttribute("maxSpeed", 200.0f);

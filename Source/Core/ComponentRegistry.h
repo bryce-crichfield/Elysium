@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <functional>
+#include <map>
 #include <unordered_map>
 #include <string>
 #include <memory>
@@ -49,6 +50,11 @@ namespace Elysium {
 
             // 3. Register XML Saver
             if constexpr (XmlSavable<T>) {
+                xmlSavers_[name] = [](XMLBuilder& builder, World* w, Entity e) {
+                    if (w->HasComponent<T>(e)) {
+                        T::SaveXml(w->GetComponent<T>(e), builder);
+                    }
+                };
             }
 
             // 4. Register Inspector
@@ -95,6 +101,9 @@ namespace Elysium {
         using XmlLoaderFunc = std::function<void(tinyxml2::XMLElement*, World*, Entity)>;
         const std::unordered_map<std::string, XmlLoaderFunc>& GetXmlLoaders() const { return xmlLoaders_; }
 
+        using XmlSaverFunc = std::function<void(XMLBuilder&, World*, Entity)>;
+        const std::map<std::string, XmlSaverFunc>& GetXmlSavers() const { return xmlSavers_; }
+
         using InspectorFunc = std::function<void(World*, Entity)>;
         const std::unordered_map<std::string, InspectorFunc>& GetInspectors() const { return inspectors_; }
 
@@ -113,6 +122,7 @@ namespace Elysium {
     private:
         std::vector<std::function<void(World&)>> worldRegistrars_;
         std::unordered_map<std::string, XmlLoaderFunc> xmlLoaders_;
+        std::map<std::string, XmlSaverFunc> xmlSavers_;
         std::unordered_map<std::string, InspectorFunc> inspectors_;
         std::vector<std::function<void(sol::state&)>> scriptBinders_;
         std::unordered_map<std::string, LuaComponentAccess> scriptAccessors_;
