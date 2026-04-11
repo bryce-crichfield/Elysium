@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 #ifndef ASSETS_PATH
 #define ASSETS_PATH "./Assets/"
@@ -15,11 +16,17 @@ class Path {
 
     std::string GetFullPath() const;
     const std::string& GetRelativePath() const { return relativePath_; }
+   
+    std::string GetFilename(const std::string& extension = "") const;
+
     const char* c_str() const;
 
     bool operator==(const Path& other) const {
         return GetFullPath() == other.GetFullPath();
     }
+
+    std::vector<Path> GetFiles() const;
+    std::vector<Path> GetFolders() const;
 
    private:
     std::string relativePath_;

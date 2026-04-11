@@ -28,7 +28,7 @@ struct SceneConfiguration {
     std::vector<SceneLayer> layers;
 };
 
-class Scene : public IEventListener, IMessageListener {
+class Scene final : public IEventListener, IMessageListener {
    public:
     Scene();
     virtual ~Scene();

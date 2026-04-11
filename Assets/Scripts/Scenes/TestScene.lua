@@ -64,8 +64,9 @@ function TestScene:CreateCircle()
 
     AddComponent(entity, "Kinematics")
     local kinematics = GetComponent(entity, "Kinematics")
-    kinematics.velocity.x = math.cos(TWO_PI / 5) * 100
-    kinematics.velocity.y = math.sin(TWO_PI / 5) * 100
+    local angle = math.random() * TWO_PI
+    kinematics.velocity.x = math.cos(angle) * 150
+    kinematics.velocity.y = math.sin(angle) * 150
     kinematics.friction = 0
     SetComponent(entity, "Kinematics", kinematics)
 end

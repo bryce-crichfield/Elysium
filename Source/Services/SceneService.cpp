@@ -29,6 +29,21 @@ void SceneService::Initialize() {
     auto& app = Application::GetInstance();
     const auto& config = app.GetConfig();
 
+    // Load scenes from Scenes folder
+    Path scenesDir("Scenes");
+    auto sceneFiles = scenesDir.GetFiles();
+    for (const auto& file : sceneFiles) {
+        std::string filename = file.GetFilename(".xml");
+        if (!filename.empty()) {
+            std::string sceneName = filename.substr(0, filename.find_last_of('.'));
+            std::string xmlPath = file.GetRelativePath();
+            SceneFactory factory = []() { return new Scene(); };
+            SceneRegistration data{sceneName, nullptr, factory, xmlPath, false};
+            scenes_.emplace(sceneName, data);
+            LOG_INFOF("SceneService", "Registered scene: %s", sceneName.c_str());
+        }
+    }
+
     framebuffer_ = LoadRenderTexture(config.framebufferWidth, config.framebufferHeight);
     CalculateLetterboxing();
 
@@ -205,13 +220,6 @@ Scene* SceneService::GetTopScene() const {
 // =============================================================================
 // Scene Management
 // =============================================================================
-
-void SceneService::RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory) {
-    SceneRegistration data{name, nullptr, factory, xmlPath, false};
-    scenes_.emplace(name, data);
-    LOG_INFOF("SceneService", "Registered scene: %s", name.c_str());
-}
-
 Scene* SceneService::CreateOrGetScene(const std::string& name) {
     auto it = scenes_.find(name);
     if (it == scenes_.end()) {
@@ -238,7 +246,7 @@ void SceneService::EnterScene(Scene* scene, const std::string& name) {
 
     // Load XML if needed
     if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded) {
-        LoadScene(*scene, Path(sceneData.xmlPath).GetFullPath());
+        LoadScene(*scene, sceneData.xmlPath);
         sceneData.xmlLoaded = true;
     }
 

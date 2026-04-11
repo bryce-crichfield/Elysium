@@ -84,10 +84,7 @@ public:
     void OnMessage(const Message& message);
     void Update(float deltaTime) override;
     void Render() override;
-
-    // Scene registration
-    void RegisterScene(const std::string& name, std::string xmlPath, SceneFactory factory);
-
+    
     // Stack operations
     void Push(const std::string& sceneName);
     void Pop();
