@@ -498,6 +498,7 @@ void SceneService::ProcessInput() {
 
     // Keyboard events
     const int keysToCheck[] = {
+        KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN, KEY_EIGHT, KEY_NINE, KEY_ZERO,
         KEY_SPACE, KEY_ENTER, KEY_ESCAPE,
         KEY_W, KEY_A, KEY_S, KEY_D,
         KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
