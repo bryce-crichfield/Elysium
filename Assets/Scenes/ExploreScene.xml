@@ -5,11 +5,12 @@
         <System type="SpatialSystem" />
         <System type="MovementSystem" />
         <System type="KinematicsSystem" />
+        <System type="CollisionSystem" />
+        <System type="PhysicsResponseSystem" />
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
         <System type="CameraSystem" />
 		<System type="FollowSystem" />
-        <System type="CollisionSystem" />
         <System type="RenderSystem" />
     </Systems>
 
@@ -57,52 +58,73 @@
             <CameraComponent target="ENTITY_0" />
         </Entity>
 
-        <!-- PLAYER UNIT -->
         <Entity>
             <NameComponent name="Archer" />
             <PositionComponent x="96" y="112" />
-
-			<MovementComponent state="Idle" goalX="96" goalY="112" />
+            <MovementComponent state="Idle" goalX="96" goalY="112" />
             <KinematicsComponent maxSpeed="150" friction="5" />
+            <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south"/>
+            <ColliderComponent width="32" height="32" />
+            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
+            <LayerComponent name="entity" />
+        </Entity>
 
-            <SpriteComponent
-                spriteName="Sprites/Archer/Archer.xml"
-				sheetName="Idle"
-				sequenceName="south"/>
-			<ColliderComponent width="32" height="32" />
-			<ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
-			<LayerComponent name="entity" />
-		</Entity>
+        <Entity>
+            <FollowComponent target="Archer" followSpeed="100"/>
+            <PositionComponent />
+            <LayerComponent name="shadow" />
+            <LightComponent color="#ffffffff" radius="500" intensity="0.0" />
+        </Entity>
 
-		<Entity>
-			<FollowComponent target="Archer" followSpeed="100"/>
+        <Entity>
+            <NameComponent name="Knight" />
+            <PositionComponent x="0" y="96" />
+            <MovementComponent state="Idle" goalX="0" goalY="96" />
+            <KinematicsComponent maxSpeed="150" friction="5" />
+            <SpriteComponent spriteName="Sprites/Knight/Knight.xml" sheetName="Idle" sequenceName="south"/>
+            <ColliderComponent width="32" height="32" />
+            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
+            <LayerComponent name="entity" />
+        </Entity>
 
-			<PositionComponent />
-			<LayerComponent name="shadow" />
-			<LightComponent color="#ffffffff" radius="500" intensity="0.0" />
-		</Entity>
+        <Entity>
+            <PositionComponent />
+            <LayerComponent name="shadow" />
+            <LightComponent color="#ffffffff" radius="500" intensity="0.0"/>
+            <FollowComponent target="Knight" followSpeed="100"/>
+        </Entity>
 
-		<Entity>
-			<NameComponent name="Knight" />
-			<PositionComponent x="0" y="96" />
+        <Entity>
+            <NameComponent name="Archer2" />
+            <PositionComponent x="-64" y="144" />
+            <MovementComponent state="Idle" goalX="-64" goalY="144" />
+            <KinematicsComponent maxSpeed="150" friction="5" />
+            <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south"/>
+            <ColliderComponent width="32" height="32" />
+            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
+            <LayerComponent name="entity" />
+        </Entity>
 
-			<MovementComponent state="Idle" goalX="0" goalY="96" />
-			<KinematicsComponent maxSpeed="150" friction="5" />
+        <Entity>
+            <NameComponent name="Knight2" />
+            <PositionComponent x="64" y="80" />
+            <MovementComponent state="Idle" goalX="64" goalY="80" />
+            <KinematicsComponent maxSpeed="150" friction="5" />
+            <SpriteComponent spriteName="Sprites/Knight/Knight.xml" sheetName="Idle" sequenceName="south"/>
+            <ColliderComponent width="32" height="32" />
+            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
+            <LayerComponent name="entity" />
+        </Entity>
 
-			<SpriteComponent
-                spriteName="Sprites/Knight/Knight.xml"
-				sheetName="Idle"
-				sequenceName="south"/>
-			<ColliderComponent width="32" height="32" />
-			<ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
-			<LayerComponent name="entity" />
-		</Entity>
-
-		<Entity>
-			<PositionComponent />
-			<LayerComponent name="shadow" />
-			<LightComponent color="#ffffffff" radius="500" intensity="0.0"/>
-			<FollowComponent target="Knight" followSpeed="100"/>
-		</Entity>
+        <Entity>
+            <NameComponent name="Archer3" />
+            <PositionComponent x="32" y="160" />
+            <MovementComponent state="Idle" goalX="32" goalY="160" />
+            <KinematicsComponent maxSpeed="150" friction="5" />
+            <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south"/>
+            <ColliderComponent width="32" height="32" />
+            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
+            <LayerComponent name="entity" />
+        </Entity>
     </Entities>
 </Scene>

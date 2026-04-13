@@ -166,15 +166,21 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
         if (it != layerItems.end() || hasDrawCmds) {
             static const std::vector<RenderableObject> empty;
             const auto& items = (it != layerItems.end()) ? it->second : empty;
+            // sort items by their position.y for simple painter's order within the layer
+            std::vector<RenderableObject> sortedItems = items;
+            std::sort(sortedItems.begin(), sortedItems.end(), [](const RenderableObject& a, const RenderableObject& b) {
+                return a.position.y < b.position.y;
+            });
             if (layer.isComposited) {
-                RenderCompositedLayer(ctx, cameraEntity, layer, items);
+                RenderCompositedLayer(ctx, cameraEntity, layer, sortedItems);
             } else {
-                RenderImmediateLayer(ctx, cameraEntity, layer, items);
+                RenderImmediateLayer(ctx, cameraEntity, layer, sortedItems);
             }
         }
     }
 
     // Render debug overlays AFTER everything else
+    // Sort debug items by layer space so Screen2D debug renders on top of World2D debug
     if (!debugWorld2D.empty()) {
         SceneLayer debugLayerWorld;
         debugLayerWorld.name = "__debug_world2d__";

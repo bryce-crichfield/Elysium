@@ -50,6 +50,7 @@ function ExploreScene:Initialize()
     self.dragStart  = nil    -- {x, y} in world coords when LMB goes down
     self.dragEnd    = nil    -- current mouse world pos while LMB held
     self.isDragging = false  -- true once pointer moved past DRAG_THRESHOLD
+    self.debugDraw  = false  -- toggle with D key
     Log("ExploreScene initialized")
 end
 
@@ -93,6 +94,25 @@ function ExploreScene:Render()
         drawTileOutline(cx, cy, {r = 255, g = 0, b = 0, a = 160}, "selection")
     end
 
+    -- Collider debug outlines (toggle with D)
+    if self.debugDraw then
+        local colColor = {r = 0, g = 255, b = 200, a = 180}
+        for _, entity in ipairs(GetEntities()) do
+            local pos = GetComponent(entity, "Position")
+            local col = GetComponent(entity, "Collider")
+            if pos and col then
+                local rx = pos.x + col.offsetX - col.width  * 0.5
+                local ry = pos.y + col.offsetY - col.height * 0.5
+                local rw = col.width
+                local rh = col.height
+                DrawLine(rx,      ry,      rx + rw, ry,      colColor, "selection")
+                DrawLine(rx + rw, ry,      rx + rw, ry + rh, colColor, "selection")
+                DrawLine(rx + rw, ry + rh, rx,      ry + rh, colColor, "selection")
+                DrawLine(rx,      ry + rh, rx,      ry,      colColor, "selection")
+            end
+        end
+    end
+
     -- Drag-select box (drawn last so it sits on top)
     if self.isDragging and self.dragStart and self.dragEnd then
         local x1, y1 = self.dragStart.x, self.dragStart.y
@@ -123,6 +143,12 @@ function ExploreScene:OnEvent(event)
                     self.isDragging = true
                 end
             end
+        end
+
+    elseif event.type == "KeyPressed" then
+        if event.key == KEY_1 then
+            self.debugDraw = not self.debugDraw
+            Log("Collider debug draw: " .. tostring(self.debugDraw))
         end
 
     elseif event.type == "MouseButtonPressed" then
