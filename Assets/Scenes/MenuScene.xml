@@ -1,13 +1,14 @@
 <Scene type="MenuScene">
+    <SceneScript path="Scripts/Scenes/MenuScene.lua" />
+
     <Systems>
         <System type="ScriptSystem" />
         <System type="RenderSystem" />
-		<System type="ScriptSystem" />
     </Systems>
 
     <SceneConfiguration width="640" height="480">
         <SceneLayer name="background" z="0" space="Screen" blend="Normal" />
-        <SceneLayer name="ui" z="1" space="Screen" blend="Normal" />
+        <SceneLayer name="ui"         z="1" space="Screen" blend="Normal" />
     </SceneConfiguration>
 
     <Entities>
@@ -21,59 +22,53 @@
         <!-- Title -->
         <Entity>
             <NameComponent name="Title" />
-            <PositionComponent x="400" y="80" />
-            <BoundsComponent />
+            <PositionComponent x="320" y="80" />
             <TextComponent text="ELYSIUM" fontSize="60" color="#FFFFFF" layerName="ui" />
-			<ScriptComponent scriptName="Scripts\SlideIn.lua" />
+            <ScriptComponent scriptName="Scripts/TypeWriter.lua" />
         </Entity>
 
         <!-- Subtitle -->
         <Entity>
             <NameComponent name="Subtitle" />
-            <PositionComponent x="400" y="140" />
+            <PositionComponent x="320" y="140" />
             <TextComponent text="A Scripted Game Engine" fontSize="20" color="#AAAAAA" layerName="ui" />
+            <ScriptComponent scriptName="Scripts/FadeIn.lua" />
         </Entity>
 
         <!-- Play Button -->
         <Entity>
             <NameComponent name="PlayButton" />
-            <PositionComponent x="400" y="250" />
+            <PositionComponent x="320" y="250" />
             <RectangleComponent width="200" height="50" background="#2266AA" border="#44AAFF" layerName="ui" />
-			<TextComponent text="Play Game" fontSize="24" color="#FFFFFF" layerName="ui" />
-			<BoundsComponent />
+            <TextComponent text="Play Game" fontSize="24" color="#FFFFFF" layerName="ui" />
+            <BoundsComponent />
+            <ScriptComponent scriptName="Scripts/BounceIn.lua" />
         </Entity>
-
 
         <!-- Options Button -->
         <Entity>
             <NameComponent name="OptionsButton" />
-            <PositionComponent x="400" y="320" />
+            <PositionComponent x="320" y="320" />
             <RectangleComponent width="200" height="50" background="#226644" border="#44AA66" layerName="ui" />
-            <BoundsComponent />
-        </Entity>
-        <Entity>
-            <NameComponent name="OptionsButtonText" />
-            <PositionComponent x="400" y="320" />
             <TextComponent text="Options" fontSize="24" color="#FFFFFF" layerName="ui" />
+            <BoundsComponent />
+            <ScriptComponent scriptName="Scripts/BounceIn.lua" />
         </Entity>
 
         <!-- Quit Button -->
         <Entity>
             <NameComponent name="QuitButton" />
-            <PositionComponent x="400" y="390" />
+            <PositionComponent x="320" y="390" />
             <RectangleComponent width="200" height="50" background="#662222" border="#AA4444" layerName="ui" />
-            <BoundsComponent />
-        </Entity>
-        <Entity>
-            <NameComponent name="QuitButtonText" />
-            <PositionComponent x="400" y="390" />
             <TextComponent text="Quit" fontSize="24" color="#FFFFFF" layerName="ui" />
+            <BoundsComponent />
+            <ScriptComponent scriptName="Scripts/BounceIn.lua" />
         </Entity>
 
         <!-- Version text -->
         <Entity>
             <NameComponent name="Version" />
-            <PositionComponent x="400" y="550" />
+            <PositionComponent x="320" y="460" />
             <TextComponent text="v0.1.0 - Scripting Demo" fontSize="14" color="#666666" layerName="ui" />
         </Entity>
     </Entities>
