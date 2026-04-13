@@ -74,11 +74,13 @@ GridNode* SpatialSystem::GetNodeFromWorld(Vector2 position) {
         float halfH = tileHeight_ * 0.5f;
         float u = position.x / halfW;  // tileX - tileY
         float v = position.y / halfH;  // tileX + tileY
-        tileX = static_cast<int>(std::floor((u + v) * 0.5f));
-        tileY = static_cast<int>(std::floor((v - u) * 0.5f));
+        // Round to nearest tile — same reason as Lua worldToTile: isometric tile containment
+        // is the nearest tile center in tile-coordinate space, not a floor partition.
+        tileX = static_cast<int>(std::round((u + v) * 0.5f));
+        tileY = static_cast<int>(std::round((v - u) * 0.5f));
     } else {
-        tileX = static_cast<int>(std::floor(position.x / tileWidth_));
-        tileY = static_cast<int>(std::floor(position.y / tileHeight_));
+        tileX = static_cast<int>(std::round(position.x / tileWidth_));
+        tileY = static_cast<int>(std::round(position.y / tileHeight_));
     }
     return GetNode(tileX, tileY);
 }
@@ -86,15 +88,15 @@ GridNode* SpatialSystem::GetNodeFromWorld(Vector2 position) {
 Vector2 SpatialSystem::GetWorldPosition(GridNode* node) {
     if (!node) return {0.0f, 0.0f};
     if (isIsometric_) {
-        // Center of the tile diamond
+        // Match SceneLoader tile placement: worldX = (tx-ty)*(tileWidth/2), worldY = (tx+ty)*(tileHeight/2)
         return Vector2{
-            static_cast<float>((node->x - node->y)) * (tileWidth_  * 0.5f) + tileWidth_  * 0.5f,
-            static_cast<float>((node->x + node->y)) * (tileHeight_ * 0.5f) + tileHeight_ * 0.5f
+            static_cast<float>((node->x - node->y)) * (tileWidth_  * 0.5f),
+            static_cast<float>((node->x + node->y)) * (tileHeight_ * 0.5f)
         };
     }
     return Vector2{
-        node->x * tileWidth_  + tileWidth_  * 0.5f,
-        node->y * tileHeight_ + tileHeight_ * 0.5f
+        node->x * tileWidth_,
+        node->y * tileHeight_
     };
 }
 

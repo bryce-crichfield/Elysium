@@ -223,6 +223,14 @@ void RenderSystem::RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity,
                 ctx.DrawEllipseLines(c.x, c.y, c.radiusH, c.radiusV, c.color);
             } else if constexpr (std::is_same_v<T, DrawTextCmd>) {
                 ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color);
+            } else if constexpr (std::is_same_v<T, DrawPolygonCmd>) {
+                // Fan triangulation using DrawTriangle (same path as tile rendering).
+                // pts are assumed to be in clockwise screen order; swapping i and i+1
+                // produces the CCW winding that DrawTriangle requires in Y-down space.
+                const auto& pts = c.points;
+                for (int i = 1; i + 1 < (int)pts.size(); i++) {
+                    DrawTriangle(pts[0], pts[i + 1], pts[i], c.color);
+                }
             }
         }, cmd);
     }
@@ -270,7 +278,12 @@ void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity
             } else if constexpr (std::is_same_v<T, DrawEllipseCmd>) {
                 ctx.DrawEllipseLines(c.x, c.y, c.radiusH, c.radiusV, c.color);
             } else if constexpr (std::is_same_v<T, DrawTextCmd>) {
-                ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color); 
+                ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color);
+            } else if constexpr (std::is_same_v<T, DrawPolygonCmd>) {
+                const auto& pts = c.points;
+                for (int i = 1; i + 1 < (int)pts.size(); i++) {
+                    DrawTriangle(pts[0], pts[i + 1], pts[i], c.color);
+                }
             }
         }, cmd);
     }
@@ -441,9 +454,12 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
             float scaledWidth = frameWidth * scaleX;
             float scaledHeight = frameHeight * scaleY;
 
+            // Use the sprite asset's origin as the render anchor.
+            // Entity position maps to (originX, originY) within the frame — default (0.5, 0.5) = center.
+            // Isometric character sprites set originY > 0.5 so feet land on the tile center.
             Rectangle destRect = {
-                object.position.x - scaledWidth * 0.5f,
-                object.position.y - scaledHeight * 0.5f,
+                object.position.x - scaledWidth  * sprite.originX,
+                object.position.y - scaledHeight * sprite.originY,
                 scaledWidth,
                 scaledHeight
             };

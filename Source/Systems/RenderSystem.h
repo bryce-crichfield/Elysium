@@ -37,13 +37,14 @@ struct RenderableObject {
 using RenderableObjects = std::vector<RenderableObject>;
 
 // Deferred draw commands issued by Lua scripts
-struct DrawCircleCmd { std::string layer; float x, y, radius; Color color; };
+struct DrawCircleCmd  { std::string layer; float x, y, radius; Color color; };
 struct DrawEllipseCmd { std::string layer; float x, y, radiusH, radiusV; Color color; };
-struct DrawLineCmd   { std::string layer; float x1, y1, x2, y2; Color color; };
-struct DrawRectCmd   { std::string layer; float x, y, width, height; Color color; };
-struct DrawTextCmd  { std::string layer; std::string text; float x, y; int fontSize; Color color; };
+struct DrawLineCmd    { std::string layer; float x1, y1, x2, y2; Color color; };
+struct DrawRectCmd    { std::string layer; float x, y, width, height; Color color; };
+struct DrawTextCmd    { std::string layer; std::string text; float x, y; int fontSize; Color color; };
+struct DrawPolygonCmd { std::string layer; std::vector<Vector2> points; Color color; };
 
-using DrawCommand = std::variant<DrawCircleCmd, DrawLineCmd, DrawRectCmd, DrawEllipseCmd, DrawTextCmd>;
+using DrawCommand = std::variant<DrawCircleCmd, DrawLineCmd, DrawRectCmd, DrawEllipseCmd, DrawTextCmd, DrawPolygonCmd>;
 
 class RenderSystem : public System {
 public:

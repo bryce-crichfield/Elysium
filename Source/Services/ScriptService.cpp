@@ -380,6 +380,23 @@ void ScriptService::BindEntityAPI() {
         }
     });
 
+    // DrawPolygon(points, color, layer)
+    // points is an array of {x, y} tables — pass outline verts in order, no need for a center point.
+    lua.set_function("DrawPolygon", [tableToColor](sol::table points, sol::table color, const std::string& layer) {
+        auto* rs = Elysium::Systems::RenderSystem::GetCurrent();
+        if (!rs) return;
+        Elysium::Systems::DrawPolygonCmd cmd;
+        cmd.layer = layer;
+        cmd.color = tableToColor(color);
+        points.for_each([&](sol::object /*key*/, sol::object val) {
+            if (val.is<sol::table>()) {
+                sol::table pt = val.as<sol::table>();
+                cmd.points.push_back({pt.get_or("x", 0.0f), pt.get_or("y", 0.0f)});
+            }
+        });
+        rs->IssueDrawCommand(std::move(cmd));
+    });
+
     lua.set_function("DrawText", [tableToColor](const std::string& text, float x, float y, int fontSize, sol::table color, const std::string& layer) {
         if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
             rs->IssueDrawCommand(Elysium::Systems::DrawTextCmd{layer, text, x, y, fontSize, tableToColor(color)});

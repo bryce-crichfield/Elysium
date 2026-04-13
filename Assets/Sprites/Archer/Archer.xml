@@ -1,4 +1,4 @@
-<Sprite name="Archer">
+<Sprite name="Archer" originX="0.5" originY="0.6875">
     <Sequences>
         <Sequence name="east"  indicies="0:*" />
         <Sequence name="southeast"  indicies="1:*" />

@@ -14,9 +14,10 @@
     </Systems>
 
     <SceneConfiguration width="800" height="600">
-        <SceneLayer name="background" z="-1"	space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
-		<SceneLayer name="default" z="0"		space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="background" z="-2"	space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
+		<SceneLayer name="default" z="-1"		space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
 		<SceneLayer name="tile" z="0"			space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
+		<SceneLayer name="selection" z="1"		space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
 		<SceneLayer name="entity" z="2"			space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
 		<SceneLayer name="light" z="4"			space="World"	layerBlend="Additive"	compositeBlend="Normal"   isComposited="false" /> 
 		<SceneLayer name="shadow" z="5"			space="World"	layerBlend="Normal"		compositeBlend="Multiply" isComposited="true" ambient="#000000"/>
@@ -59,9 +60,9 @@
         <!-- PLAYER UNIT -->
         <Entity>
             <NameComponent name="Archer" />
-            <PositionComponent x="100" y="100" />
+            <PositionComponent x="96" y="112" />
 
-			<MovementComponent state="Idle" goalX="100" goalY="100" />
+			<MovementComponent state="Idle" goalX="96" goalY="112" />
             <KinematicsComponent maxSpeed="150" friction="5" />
 
             <SpriteComponent
@@ -83,9 +84,9 @@
 
 		<Entity>
 			<NameComponent name="Knight" />
-			<PositionComponent x="0" y="100" />
+			<PositionComponent x="0" y="96" />
 
-			<MovementComponent state="Idle" goalX="0" goalY="100" />
+			<MovementComponent state="Idle" goalX="0" goalY="96" />
 			<KinematicsComponent maxSpeed="150" friction="5" />
 
 			<SpriteComponent

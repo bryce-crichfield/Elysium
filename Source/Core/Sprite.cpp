@@ -52,7 +52,9 @@ Sprite Sprite::LoadFromXml(const std::string& filepath) {
     }
 
     Sprite sprite;
-    sprite.name = spriteElem->Attribute("name") ? spriteElem->Attribute("name") : "";
+    sprite.name    = spriteElem->Attribute("name") ? spriteElem->Attribute("name") : "";
+    sprite.originX = spriteElem->FloatAttribute("originX", 0.5f);
+    sprite.originY = spriteElem->FloatAttribute("originY", 0.5f);
 
     // Parse shared sequences (store name -> indices string pairs)
     std::vector<std::pair<std::string, std::string>> sharedSequences;
