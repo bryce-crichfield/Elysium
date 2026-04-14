@@ -10,7 +10,6 @@
 #include "Components/PositionComponent.h"
 #include "Components/BoundsComponent.h"
 #include "Components/KinematicsComponent.h"
-#include "Components/FollowComponent.h"
 namespace Elysium::Systems {
 
 static constexpr int   STUCK_CHECK_INTERVAL_MS = 1000;
@@ -154,22 +153,7 @@ void MovementSystem::Update(float deltaTime) {
         }
     );
 
-    world->Query<PositionComponent, FollowComponent>(
-        [&](Entity e, auto& pos, auto& follow) {
-            Entity targetEntity;
-            if (!world->GetEntityByName(follow.targetEntityName, &targetEntity)) {
-                return;
-            }
-
-            if (!world->HasComponent<PositionComponent>(targetEntity)) {
-                return;
-            }
-
-            auto& targetPos = world->GetComponent<PositionComponent>(targetEntity);
-            pos.x = MathLerp(pos.x, targetPos.x, follow.speed * deltaTime);
-            pos.y = MathLerp(pos.y, targetPos.y, follow.speed * deltaTime);
-        }
-    );
+    // Follow behaviour is handled by FollowSystem (uses ParentComponent as target).
 }
 }  // namespace Elysium::Systems
 

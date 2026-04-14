@@ -86,6 +86,11 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
             });
         });
 
+        // Create a container entity for all tiles
+        Entity tilemapParent = world->CreateEntity();
+        world->AddComponent<NameComponent>(tilemapParent, NameComponent("Tilemap"));
+        world->AddComponent<PositionComponent>(tilemapParent, PositionComponent(0, 0));
+
         for (size_t i = 0; i < tilemask.size(); i++) {
             int id = tilemask[i];
             int tileX = i % tilemapWidth;
@@ -98,6 +103,11 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
             world->AddComponent<RectangleComponent>(entity, tileDefinitions[id].rect);
             world->AddComponent<LayerComponent>(entity, LayerComponent(tileDefinitions[id].layerName));
             world->AddComponent<TileComponent>(entity, TileComponent(tileWidth, tileHeight, isIsometric));
+            ParentComponent parentComp;
+            parentComp.parent = tilemapParent;
+            parentComp.targetName = "Tilemap";
+            world->AddComponent<ParentComponent>(entity, parentComp);
+            world->AddChild(tilemapParent, entity);
         }
     });
 }
@@ -118,17 +128,18 @@ const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
     
     // Register custom overrides
     componentLoaders["CameraComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        // Use default loader first
         CameraComponent cam{};
         CameraComponent::LoadXml(cam, xmlComponent);
         world->AddComponent(entity, cam);
 
-        // Custom logic: Add FollowComponent if target is specified
+        // If a follow target is specified, add FollowComponent + ParentComponent so
+        // FollowSystem will move the camera toward that target.
         std::string target = xmlComponent->Attribute("target") ? xmlComponent->Attribute("target") : "";
         if (!target.empty()) {
-            FollowComponent followComp;
-            followComp.targetEntityName = target;
-            world->AddComponent(entity, FollowComponent{1.0f, target});
+            world->AddComponent(entity, FollowComponent{});  // speed=0 → instant by default
+            ParentComponent parentComp;
+            parentComp.targetName = target;
+            world->AddComponent(entity, parentComp);
         }
     };
 

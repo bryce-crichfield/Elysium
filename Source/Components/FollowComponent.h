@@ -1,12 +1,11 @@
 #pragma once
 #include "Core/Component.h"
-#include "raylib.h"
-#include <string>
 
 namespace Elysium {
     struct FollowComponent {
-        float speed = 1.0f;
-        std::string targetEntityName;
+        float speed = 0.0f;   // <=0 means instant snap to parent; >0 is lerp factor
+        float offsetX = 0.0f;
+        float offsetY = 0.0f;
 
         static constexpr const char* Name() { return "Follow"; }
         static constexpr const char* XmlTag() { return "FollowComponent"; }

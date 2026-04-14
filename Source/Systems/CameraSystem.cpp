@@ -129,35 +129,15 @@ void CameraSystem::Update(float deltaTime) {
                  pos.y -= dragDelta.y * zoomFactor;
              }
 
+             // Break follow when the user pans manually
              if (world->HasComponent<FollowComponent>(entity)) {
                  world->RemoveComponent<FollowComponent>(entity);
              }
          });
-    } else {
-        world->Query<PositionComponent, CameraComponent, FollowComponent>([&](Entity entity, auto& positionComp, auto& cameraComp, auto& followComp) {
-            Entity targetEntity;
-            if (world->GetEntityByName(followComp.targetEntityName, &targetEntity)) {
-                if (world->HasComponent<PositionComponent>(targetEntity)) {
-                    auto& targetPos = world->GetComponent<PositionComponent>(targetEntity);
-
-                    Vector2 targetCameraPos = {targetPos.x, targetPos.y};
-                    Vector2 currentCameraPos = {positionComp.x, positionComp.y};
-                    Vector2 newCameraPos = LerpVector2(currentCameraPos, targetCameraPos, followComp.speed * deltaTime);
-
-                    positionComp.x = newCameraPos.x;
-                    positionComp.y = newCameraPos.y;
-                }
-            }
-        });
     }
+    // Follow is handled by FollowSystem for entities with FollowComponent + ParentComponent
 }
 
-Vector2 CameraSystem::LerpVector2(Vector2 start, Vector2 end, float t) {
-    t = (t < 0.0f) ? 0.0f : (t > 1.0f) ? 1.0f : t;
-    return {
-        start.x + (end.x - start.x) * t,
-        start.y + (end.y - start.y) * t};
-}
 
 }  // namespace Elysium::Systems
 

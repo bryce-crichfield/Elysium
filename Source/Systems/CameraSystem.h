@@ -24,8 +24,6 @@ public:
     void OnKeyReleased(KeyReleasedEvent& event) override;
 
 private:
-    Vector2 LerpVector2(Vector2 start, Vector2 end, float t);
-
     Vector2 mousePosition_{0.0f, 0.0f};
     Vector2 mouseDelta_{0.0f, 0.0f};
     bool isDragging_ = false;

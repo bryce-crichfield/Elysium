@@ -13,6 +13,7 @@
 #include "Core/Xml.h"
 #include "Components/CameraComponent.h"
 #include "Components/FollowComponent.h"
+#include "Components/ParentComponent.h"
 #include "Components/LayerComponent.h"
 #include "Components/PositionComponent.h"
 #include "Components/RectangleComponent.h"
@@ -184,12 +185,14 @@ void SaveEntities(XMLBuilder& builder, World* world) {
             saver(entityBuilder, world, entity);
         }
 
-        // CameraComponent special case: needs FollowComponent access
+        // CameraComponent special case: save follow target from ParentComponent
         if (world->HasComponent<CameraComponent>(entity)) {
             auto cameraBuilder = entityBuilder.AddElement("CameraComponent");
-            if (world->HasComponent<FollowComponent>(entity)) {
-                auto& follow = world->GetComponent<FollowComponent>(entity);
-                cameraBuilder.SetAttribute("target", follow.targetEntityName.c_str());
+            if (world->HasComponent<ParentComponent>(entity)) {
+                auto& parentComp = world->GetComponent<ParentComponent>(entity);
+                if (!parentComp.targetName.empty()) {
+                    cameraBuilder.SetAttribute("target", parentComp.targetName.c_str());
+                }
             }
         }
     }
