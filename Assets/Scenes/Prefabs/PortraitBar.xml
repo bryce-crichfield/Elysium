@@ -1,0 +1,34 @@
+<Entities>
+    <!-- Portrait bar: one slot per selected unit, shown along the bottom of the screen.
+         Positions/textures are managed by ExploreScene.lua at runtime. -->
+    <Entity>
+        <LayerComponent name="ui" />
+        <NameComponent name="PORTRAIT_0" />
+        <PositionComponent x="10" y="400" />
+        <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
+    </Entity>
+    <Entity>
+        <LayerComponent name="ui" />
+        <NameComponent name="PORTRAIT_1" />
+        <PositionComponent x="82" y="400" />
+        <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
+    </Entity>
+    <Entity>
+        <LayerComponent name="ui" />
+        <NameComponent name="PORTRAIT_2" />
+        <PositionComponent x="154" y="400" />
+        <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
+    </Entity>
+    <Entity>
+        <LayerComponent name="ui" />
+        <NameComponent name="PORTRAIT_3" />
+        <PositionComponent x="226" y="400" />
+        <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
+    </Entity>
+    <Entity>
+        <LayerComponent name="ui" />
+        <NameComponent name="PORTRAIT_4" />
+        <PositionComponent x="298" y="400" />
+        <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
+    </Entity>
+</Entities>

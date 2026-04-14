@@ -150,7 +150,9 @@ void LoadEntities(XMLElement* root, World* world) {
     // Load entities
     LOG_INFO("Scene", "Starting entity loading");
 
-    VisitElement(root, "Entities", [&](XMLElement* entities) {
+    // ForEachElement handles multiple <Entities> blocks — the original inline block
+    // plus any injected by <Include> tags (each prefab file has <Entities> as its root).
+    ForEachElement(root, "Entities", [&](XMLElement* entities) {
         LOG_DEBUG("Scene", "Processing Entities section");
         ForEachElement(entities, "Entity", [&](XMLElement* xmlEntity) {
             // Create the entity

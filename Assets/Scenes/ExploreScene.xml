@@ -9,51 +9,31 @@
         <System type="PhysicsResponseSystem" />
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
-        <!-- <System type="CameraSystem" /> -->
-		<System type="FollowSystem" />
+        <System type="FollowSystem" />
         <System type="UiSystem" />
         <System type="RenderSystem" />
     </Systems>
 
     <SceneConfiguration width="800" height="600">
-        <SceneLayer name="background" z="-2"	space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
-		<SceneLayer name="default" z="-1"		space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
-		<SceneLayer name="tile" z="0"			space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
-		<SceneLayer name="selection" z="1"		space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
-		<SceneLayer name="entity" z="2"			space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
-		<SceneLayer name="light" z="4"			space="World"	layerBlend="Additive"	compositeBlend="Normal"   isComposited="false" /> 
-		<SceneLayer name="shadow" z="5"			space="World"	layerBlend="Normal"		compositeBlend="Multiply" isComposited="true" ambient="#000000"/>
-        <SceneLayer name="ui" z="10"			space="Screen"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="background" z="-2" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="default"    z="-1" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="tile"       z="0"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="selection"  z="1"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="entity"     z="2"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="light"      z="4"  space="World"  layerBlend="Additive" compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="shadow"     z="5"  space="World"  layerBlend="Normal"   compositeBlend="Multiply" isComposited="true"  ambient="#000000" />
+        <SceneLayer name="ui"         z="10" space="Screen" layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
     </SceneConfiguration>
 
-    <Tilemap width="16" height="16" isIsometric="true" tileWidth="64" tileHeight="32">
-        <Tilemask>
-			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
-			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
-			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
-			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
-			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
-			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
-			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
-			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-			0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
-			1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
-		</Tilemask>
+    <Include src="Prefabs/Tilemap.xml" />
+    <Include src="Prefabs/Archer.xml" name="Archer"  x="200"  y="100" />
+    <Include src="Prefabs/Archer.xml" name="Archer2" x="-150" y="200" />
+    <Include src="Prefabs/Archer.xml" name="Archer3" x="150"  y="300" />
+    <Include src="Prefabs/Knight.xml" name="Knight"  x="-100"   y="150"  />
+    <Include src="Prefabs/Knight.xml" name="Knight2" x="250"  y="250"  />
+    <Include src="Prefabs/PortraitBar.xml" />
 
-        <TileDefinitions>
-            <TileDefinition id="0" background="#212121" border="#515151" layerName="tile" />
-			<TileDefinition id="1" background="#a0a0a0" boreder="#515151" layerName="tile" />
-        </TileDefinitions>
-    </Tilemap>
-
-
-    <Entities >
+    <Entities>
         <Entity>
             <NameComponent name="CAMERA" />
             <PositionComponent />
@@ -61,138 +41,29 @@
         </Entity>
 
         <Entity>
-            <NameComponent name="Archer" />
-            <PositionComponent x="96" y="112" />
-            <MovementComponent state="Idle" goalX="96" goalY="112" />
-            <KinematicsComponent maxSpeed="150" friction="5" />
-            <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south"/>
-            <ColliderComponent width="32" height="32" />
-            <HealthComponent max="100" />
-            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
-            <LayerComponent name="entity" />
+            <NameComponent name="UI_ROOT" />
+            <PositionComponent x="32" y="32" />
+            <UiComponent containerType="Vertical" gap="15" />
         </Entity>
-
         <Entity>
-            <ParentComponent target="Archer" />
-            <FollowComponent followSpeed="0" />
-            <PositionComponent />
-            <LayerComponent name="shadow" />
-            <LightComponent color="#ffffffff" radius="500" intensity="0.0" />
-        </Entity>
-
-        <Entity>
-            <NameComponent name="Knight" />
-            <PositionComponent x="0" y="96" />
-            <MovementComponent state="Idle" goalX="0" goalY="96" />
-            <KinematicsComponent maxSpeed="150" friction="5" />
-            <SpriteComponent spriteName="Sprites/Knight/Knight.xml" sheetName="Idle" sequenceName="south"/>
-            <ColliderComponent width="32" height="32" />
-            <HealthComponent max="100" />
-            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
-            <LayerComponent name="entity" />
-        </Entity>
-
-        <Entity>
-            <ParentComponent target="Knight" />
-            <FollowComponent followSpeed="0" />
-            <PositionComponent />
-            <LayerComponent name="shadow" />
-            <LightComponent color="#ffffffff" radius="500" intensity="0.0" />
-        </Entity>
-
-        <Entity>
-            <NameComponent name="Archer2" />
-            <PositionComponent x="-64" y="144" />
-            <MovementComponent state="Idle" goalX="-64" goalY="144" />
-            <KinematicsComponent maxSpeed="150" friction="5" />
-            <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south"/>
-            <ColliderComponent width="32" height="32" />
-            <HealthComponent max="100" />
-            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
-            <LayerComponent name="entity" />
-        </Entity>
-
-        <Entity>
-            <NameComponent name="Knight2" />
-            <PositionComponent x="64" y="80" />
-            <MovementComponent state="Idle" goalX="64" goalY="80" />
-            <KinematicsComponent maxSpeed="150" friction="5" />
-            <SpriteComponent spriteName="Sprites/Knight/Knight.xml" sheetName="Idle" sequenceName="south"/>
-            <ColliderComponent width="32" height="32" />
-            <HealthComponent max="100" />
-            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
-            <LayerComponent name="entity" />
-        </Entity>
-
-        <Entity>
-            <NameComponent name="Archer3" />
-            <PositionComponent x="32" y="160" />
-            <MovementComponent state="Idle" goalX="32" goalY="160" />
-            <KinematicsComponent maxSpeed="150" friction="5" />
-            <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south"/>
-            <ColliderComponent width="32" height="32" />
-            <HealthComponent max="100" />
-            <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
-            <LayerComponent name="entity" />
-        </Entity>
-
-        <Entity name="UI_ROOT">
-            <NameComponent name="UI_ROOT"/>
-            <PositionComponent x="32" y="32"/>
-            <UiComponent containerType="Vertical" gap="15"/>
-        </Entity>
-        <Entity name="MENU_BUTTON">
-            <LayerComponent name="ui"/>
-            <NameComponent name="MENU_BUTTON"/>
-            <ParentComponent target="UI_ROOT"/>
-            <PositionComponent x="0" y="0"/>
-            <RectangleComponent width="164" height="32" background="#202020FF" border="#FFFFFFFF"/>
-            <TextComponent text="Back to Menu" fontSize="20" r="255" g="255" b="255" a="255"/>\
+            <LayerComponent name="ui" />
+            <NameComponent name="MENU_BUTTON" />
+            <ParentComponent target="UI_ROOT" />
+            <PositionComponent x="0" y="0" />
+            <RectangleComponent width="164" height="32" background="#202020FF" border="#FFFFFFFF" />
+            <TextComponent text="Back to Menu" fontSize="20" r="255" g="255" b="255" a="255" />
             <UiComponent />
             <ScriptComponent scriptName="Scripts/MenuButton.lua" />
         </Entity>
-        <Entity name="MENU_BUTTON2">
-            <LayerComponent name="ui"/>
-            <NameComponent name="MENU_BUTTON2"/>
-            <ParentComponent target="UI_ROOT"/>
-            <PositionComponent x="0" y="0"/>
-            <RectangleComponent width="164" height="32" background="#202020FF" border="#FFFFFFFF"/>
-            <TextComponent text="Back to Menu" fontSize="20" r="255" g="255" b="255" a="255"/>
+        <Entity>
+            <LayerComponent name="ui" />
+            <NameComponent name="MENU_BUTTON2" />
+            <ParentComponent target="UI_ROOT" />
+            <PositionComponent x="0" y="0" />
+            <RectangleComponent width="164" height="32" background="#202020FF" border="#FFFFFFFF" />
+            <TextComponent text="Back to Menu" fontSize="20" r="255" g="255" b="255" a="255" />
             <UiComponent />
             <ScriptComponent scriptName="Scripts/MenuButton.lua" />
-        </Entity>
-
-        <!-- Portrait bar: one slot per selected unit, shown along the bottom of the screen.
-             Positions/textures are managed by ExploreScene.lua at runtime. -->
-        <Entity name="PORTRAIT_0">
-            <LayerComponent name="ui"/>
-            <NameComponent name="PORTRAIT_0"/>
-            <PositionComponent x="10" y="400"/>
-            <RectangleComponent width="64" height="64" background="#00000000" border="#00000000"/>
-        </Entity>
-        <Entity name="PORTRAIT_1">
-            <LayerComponent name="ui"/>
-            <NameComponent name="PORTRAIT_1"/>
-            <PositionComponent x="82" y="400"/>
-            <RectangleComponent width="64" height="64" background="#00000000" border="#00000000"/>
-        </Entity>
-        <Entity name="PORTRAIT_2">
-            <LayerComponent name="ui"/>
-            <NameComponent name="PORTRAIT_2"/>
-            <PositionComponent x="154" y="400"/>
-            <RectangleComponent width="64" height="64" background="#00000000" border="#00000000"/>
-        </Entity>
-        <Entity name="PORTRAIT_3">
-            <LayerComponent name="ui"/>
-            <NameComponent name="PORTRAIT_3"/>
-            <PositionComponent x="226" y="400"/>
-            <RectangleComponent width="64" height="64" background="#00000000" border="#00000000"/>
-        </Entity>
-        <Entity name="PORTRAIT_4">
-            <LayerComponent name="ui"/>
-            <NameComponent name="PORTRAIT_4"/>
-            <PositionComponent x="298" y="400"/>
-            <RectangleComponent width="64" height="64" background="#00000000" border="#00000000"/>
         </Entity>
     </Entities>
 </Scene>

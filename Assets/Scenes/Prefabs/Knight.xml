@@ -1,0 +1,20 @@
+<Entities>
+    <Entity>
+        <NameComponent name="$name" />
+        <PositionComponent x="$x" y="$y" />
+        <MovementComponent state="Idle" goalX="$x" goalY="$y" />
+        <KinematicsComponent maxSpeed="150" friction="5" />
+        <SpriteComponent spriteName="Sprites/Knight/Knight.xml" sheetName="Idle" sequenceName="south" />
+        <ColliderComponent width="32" height="32" />
+        <HealthComponent max="100" />
+        <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
+        <LayerComponent name="entity" />
+    </Entity>
+    <Entity>
+        <ParentComponent target="$name" />
+        <FollowComponent followSpeed="0" />
+        <PositionComponent />
+        <LayerComponent name="shadow" />
+        <LightComponent color="#ffffffff" radius="500" intensity="0.0" />
+    </Entity>
+</Entities>
