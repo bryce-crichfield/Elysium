@@ -338,6 +338,14 @@ void WorldEditor::DrawEntityContextMenu(EditorService& service, Entity entity) {
             ImGui::CloseCurrentPopup();
         }
 
+        Entity parent = world->GetParent(entity);
+        if (parent != INVALID_ENTITY) {
+            if (ImGui::MenuItem("Detach from Parent")) {
+                world->RemoveChild(parent, entity);
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
         if (ImGui::MenuItem("Delete")) {
             world->DestroyEntity(entity);
             if (selectedEntity == entity)
@@ -349,11 +357,69 @@ void WorldEditor::DrawEntityContextMenu(EditorService& service, Entity entity) {
     }
 }
 
+void WorldEditor::DrawInsertionZone(EditorService& service, Entity parent, Entity beforeSibling) {
+    auto* world = service.GetWorld();
+
+    // Two-level PushID gives each zone a unique scope without string allocation.
+    ImGui::PushID((int)parent);
+    ImGui::PushID(beforeSibling == INVALID_ENTITY ? -1 : (int)beforeSibling);
+
+    float zoneH = 4.0f;
+    ImVec2 origin = ImGui::GetCursorScreenPos();
+    float zoneW = ImGui::GetContentRegionAvail().x;
+
+    ImGui::InvisibleButton("##zone", ImVec2(zoneW > 0 ? zoneW : 1.0f, zoneH));
+
+    if (ImGui::BeginDragDropTarget()) {
+        // Visual insertion line while hovering.
+        ImGui::GetWindowDrawList()->AddLine(
+            ImVec2(origin.x, origin.y + zoneH * 0.5f),
+            ImVec2(origin.x + zoneW, origin.y + zoneH * 0.5f),
+            IM_COL32(100, 200, 255, 220), 2.0f);
+
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DRAG")) {
+            Entity dragged = *(const Entity*)payload->Data;
+
+            // Prevent dropping an entity onto itself or creating a hierarchy cycle.
+            bool isSelf    = (dragged == parent);
+            bool wouldLoop = (parent != INVALID_ENTITY) && world->IsAncestorOf(dragged, parent);
+
+            if (!isSelf && !wouldLoop) {
+                // Detach from current parent if it has one.
+                Entity oldParent = world->GetParent(dragged);
+                if (oldParent != INVALID_ENTITY)
+                    world->RemoveChild(oldParent, dragged);
+
+                if (parent == INVALID_ENTITY) {
+                    // Root-level drop: entity is already detached above; just reorder.
+                    if (beforeSibling != INVALID_ENTITY)
+                        world->MoveEntityBefore(dragged, beforeSibling);
+                    // beforeSibling == INVALID_ENTITY means "end of list" — no reorder needed.
+                } else if (beforeSibling == INVALID_ENTITY) {
+                    // Append as last child of parent.
+                    world->AddChild(parent, dragged);
+                    // livingEntities order: move dragged after parent so it draws on top.
+                    world->MoveEntityAfter(dragged, parent);
+                } else {
+                    // Insert as sibling immediately before beforeSibling.
+                    world->InsertChildBefore(parent, dragged, beforeSibling);
+                    world->MoveEntityBefore(dragged, beforeSibling);
+                }
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    ImGui::PopID();
+    ImGui::PopID();
+}
+
 void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
     auto* world = service.GetWorld();
     Entity selectedEntity = service.GetSelectedEntity();
 
-    const auto& children = world->GetChildren(entity);
+    // Copy children now — insertion zones can mutate childrenMap_ mid-frame.
+    std::vector<Entity> children(world->GetChildren(entity));
     bool hasChildren = !children.empty();
 
     std::string label = world->GetEntityName(entity);
@@ -368,17 +434,45 @@ void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
     if (entity == selectedEntity)
         flags |= ImGuiTreeNodeFlags_Selected;
 
-    // Use the entity ID as the stable tree node id
     bool open = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "%s  [%zu]", label.c_str(), entity);
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
         service.SetSelectedEntity(entity);
 
+    // Drag source: let this node be dragged.
+    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+        ImGui::SetDragDropPayload("ENTITY_DRAG", &entity, sizeof(Entity));
+        ImGui::Text("Move: %s", label.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // Drop target on the node itself: make dragged entity a child of this one.
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DRAG")) {
+            Entity dragged = *(const Entity*)payload->Data;
+            if (dragged != entity
+                && world->GetParent(dragged) != entity
+                && !world->IsAncestorOf(dragged, entity))
+            {
+                Entity oldParent = world->GetParent(dragged);
+                if (oldParent != INVALID_ENTITY)
+                    world->RemoveChild(oldParent, dragged);
+                world->AddChild(entity, dragged);
+                // Draw dragged after this entity so parent renders before child.
+                world->MoveEntityAfter(dragged, entity);
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     DrawEntityContextMenu(service, entity);
 
     if (hasChildren && open) {
-        for (Entity child : children)
+        for (Entity child : children) {
+            DrawInsertionZone(service, entity, child);
             DrawHierarchyNode(service, child);
+        }
+        DrawInsertionZone(service, entity, INVALID_ENTITY);
         ImGui::TreePop();
     }
 }
@@ -386,18 +480,25 @@ void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
 void WorldEditor::DrawHierarchyTree(EditorService& service) {
     auto* world = service.GetWorld();
 
+    // Build a snapshot of root entities so insertion-zone drops don't invalidate iteration.
+    std::vector<Entity> roots;
     for (Entity entity : world->GetLivingEntities()) {
-        // Only draw root entities here; children are drawn recursively
         if (world->GetParent(entity) != INVALID_ENTITY)
             continue;
-
         if (!filteredEntities_.empty()) {
             if (std::find(filteredEntities_.begin(), filteredEntities_.end(), entity) == filteredEntities_.end())
                 continue;
         }
-
-        DrawHierarchyNode(service, entity);
+        roots.push_back(entity);
     }
+
+    for (Entity root : roots) {
+        // Insertion zone before each root: drop here to reorder at root level or unparent.
+        DrawInsertionZone(service, INVALID_ENTITY, root);
+        DrawHierarchyNode(service, root);
+    }
+    // Zone after the last root.
+    DrawInsertionZone(service, INVALID_ENTITY, INVALID_ENTITY);
 
     // Right-click on empty space to create entity
     if (ImGui::BeginPopupContextWindow("HierarchyContextMenu",

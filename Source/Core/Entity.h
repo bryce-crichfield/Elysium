@@ -120,6 +120,8 @@ class EntityManager {
     ComponentMask GetComponentMask(Entity entity);
     size_t GetLivingEntityCount() const;
     const std::vector<Entity>& GetLivingEntities() const;
+    void MoveEntityBefore(Entity toMove, Entity target);
+    void MoveEntityAfter(Entity toMove, Entity target);
 };
 
 class World {
@@ -180,8 +182,17 @@ class World {
     // (ParentComponent on child, childrenMap_ entry on parent).
     void AddChild(Entity parent, Entity child);
     void RemoveChild(Entity parent, Entity child);
+    // InsertChildBefore inserts child as a sibling immediately before beforeSibling
+    // under parent, rather than appending to the end.
+    void InsertChildBefore(Entity parent, Entity child, Entity beforeSibling);
     const std::vector<Entity>& GetChildren(Entity parent) const;
     Entity GetParent(Entity child) const;
+    // Returns true if ancestor is in the parent-chain of entity.
+    // Used to prevent cycles when reparenting.
+    bool IsAncestorOf(Entity ancestor, Entity entity) const;
+    // Reorder entity in livingEntities relative to a target.
+    void MoveEntityBefore(Entity toMove, Entity target);
+    void MoveEntityAfter(Entity toMove, Entity target);
 };
 
 // TypedComponentArray implementations

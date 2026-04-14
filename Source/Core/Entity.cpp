@@ -48,10 +48,43 @@ void EntityManager::DestroyEntity(Entity entity) {
     availableEntities.push(entity);
     auto it = std::find(livingEntities.begin(), livingEntities.end(), entity);
     if (it != livingEntities.end()) {
-        std::swap(*it, livingEntities.back());
-        livingEntities.pop_back();
+        // Stable erase preserves relative order of all other entities, which
+        // matters because RenderSystem draws in livingEntities order.
+        livingEntities.erase(it);
         --livingEntityCount;
     }
+}
+
+void EntityManager::MoveEntityBefore(Entity toMove, Entity target) {
+    auto srcIt = std::find(livingEntities.begin(), livingEntities.end(), toMove);
+    if (srcIt == livingEntities.end()) return;
+
+    Entity val = *srcIt;
+    livingEntities.erase(srcIt);
+
+    // Re-find target after erase (iterator invalidated by erase)
+    auto tgtIt = std::find(livingEntities.begin(), livingEntities.end(), target);
+    if (tgtIt == livingEntities.end()) {
+        livingEntities.push_back(val);  // target gone; fall back to end
+        return;
+    }
+    livingEntities.insert(tgtIt, val);
+}
+
+void EntityManager::MoveEntityAfter(Entity toMove, Entity target) {
+    auto srcIt = std::find(livingEntities.begin(), livingEntities.end(), toMove);
+    if (srcIt == livingEntities.end()) return;
+
+    Entity val = *srcIt;
+    livingEntities.erase(srcIt);
+
+    // Re-find target after erase
+    auto tgtIt = std::find(livingEntities.begin(), livingEntities.end(), target);
+    if (tgtIt == livingEntities.end()) {
+        livingEntities.push_back(val);
+        return;
+    }
+    livingEntities.insert(tgtIt + 1, val);
 }
 
 void EntityManager::SetComponentMask(Entity entity, ComponentMask mask) {
@@ -197,6 +230,40 @@ void World::RemoveChild(Entity parent, Entity child) {
         auto& pc = GetComponent<ParentComponent>(child);
         pc.parent = INVALID_ENTITY;
     }
+}
+
+void World::InsertChildBefore(Entity parent, Entity child, Entity beforeSibling) {
+    auto& children = childrenMap_[parent];
+    auto it = std::find(children.begin(), children.end(), beforeSibling);
+    if (it != children.end()) {
+        children.insert(it, child);
+    } else {
+        children.push_back(child);
+    }
+
+    if (!HasComponent<ParentComponent>(child))
+        AddComponent<ParentComponent>(child, ParentComponent{});
+    auto& pc = GetComponent<ParentComponent>(child);
+    pc.parent = parent;
+    if (pc.targetName.empty())
+        pc.targetName = GetEntityName(parent);
+}
+
+bool World::IsAncestorOf(Entity ancestor, Entity entity) const {
+    Entity current = GetParent(entity);
+    while (current != INVALID_ENTITY) {
+        if (current == ancestor) return true;
+        current = GetParent(current);
+    }
+    return false;
+}
+
+void World::MoveEntityBefore(Entity toMove, Entity target) {
+    entityManager->MoveEntityBefore(toMove, target);
+}
+
+void World::MoveEntityAfter(Entity toMove, Entity target) {
+    entityManager->MoveEntityAfter(toMove, target);
 }
 
 static const std::vector<Entity> s_emptyChildren;
