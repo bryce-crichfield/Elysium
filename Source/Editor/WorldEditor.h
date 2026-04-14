@@ -25,6 +25,9 @@ class WorldEditor : public Editor {
    private:
     void DrawEntityToolbar(Services::EditorService& service);
     void DrawEntityList(Services::EditorService& service);
+    void DrawHierarchyTree(Services::EditorService& service);
+    void DrawHierarchyNode(Services::EditorService& service, Entity entity);
+    void DrawEntityContextMenu(Services::EditorService& service, Entity entity);
     void DrawInspectorToolbar(Services::EditorService& service);
     void DrawInspectorPanel(Services::EditorService& service);
     void DrawComponentPanel(Services::EditorService& service, size_t placeholderIndex);
@@ -32,6 +35,7 @@ class WorldEditor : public Editor {
     // Panel state
     float leftPanelWidth_ = 240.0f;
     bool isDraggingSplitter_ = false;
+    bool showHierarchyView_ = false;
 
     std::string filterScriptBuffer_;
     std::vector<Entity> filteredEntities_;

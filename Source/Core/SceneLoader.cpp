@@ -168,6 +168,21 @@ void LoadEntities(XMLElement* root, World* world) {
     });
 }
 
+// After all entities are spawned, walk every ParentComponent.targetName,
+// resolve it to an Entity ID, and populate the World's hierarchy adjacency.
+void ResolveHierarchy(World* world) {
+    world->Query<ParentComponent>([&](Entity child, ParentComponent& pc) {
+        if (pc.targetName.empty()) return;
+        Entity parent = INVALID_ENTITY;
+        if (world->GetEntityByName(pc.targetName, &parent)) {
+            world->AddChild(parent, child);
+        } else {
+            LOG_WARNINGF("Scene", "Hierarchy: could not resolve parent name '%s' for entity %zu",
+                         pc.targetName.c_str(), child);
+        }
+    });
+}
+
 void LoadSystems(XMLElement* root, Scene& scene) {
     VisitElement(root, "Systems", [&](XMLElement* systemsElement) {
         ForEachElement(systemsElement, "System", [&](XMLElement* xmlSystem) {
@@ -213,6 +228,7 @@ bool LoadScene(Scene& scene, const std::string& path) {
     LoadLayers(root, scene);
     LoadTilemap(root, world_, tileWidth, tileHeight, isIsometric);
     LoadEntities(root, world_);
+    ResolveHierarchy(world_);
     LoadSystems(root, scene);
 
     // Wire tilemap dimensions into SpatialSystem now that it exists.

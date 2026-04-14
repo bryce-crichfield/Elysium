@@ -21,3 +21,5 @@
 #include "Components/TileComponent.h"
 #include "Components/SelectionComponent.h"
 #include "Components/CameraComponent.h"
+#include "Components/ParentComponent.h"
+#include "Components/UiComponent.h"

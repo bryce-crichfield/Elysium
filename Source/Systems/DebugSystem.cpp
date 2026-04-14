@@ -64,40 +64,62 @@ void DebugSystem::Update(float deltaTime) {
             scaleY = scale.y;
         }
 
+        // Resolve this entity's layer space once, used by per-component AABB logic below.
+        bool isScreen2D = false;
+        if (scene) {
+            std::string layerName = "default";
+            if (world->HasComponent<LayerComponent>(entity))
+                layerName = world->GetComponent<LayerComponent>(entity).name;
+            SceneLayer* layer = scene->GetLayer(layerName);
+            isScreen2D = layer && layer->space == SceneLayerSpace::Screen2D;
+        }
+
         for (const auto& item : debuggables) {
             std::visit([&](const auto& component) {
                 using T = std::decay_t<decltype(component)>;
-                
-                float halfW = 0.0f;
-                float halfH = 0.0f;
 
                 if constexpr (std::is_same_v<T, RectangleComponent>) {
-                    halfW = component.width * 0.5f;
-                    halfH = component.height * 0.5f;
+                    if (isScreen2D) {
+                        // Screen2D: position is top-left corner, extend to bottom-right.
+                        min.x = std::min(min.x, pos.x);
+                        min.y = std::min(min.y, pos.y);
+                        max.x = std::max(max.x, pos.x + component.width);
+                        max.y = std::max(max.y, pos.y + component.height);
+                        foundAny = true;
+                        return;
+                    }
+                    // World2D: position is center.
+                    float hw = component.width  * 0.5f;
+                    float hh = component.height * 0.5f;
+                    min.x = std::min(min.x, pos.x - hw); min.y = std::min(min.y, pos.y - hh);
+                    max.x = std::max(max.x, pos.x + hw); max.y = std::max(max.y, pos.y + hh);
+                    foundAny = true;
                 } else if constexpr (std::is_same_v<T, CircleComponent>) {
-                    halfW = component.radius;
-                    halfH = component.radius;
+                    float r = component.radius;
+                    min.x = std::min(min.x, pos.x - r); min.y = std::min(min.y, pos.y - r);
+                    max.x = std::max(max.x, pos.x + r); max.y = std::max(max.y, pos.y + r);
+                    foundAny = true;
                 } else if constexpr (std::is_same_v<T, TextComponent>) {
+                    // In Screen2D, if the entity has a rect the text is centered within it —
+                    // the rect AABB already covers it, so skip the separate text contribution.
+                    if (isScreen2D && world->HasComponent<RectangleComponent>(entity))
+                        return;
                     float avgScale = (scaleX + scaleY) * 0.5f;
                     int scaledFontSize = (int)(component.fontSize * avgScale);
                     int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
-                    halfW = textWidth * 0.5f;
-                    halfH = scaledFontSize * 0.5f;
+                    float hw = textWidth * 0.5f;
+                    float hh = scaledFontSize * 0.5f;
+                    min.x = std::min(min.x, pos.x - hw); min.y = std::min(min.y, pos.y - hh);
+                    max.x = std::max(max.x, pos.x + hw); max.y = std::max(max.y, pos.y + hh);
+                    foundAny = true;
                 } else if constexpr (std::is_same_v<T, SpriteComponent>) {
                     // TODO: Reimplement sprite size calculation
                 } else if constexpr (std::is_same_v<T, LightComponent>) {
-                    halfW = component.radius;
-                    halfH = component.radius;
-                }
-
-                if (halfW > 0 || halfH > 0) {
-                    min.x = std::min(min.x, pos.x - halfW);
-                    min.y = std::min(min.y, pos.y - halfH);
-                    max.x = std::max(max.x, pos.x + halfW);
-                    max.y = std::max(max.y, pos.y + halfH);
+                    float r = component.radius;
+                    min.x = std::min(min.x, pos.x - r); min.y = std::min(min.y, pos.y - r);
+                    max.x = std::max(max.x, pos.x + r); max.y = std::max(max.y, pos.y + r);
                     foundAny = true;
                 }
-
             }, item);
         }
 

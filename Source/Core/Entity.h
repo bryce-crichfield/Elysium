@@ -127,6 +127,9 @@ class World {
     std::unique_ptr<ComponentManager> componentManager;
     std::unique_ptr<EntityManager> entityManager;
     std::vector<IWorldListener*> worldListeners_;
+    // Hierarchy adjacency: parent → ordered list of children.
+    // Rebuilt from ParentComponent data at load time; never persisted directly.
+    std::unordered_map<Entity, std::vector<Entity>> childrenMap_;
 
    public:
     World();  // Declaration only
@@ -171,6 +174,14 @@ class World {
 
     bool GetEntityByName(std::string name, Entity* entity);
     std::string GetEntityName(Entity entity) const;
+
+    // Hierarchy helpers — operate on the internal childrenMap_ adjacency.
+    // AddChild sets up the parent→child relationship on both sides
+    // (ParentComponent on child, childrenMap_ entry on parent).
+    void AddChild(Entity parent, Entity child);
+    void RemoveChild(Entity parent, Entity child);
+    const std::vector<Entity>& GetChildren(Entity parent) const;
+    Entity GetParent(Entity child) const;
 };
 
 // TypedComponentArray implementations

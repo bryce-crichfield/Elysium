@@ -166,9 +166,15 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
         if (it != layerItems.end() || hasDrawCmds) {
             static const std::vector<RenderableObject> empty;
             const auto& items = (it != layerItems.end()) ? it->second : empty;
-            // sort items by their position.y for simple painter's order within the layer
+            // Sort: hierarchy depth first (parents always paint before children),
+            // then by position.y for painter's ordering among peers at the same depth.
             std::vector<RenderableObject> sortedItems = items;
-            std::sort(sortedItems.begin(), sortedItems.end(), [](const RenderableObject& a, const RenderableObject& b) {
+            std::sort(sortedItems.begin(), sortedItems.end(), [&](const RenderableObject& a, const RenderableObject& b) {
+                int da = 0;
+                for (Entity p = world->GetParent(a.entity); p != INVALID_ENTITY; p = world->GetParent(p)) ++da;
+                int db = 0;
+                for (Entity p = world->GetParent(b.entity); p != INVALID_ENTITY; p = world->GetParent(p)) ++db;
+                if (da != db) return da < db;
                 return a.position.y < b.position.y;
             });
             if (layer.isComposited) {
@@ -362,9 +368,14 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
                     DrawLineV(left, top, component.border);
                 }
             } else {
-                // Standard rectangle rendering
-                float topLeftX = object.position.x - component.width * 0.5f;
-                float topLeftY = object.position.y - component.height * 0.5f;
+                // Screen2D: position is the top-left corner of the rect.
+                // World2D: position is the center (sprites/units anchor to their logical center).
+                float topLeftX = (layer.space == SceneLayerSpace::Screen2D)
+                    ? object.position.x
+                    : object.position.x - component.width  * 0.5f;
+                float topLeftY = (layer.space == SceneLayerSpace::Screen2D)
+                    ? object.position.y
+                    : object.position.y - component.height * 0.5f;
                 ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
                 if (component.border.a > 0) {
                     ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
@@ -387,9 +398,19 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
             int scaledFontSize = (int)(component.fontSize * avgScale);
 
             int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
-            int centeredX = (int)(object.position.x - textWidth * 0.5f);
-            int centeredY = (int)(object.position.y - scaledFontSize * 0.5f);
-            ctx.DrawText(component.content.c_str(), (float)centeredX, (float)centeredY, scaledFontSize, component.color);
+            float drawX, drawY;
+            if (layer.space == SceneLayerSpace::Screen2D &&
+                world->HasComponent<RectangleComponent>(object.entity)) {
+                // Position is the top-left of the enclosing rect — center text within it.
+                auto& rect = world->GetComponent<RectangleComponent>(object.entity);
+                drawX = object.position.x + (rect.width  - (float)textWidth)     * 0.5f;
+                drawY = object.position.y + (rect.height - (float)scaledFontSize) * 0.5f;
+            } else {
+                // Default: center around position (standalone labels, World2D, etc.)
+                drawX = object.position.x - textWidth     * 0.5f;
+                drawY = object.position.y - scaledFontSize * 0.5f;
+            }
+            ctx.DrawText(component.content.c_str(), drawX, drawY, scaledFontSize, component.color);
         } else if constexpr (std::is_same_v<T, LightComponent>) {
             const int layers = 8;
 

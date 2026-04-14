@@ -5,7 +5,7 @@
 --- Stagger is automatic: elements with higher Y values start slightly later.
 local FadeIn = {}
 
-local FADE_DURATION  = 5
+local FADE_DURATION  = 1
 local STAGGER_SCALE  = 0.0014
 
 local function easeInOutQuad(t)

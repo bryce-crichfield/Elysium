@@ -4,7 +4,7 @@
 --- Attach to any entity with a TextComponent.
 local TypeWriter = {}
 
-local CHARS_PER_SEC = 2   -- reveal speed
+local CHARS_PER_SEC = 10   -- reveal speed
 local START_DELAY   = 0.15 -- brief pause before typing begins
 
 function TypeWriter:Initialize(entity)
@@ -17,6 +17,7 @@ function TypeWriter:Initialize(entity)
     self.done     = false
 
     text.content = ""
+
 end
 
 function TypeWriter:Update(entity, dt)

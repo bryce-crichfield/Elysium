@@ -38,7 +38,10 @@ void WorldEditor::Draw(Application& app) {
         float topPanelHeight = ImGui::GetContentRegionAvail().y * 0.4f; // Use 40% height
         ImGui::BeginChild("EntityPanel", ImVec2(0, topPanelHeight), true);
             DrawEntityToolbar(service);
-            DrawEntityList(service);
+            if (showHierarchyView_)
+                DrawHierarchyTree(service);
+            else
+                DrawEntityList(service);
         ImGui::EndChild();
 
         // 2. Horizontal Splitter (Vertical movement)
@@ -127,6 +130,13 @@ void WorldEditor::DrawEntityToolbar(EditorService& service) {
 
     ImGui::Separator();
 
+    // View toggle
+    if (ImGui::SmallButton(showHierarchyView_ ? "View: Hierarchy" : "View: Flat")) {
+        showHierarchyView_ = !showHierarchyView_;
+    }
+
+    ImGui::Separator();
+
     // Entity management buttons
     Entity selectedEntity = service.GetSelectedEntity();
     bool canDeselect = selectedEntity != INVALID_ENTITY;
@@ -174,32 +184,7 @@ void WorldEditor::DrawEntityList(EditorService& service) {
                 service.SetSelectedEntity(entity);
             }
 
-            // Right-click context menu
-            if (ImGui::BeginPopupContextItem(("EntityContextMenu_" + std::to_string(entity)).c_str())) {
-                ImGui::Text("Entity %zu", entity);
-                ImGui::Separator();
-
-                if (ImGui::MenuItem("Edit")) {
-                    service.SetSelectedEntity(entity);
-                    ImGui::CloseCurrentPopup();
-                }
-
-                if (ImGui::MenuItem("Clone")) {
-                    Entity clonedEntity = world->CloneEntity(entity);
-                    service.SetSelectedEntity(clonedEntity);
-                    ImGui::CloseCurrentPopup();
-                }
-
-                if (ImGui::MenuItem("Delete")) {
-                    world->DestroyEntity(entity);
-                    if (selectedEntity == entity) {
-                        service.SetSelectedEntity(INVALID_ENTITY);
-                    }
-                    ImGui::CloseCurrentPopup();
-                }
-
-                ImGui::EndPopup();
-            }
+            DrawEntityContextMenu(service, entity);
 
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%s", entityName.c_str());
@@ -333,5 +318,97 @@ void WorldEditor::DrawComponentPanel(EditorService& service, size_t placeholderI
 }
 
 
+
+void WorldEditor::DrawEntityContextMenu(EditorService& service, Entity entity) {
+    auto* world = service.GetWorld();
+    Entity selectedEntity = service.GetSelectedEntity();
+
+    if (ImGui::BeginPopupContextItem(("EntityContextMenu_" + std::to_string(entity)).c_str())) {
+        ImGui::Text("Entity %zu", entity);
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Edit")) {
+            service.SetSelectedEntity(entity);
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::MenuItem("Clone")) {
+            Entity cloned = world->CloneEntity(entity);
+            service.SetSelectedEntity(cloned);
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::MenuItem("Delete")) {
+            world->DestroyEntity(entity);
+            if (selectedEntity == entity)
+                service.SetSelectedEntity(INVALID_ENTITY);
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
+    auto* world = service.GetWorld();
+    Entity selectedEntity = service.GetSelectedEntity();
+
+    const auto& children = world->GetChildren(entity);
+    bool hasChildren = !children.empty();
+
+    std::string label = world->GetEntityName(entity);
+    if (label.empty())
+        label = "Entity " + std::to_string(entity);
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
+                             | ImGuiTreeNodeFlags_SpanAvailWidth
+                             | ImGuiTreeNodeFlags_DefaultOpen;
+    if (!hasChildren)
+        flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+    if (entity == selectedEntity)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    // Use the entity ID as the stable tree node id
+    bool open = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "%s  [%zu]", label.c_str(), entity);
+
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+        service.SetSelectedEntity(entity);
+
+    DrawEntityContextMenu(service, entity);
+
+    if (hasChildren && open) {
+        for (Entity child : children)
+            DrawHierarchyNode(service, child);
+        ImGui::TreePop();
+    }
+}
+
+void WorldEditor::DrawHierarchyTree(EditorService& service) {
+    auto* world = service.GetWorld();
+
+    for (Entity entity : world->GetLivingEntities()) {
+        // Only draw root entities here; children are drawn recursively
+        if (world->GetParent(entity) != INVALID_ENTITY)
+            continue;
+
+        if (!filteredEntities_.empty()) {
+            if (std::find(filteredEntities_.begin(), filteredEntities_.end(), entity) == filteredEntities_.end())
+                continue;
+        }
+
+        DrawHierarchyNode(service, entity);
+    }
+
+    // Right-click on empty space to create entity
+    if (ImGui::BeginPopupContextWindow("HierarchyContextMenu",
+                                       ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+        if (ImGui::MenuItem("Create Entity")) {
+            Entity e = world->CreateEntity();
+            service.SetSelectedEntity(e);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+}
 
 }  // namespace Elysium

@@ -7,7 +7,7 @@
 local BounceIn = {}
 
 local SLIDE_DIST     = 420
-local SLIDE_DURATION = 5
+local SLIDE_DURATION = 1
 local STAGGER_SCALE  = 0.0012
 
 -- Overshoots by ~10% then settles.  c1 controls the overshoot amount.

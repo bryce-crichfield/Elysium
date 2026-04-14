@@ -3,6 +3,7 @@
 #include "ComponentRegistry.h"
 #include "Core/Components.h"
 #include "Core/World.h"
+#include "Components/ParentComponent.h"
 
 namespace Elysium {
 void ComponentManager::EntityDestroyed(Entity entity) {
@@ -165,11 +166,81 @@ std::string World::GetEntityName(Entity entity) const {
     return "";
 }
 
+void World::AddChild(Entity parent, Entity child) {
+    // Record in adjacency map
+    childrenMap_[parent].push_back(child);
+
+    // Stamp ParentComponent on the child so it knows its parent
+    if (!HasComponent<ParentComponent>(child)) {
+        AddComponent<ParentComponent>(child, ParentComponent{});
+    }
+    auto& pc = GetComponent<ParentComponent>(child);
+    pc.parent = parent;
+
+    // Keep targetName in sync so save/load round-trips correctly
+    if (pc.targetName.empty()) {
+        pc.targetName = GetEntityName(parent);
+    }
+}
+
+void World::RemoveChild(Entity parent, Entity child) {
+    auto it = childrenMap_.find(parent);
+    if (it != childrenMap_.end()) {
+        auto& vec = it->second;
+        vec.erase(std::remove(vec.begin(), vec.end(), child), vec.end());
+        if (vec.empty()) {
+            childrenMap_.erase(it);
+        }
+    }
+
+    if (HasComponent<ParentComponent>(child)) {
+        auto& pc = GetComponent<ParentComponent>(child);
+        pc.parent = INVALID_ENTITY;
+    }
+}
+
+static const std::vector<Entity> s_emptyChildren;
+
+const std::vector<Entity>& World::GetChildren(Entity parent) const {
+    auto it = childrenMap_.find(parent);
+    if (it != childrenMap_.end()) {
+        return it->second;
+    }
+    return s_emptyChildren;
+}
+
+Entity World::GetParent(Entity child) const {
+    if (HasComponent<ParentComponent>(child)) {
+        return GetComponent<ParentComponent>(child).parent;
+    }
+    return INVALID_ENTITY;
+}
+
 void World::DestroyEntity(Entity entity) {
     // Notify listeners BEFORE destruction so they can still access components
     for (auto* listener : worldListeners_) {
         listener->OnEntityDestroyed(entity);
     }
+
+    // Hierarchy cleanup: detach from parent and orphan any children
+    if (HasComponent<ParentComponent>(entity)) {
+        Entity parent = GetComponent<ParentComponent>(entity).parent;
+        if (parent != INVALID_ENTITY) {
+            RemoveChild(parent, entity);
+        }
+    }
+    auto childIt = childrenMap_.find(entity);
+    if (childIt != childrenMap_.end()) {
+        // Clear each child's parent reference without calling RemoveChild
+        // (which would mutate the vector we're iterating)
+        for (Entity child : childIt->second) {
+            if (HasComponent<ParentComponent>(child)) {
+                GetComponent<ParentComponent>(child).parent = INVALID_ENTITY;
+            }
+        }
+        childrenMap_.erase(childIt);
+    }
+
     componentManager->EntityDestroyed(entity);
     entityManager->DestroyEntity(entity);
 }
