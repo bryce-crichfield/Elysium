@@ -380,6 +380,20 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
                 if (component.border.a > 0) {
                     ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
                 }
+
+                // If the textureName is set, draw texture scaled to fill the rectangle bounds
+                if (!component.textureName.empty()) {
+                    auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+                    Texture2D texture = assets.GetTexture(Path(component.textureName));
+                    if (texture.id != 0) {
+                        Rectangle sourceRect = {0, 0, (float)texture.width, (float)texture.height};
+                        Rectangle destRect = {topLeftX, topLeftY, component.width, component.height};
+                        Vector2 origin = {0, 0};
+                        ctx.DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
+                    } else {
+                        assets.LoadAsset(AssetType::TEXTURE, Path(component.textureName));
+                    }
+                }
             }
         } else if constexpr (std::is_same_v<T, CircleComponent>) {
             ctx.DrawCircle(object.position.x, object.position.y, component.radius, component.background);

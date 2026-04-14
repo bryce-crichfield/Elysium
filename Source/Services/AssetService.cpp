@@ -55,12 +55,22 @@ void AssetService::Update(float deltaTime) {
 }
 
 Future<Asset> AssetService::LoadAsset(AssetType type, Path path) {
-    if (IsAssetLoaded(path)) {
-        LOG_DEBUGF("AssetService", "Asset already loaded: %s", path.c_str());
+    // Check map first — covers both fully-loaded and in-flight (placeholder) cases.
+    auto existing = assetsByPath_.find(path);
+    if (existing != assetsByPath_.end()) {
         Future<Asset> future;
-        future.Resolve(assetsByPath_[path]);
+        if (existing->second.IsLoaded()) {
+            LOG_DEBUGF("AssetService", "Asset already loaded: %s", path.c_str());
+            future.Resolve(existing->second);
+        }
+        // else: raw data is pending finalization — do nothing, caller will get the
+        // texture on a subsequent frame once FinalizeAssets() runs.
         return future;
     }
+
+    // Insert a placeholder immediately so no other caller re-queues the same path
+    // while the background task is in flight.
+    assetsByPath_[path] = Asset(type, path);
 
     auto& taskService = Application::GetInstance().GetService<TaskService>();
 

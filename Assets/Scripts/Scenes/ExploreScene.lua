@@ -2,6 +2,49 @@
 ---@class ExploreScene
 local ExploreScene = {}
 
+-- Portrait bar ---------------------------------------------------------------
+local MAX_PORTRAITS = 5
+local PORTRAIT_SIZE = 64
+local PORTRAIT_GAP  = 8
+
+-- Map unit-type substring → portrait texture path
+local UNIT_PORTRAITS = {
+    Archer = "Textures/Portraits/Archer.jpg",
+    Knight = "Textures/Portraits/Knight.jpg",
+}
+
+local function getPortraitTexture(entity)
+    local nameComp = GetComponent(entity, "Name")
+    if not nameComp then return "" end
+    for unitType, tex in pairs(UNIT_PORTRAITS) do
+        if nameComp.name:find(unitType) then return tex end
+    end
+    return ""
+end
+
+local function refreshPortraits(portraits, selected)
+    -- Flatten selected set into an ordered array for slot assignment
+    local units = {}
+    for entity, _ in pairs(selected) do
+        table.insert(units, entity)
+    end
+
+    for i, portraitEntity in ipairs(portraits) do
+        if portraitEntity then
+            local rect = GetComponent(portraitEntity, "Rectangle")
+            if rect then
+                local unit = units[i]
+                if unit then
+                    rect.textureName = getPortraitTexture(unit)
+                else
+                    rect.textureName = ""
+                end
+            end
+        end
+    end
+end
+------------------------------------------------------------------------------
+
 local SELECTION_RADIUS = 32.0
 local SELECTION_Y_OFFSET = 0  -- pos is feet (bottom-anchor sprites), ring goes at pos
 local DRAG_THRESHOLD   = 6    -- world-px; under this = click, over = drag
@@ -52,11 +95,47 @@ function ExploreScene:Initialize()
     self.dragEnd    = nil    -- current mouse world pos while LMB held
     self.isDragging = false  -- true once pointer moved past DRAG_THRESHOLD
     self.debugDraw  = false  -- toggle with D key
+
+    -- Cache portrait slot entity handles
+    self.portraits = {}
+    for i = 0, MAX_PORTRAITS - 1 do
+        local e = GetEntityByName("PORTRAIT_" .. i)
+        self.portraits[i + 1] = (e ~= 0) and e or nil
+    end
+
+    -- Cache camera entity for WASD pan
+    local cam = GetEntityByName("CAMERA")
+    self.cameraEntity = (cam ~= 0) and cam or nil
+
     Log("ExploreScene initialized")
 end
 
+local CAMERA_SPEED = 400  -- world units per second
+
 function ExploreScene:Update(dt)
     self.time = (self.time or 0) + dt
+    refreshPortraits(self.portraits, self.selected)
+
+    -- WASD camera pan
+    local dx, dy = 0, 0
+    if IsKeyDown(KEY_W) then dy = dy - 1 end
+    if IsKeyDown(KEY_S) then dy = dy + 1 end
+    if IsKeyDown(KEY_A) then dx = dx - 1 end
+    if IsKeyDown(KEY_D) then dx = dx + 1 end
+
+    if (dx ~= 0 or dy ~= 0) and self.cameraEntity then
+        -- Normalize diagonal so speed is consistent in all directions
+        if dx ~= 0 and dy ~= 0 then
+            local inv = 1 / math.sqrt(2)
+            dx = dx * inv
+            dy = dy * inv
+        end
+        local pos = GetComponent(self.cameraEntity, "Position")
+        if pos then
+            pos.x = pos.x + dx * CAMERA_SPEED * dt
+            pos.y = pos.y + dy * CAMERA_SPEED * dt
+        end
+    end
 end
 
 function ExploreScene:Render()
