@@ -9,8 +9,9 @@
         <System type="PhysicsResponseSystem" />
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
-        <System type="CameraSystem" />
+        <!-- <System type="CameraSystem" /> -->
 		<System type="FollowSystem" />
+        <System type="UiSystem" />
         <System type="RenderSystem" />
     </Systems>
 
@@ -22,6 +23,7 @@
 		<SceneLayer name="entity" z="2"			space="World"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
 		<SceneLayer name="light" z="4"			space="World"	layerBlend="Additive"	compositeBlend="Normal"   isComposited="false" /> 
 		<SceneLayer name="shadow" z="5"			space="World"	layerBlend="Normal"		compositeBlend="Multiply" isComposited="true" ambient="#000000"/>
+        <SceneLayer name="ui" z="10"			space="Screen"	layerBlend="Normal"		compositeBlend="Normal"   isComposited="false" />
     </SceneConfiguration>
 
     <Tilemap width="16" height="16" isIsometric="true" tileWidth="64" tileHeight="32">
@@ -125,6 +127,32 @@
             <ColliderComponent width="32" height="32" />
             <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
             <LayerComponent name="entity" />
+        </Entity>
+
+        <Entity name="UI_ROOT">
+            <NameComponent name="UI_ROOT"/>
+            <PositionComponent x="32" y="32"/>
+            <UiComponent containerType="Vertical" gap="15"/>
+        </Entity>
+        <Entity name="MENU_BUTTON">
+            <LayerComponent name="ui"/>
+            <NameComponent name="MENU_BUTTON"/>
+            <ParentComponent target="UI_ROOT"/>
+            <PositionComponent x="0" y="0"/>
+            <RectangleComponent width="164" height="32" background="#202020FF" border="#FFFFFFFF"/>
+            <TextComponent text="Back to Menu" fontSize="20" r="255" g="255" b="255" a="255"/>\
+            <UiComponent />
+            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
+        </Entity>
+        <Entity name="MENU_BUTTON2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="MENU_BUTTON2"/>
+            <ParentComponent target="UI_ROOT"/>
+            <PositionComponent x="0" y="0"/>
+            <RectangleComponent width="164" height="32" background="#202020FF" border="#FFFFFFFF"/>
+            <TextComponent text="Back to Menu" fontSize="20" r="255" g="255" b="255" a="255"/>
+            <UiComponent />
+            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
         </Entity>
     </Entities>
 </Scene>

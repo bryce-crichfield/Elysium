@@ -155,6 +155,18 @@ function IsMouseButtonPressed(button) end
 ---@return Vector2
 function GetMousePosition() end
 
+--- Transform world coordinates to screen coordinates. 
+--- @requires "CAMERA" 
+--- @param worldPos Vector2
+--- @return Vector2
+function WorldToScreen(worldPos) end
+
+--- Transform screen coordinates to world coordinates.
+--- @requires "CAMERA"
+--- @param screenPos Vector2
+--- @return Vector2
+function ScreenToWorld(screenPos) end
+
 -- Scene =======================================================================
 
 --- Replace the current scene.

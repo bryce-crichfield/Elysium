@@ -8,6 +8,7 @@
 #include "Services/InvokeService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
+#include "Services/ScriptService.h"
 #include "Core/System.h"
 #include "imgui.h"
 #include "raylib.h"
@@ -493,6 +494,10 @@ void SceneService::ProcessInput() {
                     break;
             }
             lastMousePos = mousePos;
+
+            // The Script Service cache's mouse position for GetMousePosition
+            auto& scriptService = Application::GetInstance().GetService<ScriptService>();
+            scriptService.SetMousePosition(fbPos.x, fbPos.y);
         }
     }
 

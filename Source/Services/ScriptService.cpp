@@ -78,6 +78,36 @@ static Elysium::World* GetActiveWorld() {
     return scene ? scene->GetWorld() : nullptr;
 }
 
+static Vector2 WorldToScreen(const Vector2& worldPos) {
+    auto* world = GetActiveWorld();
+    if (!world) return worldPos;
+
+    Vector2 cameraPos = {0, 0};
+    float zoom = 1.0f;  
+    Vector2 viewportCenter = {0, 0};
+    bool foundCamera = false;
+
+    world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
+        if (!foundCamera && cameraComp.isVisible) {
+            if (world->HasComponent<PositionComponent>(camEnt)) {
+                auto& pos = world->GetComponent<PositionComponent>(camEnt);
+                cameraPos = { pos.x, pos.y };
+            }
+            zoom = cameraComp.zoom;
+            viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
+            foundCamera = true;
+        }
+    });
+
+    if (foundCamera) {
+        return {
+            ((worldPos.x - cameraPos.x) * zoom) + viewportCenter.x,
+            ((worldPos.y - cameraPos.y) * zoom) + viewportCenter.y
+        };
+    }
+    return worldPos;
+}
+
 static Vector2 ScreenToWorld(Vector2 screenPos) {
     auto* world = GetActiveWorld();
     if (!world) return screenPos;
@@ -183,9 +213,19 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("IsKeyPressed", [](int key) { return IsKeyPressed(key); });
     lua.set_function("IsMouseButtonDown", [](int button) { return IsMouseButtonDown(button); });
     lua.set_function("IsMouseButtonPressed", [](int button) { return IsMouseButtonPressed(button); });
-    lua.set_function("GetMousePosition", []() { 
-        Vector2 m = GetMousePosition();
+    lua.set_function("GetMousePosition", [this]() { 
+        Vector2 m = this->_mousePosition; // Cached by SceneService from raylib input
         return ScreenToWorld(m);
+    });
+
+    lua.set_function("WorldToScreen", [](const Vector2& worldPos) {
+        Vector2 screenPos = WorldToScreen(worldPos);
+        return screenPos;
+    });
+
+    lua.set_function("ScreenToWorld", [](const Vector2& screenPos) {
+        Vector2 worldPos = ScreenToWorld(screenPos);
+        return worldPos;
     });
 
     // GetComponent

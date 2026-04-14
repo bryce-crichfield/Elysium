@@ -28,20 +28,21 @@ local function worldToTile(wx, wy)
     local b = wy / HALF_H
     return math.floor((a + b) / 2 + 0.5), math.floor((b - a) / 2 + 0.5)
 end
-
 -- Convert tile grid coordinates to world center position
 local function tileToWorld(tx, ty)
     return (tx - ty) * HALF_W, (tx + ty) * HALF_H
 end
 
 -- Draw an isometric diamond outline centred at (cx, cy)
-local function drawTileOutline(cx, cy, color, layer)
-    local hw, hh = HALF_W, HALF_H
+local function drawTileOutline(cx, cy, width, height, color, layer)
+    local hw, hh = width, height
     DrawLine(cx,      cy - hh, cx + hw, cy,      color, layer)
     DrawLine(cx + hw, cy,      cx,      cy + hh, color, layer)
     DrawLine(cx,      cy + hh, cx - hw, cy,      color, layer)
     DrawLine(cx - hw, cy,      cx,      cy - hh, color, layer)
 end
+
+
 
 function ExploreScene:Initialize()
     self.selected   = {}     -- entity -> true
@@ -55,6 +56,7 @@ function ExploreScene:Initialize()
 end
 
 function ExploreScene:Update(dt)
+    self.time = (self.time or 0) + dt
 end
 
 function ExploreScene:Render()
@@ -62,8 +64,12 @@ function ExploreScene:Render()
     for entity, _ in pairs(self.selected) do
         local pos = GetComponent(entity, "Position")
         if pos then
-            DrawEllipse(pos.x, pos.y + SELECTION_Y_OFFSET, HALF_W, HALF_H,
-                        {r = 255, g = 255, b = 0, a = 255}, "selection")
+            -- Smooth sine pulse: ~1.5s cycle, subtle 10% size variation
+            local pulse = 1.0 + 0.1 * math.sin(self.time * (2 * math.pi / 1.5))
+            local width  = HALF_W * pulse
+            local height = width * 0.5
+            DrawEllipse(pos.x, pos.y + SELECTION_Y_OFFSET, width, height,
+                        {r = 0, g = 255, b = 0, a = 255}, "selection")
         end
     end
 
@@ -91,7 +97,13 @@ function ExploreScene:Render()
     if not self.isDragging then
         local tx, ty = worldToTile(self.mouseWX, self.mouseWY)
         local cx, cy = tileToWorld(tx, ty)
-        drawTileOutline(cx, cy, {r = 255, g = 0, b = 0, a = 160}, "selection")
+        local color = {r = 255, g = 0, b = 0, a = 160}
+        local t = 0.5 + 0.5 * math.sin(self.time * (2 * math.pi / 1.5))
+        -- pulse the width and height
+        local width, height = HALF_W, HALF_H
+        width  = width  * (1.0 + 0.3 * t)
+        height = height * (1.0 + 0.3 * t)
+        drawTileOutline(cx, cy,width,height,color, "selection")
     end
 
     -- Collider debug outlines (toggle with D)

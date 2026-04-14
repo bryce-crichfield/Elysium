@@ -40,6 +40,7 @@ public:
 
     static void SetActiveWorld(Elysium::World* w);
 
+    void SetMousePosition(float x, float y) { _mousePosition = {x, y}; }
 private:
     sol::state lua;
 
@@ -65,6 +66,8 @@ private:
 
     sol::table GetEntityInstance(Entity entity, Path scriptPath, bool create = false);
     sol::table GetSceneInstance(Path scriptPath, bool create = false);
+
+    Vector2 _mousePosition;
 };
 
 } // namespace Elysium::Services

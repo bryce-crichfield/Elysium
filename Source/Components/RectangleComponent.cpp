@@ -29,7 +29,7 @@ namespace Elysium {
 
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        // Helper fallback if needed or strict type
+        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), BLANK);
         return WHITE;
     }
 

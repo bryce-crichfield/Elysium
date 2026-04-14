@@ -11,7 +11,7 @@ int main() {
     }
 
     auto& sceneService = app.GetService<Elysium::Services::SceneService>();
-    sceneService.Push("MenuScene");
+    sceneService.Push("ExploreScene");
 
     app.Run();
 
