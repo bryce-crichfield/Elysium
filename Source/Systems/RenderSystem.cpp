@@ -40,6 +40,7 @@ static RenderSystem* s_currentRenderSystem = nullptr;
 
 RenderSystem::RenderSystem(Context context) : System(context) {
     s_currentRenderSystem = this;
+    _renderQueue.reserve(4096);
 }
 
 RenderSystem::~RenderSystem() {
@@ -125,141 +126,127 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
         (int)camera.viewport.width,
         (int)camera.viewport.height);
 
-    // Collect and group renderable entities by layer name
-    std::unordered_map<std::string, std::vector<RenderableObject>> layerItems;
-    std::vector<RenderableObject> debugWorld2D;
-    std::vector<RenderableObject> debugScreen2D;
+    // Build layer name -> index map once per frame.
+    // This avoids per-entity string hashing during collect.
+    std::vector<SceneLayer> layers = scene->GetLayers();
+    std::unordered_map<std::string, uint8_t> layerNameToIndex;
+    layerNameToIndex.reserve(layers.size());
+    for (size_t i = 0; i < layers.size(); i++) {
+        layerNameToIndex[layers[i].name] = (uint8_t)i;
+    }
+
+    // Default layer index — resolved once, not per entity
+    uint8_t defaultLayerIndex = 0;
+    auto defaultIt = layerNameToIndex.find("default");
+    if (defaultIt != layerNameToIndex.end()) {
+        defaultLayerIndex = defaultIt->second;
+    }
+
+    _renderQueue.clear();
+
+    Vector2 cameraPos = {0, 0};
+    if (world->HasComponent<PositionComponent>(cameraEntity)) {
+        auto& pos = world->GetComponent<PositionComponent>(cameraEntity);
+        cameraPos = { pos.x, pos.y };
+    }
+
+    float halfW = (camera.viewport.width  * 0.5f) / camera.zoom;
+    float halfH = (camera.viewport.height * 0.5f) / camera.zoom;
+
+    float worldLeft   = cameraPos.x - halfW;
+    worldLeft -= 100;
+    float worldRight  = cameraPos.x + halfW;
+    worldRight += 100;
+    float worldTop    = cameraPos.y - halfH;
+    worldTop -= 100;
+    float worldBottom = cameraPos.y + halfH;
+    worldBottom += 100;
 
     {
         ProfileN("Collect Renderables");
         world->Query<PositionComponent>([&](Entity entity, auto& pos) {
-            if (world->HasComponent<CameraComponent>(entity)) {
+            if (world->HasComponent<CameraComponent>(entity))
                 return;
-            }
 
-            const LayerComponent* layerComp = world->HasComponent<LayerComponent>(entity)
-                                                  ? &world->GetComponent<LayerComponent>(entity)
-                                                  : nullptr;
 
-            const std::string& layerName = layerComp ? layerComp->name : "default";
-            const SceneLayer* actualLayer = scene->GetLayer(layerName);
-            const bool isScreenLayer = actualLayer && actualLayer->space == SceneLayerSpace::Screen2D;
+            uint8_t mask = 0;
+            if (world->HasComponent<LightComponent>(entity))     mask |= RC_Light;
 
-            auto append = [&](const auto& comp) {
-                ProfileN("Append Renderable");
-                RenderableObject item;
-                item.entity = entity;
-                item.position = {pos.x, pos.y};
-                item.renderable = comp;
-
-                using T = std::decay_t<decltype(comp)>;
-                if constexpr (std::is_same_v<T, DebugComponent>) {
-                    if (isScreenLayer)
-                        debugScreen2D.push_back(std::move(item));
-                    else
-                        debugWorld2D.push_back(std::move(item));
-                } else {
-                    layerItems[layerName].push_back(std::move(item));
-                }
-            };
-                bool hadRenderable = false;
-
-            {
-                ProfileN("Check Renderable Components");
-
-                if (world->HasComponent<RectangleComponent>(entity)) {
-                    append(world->GetComponent<RectangleComponent>(entity));
-                    hadRenderable = true;
-                }
-                if (world->HasComponent<CircleComponent>(entity)) {
-                    append(world->GetComponent<CircleComponent>(entity));
-                    hadRenderable = true;
-                }
-                if (world->HasComponent<TextComponent>(entity)) {
-                    append(world->GetComponent<TextComponent>(entity));
-                    hadRenderable = true;
-                }
-                if (world->HasComponent<SpriteComponent>(entity)) {
-                    append(world->GetComponent<SpriteComponent>(entity));
-                    hadRenderable = true;
-                }
-                if (world->HasComponent<LightComponent>(entity)) {
-                    append(world->GetComponent<LightComponent>(entity));
-                    hadRenderable = true;
-                }
-                if (world->HasComponent<DebugComponent>(entity)) {
-                    append(world->GetComponent<DebugComponent>(entity));
-                    hadRenderable = true;
-                }
-            }
-            if (!hadRenderable) {
+            auto hasLight = (mask & RC_Light) != 0;
+            if (!hasLight && (pos.x < worldLeft || pos.x > worldRight ||
+                pos.y < worldTop  || pos.y > worldBottom))
                 return;
+                
+            if (world->HasComponent<RectangleComponent>(entity)) mask |= RC_Rectangle;
+            if (world->HasComponent<CircleComponent>(entity))    mask |= RC_Circle;
+            if (world->HasComponent<TextComponent>(entity))      mask |= RC_Text;
+            if (world->HasComponent<SpriteComponent>(entity))    mask |= RC_Sprite;
+            if (!mask) return;
+
+            uint8_t layerIndex = defaultLayerIndex;
+            if (world->HasComponent<LayerComponent>(entity)) {
+                const auto& layerComp = world->GetComponent<LayerComponent>(entity);
+                auto it = layerNameToIndex.find(layerComp.name);
+                if (it != layerNameToIndex.end())
+                    layerIndex = it->second;
             }
+
+            // hierarchyDepth not yet populated here — kept as 0 for now,
+            // same as the previous path which never set it during collect either.
+            _renderQueue.push_back({ layerIndex, 0, mask, pos.y, pos.x, entity });
         });
-    }  // Collect Renderables
+    }
 
-    std::vector<SceneLayer> layers = scene->GetLayers();
+    {
+        ProfileN("Sort Renderables");
+        std::sort(_renderQueue.begin(), _renderQueue.end(),
+            [](const RenderKey& a, const RenderKey& b) {
+                if (a.layerIndex != b.layerIndex)
+                    return a.layerIndex < b.layerIndex;
+                if (a.hierarchyDepth != b.hierarchyDepth)
+                    return a.hierarchyDepth < b.hierarchyDepth;
+                return a.y < b.y;
+            });
+    }
 
-    // Render layers in their defined order (by zIndex/order in list)
-    for (const auto& layer : layers) {
-        if (!layer.isVisible)
+    // Render each visible layer, slicing the sorted queue by layerIndex
+    size_t queueStart = 0;
+    for (size_t li = 0; li < layers.size(); li++) {
+        const SceneLayer& layer = layers[li];
+        if (!layer.isVisible) {
+            // Skip past any keys for this layer index
+            while (queueStart < _renderQueue.size() && _renderQueue[queueStart].layerIndex == (uint8_t)li)
+                queueStart++;
+            continue;
+        }
+
+        // Find the contiguous slice of keys belonging to this layer
+        size_t sliceStart = queueStart;
+        while (queueStart < _renderQueue.size() && _renderQueue[queueStart].layerIndex == (uint8_t)li)
+            queueStart++;
+        size_t sliceEnd = queueStart;
+
+        bool hasDrawCmds = std::any_of(_drawCommands.begin(), _drawCommands.end(),
+            [&](const DrawCommand& cmd) {
+                return std::visit([&](const auto& c) { return c.layer == layer.name; }, cmd);
+            });
+
+        if (sliceStart == sliceEnd && !hasDrawCmds)
             continue;
 
-        auto it = layerItems.find(layer.name);
+        std::span<const RenderKey> slice(_renderQueue.data() + sliceStart, sliceEnd - sliceStart);
 
-        bool hasDrawCmds = std::any_of(_drawCommands.begin(), _drawCommands.end(), [&](const DrawCommand& cmd) {
-            return std::visit([&](const auto& c) { return c.layer == layer.name; }, cmd);
-        });
-
-        if (it != layerItems.end() || hasDrawCmds) {
-            static const std::vector<RenderableObject> empty;
-            const auto& items = (it != layerItems.end()) ? it->second : empty;
-            // Sort: hierarchy depth first (parents always paint before children),
-            // then by position.y for painter's ordering among peers at the same depth.
-            std::vector<RenderableObject> sortedItems = items;
-            {
-                ProfileN("Sort Renderables");
-                std::sort(sortedItems.begin(), sortedItems.end(),
-                          [](const RenderableObject& a, const RenderableObject& b) {
-                              if (a.hierarchyDepth != b.hierarchyDepth)
-                                  return a.hierarchyDepth < b.hierarchyDepth;
-                              return a.position.y < b.position.y;
-                          });
-            }
-            if (layer.isComposited) {
-                RenderCompositedLayer(ctx, cameraEntity, layer, sortedItems);
-            } else {
-                RenderImmediateLayer(ctx, cameraEntity, layer, sortedItems);
-            }
+        if (layer.isComposited) {
+            RenderCompositedLayer(ctx, cameraEntity, layer, slice);
+        } else {
+            RenderImmediateLayer(ctx, cameraEntity, layer, slice);
         }
-    }
-
-    // Render debug overlays AFTER everything else
-    // Sort debug items by layer space so Screen2D debug renders on top of World2D debug
-    if (!debugWorld2D.empty()) {
-        SceneLayer debugLayerWorld;
-        debugLayerWorld.name = "__debug_world2d__";
-        debugLayerWorld.space = SceneLayerSpace::World2D;
-        debugLayerWorld.layerBlend = SceneLayerBlend::Alpha;
-        debugLayerWorld.isComposited = false;
-        debugLayerWorld.isVisible = true;
-        RenderImmediateLayer(ctx, cameraEntity, debugLayerWorld, debugWorld2D);
-    }
-
-    if (!debugScreen2D.empty()) {
-        SceneLayer debugLayerScreen;
-        debugLayerScreen.name = "__debug_screen2d__";
-        debugLayerScreen.space = SceneLayerSpace::Screen2D;
-        debugLayerScreen.layerBlend = SceneLayerBlend::Alpha;
-        debugLayerScreen.isComposited = false;
-        debugLayerScreen.isVisible = true;
-        RenderImmediateLayer(ctx, cameraEntity, debugLayerScreen, debugScreen2D);
     }
 
     ctx.PopScissorMode();
 }
 
-void RenderSystem::RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, const std::vector<RenderableObject>& objects) {
+void RenderSystem::RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, std::span<const RenderKey> keys) {
     ProfileN("Render Immediate Layer");
     Matrix viewProjectionTransform = CalculateTransform(cameraEntity, layer);
     PushBlendMode(ctx, layer.layerBlend);
@@ -268,48 +255,21 @@ void RenderSystem::RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity,
 
     {
         ProfileN("Render Objects");
-        for (const auto& object : objects) {
-            RenderObject(ctx, object, layer);
+        for (const auto& key : keys) {
+            RenderEntity(ctx, key, layer);
         }
     }
 
     {
         ProfileN("Render DrawCommands");
-        for (const auto& cmd : _drawCommands) {
-            std::visit([&](const auto& c) {
-                if (c.layer != layer.name)
-                    return;
-                using T = std::decay_t<decltype(c)>;
-                if constexpr (std::is_same_v<T, DrawCircleCmd>) {
-                    ctx.DrawCircleLines(c.x, c.y, c.radius, c.color);
-                } else if constexpr (std::is_same_v<T, DrawLineCmd>) {
-                    ctx.DrawLine(c.x1, c.y1, c.x2, c.y2, c.color);
-                } else if constexpr (std::is_same_v<T, DrawRectCmd>) {
-                    ctx.DrawRectangle(c.x, c.y, c.width, c.height, c.color);
-                } else if constexpr (std::is_same_v<T, DrawEllipseCmd>) {
-                    ctx.DrawEllipseLines(c.x, c.y, c.radiusH, c.radiusV, c.color);
-                } else if constexpr (std::is_same_v<T, DrawTextCmd>) {
-                    ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color);
-                } else if constexpr (std::is_same_v<T, DrawPolygonCmd>) {
-                    // Fan triangulation using DrawTriangle (same path as tile rendering).
-                    // pts are assumed to be in clockwise screen order; swapping i and i+1
-                    // produces the CCW winding that DrawTriangle requires in Y-down space.
-                    const auto& pts = c.points;
-                    for (int i = 1; i + 1 < (int)pts.size(); i++) {
-                        DrawTriangle(pts[0], pts[i + 1], pts[i], c.color);
-                    }
-                }
-            },
-                       cmd);
-        }
+        RenderDrawCommands(ctx, layer);
     }
+
     ctx.PopMatrix();
     ctx.PopBlendMode();
 }
 
-// Composited layers are those that render to an offscreen texture first (e.g. light layers)
-// This allows for blend modes to work correctly over the entire layer
-void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, const std::vector<RenderableObject>& objects) {
+void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, std::span<const RenderKey> keys) {
     ProfileN("Render Composited Layer");
 
     auto& camera = world->GetComponent<CameraComponent>(cameraEntity);
@@ -324,22 +284,222 @@ void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity
     ctx.BeginTextureMode(compositionBuffer);
     ClearBackground(layer.ambient);
 
-    // ctx.PushBlendMode(BLEND_ADDITIVE);
     PushBlendMode(ctx, layer.layerBlend);
     ctx.PushMatrix();
     ctx.MultiplyMatrix(layerTransform);
 
-    for (const auto& object : objects) {
-        RenderObject(ctx, object, layer);
+    for (const auto& key : keys) {
+        RenderEntity(ctx, key, layer);
     }
 
+    RenderDrawCommands(ctx, layer);
+
+    ctx.PopMatrix();
+    ctx.PopBlendMode();
+
+    ctx.EndTextureMode();
+
+    // Restore SceneService's framebuffer
+    auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
+    ctx.BeginTextureMode(sceneService.GetFramebuffer());
+
+    PushBlendMode(ctx, layer.compositeBlend);
+    Rectangle src = {0, 0, (float)w, -(float)h};
+    Rectangle dst = {camera.viewport.x, camera.viewport.y, (float)w, (float)h};
+    ctx.DrawTexturePro(compositionBuffer.texture, src, dst, {0, 0}, 0.0f, WHITE);
+
+    ctx.PopBlendMode();
+
+    ctx.PushScissorMode(
+        (int)camera.viewport.x,
+        (int)camera.viewport.y,
+        (int)camera.viewport.width,
+        (int)camera.viewport.height);
+}
+
+void RenderSystem::RenderEntity(RenderContext& ctx, const RenderKey& key, const SceneLayer& layer) {
+    Vector2 pos = { key.x, key.y };
+
+    if (key.componentMask & RC_Rectangle)
+        RenderRectangle(ctx, key.entity, pos, layer);
+    if (key.componentMask & RC_Circle)
+        RenderCircle(ctx, key.entity, pos, layer);
+    if (key.componentMask & RC_Sprite)
+        RenderSprite(ctx, key.entity, pos, layer);
+    if (key.componentMask & RC_Text)
+        RenderText(ctx, key.entity, pos, layer);
+    if (key.componentMask & RC_Light)
+        RenderLight(ctx, key.entity, pos, layer);
+}
+
+void RenderSystem::RenderRectangle(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& component = world->GetComponent<RectangleComponent>(entity);
+
+    bool isIsometric = false;
+    float tileWidth = component.width;
+    float tileHeight = component.height;
+
+    if (world->HasComponent<TileComponent>(entity)) {
+        const auto& tile = world->GetComponent<TileComponent>(entity);
+        isIsometric = tile.isIsometric;
+        tileWidth = tile.tileWidth;
+        tileHeight = tile.tileHeight;
+    }
+
+    if (isIsometric) {
+        float hw = tileWidth * 0.5f;
+        float hh = tileHeight * 0.5f;
+        Vector2 top    = { pos.x,      pos.y - hh };
+        Vector2 right  = { pos.x + hw, pos.y      };
+        Vector2 bottom = { pos.x,      pos.y + hh };
+        Vector2 left   = { pos.x - hw, pos.y      };
+        DrawTriangle(top, left, bottom, component.background);
+        DrawTriangle(top, bottom, right, component.background);
+        if (component.border.a > 0) {
+            DrawLineV(top, right, component.border);
+            DrawLineV(right, bottom, component.border);
+            DrawLineV(bottom, left, component.border);
+            DrawLineV(left, top, component.border);
+        }
+    }
+
+    float topLeftX = (layer.space == SceneLayerSpace::Screen2D)
+        ? pos.x : pos.x - component.width * 0.5f;
+    float topLeftY = (layer.space == SceneLayerSpace::Screen2D)
+        ? pos.y : pos.y - component.height * 0.5f;
+
+    ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
+    if (component.border.a > 0) {
+        ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
+    }
+
+    if (!component.textureName.empty()) {
+        auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+        Texture2D texture = assets.GetTexture(Path(component.textureName));
+        if (texture.id != 0) {
+            Rectangle sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
+            Rectangle destRect   = { topLeftX, topLeftY, component.width, component.height };
+            ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+        } else {
+            assets.LoadAsset(AssetType::TEXTURE, Path(component.textureName));
+        }
+    }
+}
+
+void RenderSystem::RenderCircle(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& component = world->GetComponent<CircleComponent>(entity);
+    ctx.DrawCircle(pos.x, pos.y, component.radius, component.background);
+    if (component.border.a > 0) {
+        ctx.DrawCircleLines(pos.x, pos.y, component.radius, component.border);
+    }
+}
+
+void RenderSystem::RenderText(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& component = world->GetComponent<TextComponent>(entity);
+
+    float scaleX = 1.0f, scaleY = 1.0f;
+    if (world->HasComponent<ScaleComponent>(entity)) {
+        const auto& scale = world->GetComponent<ScaleComponent>(entity);
+        scaleX = scale.x;
+        scaleY = scale.y;
+    }
+
+    int scaledFontSize = (int)(component.fontSize * ((scaleX + scaleY) * 0.5f));
+    int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
+
+    float drawX, drawY;
+    if (layer.space == SceneLayerSpace::Screen2D && world->HasComponent<RectangleComponent>(entity)) {
+        const auto& rect = world->GetComponent<RectangleComponent>(entity);
+        drawX = pos.x + (rect.width  - (float)textWidth)      * 0.5f;
+        drawY = pos.y + (rect.height - (float)scaledFontSize)  * 0.5f;
+    } else {
+        drawX = pos.x - textWidth      * 0.5f;
+        drawY = pos.y - scaledFontSize * 0.5f;
+    }
+
+    ctx.DrawText(component.content.c_str(), drawX, drawY, scaledFontSize, component.color);
+}
+
+void RenderSystem::RenderSprite(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& component = world->GetComponent<SpriteComponent>(entity);
+    auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+
+    Sprite sprite = assets.GetSprite(Path(component.spriteName));
+    if (sprite.name.empty()) return;
+
+    auto sheetIt = sprite.sheets.find(component.sheetName);
+    if (sheetIt == sprite.sheets.end()) return;
+    const SpriteSheet& sheet = sheetIt->second;
+
+    auto seqIt = sheet.sequences.find(component.sequenceName);
+    if (seqIt == sheet.sequences.end()) return;
+    const SpriteSequence& sequence = seqIt->second;
+
+    if (sequence.indices.empty()) return;
+
+    size_t frameIdx   = component.sequenceIndex % sequence.indices.size();
+    size_t linearIndex = sequence.indices[frameIdx];
+
+    Texture2D texture = assets.GetTexture(Path("Sprites/" + sheet.path));
+    if (texture.id == 0) return;
+
+    float frameWidth  = (float)texture.width  / (float)sheet.cols;
+    float frameHeight = (float)texture.height / (float)sheet.rows;
+    size_t col = linearIndex % sheet.cols;
+    size_t row = linearIndex / sheet.cols;
+
+    Rectangle sourceRect = { col * frameWidth, row * frameHeight, frameWidth, frameHeight };
+
+    float scaleX = 1.0f, scaleY = 1.0f;
+    if (world->HasComponent<ScaleComponent>(entity)) {
+        const auto& scale = world->GetComponent<ScaleComponent>(entity);
+        scaleX = scale.x;
+        scaleY = scale.y;
+    }
+
+    float scaledWidth  = frameWidth  * scaleX;
+    float scaledHeight = frameHeight * scaleY;
+
+    Rectangle destRect = {
+        pos.x - scaledWidth  * sprite.originX,
+        pos.y - scaledHeight * sprite.originY,
+        scaledWidth,
+        scaledHeight
+    };
+
+    ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+}
+
+void RenderSystem::RenderLight(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& component = world->GetComponent<LightComponent>(entity);
+    const int numRings = 8;
+
+    for (int i = 0; i < numRings; i++) {
+        float t     = (float)i / numRings;
+        float power = 1.0f + component.intensity * 4.0f;
+        float curve = powf(1.0f - t, power);
+        float ringRadius = component.radius * curve;
+
+        Color ringColor = component.color;
+        ringColor.a = (unsigned char)(component.color.a / numRings);
+        Color ringEdge  = { ringColor.r, ringColor.g, ringColor.b, 0 };
+
+        if (_isIsometric) {
+            ctx.DrawEllipseGradient(pos.x, pos.y, ringRadius, ringRadius * 0.5f, ringColor, ringEdge);
+        } else {
+            ctx.DrawCircleGradient(pos.x, pos.y, ringRadius, ringColor, ringEdge);
+        }
+    }
+}
+
+void RenderSystem::RenderDrawCommands(RenderContext& ctx, const SceneLayer& layer) {
     for (const auto& cmd : _drawCommands) {
         std::visit([&](const auto& c) {
             if (c.layer != layer.name)
                 return;
             using T = std::decay_t<decltype(c)>;
             if constexpr (std::is_same_v<T, DrawCircleCmd>) {
-                ctx.DrawCircle(c.x, c.y, c.radius, c.color);
+                ctx.DrawCircleLines(c.x, c.y, c.radius, c.color);
             } else if constexpr (std::is_same_v<T, DrawLineCmd>) {
                 ctx.DrawLine(c.x1, c.y1, c.x2, c.y2, c.color);
             } else if constexpr (std::is_same_v<T, DrawRectCmd>) {
@@ -354,307 +514,35 @@ void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity
                     DrawTriangle(pts[0], pts[i + 1], pts[i], c.color);
                 }
             }
-        },
-                   cmd);
+        }, cmd);
     }
-
-    ctx.PopMatrix();
-    ctx.PopBlendMode();
-
-    ctx.EndTextureMode();
-
-    // Restore SceneService's framebuffer
-    auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
-    ctx.BeginTextureMode(sceneService.GetFramebuffer());
-
-    // Composite lightmap onto scene using layer's blend mode
-    // PushBlendMode(ctx, layer.blend);
-    PushBlendMode(ctx, layer.compositeBlend);
-    Rectangle src = {0, 0, (float)w, -(float)h};
-    Rectangle dst = {camera.viewport.x, camera.viewport.y, (float)w, (float)h};
-    ctx.DrawTexturePro(compositionBuffer.texture, src, dst, {0, 0}, 0.0f, WHITE);
-
-    ctx.PopBlendMode();
-
-    // Restore scissor mode for subsequent layers
-    ctx.PushScissorMode(
-        (int)camera.viewport.x,
-        (int)camera.viewport.y,
-        (int)camera.viewport.width,
-        (int)camera.viewport.height);
-}
-
-void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& object, const SceneLayer& layer) {
-    std::visit([&](const auto& component) {
-        using T = std::decay_t<decltype(component)>;
-
-        if constexpr (std::is_same_v<T, RectangleComponent>) {
-            // Check if this is an isometric tile
-            bool isIsometric = false;
-            float tileWidth = component.width;
-            float tileHeight = component.height;
-
-            if (world->HasComponent<TileComponent>(object.entity)) {
-                const auto& tile = world->GetComponent<TileComponent>(object.entity);
-                isIsometric = tile.isIsometric;
-                tileWidth = tile.tileWidth;
-                tileHeight = tile.tileHeight;
-            }
-
-            if (isIsometric) {
-                // Draw isometric diamond shape
-                float cx = object.position.x;
-                float cy = object.position.y;
-                float hw = tileWidth * 0.5f;   // half width
-                float hh = tileHeight * 0.5f;  // half height
-
-                // Diamond vertices: top, right, bottom, left
-                Vector2 top = {cx, cy - hh};
-                Vector2 right = {cx + hw, cy};
-                Vector2 bottom = {cx, cy + hh};
-                Vector2 left = {cx - hw, cy};
-
-                // Draw filled diamond as two triangles
-                DrawTriangle(top, left, bottom, component.background);
-                DrawTriangle(top, bottom, right, component.background);
-
-                // Draw border lines
-                if (component.border.a > 0) {
-                    DrawLineV(top, right, component.border);
-                    DrawLineV(right, bottom, component.border);
-                    DrawLineV(bottom, left, component.border);
-                    DrawLineV(left, top, component.border);
-                }
-            }
-            // Screen2D: position is the top-left corner of the rect.
-            // World2D: position is the center (sprites/units anchor to their logical center).
-            float topLeftX = (layer.space == SceneLayerSpace::Screen2D)
-                                 ? object.position.x
-                                 : object.position.x - component.width * 0.5f;
-            float topLeftY = (layer.space == SceneLayerSpace::Screen2D)
-                                 ? object.position.y
-                                 : object.position.y - component.height * 0.5f;
-
-            if (!isIsometric) {
-                ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
-                if (component.border.a > 0) {
-                    ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
-                }
-            }
-
-            // If the textureName is set, draw texture scaled to fill the rectangle bounds
-            if (!component.textureName.empty()) {
-                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
-                Texture2D texture = assets.GetTexture(Path(component.textureName));
-                if (texture.id != 0) {
-                    Rectangle sourceRect = {0, 0, (float)texture.width, (float)texture.height};
-                    Rectangle destRect = {topLeftX, topLeftY, component.width, component.height};
-                    Vector2 origin = {0, 0};
-                    ctx.DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
-                } else {
-                    assets.LoadAsset(AssetType::TEXTURE, Path(component.textureName));
-                }
-            }
-        } else if constexpr (std::is_same_v<T, CircleComponent>) {
-            ctx.DrawCircle(object.position.x, object.position.y, component.radius, component.background);
-            if (component.border.a > 0) {
-                ctx.DrawCircleLines(object.position.x, object.position.y, component.radius, component.border);
-            }
-        } else if constexpr (std::is_same_v<T, TextComponent>) {
-            float scaleX = 1.0f, scaleY = 1.0f;
-            if (world->HasComponent<ScaleComponent>(object.entity)) {
-                auto& scale = world->GetComponent<ScaleComponent>(object.entity);
-                scaleX = scale.x;
-                scaleY = scale.y;
-            }
-
-            float avgScale = (scaleX + scaleY) / 2.0f;
-            int scaledFontSize = (int)(component.fontSize * avgScale);
-
-            int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
-            float drawX, drawY;
-            if (layer.space == SceneLayerSpace::Screen2D &&
-                world->HasComponent<RectangleComponent>(object.entity)) {
-                // Position is the top-left of the enclosing rect — center text within it.
-                auto& rect = world->GetComponent<RectangleComponent>(object.entity);
-                drawX = object.position.x + (rect.width - (float)textWidth) * 0.5f;
-                drawY = object.position.y + (rect.height - (float)scaledFontSize) * 0.5f;
-            } else {
-                // Default: center around position (standalone labels, World2D, etc.)
-                drawX = object.position.x - textWidth * 0.5f;
-                drawY = object.position.y - scaledFontSize * 0.5f;
-            }
-            ctx.DrawText(component.content.c_str(), drawX, drawY, scaledFontSize, component.color);
-        } else if constexpr (std::is_same_v<T, LightComponent>) {
-            const int layers = 8;
-
-            for (int i = 0; i < layers; i++) {
-                float t = (float)i / layers;
-                float power = 1.0f + component.intensity * 4.0f;
-                float curve = powf(1.0f - t, power);
-                float layerRadius = component.radius * curve;
-
-                Color layerColor = component.color;
-                layerColor.a = (unsigned char)(component.color.a / layers);
-                Color layerEdge = {layerColor.r, layerColor.g, layerColor.b, 0};
-
-                if (_isIsometric) {
-                    // Horizontal radius stays full; vertical is halved to match the 2:1
-                    // tile projection so the light appears as a circle in-game.
-                    ctx.DrawEllipseGradient(object.position.x, object.position.y,
-                                            layerRadius, layerRadius * 0.5f,
-                                            layerColor, layerEdge);
-                } else {
-                    ctx.DrawCircleGradient(object.position.x, object.position.y,
-                                           layerRadius, layerColor, layerEdge);
-                }
-            }
-        } else if constexpr (std::is_same_v<T, SpriteComponent>) {
-            auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
-
-            Sprite sprite = assets.GetSprite(Path(component.spriteName));
-            if (sprite.name.empty()) {
-                return;
-            }
-
-            auto sheetIt = sprite.sheets.find(component.sheetName);
-            if (sheetIt == sprite.sheets.end()) {
-                return;
-            }
-            const SpriteSheet& sheet = sheetIt->second;
-
-            auto seqIt = sheet.sequences.find(component.sequenceName);
-            if (seqIt == sheet.sequences.end()) {
-                return;
-            }
-            const SpriteSequence& sequence = seqIt->second;
-
-            if (sequence.indices.empty()) {
-                return;
-            }
-
-            size_t frameIdx = component.sequenceIndex % sequence.indices.size();
-            size_t linearIndex = sequence.indices[frameIdx];
-
-            Texture2D texture = assets.GetTexture(Path("Sprites/" + sheet.path));
-            if (texture.id == 0) {
-                return;
-            }
-
-            float frameWidth = (float)texture.width / (float)sheet.cols;
-            float frameHeight = (float)texture.height / (float)sheet.rows;
-
-            size_t col = linearIndex % sheet.cols;
-            size_t row = linearIndex / sheet.cols;
-
-            Rectangle sourceRect = {
-                col * frameWidth,
-                row * frameHeight,
-                frameWidth,
-                frameHeight};
-
-            float scaleX = 1.0f, scaleY = 1.0f;
-            if (world->HasComponent<ScaleComponent>(object.entity)) {
-                auto& scale = world->GetComponent<ScaleComponent>(object.entity);
-                scaleX = scale.x;
-                scaleY = scale.y;
-            }
-
-            float scaledWidth = frameWidth * scaleX;
-            float scaledHeight = frameHeight * scaleY;
-
-            // Use the sprite asset's origin as the render anchor.
-            // Entity position maps to (originX, originY) within the frame — default (0.5, 0.5) = center.
-            // Isometric character sprites set originY > 0.5 so feet land on the tile center.
-            Rectangle destRect = {
-                object.position.x - scaledWidth * sprite.originX,
-                object.position.y - scaledHeight * sprite.originY,
-                scaledWidth,
-                scaledHeight};
-            Vector2 origin = {0, 0};
-            ctx.DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
-        } else if constexpr (std::is_same_v<T, DebugComponent>) {
-            const DebugComponent& debug = component;
-
-            if (!debug.isSelected) {
-                return;
-            }
-
-            auto aabbMin = debug.aabbMin;
-            auto aabbMax = debug.aabbMax;
-
-            ctx.DrawRectangleLinesEx(
-                Rectangle{
-                    aabbMin.x,
-                    aabbMin.y,
-                    aabbMax.x - aabbMin.x,
-                    aabbMax.y - aabbMin.y},
-                2.0f,
-                debug.isSelected ? debug.highlightColor : RED);
-
-            // Draw dog ear name tag if entity has a name
-            if (world->HasComponent<NameComponent>(object.entity)) {
-                auto& name = world->GetComponent<NameComponent>(object.entity);
-
-                int fontSize = 10;
-                int textWidth = MeasureText(name.name.c_str(), fontSize);
-
-                // Dog ear tab positioned at top-right corner
-                float tabWidth = textWidth + 6.0f;
-                float tabHeight = fontSize + 4.0f;
-                float tabX = aabbMax.x - tabWidth;
-                float tabY = aabbMin.y - tabHeight;
-
-                Color earColor = debug.isSelected ? debug.highlightColor : RED;
-
-                // Draw tab background
-                ctx.DrawRectangle(tabX, tabY, tabWidth, tabHeight, earColor);
-
-                // Draw text
-                ctx.DrawText(name.name.c_str(), tabX + 3, tabY + 2, fontSize, WHITE);
-            }
-        }
-    },
-               object.renderable);
 }
 
 void RenderSystem::PushBlendMode(RenderContext& ctx, const SceneLayerBlend& blend) {
     switch (blend) {
-        case SceneLayerBlend::Normal:
-            ctx.PushBlendMode(BLEND_ALPHA);
-            break;
-        case SceneLayerBlend::Additive:
-            ctx.PushBlendMode(BLEND_ADDITIVE);
-            break;
-        case SceneLayerBlend::Multiply:
-            ctx.PushBlendMode(BLEND_MULTIPLIED);
-            break;
-        case SceneLayerBlend::Alpha:
-            ctx.PushBlendMode(BLEND_ALPHA);
-            break;
-        default:
-            ctx.PushBlendMode(BLEND_ALPHA);
-            break;
+        case SceneLayerBlend::Normal:   ctx.PushBlendMode(BLEND_ALPHA);      break;
+        case SceneLayerBlend::Additive: ctx.PushBlendMode(BLEND_ADDITIVE);   break;
+        case SceneLayerBlend::Multiply: ctx.PushBlendMode(BLEND_MULTIPLIED); break;
+        case SceneLayerBlend::Alpha:    ctx.PushBlendMode(BLEND_ALPHA);      break;
+        default:                        ctx.PushBlendMode(BLEND_ALPHA);      break;
     }
 }
 
 Matrix RenderSystem::CalculateTransform(Entity cameraEntity, const SceneLayer& layer) {
     auto& cameraPosition = world->GetComponent<PositionComponent>(cameraEntity);
-    auto& camera = world->GetComponent<CameraComponent>(cameraEntity);
+    auto& camera         = world->GetComponent<CameraComponent>(cameraEntity);
 
     switch (layer.space) {
-        case SceneLayerSpace::Screen2D: {
+        case SceneLayerSpace::Screen2D:
             return MatrixIdentity();
-        }
         case SceneLayerSpace::World2D: {
             Vector2 viewportCenter = {
-                camera.viewport.width * 0.5f,
-                camera.viewport.height * 0.5f};
-
+                camera.viewport.width  * 0.5f,
+                camera.viewport.height * 0.5f
+            };
             Matrix centerTranslation = MatrixTranslate(viewportCenter.x, viewportCenter.y, 0);
-            Matrix scale = MatrixScale(camera.zoom, camera.zoom, 1.0f);
+            Matrix scale             = MatrixScale(camera.zoom, camera.zoom, 1.0f);
             Matrix cameraTranslation = MatrixTranslate(-cameraPosition.x, -cameraPosition.y, 0);
-
             return MatrixMultiply(MatrixMultiply(centerTranslation, scale), cameraTranslation);
         }
     }

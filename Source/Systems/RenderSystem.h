@@ -7,35 +7,34 @@
 #include "Components/TextComponent.h"
 #include "Components/SpriteComponent.h"
 #include "Components/LightComponent.h"
-#include "Components/DebugComponent.h"
 #include "Core/SceneLayer.h"
 #include "raylib.h"
+#include <span>
 #include <vector>
-#include <map>
-#include <variant>
-#include <optional>
 #include <string>
+#include <variant>
 #include "Core/RenderContext.h"
 
 namespace Elysium::Systems {
 
-using Renderable = std::variant<
-    RectangleComponent,
-    CircleComponent,
-    TextComponent,
-    SpriteComponent,
-    LightComponent,
-    DebugComponent
->;
-
-struct RenderableObject {
-    Entity entity;
-    Vector2 position;
-    Renderable renderable;
-    int hierarchyDepth = 0;  // Calculated depth for sorting (e.g. based on Y position for isometric)
+// Bitmask of renderable components an entity has — set during collect, used during render
+enum RenderComponentFlags : uint8_t {
+    RC_Rectangle = 1 << 0,
+    RC_Circle    = 1 << 1,
+    RC_Text      = 1 << 2,
+    RC_Sprite    = 1 << 3,
+    RC_Light     = 1 << 4,
 };
 
-using RenderableObjects = std::vector<RenderableObject>;
+// Lightweight sort key — no component data, just enough to sort and identify the entity
+struct RenderKey {
+    uint8_t  layerIndex;
+    uint8_t  hierarchyDepth;
+    uint8_t  componentMask;
+    float    y;
+    float    x;
+    Entity   entity;
+};
 
 // Deferred draw commands issued by Lua scripts
 struct DrawCircleCmd  { std::string layer; float x, y, radius; Color color; };
@@ -61,27 +60,39 @@ public:
 
 protected:
     virtual void RenderView(RenderContext& ctx, Entity cameraEntity);
-    virtual void RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, const std::vector<RenderableObject>& objects);
-    virtual void RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, const std::vector<RenderableObject>& objects);
-    virtual void RenderObject(RenderContext& ctx, const RenderableObject& object, const SceneLayer& layer);
+    virtual void RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, std::span<const RenderKey> keys);
+    virtual void RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, std::span<const RenderKey> keys);
+
+    // Per-entity dispatch — calls per-component methods based on componentMask
+    void RenderEntity(RenderContext& ctx, const RenderKey& key, const SceneLayer& layer);
+
+    // Per-component render methods — fetch directly from ECS, no copies
+    void RenderRectangle(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+    void RenderCircle   (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+    void RenderText     (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+    void RenderSprite   (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+    void RenderLight    (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+
+    // Render deferred draw commands for a given layer
+    void RenderDrawCommands(RenderContext& ctx, const SceneLayer& layer);
 
     void FindCameras();
-    std::vector<Renderable> GetRenderables(Entity entity);
     std::string GetLayerName(Entity entity);
 
     void PushBlendMode(RenderContext& ctx, const SceneLayerBlend& blend);
     Matrix CalculateTransform(Entity camera, const SceneLayer& layer);
 
-    // Ensure light map is sized correctly, returns the texture
     RenderTexture2D& EnsureLightMap(int width, int height);
 
-    std::vector<Entity> _cameraEntities;
+    std::vector<Entity>      _cameraEntities;
     std::vector<DrawCommand> _drawCommands;
-    RenderTexture2D _lightMap = {0};  // Cached light map render target
-    int _lightMapWidth = 0;
+    std::vector<RenderKey>   _renderQueue;    // Reused each frame — reserved once, never deallocated
+
+    RenderTexture2D _lightMap = {0};
+    int _lightMapWidth  = 0;
     int _lightMapHeight = 0;
 
-    bool _isIsometric = false;        // Cached from first TileComponent query
+    bool _isIsometric       = false;
     bool _isIsometricCached = false;
 };
 
