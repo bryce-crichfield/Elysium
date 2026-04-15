@@ -123,6 +123,7 @@ void SceneService::Clear() {
 
 void SceneService::ApplySceneOperations() {
     if (pendingOperations_.empty()) return;
+    ProfileN("SceneService ApplySceneOperations");
 
     // Process all pending operations
     for (const auto& op : pendingOperations_) {
@@ -272,6 +273,7 @@ Scene* SceneService::CreateOrGetScene(const std::string& name) {
 }
 
 void SceneService::EnterScene(Scene* scene, const std::string& name) {
+    ProfileN("SceneService EnterScene");
     auto it = scenes_.find(name);
     if (it == scenes_.end()) {
         LOG_ERRORF("SceneService", "Cannot enter scene. Scene not found: %s", name.c_str());

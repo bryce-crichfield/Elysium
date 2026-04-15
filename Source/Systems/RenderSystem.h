@@ -32,6 +32,7 @@ struct RenderableObject {
     Entity entity;
     Vector2 position;
     Renderable renderable;
+    int hierarchyDepth = 0;  // Calculated depth for sorting (e.g. based on Y position for isometric)
 };
 
 using RenderableObjects = std::vector<RenderableObject>;

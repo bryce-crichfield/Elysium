@@ -2,6 +2,7 @@
 #define SOL_ALL_SAFETIES_ON 1
 #include "Services/ScriptService.h"
 #include "Core/Application.h"
+#include "Core/Common.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
 #include "Services/AssetService.h"
@@ -45,6 +46,7 @@ void ScriptService::Update(float deltaTime) {
 }
 
 sol::protected_function_result ScriptService::ExecuteString(const std::string& scriptString) {
+    ProfileN("ScriptService ExecuteString");
     auto result = lua.safe_script(scriptString, sol::script_pass_on_error);
     if (!result.valid()) {
         sol::error err = result;
@@ -482,6 +484,8 @@ void ScriptService::BindRaylibConstants() {
 }
 
 sol::table ScriptService::GetOrLoadScript(Path path) {
+    ProfileN("ScriptService GetOrLoadScript");
+    ProfileText(path.c_str());
     auto it = scriptRegistry.find(path);
     if (it != scriptRegistry.end()) {
         return it->second;
@@ -541,6 +545,8 @@ sol::table ScriptService::GetEntityInstance(Entity entity, Path scriptPath, bool
 }
 
 bool ScriptService::InitializeEntity(Entity entity, Path scriptName) {
+    ProfileN("ScriptService InitializeEntity");
+    ProfileText(scriptName.c_str());
     sol::table instance = GetEntityInstance(entity, scriptName, true);
     if (!instance.valid()) return false;
 
@@ -557,6 +563,8 @@ bool ScriptService::InitializeEntity(Entity entity, Path scriptName) {
 }
 
 bool ScriptService::UpdateEntity(Entity entity, Path scriptName, float deltaTime) {
+    ProfileN("ScriptService UpdateEntity");
+    ProfileText(scriptName.c_str());
     sol::table instance = GetEntityInstance(entity, scriptName, false);
     if (!instance.valid()) return false;
 
@@ -573,6 +581,8 @@ bool ScriptService::UpdateEntity(Entity entity, Path scriptName, float deltaTime
 }
 
 void ScriptService::OnEntityEvent(Entity entity, Path scriptPath, Event& event) {
+    ProfileN("ScriptService OnEntityEvent");
+    ProfileText(scriptPath.c_str());
     sol::table instance = GetEntityInstance(entity, scriptPath, false);
     if (!instance.valid()) return;
 
@@ -643,6 +653,8 @@ sol::table ScriptService::GetSceneInstance(Path scriptPath, bool create) {
 }
 
 bool ScriptService::InitializeScene(Path scriptPath) {
+    ProfileN("ScriptService InitializeScene");
+    ProfileText(scriptPath.c_str());
     sol::table instance = GetSceneInstance(scriptPath, true);
     if (!instance.valid()) return false;
 
@@ -659,6 +671,8 @@ bool ScriptService::InitializeScene(Path scriptPath) {
 }
 
 bool ScriptService::UpdateScene(Path scriptPath, float deltaTime) {
+    ProfileN("ScriptService UpdateScene");
+    ProfileText(scriptPath.c_str());
     sol::table instance = GetSceneInstance(scriptPath, false);
     if (!instance.valid()) return false;
 
@@ -675,6 +689,8 @@ bool ScriptService::UpdateScene(Path scriptPath, float deltaTime) {
 }
 
 bool ScriptService::RenderScene(Path scriptPath) {
+    ProfileN("ScriptService RenderScene");
+    ProfileText(scriptPath.c_str());
     sol::table instance = GetSceneInstance(scriptPath, false);
     if (!instance.valid()) return false;
 
@@ -691,6 +707,8 @@ bool ScriptService::RenderScene(Path scriptPath) {
 }
 
 void ScriptService::OnSceneEvent(Path scriptPath, Event& event) {
+    ProfileN("ScriptService OnSceneEvent");
+    ProfileText(scriptPath.c_str());
     sol::table instance = GetSceneInstance(scriptPath, false);
     if (!instance.valid()) return;
 
