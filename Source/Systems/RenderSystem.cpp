@@ -71,6 +71,14 @@ RenderTexture2D& RenderSystem::EnsureLightMap(int width, int height) {
 }
 
 void RenderSystem::Draw() {
+    // Cache isometric flag once — all tiles share the same isometric state.
+    if (!_isIsometricCached) {
+        _isIsometricCached = true;
+        world->Query<TileComponent>([&](Entity, const TileComponent& t) {
+            _isIsometric = t.isIsometric;
+        });
+    }
+
     FindCameras();
     RenderContext ctx;
 
@@ -119,6 +127,12 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
 
     world->Query<PositionComponent>([&](Entity entity, auto& pos) {
         if (world->HasComponent<CameraComponent>(entity)) {
+            return;
+        }
+
+        // Respect per-entity visibility flag set by VisibilitySystem (fog of war etc.)
+        if (world->HasComponent<LayerComponent>(entity) &&
+            !world->GetComponent<LayerComponent>(entity).isVisible) {
             return;
         }
 
@@ -367,32 +381,34 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
                     DrawLineV(bottom, left, component.border);
                     DrawLineV(left, top, component.border);
                 }
-            } else {
-                // Screen2D: position is the top-left corner of the rect.
-                // World2D: position is the center (sprites/units anchor to their logical center).
-                float topLeftX = (layer.space == SceneLayerSpace::Screen2D)
-                    ? object.position.x
-                    : object.position.x - component.width  * 0.5f;
-                float topLeftY = (layer.space == SceneLayerSpace::Screen2D)
-                    ? object.position.y
-                    : object.position.y - component.height * 0.5f;
+            } 
+            // Screen2D: position is the top-left corner of the rect.
+            // World2D: position is the center (sprites/units anchor to their logical center).
+            float topLeftX = (layer.space == SceneLayerSpace::Screen2D)
+                ? object.position.x
+                : object.position.x - component.width  * 0.5f;
+            float topLeftY = (layer.space == SceneLayerSpace::Screen2D)
+                ? object.position.y
+                : object.position.y - component.height * 0.5f;
+            
+            if (!isIsometric) {
                 ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
                 if (component.border.a > 0) {
                     ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
                 }
+            }
 
-                // If the textureName is set, draw texture scaled to fill the rectangle bounds
-                if (!component.textureName.empty()) {
-                    auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
-                    Texture2D texture = assets.GetTexture(Path(component.textureName));
-                    if (texture.id != 0) {
-                        Rectangle sourceRect = {0, 0, (float)texture.width, (float)texture.height};
-                        Rectangle destRect = {topLeftX, topLeftY, component.width, component.height};
-                        Vector2 origin = {0, 0};
-                        ctx.DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
-                    } else {
-                        assets.LoadAsset(AssetType::TEXTURE, Path(component.textureName));
-                    }
+            // If the textureName is set, draw texture scaled to fill the rectangle bounds
+            if (!component.textureName.empty()) {
+                auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+                Texture2D texture = assets.GetTexture(Path(component.textureName));
+                if (texture.id != 0) {
+                    Rectangle sourceRect = {0, 0, (float)texture.width, (float)texture.height};
+                    Rectangle destRect = {topLeftX, topLeftY, component.width, component.height};
+                    Vector2 origin = {0, 0};
+                    ctx.DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
+                } else {
+                    assets.LoadAsset(AssetType::TEXTURE, Path(component.textureName));
                 }
             }
         } else if constexpr (std::is_same_v<T, CircleComponent>) {
@@ -438,7 +454,16 @@ void RenderSystem::RenderObject(RenderContext& ctx, const RenderableObject& obje
                 layerColor.a = (unsigned char)(component.color.a / layers);
                 Color layerEdge = {layerColor.r, layerColor.g, layerColor.b, 0};
 
-                ctx.DrawCircleGradient(object.position.x, object.position.y, layerRadius, layerColor, layerEdge);
+                if (_isIsometric) {
+                    // Horizontal radius stays full; vertical is halved to match the 2:1
+                    // tile projection so the light appears as a circle in-game.
+                    ctx.DrawEllipseGradient(object.position.x, object.position.y,
+                                            layerRadius, layerRadius * 0.5f,
+                                            layerColor, layerEdge);
+                } else {
+                    ctx.DrawCircleGradient(object.position.x, object.position.y,
+                                           layerRadius, layerColor, layerEdge);
+                }
             }
         } else if constexpr (std::is_same_v<T, SpriteComponent>) {
             auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();

@@ -35,6 +35,8 @@ public:
     void DrawCircle(float x, float y, float radius, Color color);
     void DrawCircleLines(float x, float y, float radius, Color color);
     void DrawCircleGradient(float x, float y, float radius, Color color1, Color color2);
+    // color1 = inner (center), color2 = outer (edge)
+    void DrawEllipseGradient(float cx, float cy, float radiusH, float radiusV, Color inner, Color outer);
     void DrawEllipseLines(float centerX, float centerY, float radiusH, float radiusV, Color color);
     void DrawText(const char* text, float x, float y, int fontSize, Color color);
     void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);

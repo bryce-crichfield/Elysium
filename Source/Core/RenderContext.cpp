@@ -109,6 +109,21 @@ void RenderContext::DrawCircleGradient(float x, float y, float radius, Color col
     ::DrawCircleGradient((int)x, (int)y, radius, color1, color2);
 }
 
+void RenderContext::DrawEllipseGradient(float cx, float cy, float radiusH, float radiusV, Color inner, Color outer) {
+    // Triangle fan from center to ellipse perimeter, same approach as Raylib's DrawCircleGradient
+    // but with independent horizontal and vertical radii.
+    rlBegin(RL_TRIANGLES);
+    for (int i = 0; i < 360; i += 10) {
+        rlColor4ub(inner.r, inner.g, inner.b, inner.a);
+        rlVertex2f(cx, cy);
+        rlColor4ub(outer.r, outer.g, outer.b, outer.a);
+        rlVertex2f(cx + sinf(DEG2RAD * i)        * radiusH, cy + cosf(DEG2RAD * i)        * radiusV);
+        rlColor4ub(outer.r, outer.g, outer.b, outer.a);
+        rlVertex2f(cx + sinf(DEG2RAD * (i + 10)) * radiusH, cy + cosf(DEG2RAD * (i + 10)) * radiusV);
+    }
+    rlEnd();
+}
+
 void RenderContext::DrawEllipseLines(float centerX, float centerY, float radiusH, float radiusV, Color color) {
     ::DrawEllipseLines((int)centerX, (int)centerY, radiusH, radiusV, color);
 }

@@ -3,14 +3,15 @@
 local ExploreScene = {}
 
 -- Portrait bar ---------------------------------------------------------------
+-- Portrait bar ---------------------------------------------------------------
 local MAX_PORTRAITS = 5
-local PORTRAIT_SIZE = 64
-local PORTRAIT_GAP  = 8
 
--- Map unit-type substring → portrait texture path
 local UNIT_PORTRAITS = {
-    Archer = "Textures/Portraits/Archer.jpg",
-    Knight = "Textures/Portraits/Knight.jpg",
+    Archer = "Textures/Portraits/Archer128.jpg",
+    Knight = "Textures/Portraits/Knight128.jpg",
+    Bishop = "Textures/Portraits/Bishop128.jpg",
+    Militia = "Textures/Portraits/Militia128.jpg",
+    Worker  = "Textures/Portraits/Worker128.jpg",
 }
 
 local function getPortraitTexture(entity)
@@ -22,27 +23,24 @@ local function getPortraitTexture(entity)
     return ""
 end
 
-local function refreshPortraits(portraits, selected)
-    -- Flatten selected set into an ordered array for slot assignment
+local function refreshPortraits(selected)
     local units = {}
-    for entity, _ in pairs(selected) do
+    for entity in pairs(selected) do
         table.insert(units, entity)
     end
-
-    for i, portraitEntity in ipairs(portraits) do
-        if portraitEntity then
-            local rect = GetComponent(portraitEntity, "Rectangle")
-            if rect then
-                local unit = units[i]
-                if unit then
-                    rect.textureName = getPortraitTexture(unit)
-                else
-                    rect.textureName = ""
-                end
+    for i = 1, MAX_PORTRAITS do
+        local slot = PortraitSlotRegistry and PortraitSlotRegistry[i]
+        if slot then
+            local unit = units[i]
+            if unit then
+                slot:Show(getPortraitTexture(unit))
+            else
+                slot:Hide()
             end
         end
     end
 end
+------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
 
 local SELECTION_RADIUS = 32.0
@@ -85,8 +83,6 @@ local function drawTileOutline(cx, cy, width, height, color, layer)
     DrawLine(cx - hw, cy,      cx,      cy - hh, color, layer)
 end
 
-
-
 function ExploreScene:Initialize()
     self.selected   = {}     -- entity -> true
     self.mouseWX    = 0
@@ -114,7 +110,7 @@ local CAMERA_SPEED = 400  -- world units per second
 
 function ExploreScene:Update(dt)
     self.time = (self.time or 0) + dt
-    refreshPortraits(self.portraits, self.selected)
+    refreshPortraits(self.selected)
 
     -- WASD camera pan
     local dx, dy = 0, 0
@@ -174,7 +170,9 @@ function ExploreScene:Render()
 
     -- Hovered tile outline (suppressed while drag-selecting)
     if not self.isDragging then
-        local tx, ty = worldToTile(self.mouseWX, self.mouseWY)
+        local screenMp = GetMousePosition()
+        local worldMp = ScreenToWorld(screenMp)
+        local tx, ty = worldToTile(worldMp.x, worldMp.y)
         local cx, cy = tileToWorld(tx, ty)
         local color = {r = 255, g = 0, b = 0, a = 160}
         local t = 0.5 + 0.5 * math.sin(self.time * (2 * math.pi / 1.5))
@@ -183,6 +181,16 @@ function ExploreScene:Render()
         width  = width  * (1.0 + 0.3 * t)
         height = height * (1.0 + 0.3 * t)
         drawTileOutline(cx, cy,width,height,color, "selection")
+
+        -- Set the cursor entity's position to the hovered tile center
+        local cursor = GetEntityByName("CURSOR")
+        if cursor and cursor ~= 0 then
+            local pos = GetComponent(cursor, "Position")
+            if pos then
+                pos.x = cx
+                pos.y = cy
+            end
+        end
     end
 
     -- Collider debug outlines (toggle with D)

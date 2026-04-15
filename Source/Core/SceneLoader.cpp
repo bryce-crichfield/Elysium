@@ -77,12 +77,10 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
         VisitElement(tilemap, "TileDefinitions", [&](XMLElement* xmlTileDefinitions) {
             ForEachElement(xmlTileDefinitions, "TileDefinition", [&](XMLElement* xmlTileDefinition) {
                 int id = xmlTileDefinition->IntAttribute("id", 0);
-                std::string bgHex = xmlTileDefinition->Attribute("background") ? xmlTileDefinition->Attribute("background") : "";
-                std::string borderHex = xmlTileDefinition->Attribute("border") ? xmlTileDefinition->Attribute("border") : "";
+                const char* textureName = xmlTileDefinition->Attribute("textureName");
                 const char* layerName = xmlTileDefinition->Attribute("layerName");
-                Color bgColor = ParseHexColor(bgHex, BLANK);
-                Color borderColor = ParseHexColor(borderHex, BLANK);
-                tileDefinitions[id] = {RectangleComponent(tileWidth, tileHeight, bgColor, borderColor), layerName ? layerName : "tile"};
+                Color transparent = {0, 0, 0, 0};
+                tileDefinitions[id] = {RectangleComponent(tileWidth, tileHeight, transparent, transparent, textureName), layerName ? layerName : "tile"};
             });
         });
 

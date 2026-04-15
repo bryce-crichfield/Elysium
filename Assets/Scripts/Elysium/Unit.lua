@@ -133,6 +133,11 @@ function Unit:Update(entity, dt)
     local barX = pos.x - barW * 0.5
     local barY = pos.y + 10   -- near the feet
 
+    local layer = GetComponent(entity, "Layer")
+    if not layer or layer.isVisible == false then
+        return
+    end
+
     -- Background (dark red trough)
     FillRect(barX, barY, barW, barH, {r=40, g=10, b=10, a=200}, "entity")
 

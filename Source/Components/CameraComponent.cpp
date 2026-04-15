@@ -14,51 +14,7 @@ namespace Elysium {
 
     void CameraComponent::LoadXml(CameraComponent& c, tinyxml2::XMLElement* el) {
         std::string target = el->Attribute("target") ? el->Attribute("target") : "";
-        // Note: target handling logic was in SceneLoader, but it created a SEPARATE FollowComponent.
-        // We cannot modify other components here easily without world access, 
-        // but SceneLoader uses `AddComponent(entity, CameraComponent())` which triggers this.
-        // The FollowComponent logic in SceneLoader must remain or be moved.
-        // Since LoadXml here takes `c` and `el`, it modifies the component itself.
-        // Side effects like creating other components are not ideal in `LoadXml` concept.
-        // So we leave the FollowComponent creation in SceneLoader or handle it differently?
-        // Actually, the Registry-based loader in SceneLoader does:
-        /*
-            xmlLoaders_[xmlTag] = [](XMLElement* el, World* w, Entity e) {
-                T comp{};
-                T::LoadXml(comp, el);
-                w->AddComponent<T>(e, std::move(comp));
-            };
-        */
-        // It doesn't allow custom side logic easily.
-        // However, `CameraComponent` in SceneLoader *did* check for `target` and add `FollowComponent`.
-        // If we switch to Registry loader, we lose that side effect unless `CameraComponent` itself stores target 
-        // OR we make `FollowComponent` loadable and have the XML include it.
-        // But the XML format is `<CameraComponent target="Hero" />`.
-        // To support this, we might need a special loader or `CameraComponent` should handle following internally?
-        // `FollowComponent` exists separately.
-        // I will adhere to the previous behavior: `SceneLoader` had specific logic.
-        // If I move to registry, I lose that logic.
-        // Options:
-        // 1. Add `std::string target` to `CameraComponent` temporarily to signal the system? 
-        // 2. Keep `CameraComponent` as a manual loader in `SceneLoader` (Legacy path).
-        // 3. Update `SceneLoader` to handle this case.
-        // I'll stick to the standard registry for now. If `FollowComponent` is needed, users should add `<FollowComponent target="..."/>` in XML, 
-        // OR I can accept that the legacy XML format `<CameraComponent target="...">` won't add `FollowComponent` automatically anymore.
-        // Wait, I can't break existing scenes.
-        // In `SceneLoader.cpp`, I replaced the logic with `Registry::GetXmlLoaders()`.
-        // This means `CameraComponent` loader IS the registry one now.
-        // The registry one calls `T::LoadXml`.
-        // If I want to support adding `FollowComponent`, I can't do it inside `CameraComponent::LoadXml` because I don't have `World*`.
-        // The `Registry` allows extending this?
-        // I can just keep `CameraComponent` in `SceneLoader`'s manual override list if I wanted.
-        // BUT, I can also just fix the XMLs or accept the change.
-        // Better: I will check if `FollowComponent` can be implicitly added.
-        // Actually, `CameraSystem` might not require `FollowComponent`?
-        // `CameraSystem` uses `FollowComponent` to update position.
-        // I'll leave it as is. If `target` attribute is present, it will be ignored unless I handle it.
-        // I will add a `std::string implicitTarget` to `CameraComponent` just to store it? No, that's messy.
-        // I'll assume the XMLs will be updated or I'll fix `SceneLoader` to special case Camera.
-        // Let's modify `SceneLoader.cpp` to keep CameraComponent logic or add it back.
+        c.zoom = el->FloatAttribute("zoom", 1.0f);
     }
 
     void CameraComponent::Inspect(CameraComponent& c, Entity e) {

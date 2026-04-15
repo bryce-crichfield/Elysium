@@ -215,7 +215,8 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("IsMouseButtonPressed", [](int button) { return IsMouseButtonPressed(button); });
     lua.set_function("GetMousePosition", [this]() { 
         Vector2 m = this->_mousePosition; // Cached by SceneService from raylib input
-        return ScreenToWorld(m);
+        return m;
+        // return ScreenToWorld(m);
     });
 
     lua.set_function("WorldToScreen", [](const Vector2& worldPos) {

@@ -104,3 +104,4 @@ tmpclaude-*
 
 # AppData
 AppData/
+**/__pycache__/

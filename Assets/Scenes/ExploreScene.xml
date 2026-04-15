@@ -6,14 +6,16 @@
         <System type="MovementSystem" />
         <System type="KinematicsSystem" />
         <System type="CollisionSystem" />
-        <System type="PhysicsResponseSystem" />
+        <!-- <System type="PhysicsResponseSystem" /> -->
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
         <System type="FollowSystem" />
+        <System type="VisibilitySystem" />
         <System type="UiSystem" />
         <System type="RenderSystem" />
     </Systems>
 
+    <!-- TODO: Utilize width and height from SceneConfiguration -->
     <SceneConfiguration width="800" height="600">
         <SceneLayer name="background" z="-2" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
         <SceneLayer name="default"    z="-1" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
@@ -26,18 +28,26 @@
     </SceneConfiguration>
 
     <Include src="Prefabs/Tilemap.xml" />
-    <Include src="Prefabs/Archer.xml" name="Archer"  x="200"  y="100" />
-    <Include src="Prefabs/Archer.xml" name="Archer2" x="-150" y="200" />
-    <Include src="Prefabs/Archer.xml" name="Archer3" x="150"  y="300" />
-    <Include src="Prefabs/Knight.xml" name="Knight"  x="-100"   y="150"  />
-    <Include src="Prefabs/Knight.xml" name="Knight2" x="250"  y="250"  />
+    
+    <Include src="Prefabs/Unit.xml" name="Knight" x="300"  y="150" spriteName="Sprites/Knight/Knight.xml" />
+    <Include src="Prefabs/Unit.xml" name="Archer" x="350"  y="250" spriteName="Sprites/Archer/Archer.xml" />
+    <Include src="Prefabs/Unit.xml" name="Bishop" x="250"  y="250" spriteName="Sprites/Bishop/Bishop.xml" />
+    <Include src="Prefabs/Unit.xml" name="Militia" x="200"  y="350" spriteName="Sprites/Militia/Militia.xml" />
+    <Include src="Prefabs/Unit.xml" name="Worker" x="400"  y="300" spriteName="Sprites/Worker/Worker.xml" />
+
     <Include src="Prefabs/PortraitBar.xml" />
+    
+    <Include src="Prefabs/EnemyArcher.xml" name="Enemy1" x="500"  y="200" />
+    <Include src="Prefabs/EnemyArcher.xml" name="Enemy2" x="600"  y="350" />
+    <Include src="Prefabs/EnemyArcher.xml" name="Enemy3" x="400"  y="450" />
+
+    <Include src="Prefabs/Cursor.xml" name="CURSOR" x="0" y="0" />
 
     <Entities>
         <Entity>
             <NameComponent name="CAMERA" />
             <PositionComponent />
-            <CameraComponent target="ENTITY_0" />
+            <CameraComponent target="ENTITY_0" zoom="1" />
         </Entity>
 
         <Entity>

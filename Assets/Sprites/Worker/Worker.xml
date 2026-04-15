@@ -1,4 +1,4 @@
-<Sprite name="Worker">
+<Sprite name="Worker" riginX="0.5" originY="0.6875">
     <Sequences>
         <Sequence name="east"  indicies="0:*" />
         <Sequence name="southeast"  indicies="1:*" />
@@ -12,7 +12,7 @@
 
     <Sheet name="Idle" path="Worker/Idle.png" rows="8" columns="15" />
     <Sheet name="Walk" path="Worker/Walk.png" rows="8" columns="15" />
-    <Sheet name="Work" path="Worker/Work.png" rows="8" columns="15" />
+    <Sheet name="Run" path="Worker/Run.png" rows="8" columns="15" />
     <Sheet name="Death" path="Worker/Death.png" rows="8" columns="15" />
     <Sheet name="Attack" path="Worker/Attack.png" rows="8" columns="15" />
 </Sprite>

@@ -532,20 +532,24 @@ void SceneService::Shutdown() {
     Profile;
     UnloadRenderTexture(framebuffer_);
 
-    // Exit, save, and free any scenes still on the stack
-    while (!sceneStack_.empty()) {
-        Scene* scene = sceneStack_.back();
-        sceneStack_.pop_back();
-        if (scene) {
-            scene->OnExit();
-            for (auto& [name, data] : scenes_) {
-                if (data.scene == scene) {
-                    SaveAndFreeScene(data, name);
-                    break;
+    // TODO: Add flag to control scene shutdown behavior
+    if (false) {
+        // Exit, save, and free any scenes still on the stack
+        while (!sceneStack_.empty()) {
+            Scene* scene = sceneStack_.back();
+            sceneStack_.pop_back();
+            if (scene) {
+                scene->OnExit();
+                for (auto& [name, data] : scenes_) {
+                    if (data.scene == scene) {
+                        SaveAndFreeScene(data, name);
+                        break;
+                    }
                 }
             }
         }
     }
+
 
     // Any remaining allocated scenes not in the stack (shouldn't happen, but clean up)
     for (auto& [name, data] : scenes_) {

@@ -1,0 +1,9 @@
+<Sprite name="Cursor">
+    <Sequences>
+        <Sequence name="hover"  indicies="0:*" />
+        <Sequence name="attack"  indicies="1:*" />
+        <Sequence name="select"  indicies="2:*" />
+    </Sequences>
+
+    <Sheet name="Cursor" path="Cursor/Cursor.png" rows="3" columns="16" />
+</Sprite>

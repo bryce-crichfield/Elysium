@@ -7,8 +7,9 @@
 namespace Elysium {
     struct LayerComponent {
         std::string name = "default";
+        bool isVisible = true;
 
-        LayerComponent(const std::string& name = "default");
+        LayerComponent(const std::string& name = "default", bool isVisible = true);
 
         static constexpr const char* Name() { return "Layer"; }
         static constexpr const char* XmlTag() { return "LayerComponent"; }

@@ -79,6 +79,9 @@ protected:
     RenderTexture2D _lightMap = {0};  // Cached light map render target
     int _lightMapWidth = 0;
     int _lightMapHeight = 0;
+
+    bool _isIsometric = false;        // Cached from first TileComponent query
+    bool _isIsometricCached = false;
 };
 
 }  // namespace Elysium::Systems
