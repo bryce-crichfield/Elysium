@@ -189,17 +189,20 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
             }
             if (!mask) return;
 
-            uint8_t layerIndex = defaultLayerIndex;
+            uint8_t layerIndex   = defaultLayerIndex;
+            uint8_t isWorldSpace = 0;
             if (world->HasComponent<LayerComponent>(entity)) {
                 const auto& layerComp = world->GetComponent<LayerComponent>(entity);
                 auto it = layerNameToIndex.find(layerComp.name);
-                if (it != layerNameToIndex.end())
-                    layerIndex = it->second;
+                if (it != layerNameToIndex.end()) {
+                    layerIndex   = it->second;
+                    isWorldSpace = (layers[layerIndex].space == SceneLayerSpace::World2D) ? 1 : 0;
+                }
             }
 
             // hierarchyDepth not yet populated here — kept as 0 for now,
             // same as the previous path which never set it during collect either.
-            _renderQueue.push_back({ layerIndex, 0, mask, pos.y, pos.x, entity });
+            _renderQueue.push_back({ layerIndex, 0, mask, isWorldSpace, pos.y, pos.x, entity });
         });
     }
 
@@ -211,7 +214,11 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
                     return a.layerIndex < b.layerIndex;
                 if (a.hierarchyDepth != b.hierarchyDepth)
                     return a.hierarchyDepth < b.hierarchyDepth;
-                return a.y < b.y;
+                // Y-sort only for World2D layers (painter's algorithm depth ordering).
+                // Screen2D layers preserve XML declaration order via entity ID.
+                if (a.isWorldSpace)
+                    return a.y < b.y;
+                return a.entity < b.entity;
             });
     }
 

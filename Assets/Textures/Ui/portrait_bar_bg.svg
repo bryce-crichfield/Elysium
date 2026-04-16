@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="80" viewBox="0 0 640 80">
+  <defs>
+    <!-- Panel body: dark stone, lighter at top edge -->
+    <linearGradient id="panelGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#3a3530"/>
+      <stop offset="30%"  stop-color="#2e2a26"/>
+      <stop offset="100%" stop-color="#1e1b18"/>
+    </linearGradient>
+
+    <!-- Top-edge bevel highlight -->
+    <linearGradient id="bevelGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#7a7060" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#7a7060" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Gold stripe gradient -->
+    <linearGradient id="goldStripe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#a87820" stop-opacity="0"/>
+      <stop offset="8%"   stop-color="#d4a832" stop-opacity="1"/>
+      <stop offset="92%"  stop-color="#d4a832" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#a87820" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Corner cap gold -->
+    <linearGradient id="goldCorner" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#f0c84a"/>
+      <stop offset="100%" stop-color="#a87820"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ── Main panel fill ── -->
+  <rect x="0" y="0" width="640" height="80" fill="url(#panelGrad)"/>
+
+  <!-- ── Subtle top-edge stone bevel ── -->
+  <rect x="0" y="0" width="640" height="6" fill="url(#bevelGrad)" opacity="0.5"/>
+
+  <!-- ── Primary gold top stripe ── -->
+  <rect x="0" y="0" width="640" height="2" fill="url(#goldStripe)"/>
+
+  <!-- ── Secondary thinner gold stripe below ── -->
+  <rect x="0" y="4" width="640" height="1" fill="url(#goldStripe)" opacity="0.4"/>
+
+  <!-- ── Slot separators: thin vertical lines between portrait slots ──
+       Slots at x: 10–74, 82–146, 154–218, 226–290, 298–362
+       Separators at x=77, x=149, x=221, x=293 -->
+  <line x1="77"  y1="8" x2="77"  y2="72" stroke="#5a5248" stroke-width="1"/>
+  <line x1="149" y1="8" x2="149" y2="72" stroke="#5a5248" stroke-width="1"/>
+  <line x1="221" y1="8" x2="221" y2="72" stroke="#5a5248" stroke-width="1"/>
+  <line x1="293" y1="8" x2="293" y2="72" stroke="#5a5248" stroke-width="1"/>
+
+  <!-- ── Left end cap: vertical gold rule + corner diamond ── -->
+  <rect x="2" y="0" width="1" height="80" fill="url(#goldStripe)" opacity="0.7"/>
+  <polygon points="0,0 10,0 0,10"   fill="url(#goldCorner)" opacity="0.85"/>
+  <polygon points="0,80 10,80 0,70" fill="url(#goldCorner)" opacity="0.85"/>
+
+  <!-- ── Right end cap (mirrored) ── -->
+  <rect x="637" y="0" width="1" height="80" fill="url(#goldStripe)" opacity="0.7"/>
+  <polygon points="640,0  630,0  640,10"  fill="url(#goldCorner)" opacity="0.85"/>
+  <polygon points="640,80 630,80 640,70" fill="url(#goldCorner)" opacity="0.85"/>
+
+  <!-- ── Central emblem placeholder: small diamond divider between slots and right side ──
+       A simple decorative element at the far-right of the bar, beyond slot 5  -->
+  <polygon points="380,40 386,34 392,40 386,46" fill="none" stroke="url(#goldCorner)" stroke-width="1" opacity="0.6"/>
+
+  <!-- ── Bottom shadow line ── -->
+  <rect x="0" y="78" width="640" height="2" fill="#000000" opacity="0.6"/>
+</svg>

@@ -27,6 +27,11 @@ function PortraitSlot:Initialize(entity)
     self.visible     = false
     self.pendingTex  = ""       -- texture requested by scene script
 
+    -- Cache the paired frame entity so we can sync its visibility
+    local nameComp2 = GetComponent(entity, "Name")
+    local frameName = nameComp2 and (nameComp2.name .. "_FRAME") or ""
+    self.frameEntity = frameName ~= "" and GetEntityByName(frameName) or nil
+
     -- Register so ExploreScene can call :Show / :Hide on us
     if self.slotIndex > 0 then
         PortraitSlotRegistry[self.slotIndex] = self
@@ -69,8 +74,16 @@ function PortraitSlot:Update(entity, dt)
             rect.textureName = self.pendingTex
             rect.border      = self.visible and BORDER_OCCUPIED or BORDER_IDLE
         else
-            rect.textureName = ""
+            -- rect.textureName = ""
             rect.border      = "#00000000"
+        end
+    end
+
+    -- Sync frame visibility to match the slot
+    if self.frameEntity then
+        local frameRect = GetComponent(self.frameEntity, "Rectangle")
+        if frameRect then
+            -- frameRect.textureName = self.t > 0 and "Textures/Ui/portrait_frame.png" or ""
         end
     end
 end

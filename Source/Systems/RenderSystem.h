@@ -33,6 +33,7 @@ struct RenderKey {
     uint8_t  layerIndex;
     uint8_t  hierarchyDepth;
     uint8_t  componentMask;
+    uint8_t  isWorldSpace;   // 1 = World2D (Y-sort); 0 = Screen2D (declaration order)
     float    y;
     float    x;
     Entity   entity;

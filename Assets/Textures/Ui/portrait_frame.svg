@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <!-- Stone/metal gradient for the frame body -->
+    <linearGradient id="stoneGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#3a3530"/>
+      <stop offset="40%"  stop-color="#4e4840"/>
+      <stop offset="100%" stop-color="#2a2520"/>
+    </linearGradient>
+
+    <!-- Gold gradient for corner accents and highlights -->
+    <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#d4a832"/>
+      <stop offset="50%"  stop-color="#f0c84a"/>
+      <stop offset="100%" stop-color="#a87820"/>
+    </linearGradient>
+
+    <!-- Inner bevel shadow -->
+    <linearGradient id="innerShadow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <!-- Clip path cuts out the transparent portrait window -->
+    <clipPath id="frameClip">
+      <path d="M0,0 H64 V64 H0 Z M10,10 H54 V54 H10 Z" clip-rule="evenodd"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Frame body (stone fill, clipped to border ring) ── -->
+  <rect x="0" y="0" width="64" height="64" fill="url(#stoneGrad)" clip-path="url(#frameClip)"/>
+
+  <!-- ── Outer edge highlight (top/left) ── -->
+  <line x1="0" y1="0" x2="64" y2="0"  stroke="#6a6055" stroke-width="1"/>
+  <line x1="0" y1="0" x2="0"  y2="64" stroke="#6a6055" stroke-width="1"/>
+
+  <!-- ── Outer edge shadow (bottom/right) ── -->
+  <line x1="63" y1="0"  x2="63" y2="64" stroke="#1a1510" stroke-width="1"/>
+  <line x1="0"  y1="63" x2="64" y2="63" stroke="#1a1510" stroke-width="1"/>
+
+  <!-- ── Inner edge: thin gold inset line around portrait window ── -->
+  <rect x="9"  y="9"  width="46" height="46" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" opacity="0.8"/>
+
+  <!-- ── Inner shadow band (top of portrait window) ── -->
+  <rect x="10" y="10" width="44" height="8" fill="url(#innerShadow)" opacity="0.4"/>
+
+  <!-- ── Corner ornaments: gold diamond nubs ── -->
+  <!-- Top-left -->
+  <polygon points="0,0 8,0 0,8" fill="url(#goldGrad)" opacity="0.9"/>
+  <rect x="1" y="1" width="5" height="5" rx="0.5" fill="url(#goldGrad)" opacity="0.7"/>
+  <!-- Top-right -->
+  <polygon points="64,0 56,0 64,8" fill="url(#goldGrad)" opacity="0.9"/>
+  <rect x="58" y="1" width="5" height="5" rx="0.5" fill="url(#goldGrad)" opacity="0.7"/>
+  <!-- Bottom-left -->
+  <polygon points="0,64 0,56 8,64" fill="url(#goldGrad)" opacity="0.9"/>
+  <rect x="1" y="58" width="5" height="5" rx="0.5" fill="url(#goldGrad)" opacity="0.7"/>
+  <!-- Bottom-right -->
+  <polygon points="64,64 56,64 64,56" fill="url(#goldGrad)" opacity="0.9"/>
+  <rect x="58" y="58" width="5" height="5" rx="0.5" fill="url(#goldGrad)" opacity="0.7"/>
+
+  <!-- ── Mid-edge gold pip (top, bottom, left, right) ── -->
+  <rect x="29" y="1"  width="6" height="3" rx="1" fill="url(#goldGrad)" opacity="0.75"/>
+  <rect x="29" y="60" width="6" height="3" rx="1" fill="url(#goldGrad)" opacity="0.75"/>
+  <rect x="1"  y="29" width="3" height="6" rx="1" fill="url(#goldGrad)" opacity="0.75"/>
+  <rect x="60" y="29" width="3" height="6" rx="1" fill="url(#goldGrad)" opacity="0.75"/>
+
+  <!-- ── Transparent portrait window (explicit clear, last) ── -->
+  <!-- Nothing drawn here — the clip handles it; SVG is transparent by default in this region -->
+</svg>
