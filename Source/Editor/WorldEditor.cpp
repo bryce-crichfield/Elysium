@@ -368,7 +368,7 @@ void WorldEditor::DrawInsertionZone(EditorService& service, Entity parent, Entit
     ImVec2 origin = ImGui::GetCursorScreenPos();
     float zoneW = ImGui::GetContentRegionAvail().x;
 
-    ImGui::InvisibleButton("##zone", ImVec2(zoneW > 0 ? zoneW : 1.0f, zoneH));
+    ImGui::InvisibleButton("##zone", ImVec2(zoneW > 0 ? zoneW : 1.0f, 2.0f));
 
     if (ImGui::BeginDragDropTarget()) {
         // Visual insertion line while hovering.
@@ -427,8 +427,7 @@ void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
         label = "Entity " + std::to_string(entity);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
-                             | ImGuiTreeNodeFlags_SpanAvailWidth
-                             | ImGuiTreeNodeFlags_DefaultOpen;
+                             | ImGuiTreeNodeFlags_SpanAvailWidth;
     if (!hasChildren)
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
     if (entity == selectedEntity)

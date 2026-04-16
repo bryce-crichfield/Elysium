@@ -9,7 +9,6 @@
 #include "Components/BoundsComponent.h"
 #include "Components/CameraComponent.h"
 #include "Components/CircleComponent.h"
-#include "Components/DebugComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/LayerComponent.h"
 #include "Components/LightComponent.h"

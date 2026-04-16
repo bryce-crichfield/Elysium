@@ -13,7 +13,6 @@
 #include "Editor/AssetEditor.h"
 #include "Editor/NetworkEditor.h"
 #include "Editor/ScriptEditor.h"
-#include "Systems/DebugSystem.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "rlImGui.h"
@@ -229,6 +228,16 @@ void Application::Draw() {
         service->Render();
     }
 
+    // Editor overlay: selection box + gizmos drawn on top of the framebuffer
+    if (mode_ == AppMode::Editor) {
+        auto& editorService = GetService<Services::EditorService>();
+        auto& sceneService  = GetService<Services::SceneService>();
+        auto& fb = sceneService.GetFramebuffer();
+        BeginTextureMode(fb);
+        editorService.RenderOverlay((float)fb.texture.width, (float)fb.texture.height);
+        EndTextureMode();
+    }
+
     // ImGui overlays
     rlImGuiBegin();
 
@@ -339,32 +348,16 @@ void Application::SetMode(AppMode mode) {
     auto& sceneService = GetService<Services::SceneService>();
 
     if (mode_ == AppMode::Editor) {
+        sceneService.SetPaused(true);
         for (auto& editor : editors_) {
             editor->SetVisible(true);
         }
-
-        // Add DebugSystem to all scenes in the stack
-        for (Scene* scene : sceneService.GetStack()) {
-            if (!scene->GetSystem<Systems::DebugSystem>()) {
-                Context ctx;
-                ctx.application = this;
-                ctx.scene = scene;
-                ctx.world = scene->GetWorld();
-                scene->AddSystem(std::make_unique<Systems::DebugSystem>(ctx));
-            }
-        }
     } else {
+        sceneService.SetPaused(false);
         for (auto& editor : editors_) {
             editor->SetVisible(false);
         }
         editorLayoutBuilt_ = false;
-
-        // Remove DebugSystem from all scenes in the stack
-        for (Scene* scene : sceneService.GetStack()) {
-            if (auto* debugSystem = scene->GetSystem<Systems::DebugSystem>()) {
-                scene->RemoveSystem(debugSystem);
-            }
-        }
     }
 }
 

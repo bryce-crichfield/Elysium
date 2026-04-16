@@ -108,6 +108,9 @@ public:
     void SetViewportRect(Rectangle rect);
     const Rectangle& GetViewportRect() const { return viewportRect_; }
 
+    void SetPaused(bool p) { paused_ = p; }
+    bool IsPaused() const { return paused_; }
+
 private:
     void ProcessInput();
     Scene* CreateOrGetScene(const std::string& name);
