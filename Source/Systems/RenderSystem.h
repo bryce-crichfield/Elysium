@@ -97,6 +97,8 @@ protected:
 
     bool _isIsometric       = false;
     bool _isIsometricCached = false;
+
+    RenderSystem* _previousRenderSystem = nullptr;
 };
 
 }  // namespace Elysium::Systems

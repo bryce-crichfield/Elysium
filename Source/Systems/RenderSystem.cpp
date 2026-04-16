@@ -40,13 +40,14 @@ namespace Elysium::Systems {
 static RenderSystem* s_currentRenderSystem = nullptr;
 
 RenderSystem::RenderSystem(Context context) : System(context) {
+    _previousRenderSystem = s_currentRenderSystem;
     s_currentRenderSystem = this;
     _renderQueue.reserve(4096);
 }
 
 RenderSystem::~RenderSystem() {
     if (s_currentRenderSystem == this)
-        s_currentRenderSystem = nullptr;
+        s_currentRenderSystem = _previousRenderSystem;
     if (_lightMap.id != 0) {
         UnloadRenderTexture(_lightMap);
     }

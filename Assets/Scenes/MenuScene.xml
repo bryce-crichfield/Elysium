@@ -53,10 +53,8 @@
             <PositionComponent x="0" y="0" />
             <RectangleComponent width="200" height="50" background="#2266AA" border="#44AAFF" layerName="ui" />
             <TextComponent text="Play Game" fontSize="24" color="#FFFFFF" layerName="ui" />
-            <BoundsComponent />
             <UiComponent />
             <ParentComponent target="ButtonPanel" />
-            <ScriptComponent scriptName="Scripts/BounceIn.lua" />
         </Entity>
 
         <!-- Options Button -->
@@ -65,10 +63,8 @@
             <PositionComponent x="0" y="0" />
             <RectangleComponent width="200" height="50" background="#226644" border="#44AA66" layerName="ui" />
             <TextComponent text="Options" fontSize="24" color="#FFFFFF" layerName="ui" />
-            <BoundsComponent />
             <UiComponent />
             <ParentComponent target="ButtonPanel" />
-            <ScriptComponent scriptName="Scripts/BounceIn.lua" />
         </Entity>
 
         <!-- Quit Button -->
@@ -77,10 +73,8 @@
             <PositionComponent x="0" y="0" />
             <RectangleComponent width="200" height="50" background="#662222" border="#AA4444" layerName="ui" />
             <TextComponent text="Quit" fontSize="24" color="#FFFFFF" layerName="ui" />
-            <BoundsComponent />
             <UiComponent />
             <ParentComponent target="ButtonPanel" />
-            <ScriptComponent scriptName="Scripts/BounceIn.lua" />
         </Entity>
 
         <!-- Version text -->

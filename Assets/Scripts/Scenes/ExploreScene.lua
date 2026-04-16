@@ -245,7 +245,13 @@ function ExploreScene:OnEvent(event)
         end
 
     elseif event.type == "KeyPressed" then
-        if event.key == KEY_1 then
+        if event.key == KEY_ESCAPE then
+            ScenePush("OptionsScene")
+            return true
+        elseif event.key == KEY_I then
+            ScenePush("InventoryScene")
+            return true
+        elseif event.key == KEY_1 then
             self.debugDraw = not self.debugDraw
             Log("Collider debug draw: " .. tostring(self.debugDraw))
         end

@@ -50,31 +50,5 @@
             <PositionComponent />
             <CameraComponent target="ENTITY_0" zoom="1" />
         </Entity>
-
-        <Entity>
-            <NameComponent name="UI_ROOT" />
-            <PositionComponent x="32" y="32" />
-            <UiComponent containerType="Vertical" gap="15" />
-        </Entity>
-        <Entity>
-            <LayerComponent name="ui" />
-            <NameComponent name="MENU_BUTTON" />
-            <ParentComponent target="UI_ROOT" />
-            <PositionComponent x="0" y="0" />
-            <RectangleComponent width="164" height="32" background="#202020FF" border="#FFFFFFFF" />
-            <TextComponent text="Back to Menu" fontSize="20" r="255" g="255" b="255" a="255" />
-            <UiComponent />
-            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
-        </Entity>
-        <Entity>
-            <LayerComponent name="ui" />
-            <NameComponent name="MENU_BUTTON2" />
-            <ParentComponent target="UI_ROOT" />
-            <PositionComponent x="0" y="0" />
-            <RectangleComponent width="164" height="32" background="#202020FF" border="#FFFFFFFF" />
-            <TextComponent text="Back to Menu" fontSize="20" r="255" g="255" b="255" a="255" />
-            <UiComponent />
-            <ScriptComponent scriptName="Scripts/MenuButton.lua" />
-        </Entity>
     </Entities>
 </Scene>

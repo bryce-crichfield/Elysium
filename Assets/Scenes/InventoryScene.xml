@@ -1,0 +1,111 @@
+<Scene type="InventoryScene">
+    <SceneScript path="Scripts/Scenes/InventoryScene.lua" />
+
+    <Systems>
+        <System type="ScriptSystem" />
+        <System type="UiSystem" />
+        <System type="RenderSystem" />
+    </Systems>
+
+    <!-- Framebuffer is 640 × 480 -->
+    <SceneConfiguration width="640" height="480">
+        <SceneLayer name="overlay" z="0" space="Screen" layerBlend="Normal" compositeBlend="Normal" isComposited="false" />
+        <SceneLayer name="ui"      z="1" space="Screen" layerBlend="Normal" compositeBlend="Normal" isComposited="false" />
+        <SceneLayer name="ui_fg"   z="2" space="Screen" layerBlend="Normal" compositeBlend="Normal" isComposited="false" />
+    </SceneConfiguration>
+
+    <Entities>
+        <Entity>
+            <NameComponent name="CAMERA" />
+            <PositionComponent x="0" y="0" />
+            <CameraComponent />
+        </Entity>
+
+        <!-- Full-screen backdrop — dims ExploreScene behind the modal -->
+        <Entity>
+            <LayerComponent name="overlay" />
+            <NameComponent name="BACKDROP" />
+            <PositionComponent x="0" y="0" />
+            <RectangleComponent width="640" height="480" background="#000000AA" />
+        </Entity>
+
+        <!-- Modal chrome — standalone background and title, not part of the layout tree -->
+        <Entity>
+            <LayerComponent name="ui" />
+            <NameComponent name="MODAL_BG" />
+            <PositionComponent x="14" y="12" />
+            <RectangleComponent width="612" height="456" background="#1C1C1EFF" border="#4A4A52FF" />
+        </Entity>
+        <Entity>
+            <LayerComponent name="ui" />
+            <NameComponent name="MODAL_TITLE" />
+            <PositionComponent x="308" y="20" />
+            <TextComponent text="Inventory" fontSize="16" color="#E5E5EAFF" />
+        </Entity>
+        <Entity>
+            <LayerComponent name="ui" />
+            <NameComponent name="ESC_HINT" />
+            <PositionComponent x="454" y="456" />
+            <TextComponent text="ESC to close" fontSize="12" color="#636366FF" />
+        </Entity>
+
+        <!-- ─────────────────────────────────────────────────────────────────── -->
+        <!--  Layout tree                                                        -->
+        <!--                                                                     -->
+        <!--  PANEL_ROW (Horizontal, gap=8)                                      -->
+        <!--    ├─ INV_PANEL  (Vertical, gap=0) ← w=290, h=420                  -->
+        <!--    │    └─ INV_HEADER  (leaf)       ← w=290, h=26                  -->
+        <!--    └─ CHAR_PANEL (Vertical, gap=0)  ← w=290, h=420                 -->
+        <!--         └─ CHAR_HEADER (leaf)        ← w=290, h=26                 -->
+        <!--                                                                     -->
+        <!--  UiSystem resolves to:                                              -->
+        <!--    INV_PANEL  → (26, 42)    CHAR_PANEL → (324, 42)                 -->
+        <!--    INV_HEADER → (26, 42)    CHAR_HEADER → (324, 42)                -->
+        <!-- ─────────────────────────────────────────────────────────────────── -->
+
+        <!-- Horizontal root: positions INV_PANEL and CHAR_PANEL side by side -->
+        <Entity>
+            <NameComponent name="PANEL_ROW" />
+            <PositionComponent x="26" y="42" />
+            <UiComponent containerType="Horizontal" gap="8" />
+        </Entity>
+
+        <!-- Left panel: Inventory / Backpack -->
+        <Entity>
+            <LayerComponent name="ui" />
+            <NameComponent name="INV_PANEL" />
+            <PositionComponent x="0" y="0" />
+            <RectangleComponent width="290" height="420" background="#28282CFF" border="#3A3A3EFF" />
+            <UiComponent containerType="Vertical" gap="0" />
+            <ParentComponent target="PANEL_ROW" />
+        </Entity>
+        <Entity>
+            <LayerComponent name="ui" />
+            <NameComponent name="INV_HEADER" />
+            <PositionComponent x="0" y="0" />
+            <RectangleComponent width="290" height="26" background="#2E2E36FF" border="#3A3A3EFF" />
+            <TextComponent text="Backpack" fontSize="13" color="#AEAEB2FF" />
+            <UiComponent />
+            <ParentComponent target="INV_PANEL" />
+        </Entity>
+
+        <!-- Right panel: Character sheet -->
+        <Entity>
+            <LayerComponent name="ui" />
+            <NameComponent name="CHAR_PANEL" />
+            <PositionComponent x="0" y="0" />
+            <RectangleComponent width="290" height="420" background="#28282CFF" border="#3A3A3EFF" />
+            <UiComponent containerType="Vertical" gap="0" />
+            <ParentComponent target="PANEL_ROW" />
+        </Entity>
+        <Entity>
+            <LayerComponent name="ui" />
+            <NameComponent name="CHAR_HEADER" />
+            <PositionComponent x="0" y="0" />
+            <RectangleComponent width="290" height="26" background="#2E2E36FF" border="#3A3A3EFF" />
+            <TextComponent text="Character" fontSize="13" color="#AEAEB2FF" />
+            <UiComponent />
+            <ParentComponent target="CHAR_PANEL" />
+        </Entity>
+    </Entities>
+</Scene>

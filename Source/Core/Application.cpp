@@ -71,6 +71,7 @@ bool Application::Initialize(const std::string& configPath) {
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(config_.windowWidth, config_.windowHeight, config_.windowTitle.c_str());
+    SetExitKey(0);  // Disable raylib's default ESC-to-quit; handled by scene scripts
 
     InitAudioDevice();
 

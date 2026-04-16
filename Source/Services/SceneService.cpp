@@ -4,7 +4,6 @@
 #include "Core/Common.h"
 #include "Core/Event.h"
 #include "Core/Path.h"
-#include <filesystem>
 #include "Services/InvokeService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
@@ -18,23 +17,8 @@ using namespace tinyxml2;
 
 namespace Elysium::Services {
 
-// Build the AppData save path for a scene by name.
-// e.g. name="ExploreScene" -> AppData/Scenes/ExploreScene.save.xml
-static Path AppDataSavePath(const std::string& sceneName) {
-    return Path("Scenes/" + sceneName + ".save.xml", PathRoot::AppData);
-}
-
-// Save scene state and release its memory, resetting the registration for fresh load next push.
-static void SaveAndFreeScene(SceneRegistration& data, const std::string& name) {
-    if (!data.xmlPath.empty()) {
-        Path savePath = AppDataSavePath(name);
-        // Ensure the AppData/Scenes/ directory exists before writing
-        std::filesystem::create_directories(
-            std::filesystem::path(savePath.GetFullPath()).parent_path());
-        if (!SaveScene(*data.scene, savePath.GetFullPath())) {
-            LOG_WARNINGF("SceneService", "Failed to save scene '%s' on pop", name.c_str());
-        }
-    }
+// Release a scene's memory and reset its registration so it reloads fresh next push.
+static void FreeScene(SceneRegistration& data) {
     delete data.scene;
     data.scene = nullptr;
     data.xmlLoaded = false;
@@ -175,8 +159,7 @@ void SceneService::ApplySceneOperations() {
                     scene->OnExit();
                     for (auto& [name, data] : scenes_) {
                         if (data.scene == scene) {
-                            LOG_INFOF("SceneService", "Saving and freeing scene '%s' on pop", name.c_str());
-                            SaveAndFreeScene(data, name);
+                            FreeScene(data);
                             break;
                         }
                     }
@@ -196,8 +179,7 @@ void SceneService::ApplySceneOperations() {
                         oldScene->OnExit();
                         for (auto& [name, data] : scenes_) {
                             if (data.scene == oldScene) {
-                                LOG_INFOF("SceneService", "Saving and freeing scene '%s' on replace", name.c_str());
-                                SaveAndFreeScene(data, name);
+                                FreeScene(data);
                                 break;
                             }
                         }
@@ -232,8 +214,7 @@ void SceneService::ApplySceneOperations() {
                         scene->OnExit();
                         for (auto& [name, data] : scenes_) {
                             if (data.scene == scene) {
-                                LOG_INFOF("SceneService", "Saving and freeing scene '%s' on clear", name.c_str());
-                                SaveAndFreeScene(data, name);
+                                FreeScene(data);
                                 break;
                             }
                         }
@@ -282,13 +263,8 @@ void SceneService::EnterScene(Scene* scene, const std::string& name) {
 
     SceneRegistration& sceneData = it->second;
 
-    // Load XML if needed. Prefer an AppData save file over the canonical Assets XML.
     if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded) {
-        Path savePath = AppDataSavePath(name);
-        const std::string loadPath = FileExists(savePath.GetFullPath().c_str())
-            ? savePath.GetFullPath()
-            : sceneData.xmlPath;
-        LoadScene(*scene, loadPath);
+        LoadScene(*scene, sceneData.xmlPath);
         sceneData.xmlLoaded = true;
     }
 
@@ -507,7 +483,7 @@ void SceneService::ProcessInput() {
     const int keysToCheck[] = {
         KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN, KEY_EIGHT, KEY_NINE, KEY_ZERO,
         KEY_SPACE, KEY_ENTER, KEY_ESCAPE,
-        KEY_W, KEY_A, KEY_S, KEY_D,
+        KEY_W, KEY_A, KEY_S, KEY_D, KEY_I,
         KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
         KEY_LEFT_SHIFT, KEY_LEFT_CONTROL, KEY_LEFT_ALT};
 
@@ -534,19 +510,16 @@ void SceneService::Shutdown() {
     Profile;
     UnloadRenderTexture(framebuffer_);
 
-    // TODO: Add flag to control scene shutdown behavior
-    if (false) {
-        // Exit, save, and free any scenes still on the stack
-        while (!sceneStack_.empty()) {
-            Scene* scene = sceneStack_.back();
-            sceneStack_.pop_back();
-            if (scene) {
-                scene->OnExit();
-                for (auto& [name, data] : scenes_) {
-                    if (data.scene == scene) {
-                        SaveAndFreeScene(data, name);
-                        break;
-                    }
+    // Free any scenes still on the stack
+    while (!sceneStack_.empty()) {
+        Scene* scene = sceneStack_.back();
+        sceneStack_.pop_back();
+        if (scene) {
+            scene->OnExit();
+            for (auto& [name, data] : scenes_) {
+                if (data.scene == scene) {
+                    FreeScene(data);
+                    break;
                 }
             }
         }

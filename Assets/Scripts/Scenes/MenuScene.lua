@@ -2,10 +2,47 @@
 ---@class MenuScene
 local MenuScene = {}
 
-SCENE_WIDTH  = 640
-SCENE_HEIGHT = 480
+local BUTTONS = {
+    { name = "PlayButton",    action = function() SceneReplace("ExploreScene") end },
+    { name = "OptionsButton", action = nil },  -- placeholder
+    { name = "QuitButton",    action = nil },  -- placeholder
+}
+
+local COLOR_DEFAULT_PLAY    = "#2266AA"
+local COLOR_HOVER_PLAY      = "#3388CC"
+local COLOR_DEFAULT_OPTIONS = "#226644"
+local COLOR_HOVER_OPTIONS   = "#33886A"
+local COLOR_DEFAULT_QUIT    = "#662222"
+local COLOR_HOVER_QUIT      = "#883333"
+
+local HOVER_COLORS = {
+    PlayButton    = { default = COLOR_DEFAULT_PLAY,    hover = COLOR_HOVER_PLAY    },
+    OptionsButton = { default = COLOR_DEFAULT_OPTIONS, hover = COLOR_HOVER_OPTIONS },
+    QuitButton    = { default = COLOR_DEFAULT_QUIT,    hover = COLOR_HOVER_QUIT    },
+}
+
+-- Returns true if screen-space point (px, py) is inside an entity's rect.
+local function hitTest(entity, px, py)
+    local pos  = GetComponent(entity, "Position")
+    local rect = GetComponent(entity, "Rectangle")
+    if not pos or not rect then return false end
+    return px >= pos.x and px <= pos.x + rect.width
+       and py >= pos.y and py <= pos.y + rect.height
+end
 
 function MenuScene:Initialize()
+    self.buttons = {}
+    for _, def in ipairs(BUTTONS) do
+        local e = GetEntityByName(def.name)
+        if e ~= 0 then
+            table.insert(self.buttons, {
+                entity  = e,
+                name    = def.name,
+                action  = def.action,
+                hovered = false,
+            })
+        end
+    end
     Log("MenuScene initialized")
 end
 
@@ -15,43 +52,30 @@ end
 function MenuScene:Render()
 end
 
--- Returns true if world-space point (mx, my) is inside the button entity's rect.
-local function hitTest(entity, mx, my)
-    local pos  = GetComponent(entity, "Position")
-    local rect = GetComponent(entity, "Rectangle")
-    if not pos or not rect then return false end
-    local hw = rect.width  * 0.5
-    local hh = rect.height * 0.5
-    return mx >= pos.x - hw and mx <= pos.x + hw
-       and my >= pos.y - hh and my <= pos.y + hh
-end
-
-local function worldToScreen(wx, wy)
-    local cam = GetComponent(GetEntityByName("CAMERA"), "Camera")
-    local pos = GetComponent(GetEntityByName("CAMERA"), "Position")
-    if not cam then return wx, wy end
-    if not pos then return wx, wy end
-    local sx = wx - pos.x + cam.viewport.width  * 0.5
-    local sy = wy - pos.y + cam.viewport.height * 0.5
-    return sx, sy
-end
-
 function MenuScene:OnEvent(event)
-    if event.type ~= "MouseButtonReleased" or event.button ~= MOUSE_LEFT then return end
+    if event.type == "MouseMoved" then
+        for _, btn in ipairs(self.buttons) do
+            local over = hitTest(btn.entity, event.x, event.y)
+            if over ~= btn.hovered then
+                btn.hovered = over
+                local colors = HOVER_COLORS[btn.name]
+                if colors then
+                    local rect = GetComponent(btn.entity, "Rectangle")
+                    if rect then
+                        rect.background = over and colors.hover or colors.default
+                    end
+                end
+            end
+        end
+    end
 
-    local mx, my = event.wx, event.wy
-    mx, my = worldToScreen(mx, my)
-    Log(string.format("Mouse released at: %.2f, %.2f", mx, my))
-    local play    = GetEntityByName("PlayButton")
-    local options = GetEntityByName("OptionsButton")
-    local quit    = GetEntityByName("QuitButton")
-
-    if play    ~= 0 and hitTest(play,    mx, my) then
-        SceneReplace("ExploreScene")
-    elseif options ~= 0 and hitTest(options, mx, my) then
-        Log("Options: not yet implemented")
-    elseif quit    ~= 0 and hitTest(quit,    mx, my) then
-        Log("Quit: not yet implemented")
+    if event.type == "MouseButtonReleased" and event.button == MOUSE_LEFT then
+        for _, btn in ipairs(self.buttons) do
+            if btn.hovered and btn.action then
+                btn.action()
+                return true
+            end
+        end
     end
 end
 

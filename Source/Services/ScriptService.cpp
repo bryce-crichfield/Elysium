@@ -205,9 +205,21 @@ void ScriptService::BindEntityAPI() {
     });
 
     // Scene
+    lua.set_function("SceneClear", []() {
+        auto& app = Elysium::Application::GetInstance();
+        app.GetService<Elysium::Services::SceneService>().Clear();
+    });
     lua.set_function("SceneReplace", [](const std::string& sceneName) {
         auto& app = Elysium::Application::GetInstance();
         app.GetService<Elysium::Services::SceneService>().Replace(sceneName);
+    });
+    lua.set_function("ScenePush", [](const std::string& sceneName) {
+        auto& app = Elysium::Application::GetInstance();
+        app.GetService<Elysium::Services::SceneService>().Push(sceneName);
+    });
+    lua.set_function("ScenePop", []() {
+        auto& app = Elysium::Application::GetInstance();
+        app.GetService<Elysium::Services::SceneService>().Pop();
     });
 
     // Input Polling
@@ -758,6 +770,14 @@ void ScriptService::OnSceneEvent(Path scriptPath, Event& event) {
     if (!result.valid()) {
         sol::error err = result;
         LOG_ERRORF("ScriptService", "Error in scene %s:OnEvent: %s", scriptPath.c_str(), err.what());
+        return;
+    }
+    // If the Lua handler returns true, mark the event handled to stop propagation.
+    if (result.return_count() > 0) {
+        auto retVal = result.get<sol::object>(0);
+        if (retVal.is<bool>() && retVal.as<bool>()) {
+            event.handled = true;
+        }
     }
 }
 
