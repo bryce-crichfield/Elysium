@@ -8,6 +8,7 @@
 #include "raylib.h"
 
 #include "Core/Sprite.h"
+#include "Core/Tile.h"
 
 namespace Elysium::Services {
 
@@ -99,6 +100,19 @@ Future<Asset> AssetService::LoadAsset(AssetType type, Path path) {
                     Path sheetPath = Path(relativePath);
                     if (!IsAssetLoaded(sheetPath)) {
                         LOG_DEBUGF("AssetService", "Loading sheet texture: %s", sheetPath.c_str());
+                        LoadAsset(AssetType::TEXTURE, sheetPath);
+                    }
+                }
+            }
+
+            // For tiles, kick off the sheet texture load on the main thread
+            if (asset.GetType() == AssetType::TILE) {
+                Tile tile = asset.GetTile();
+                if (!tile.sheet.path.empty()) {
+                    std::string relativePath = "Tiles/" + tile.sheet.path;
+                    Path sheetPath = Path(relativePath);
+                    if (!IsAssetLoaded(sheetPath)) {
+                        LOG_DEBUGF("AssetService", "Loading tile sheet texture: %s", sheetPath.c_str());
                         LoadAsset(AssetType::TEXTURE, sheetPath);
                     }
                 }
@@ -213,6 +227,15 @@ Script AssetService::GetScript(Path path) {
     return Script{};
 }
 
+Tile AssetService::GetTile(Path path) {
+    Asset* asset = GetAsset(path);
+    if (asset && asset->GetType() == AssetType::TILE) {
+        return asset->GetTile();
+    }
+
+    return Tile{};
+}
+
 // Thread-safe I/O — does NOT touch assetsByPath_
 Asset AssetService::LoadAssetData(AssetType type, Path path) {
     Asset asset(type, path);
@@ -312,6 +335,19 @@ Asset AssetService::LoadAssetData(AssetType type, Path path) {
                 LOG_DEBUGF("AssetService", "Script loaded: %s", path.c_str());
             } else {
                 LOG_ERRORF("AssetService", "Failed to load script: %s", path.c_str());
+            }
+            break;
+        }
+
+        case AssetType::TILE: {
+            LOG_DEBUGF("AssetService", "Loading TILE asset from %s", path.c_str());
+            try {
+                Tile tile = Tile::LoadFromXml(path.GetFullPath());
+                LOG_DEBUGF("AssetService", "Loaded tile '%s' with %d variants",
+                           tile.name.c_str(), (int)tile.variants.size());
+                asset.SetTile(tile);
+            } catch (...) {
+                LOG_ERRORF("AssetService", "Failed to load tile: %s", path.c_str());
             }
             break;
         }

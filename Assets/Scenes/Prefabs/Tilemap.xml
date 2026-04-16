@@ -1,6 +1,6 @@
 <Tilemap width="32" height="32" isIsometric="true" tileWidth="64" tileHeight="32">
     <Tilemask>
-        0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 
+        0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
         1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
         0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
         1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
@@ -34,7 +34,7 @@
         1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
     </Tilemask>
     <TileDefinitions>
-        <TileDefinition id="0" textureName="Textures/Tiles/tile.png" layerName="tile" />
-        <TileDefinition id="1" textureName="Textures/Tiles/tile2.png" layerName="tile" />
+        <TileDefinition id="0" tile="Tiles/Tile/Tile.xml" variant="light" layer="tile"/>
+        <TileDefinition id="1" tile="Tiles/Tile/Tile.xml" variant="dark"  layer="tile"/>
     </TileDefinitions>
 </Tilemap>

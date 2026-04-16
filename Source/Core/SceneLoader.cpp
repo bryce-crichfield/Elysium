@@ -42,8 +42,9 @@ void LoadLayers(XMLElement* root, Scene& scene) {
 void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& outTileHeight, bool& outIsIsometric) {
     VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
         struct TileDef {
-            RectangleComponent rect;
-            std::string layerName;
+            std::string tileName;
+            std::string variantName = "default";
+            std::string layerName = "tile";
         };
         std::unordered_map<int, TileDef> tileDefinitions;
         std::vector<int> tilemask;
@@ -52,7 +53,6 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
         float tileHeight = tilemap->FloatAttribute("tileHeight", 32.0f);
         bool isIsometric = tilemap->BoolAttribute("isIsometric", false);
 
-        // Output tilemap properties for position calculation
         outTileWidth = tileWidth;
         outTileHeight = tileHeight;
         outIsIsometric = isIsometric;
@@ -77,10 +77,11 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
         VisitElement(tilemap, "TileDefinitions", [&](XMLElement* xmlTileDefinitions) {
             ForEachElement(xmlTileDefinitions, "TileDefinition", [&](XMLElement* xmlTileDefinition) {
                 int id = xmlTileDefinition->IntAttribute("id", 0);
-                const char* textureName = xmlTileDefinition->Attribute("textureName");
-                const char* layerName = xmlTileDefinition->Attribute("layerName");
-                Color transparent = {0, 0, 0, 0};
-                tileDefinitions[id] = {RectangleComponent(tileWidth, tileHeight, transparent, transparent, textureName), layerName ? layerName : "tile"};
+                TileDef def;
+                def.tileName    = xmlTileDefinition->Attribute("tile")    ? xmlTileDefinition->Attribute("tile")    : "";
+                def.variantName = xmlTileDefinition->Attribute("variant") ? xmlTileDefinition->Attribute("variant") : "default";
+                def.layerName   = xmlTileDefinition->Attribute("layer")   ? xmlTileDefinition->Attribute("layer")   : "tile";
+                tileDefinitions[id] = std::move(def);
             });
         });
 
@@ -91,16 +92,18 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
 
         for (size_t i = 0; i < tilemask.size(); i++) {
             int id = tilemask[i];
-            int tileX = i % tilemapWidth;
-            int tileY = i / tilemapWidth;
-            int worldX = isIsometric ? (tileX - tileY) * (tileWidth / 2) : tileX * tileWidth;
-            int worldY = isIsometric ? (tileX + tileY) * (tileHeight / 2) : tileY * tileHeight;
+            int tileX = (int)(i % tilemapWidth);
+            int tileY = (int)(i / tilemapWidth);
+            int worldX = isIsometric ? (tileX - tileY) * (int)(tileWidth  / 2) : tileX * (int)tileWidth;
+            int worldY = isIsometric ? (tileX + tileY) * (int)(tileHeight / 2) : tileY * (int)tileHeight;
+
+            const TileDef& def = tileDefinitions[id];
+
             auto entity = world->CreateEntity();
             world->AddComponent<PositionComponent>(entity, PositionComponent(worldX, worldY));
             world->AddComponent<NameComponent>(entity, NameComponent(std::string("Tile_") + std::to_string(i)));
-            world->AddComponent<RectangleComponent>(entity, tileDefinitions[id].rect);
-            world->AddComponent<LayerComponent>(entity, LayerComponent(tileDefinitions[id].layerName));
-            world->AddComponent<TileComponent>(entity, TileComponent(tileWidth, tileHeight, isIsometric));
+            world->AddComponent<LayerComponent>(entity, LayerComponent(def.layerName));
+            world->AddComponent<TileComponent>(entity, TileComponent(def.tileName, def.variantName, isIsometric, tileWidth, tileHeight));
             ParentComponent parentComp;
             parentComp.parent = tilemapParent;
             parentComp.targetName = "Tilemap";

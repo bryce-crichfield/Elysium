@@ -1,4 +1,5 @@
 #include "Asset.h"
+#include "Tile.h"
 #include <stdexcept>
 
 namespace Elysium {
@@ -61,6 +62,13 @@ Script Asset::GetScript() const {
         return {};
     }
     return std::get<Script>(data_);
+}
+
+Tile Asset::GetTile() const {
+    if (type_ != AssetType::TILE || !loaded_) {
+        return {};
+    }
+    return std::get<Tile>(data_);
 }
 
 void Asset::SetTexture(const Texture2D& texture) {
@@ -129,6 +137,13 @@ void Asset::SetScript(const Script& script) {
     }
 }
 
+void Asset::SetTile(const Tile& tile) {
+    if (type_ == AssetType::TILE) {
+        data_ = tile;
+        loaded_ = true;
+    }
+}
+
 void Asset::Unload() {
     if (loaded_) {
         switch (type_) {
@@ -151,7 +166,8 @@ void Asset::Unload() {
                 UnloadShader(std::get<Shader>(data_));
                 break;
             case AssetType::SCRIPT:
-                // Nothing to unload for script string
+            case AssetType::TILE:
+                // Pure data — nothing to GPU-unload
                 break;
         }
         loaded_ = false;

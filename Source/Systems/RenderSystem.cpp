@@ -21,6 +21,7 @@
 #include "Components/SpriteComponent.h"
 #include "Components/TextComponent.h"
 #include "Components/TileComponent.h"
+#include "Core/Tile.h"
 #include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
@@ -181,6 +182,10 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
             if (world->HasComponent<CircleComponent>(entity))    mask |= RC_Circle;
             if (world->HasComponent<TextComponent>(entity))      mask |= RC_Text;
             if (world->HasComponent<SpriteComponent>(entity))    mask |= RC_Sprite;
+            if (world->HasComponent<TileComponent>(entity)) {
+                const auto& tc = world->GetComponent<TileComponent>(entity);
+                if (!tc.tileName.empty()) mask |= RC_Tile;
+            }
             if (!mask) return;
 
             uint8_t layerIndex = defaultLayerIndex;
@@ -320,6 +325,8 @@ void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity
 void RenderSystem::RenderEntity(RenderContext& ctx, const RenderKey& key, const SceneLayer& layer) {
     Vector2 pos = { key.x, key.y };
 
+    if (key.componentMask & RC_Tile)
+        RenderTile(ctx, key.entity, pos, layer);
     if (key.componentMask & RC_Rectangle)
         RenderRectangle(ctx, key.entity, pos, layer);
     if (key.componentMask & RC_Circle)
@@ -334,34 +341,6 @@ void RenderSystem::RenderEntity(RenderContext& ctx, const RenderKey& key, const 
 
 void RenderSystem::RenderRectangle(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
     const auto& component = world->GetComponent<RectangleComponent>(entity);
-
-    bool isIsometric = false;
-    float tileWidth = component.width;
-    float tileHeight = component.height;
-
-    if (world->HasComponent<TileComponent>(entity)) {
-        const auto& tile = world->GetComponent<TileComponent>(entity);
-        isIsometric = tile.isIsometric;
-        tileWidth = tile.tileWidth;
-        tileHeight = tile.tileHeight;
-    }
-
-    if (isIsometric) {
-        float hw = tileWidth * 0.5f;
-        float hh = tileHeight * 0.5f;
-        Vector2 top    = { pos.x,      pos.y - hh };
-        Vector2 right  = { pos.x + hw, pos.y      };
-        Vector2 bottom = { pos.x,      pos.y + hh };
-        Vector2 left   = { pos.x - hw, pos.y      };
-        DrawTriangle(top, left, bottom, component.background);
-        DrawTriangle(top, bottom, right, component.background);
-        if (component.border.a > 0) {
-            DrawLineV(top, right, component.border);
-            DrawLineV(right, bottom, component.border);
-            DrawLineV(bottom, left, component.border);
-            DrawLineV(left, top, component.border);
-        }
-    }
 
     float topLeftX = (layer.space == SceneLayerSpace::Screen2D)
         ? pos.x : pos.x - component.width * 0.5f;
@@ -465,6 +444,42 @@ void RenderSystem::RenderSprite(RenderContext& ctx, Entity entity, Vector2 pos, 
         pos.y - scaledHeight * sprite.originY,
         scaledWidth,
         scaledHeight
+    };
+
+    ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+}
+
+void RenderSystem::RenderTile(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& comp = world->GetComponent<TileComponent>(entity);
+    auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+
+    Tile tile = assets.GetTile(Path(comp.tileName));
+    if (tile.IsEmpty()) return;
+
+    auto varIt = tile.variants.find(comp.variantName);
+    if (varIt == tile.variants.end()) {
+        varIt = tile.variants.find("default");
+        if (varIt == tile.variants.end()) return;
+    }
+    const TileVariant& variant = varIt->second;
+
+    Texture2D texture = assets.GetTexture(Path("Tiles/" + tile.sheet.path));
+    if (texture.id == 0) return;
+
+    float frameWidth  = (float)texture.width  / (float)tile.sheet.cols;
+    float frameHeight = (float)texture.height / (float)tile.sheet.rows;
+
+    Rectangle sourceRect = {
+        (float)variant.col * frameWidth,
+        (float)variant.row * frameHeight,
+        frameWidth,
+        frameHeight
+    };
+    Rectangle destRect = {
+        pos.x - frameWidth  * tile.originX,
+        pos.y - frameHeight * tile.originY,
+        frameWidth,
+        frameHeight
     };
 
     ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);

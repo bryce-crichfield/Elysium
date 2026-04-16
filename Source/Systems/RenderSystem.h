@@ -6,6 +6,7 @@
 #include "Components/CircleComponent.h"
 #include "Components/TextComponent.h"
 #include "Components/SpriteComponent.h"
+#include "Components/TileComponent.h"
 #include "Components/LightComponent.h"
 #include "Core/SceneLayer.h"
 #include "raylib.h"
@@ -24,6 +25,7 @@ enum RenderComponentFlags : uint8_t {
     RC_Text      = 1 << 2,
     RC_Sprite    = 1 << 3,
     RC_Light     = 1 << 4,
+    RC_Tile      = 1 << 5,
 };
 
 // Lightweight sort key — no component data, just enough to sort and identify the entity
@@ -71,6 +73,7 @@ protected:
     void RenderCircle   (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
     void RenderText     (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
     void RenderSprite   (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+    void RenderTile     (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
     void RenderLight    (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
 
     // Render deferred draw commands for a given layer

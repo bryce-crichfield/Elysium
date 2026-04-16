@@ -41,6 +41,7 @@ class AssetService : public Elysium::Service {
     Shader GetShader(Path path);
     Sprite GetSprite(Path path);
     Script GetScript(Path path);
+    Tile   GetTile(Path path);
 
     // Asset enumeration
     const std::unordered_map<Path, Asset>& GetAllAssets() const { return assetsByPath_; }

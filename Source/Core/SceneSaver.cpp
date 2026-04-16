@@ -77,20 +77,20 @@ void SaveLayers(XMLBuilder& builder, const Scene& scene) {
 void SaveTilemap(XMLBuilder& builder, World* world) {
     struct TileEntry {
         int tileX = 0, tileY = 0;
-        Color background = BLANK;
-        Color border = BLANK;
+        std::string tileName;
+        std::string variantName;
         std::string layerName;
     };
 
     std::vector<TileEntry> tiles;
-    float tileWidth = 32.0f, tileHeight = 32.0f;
+    float tileWidth = 64.0f, tileHeight = 32.0f;
     bool isIsometric = false;
 
-    world->Query<TileComponent, PositionComponent, RectangleComponent, LayerComponent>(
-        [&](Entity, TileComponent& tile, PositionComponent& pos, RectangleComponent& rect, LayerComponent& layer) {
-            tileWidth = tile.tileWidth;
-            tileHeight = tile.tileHeight;
-            isIsometric = tile.isIsometric;
+    world->Query<TileComponent, PositionComponent, LayerComponent>(
+        [&](Entity, TileComponent& tile, PositionComponent& pos, LayerComponent& layer) {
+            tileWidth    = tile.tileWidth;
+            tileHeight   = tile.tileHeight;
+            isIsometric  = tile.isIsometric;
 
             int tx, ty;
             if (isIsometric) {
@@ -103,7 +103,7 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
                 ty = (int)std::round(pos.y / tileHeight);
             }
 
-            tiles.push_back({tx, ty, rect.background, rect.border, layer.name});
+            tiles.push_back({tx, ty, tile.tileName, tile.variantName, layer.name});
         });
 
     if (tiles.empty()) return;
@@ -115,11 +115,11 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
     }
 
     // Build unique tile definitions ordered by first appearance
-    using TileKey = std::tuple<unsigned int, unsigned int, std::string>;
+    using TileKey = std::tuple<std::string, std::string, std::string>;
     std::map<TileKey, int> tileDefMap;
     int nextId = 0;
     for (const auto& t : tiles) {
-        TileKey key{(unsigned int)ColorToInt(t.background), (unsigned int)ColorToInt(t.border), t.layerName};
+        TileKey key{t.tileName, t.variantName, t.layerName};
         if (tileDefMap.find(key) == tileDefMap.end()) {
             tileDefMap[key] = nextId++;
         }
@@ -128,7 +128,7 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
     // Build tilemask grid
     std::vector<int> tilemask(gridW * gridH, 0);
     for (const auto& t : tiles) {
-        TileKey key{(unsigned int)ColorToInt(t.background), (unsigned int)ColorToInt(t.border), t.layerName};
+        TileKey key{t.tileName, t.variantName, t.layerName};
         tilemask[t.tileY * gridW + t.tileX] = tileDefMap[key];
     }
 
@@ -141,14 +141,12 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
 
     auto tileDefsBuilder = tilemapBuilder.AddElement("TileDefinitions");
     for (const auto& [key, id] : tileDefMap) {
-        const auto& [bg, border, layerName] = key;
-        auto defBuilder = tileDefsBuilder.AddElement("TileDefinition")
+        const auto& [tileName, variantName, layerName] = key;
+        tileDefsBuilder.AddElement("TileDefinition")
             .SetAttribute("id", id)
-            .SetAttribute("layerName", layerName.c_str());
-        std::string bgHex = ColorToHex(GetColor(bg));
-        std::string borderHex = ColorToHex(GetColor(border));
-        if (!bgHex.empty()) defBuilder.SetAttribute("background", bgHex.c_str());
-        if (!borderHex.empty()) defBuilder.SetAttribute("border", borderHex.c_str());
+            .SetAttribute("tile", tileName.c_str())
+            .SetAttribute("variant", variantName.c_str())
+            .SetAttribute("layer", layerName.c_str());
     }
 
     std::ostringstream maskStream;

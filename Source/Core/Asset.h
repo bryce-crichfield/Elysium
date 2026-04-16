@@ -6,6 +6,7 @@
 #include "Core/Path.h"
 #include "Core/Script.h"
 #include "Sprite.h"
+#include "Tile.h"
 #include "raylib.h"
 
 #ifndef ASSETS_PATH
@@ -22,7 +23,8 @@ enum class AssetType {
     MODEL,
     SHADER,
     SPRITE,
-    SCRIPT
+    SCRIPT,
+    TILE
 };
 
 class Asset {
@@ -47,6 +49,7 @@ class Asset {
     Wave GetWaveData() const { return waveData_; }
     Sprite GetSprite() const;
     Script GetScript() const;
+    Tile   GetTile() const;
 
     void SetTexture(const Texture2D& texture);
     void SetSound(const Sound& sound);
@@ -58,6 +61,7 @@ class Asset {
     void SetWaveData(const Wave& wave);
     void SetSprite(const Sprite& sprite);
     void SetScript(const Script& script);
+    void SetTile(const Tile& tile);
 
     void Unload();
 
@@ -68,7 +72,7 @@ class Asset {
     bool hasImageData_ = false;
     bool hasWaveData_ = false;
 
-    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite, Script> data_;
+    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite, Script, Tile> data_;
     Image imageData_{};
     Wave waveData_{};
 };

@@ -9,6 +9,7 @@
         <!-- <System type="PhysicsResponseSystem" /> -->
         <System type="ScriptSystem" />
         <System type="SpriteSystem" />
+        <System type="TileSystem" />
         <System type="FollowSystem" />
         <System type="VisibilitySystem" />
         <System type="UiSystem" />
