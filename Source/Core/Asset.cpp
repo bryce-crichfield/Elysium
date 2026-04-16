@@ -1,5 +1,6 @@
 #include "Asset.h"
 #include "Tile.h"
+#include "Character.h"
 #include <stdexcept>
 
 namespace Elysium {
@@ -69,6 +70,13 @@ Tile Asset::GetTile() const {
         return {};
     }
     return std::get<Tile>(data_);
+}
+
+Character Asset::GetCharacter() const {
+    if (type_ != AssetType::CHARACTER || !loaded_) {
+        return {};
+    }
+    return std::get<Character>(data_);
 }
 
 void Asset::SetTexture(const Texture2D& texture) {
@@ -144,6 +152,13 @@ void Asset::SetTile(const Tile& tile) {
     }
 }
 
+void Asset::SetCharacter(const Character& character) {
+    if (type_ == AssetType::CHARACTER) {
+        data_ = character;
+        loaded_ = true;
+    }
+}
+
 void Asset::Unload() {
     if (loaded_) {
         switch (type_) {
@@ -167,6 +182,7 @@ void Asset::Unload() {
                 break;
             case AssetType::SCRIPT:
             case AssetType::TILE:
+            case AssetType::CHARACTER:
                 // Pure data — nothing to GPU-unload
                 break;
         }

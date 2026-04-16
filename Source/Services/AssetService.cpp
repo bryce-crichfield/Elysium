@@ -9,6 +9,7 @@
 
 #include "Core/Sprite.h"
 #include "Core/Tile.h"
+#include "Core/Character.h"
 
 namespace Elysium::Services {
 
@@ -236,6 +237,26 @@ Tile AssetService::GetTile(Path path) {
     return Tile{};
 }
 
+Character AssetService::GetCharacter(Path path) {
+    Asset* asset = GetAsset(path);
+    if (asset && asset->GetType() == AssetType::CHARACTER) {
+        return asset->GetCharacter();
+    }
+
+    return Character{};
+}
+
+void AssetService::SetCharacter(Path path, const Character& character) {
+    auto it = assetsByPath_.find(path);
+    if (it != assetsByPath_.end()) {
+        it->second.SetCharacter(character);
+    } else {
+        Asset asset(AssetType::CHARACTER, path);
+        asset.SetCharacter(character);
+        assetsByPath_[path] = asset;
+    }
+}
+
 // Thread-safe I/O — does NOT touch assetsByPath_
 Asset AssetService::LoadAssetData(AssetType type, Path path) {
     Asset asset(type, path);
@@ -348,6 +369,18 @@ Asset AssetService::LoadAssetData(AssetType type, Path path) {
                 asset.SetTile(tile);
             } catch (...) {
                 LOG_ERRORF("AssetService", "Failed to load tile: %s", path.c_str());
+            }
+            break;
+        }
+
+        case AssetType::CHARACTER: {
+            LOG_DEBUGF("AssetService", "Loading CHARACTER asset from %s", path.c_str());
+            try {
+                Character character = Character::LoadFromXml(path.GetFullPath());
+                LOG_DEBUGF("AssetService", "Loaded character '%s'", character.name.c_str());
+                asset.SetCharacter(character);
+            } catch (...) {
+                LOG_ERRORF("AssetService", "Failed to load character: %s", path.c_str());
             }
             break;
         }

@@ -5,6 +5,7 @@
 #include "Core/Event.h"
 #include "Core/Path.h"
 #include "Core/Script.h"
+#include "Character.h"
 #include "Sprite.h"
 #include "Tile.h"
 #include "raylib.h"
@@ -24,7 +25,8 @@ enum class AssetType {
     SHADER,
     SPRITE,
     SCRIPT,
-    TILE
+    TILE,
+    CHARACTER
 };
 
 class Asset {
@@ -47,9 +49,10 @@ class Asset {
     Shader GetShader() const;
     Image GetImageData() const { return imageData_; }
     Wave GetWaveData() const { return waveData_; }
-    Sprite GetSprite() const;
-    Script GetScript() const;
-    Tile   GetTile() const;
+    Sprite    GetSprite() const;
+    Script    GetScript() const;
+    Tile      GetTile() const;
+    Character GetCharacter() const;
 
     void SetTexture(const Texture2D& texture);
     void SetSound(const Sound& sound);
@@ -62,6 +65,7 @@ class Asset {
     void SetSprite(const Sprite& sprite);
     void SetScript(const Script& script);
     void SetTile(const Tile& tile);
+    void SetCharacter(const Character& character);
 
     void Unload();
 
@@ -72,7 +76,7 @@ class Asset {
     bool hasImageData_ = false;
     bool hasWaveData_ = false;
 
-    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite, Script, Tile> data_;
+    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite, Script, Tile, Character> data_;
     Image imageData_{};
     Wave waveData_{};
 };

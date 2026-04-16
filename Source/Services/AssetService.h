@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include "Asset.h"
+#include "Core/Character.h"
 #include "Core/Future.h"
 #include "Service.h"
 #include "raylib.h"
@@ -39,9 +40,13 @@ class AssetService : public Elysium::Service {
     Font GetFont(Path path);
     Model GetModel(Path path);
     Shader GetShader(Path path);
-    Sprite GetSprite(Path path);
-    Script GetScript(Path path);
-    Tile   GetTile(Path path);
+    Sprite    GetSprite(Path path);
+    Script    GetScript(Path path);
+    Tile      GetTile(Path path);
+    Character GetCharacter(Path path);
+
+    // In-memory write for Character assets (no disk I/O)
+    void SetCharacter(Path path, const Character& character);
 
     // Asset enumeration
     const std::unordered_map<Path, Asset>& GetAllAssets() const { return assetsByPath_; }

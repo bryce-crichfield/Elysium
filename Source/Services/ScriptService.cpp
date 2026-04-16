@@ -6,11 +6,13 @@
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
 #include "Services/AssetService.h"
+#include "Core/Character.h"
 #include "Core/Scene.h"
 #include "Core/Component.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Path.h"
 #include "imgui.h"
+#include <algorithm>
 #include <memory>
 #include <limits>
 #include <cmath>
@@ -213,10 +215,17 @@ void ScriptService::BindEntityAPI() {
         auto& app = Elysium::Application::GetInstance();
         app.GetService<Elysium::Services::SceneService>().Replace(sceneName);
     });
-    lua.set_function("ScenePush", [](const std::string& sceneName) {
-        auto& app = Elysium::Application::GetInstance();
-        app.GetService<Elysium::Services::SceneService>().Push(sceneName);
-    });
+    lua.set_function("ScenePush", sol::overload(
+        [](const std::string& sceneName) {
+            auto& app = Elysium::Application::GetInstance();
+            app.GetService<Elysium::Services::SceneService>().Push(sceneName);
+        },
+        [this](const std::string& sceneName, sol::table params) {
+            auto& app = Elysium::Application::GetInstance();
+            SetNextSceneParams(params);
+            app.GetService<Elysium::Services::SceneService>().Push(sceneName);
+        }
+    ));
     lua.set_function("ScenePop", []() {
         auto& app = Elysium::Application::GetInstance();
         app.GetService<Elysium::Services::SceneService>().Pop();
@@ -463,6 +472,85 @@ void ScriptService::BindEntityAPI() {
             rs->IssueDrawCommand(Elysium::Systems::DrawRectCmd{layer, x, y, width, height, tableToColor(color)});
         }
     });
+
+    // Character asset API
+    lua.set_function("GetCharacter", [this](const std::string& path) -> sol::object {
+        auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+        Character c = assetService.GetCharacter(Path(path));
+        if (c.name.empty()) return sol::nil;
+
+        sol::table result = lua.create_table();
+        result["name"]    = c.name;
+        result["portrait"] = c.portrait;
+        result["path"]    = path;
+
+        sol::table stats = lua.create_table();
+        for (auto& [name, stat] : c.stats) {
+            sol::table s = lua.create_table();
+            s["value"] = stat.value;
+            s["max"]   = stat.maxValue;
+            stats[name] = s;
+        }
+        result["stats"] = stats;
+
+        sol::table inventory = lua.create_table();
+        int idx = 1;
+        for (auto& item : c.inventory) {
+            sol::table t = lua.create_table();
+            t["slot"]     = item.slot;
+            t["id"]       = item.id;
+            t["quantity"] = item.quantity;
+            inventory[idx++] = t;
+        }
+        result["inventory"] = inventory;
+
+        sol::table abilities = lua.create_table();
+        idx = 1;
+        for (auto& ab : c.abilities) {
+            abilities[idx++] = ab;
+        }
+        result["abilities"] = abilities;
+
+        return result;
+    });
+
+    lua.set_function("SetCharacterStat", [](const std::string& path, const std::string& statName, int value) {
+        auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+        Character c = assetService.GetCharacter(Path(path));
+        auto it = c.stats.find(statName);
+        if (it != c.stats.end()) {
+            it->second.value = value;
+            assetService.SetCharacter(Path(path), c);
+        }
+    });
+
+    lua.set_function("AddCharacterItem", [](const std::string& path, const std::string& slot,
+                                             const std::string& id, int quantity) {
+        auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+        Character c = assetService.GetCharacter(Path(path));
+        // Replace existing item in slot or append
+        for (auto& item : c.inventory) {
+            if (item.slot == slot) {
+                item.id       = id;
+                item.quantity = quantity;
+                assetService.SetCharacter(Path(path), c);
+                return;
+            }
+        }
+        c.inventory.push_back({slot, id, quantity});
+        assetService.SetCharacter(Path(path), c);
+    });
+
+    lua.set_function("RemoveCharacterItem", [](const std::string& path, const std::string& slot) {
+        auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+        Character c = assetService.GetCharacter(Path(path));
+        auto it = std::remove_if(c.inventory.begin(), c.inventory.end(),
+            [&](const CharacterItem& item) { return item.slot == slot; });
+        if (it != c.inventory.end()) {
+            c.inventory.erase(it, c.inventory.end());
+            assetService.SetCharacter(Path(path), c);
+        }
+    });
 }
 
 void ScriptService::BindRaylibConstants() {
@@ -670,9 +758,15 @@ bool ScriptService::InitializeScene(Path scriptPath) {
     sol::table instance = GetSceneInstance(scriptPath, true);
     if (!instance.valid()) return false;
 
+    // Consume any pending params from ScenePush — cleared after first Initialize
+    sol::table params = pendingSceneParams_;
+    pendingSceneParams_ = sol::lua_nil;
+
     sol::function initFunc = instance["Initialize"];
     if (initFunc.valid()) {
-        auto result = initFunc(instance);
+        sol::protected_function_result result = params.valid()
+            ? initFunc(instance, params)
+            : initFunc(instance);
         if (!result.valid()) {
             sol::error err = result;
             LOG_ERRORF("ScriptService", "Error in scene %s:Initialize: %s", scriptPath.c_str(), err.what());

@@ -1,0 +1,20 @@
+<Character name="Archer">
+    <Portrait path="Textures/Portraits/Archer128.jpg" />
+    <Stats>
+        <Stat name="level" value="1"  max="20" />
+        <Stat name="hp"    value="50" max="50" />
+        <Stat name="mp"    value="20" max="20" />
+        <Stat name="str"   value="6"  max="20" />
+        <Stat name="dex"   value="14" max="20" />
+        <Stat name="int"   value="8"  max="20" />
+    </Stats>
+    <Inventory>
+        <Item slot="weapon" id="short_bow"      quantity="1" />
+        <Item slot="ammo"   id="iron_arrow"     quantity="20" />
+        <Item slot="armor"  id="leather_vest"   quantity="1" />
+    </Inventory>
+    <Abilities>
+        <Ability id="arrow_shot" />
+        <Ability id="volley" />
+    </Abilities>
+</Character>

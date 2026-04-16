@@ -98,7 +98,13 @@ void AssetEditor::RenderTreeRecursive(const fs::path& currentPath, Application& 
                         AssetType type = AssetType::TEXTURE;
                         std::string ext = file.path.extension().string();
                         if (ext == ".wav") type = AssetType::SOUND;
-                        else if (ext == ".xml") type = AssetType::SPRITE;
+                        else if (ext == ".xml") {
+                            // if path contains "Sprites" load as SPRITE, if it contains "Tiles" load as TILE, "Characters" load as CHARACTER, otherwise default to SCRIPT
+                            if (file.relativePath.find("Sprites/") == 0) type = AssetType::SPRITE;
+                            else if (file.relativePath.find("Tiles/") == 0) type = AssetType::TILE;
+                            else if (file.relativePath.find("Characters/") == 0) type = AssetType::CHARACTER;
+                            else type = AssetType::SCRIPT;
+                        }
                         else if (ext == ".lua") type = AssetType::SCRIPT;
 
                         assetService.LoadAsset(type, Path(file.relativePath));

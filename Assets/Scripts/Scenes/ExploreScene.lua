@@ -249,7 +249,13 @@ function ExploreScene:OnEvent(event)
             ScenePush("OptionsScene")
             return true
         elseif event.key == KEY_I then
-            ScenePush("InventoryScene")
+            -- Pass the first selected unit into the inventory screen (nil = no unit)
+            local firstSelected = nil
+            for entity, _ in pairs(self.selected) do
+                firstSelected = entity
+                break
+            end
+            ScenePush("InventoryScene", { characterId = firstSelected })
             return true
         elseif event.key == KEY_1 then
             self.debugDraw = not self.debugDraw

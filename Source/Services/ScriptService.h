@@ -32,6 +32,9 @@ public:
     bool RenderScene(Path scriptPath);
     void OnSceneEvent(Path scriptPath, Event& event);
 
+    // Store params to be passed to the next scene's Initialize call
+    void SetNextSceneParams(sol::table params) { pendingSceneParams_ = params; }
+
     void ReloadScript(Path scriptPath);
 
     void InspectEntityScript(Entity entity, Path scriptPath);
@@ -67,7 +70,8 @@ private:
     sol::table GetEntityInstance(Entity entity, Path scriptPath, bool create = false);
     sol::table GetSceneInstance(Path scriptPath, bool create = false);
 
-    Vector2 _mousePosition;
+    Vector2    _mousePosition;
+    sol::table pendingSceneParams_;  // Consumed once by the next InitializeScene call
 };
 
 } // namespace Elysium::Services
