@@ -13,6 +13,6 @@
     <Sheet name="Idle" path="Bishop/Idle.png" rows="8" columns="15" />
     <Sheet name="Walk" path="Bishop/Walk.png" rows="8" columns="15" />
     <Sheet name="Run" path="Bishop/Run.png" rows="8" columns="15" />
-    <Sheet name="Death" path="Bishop/Death.png" rows="8" columns="15" />
+    <Sheet name="Death" path="Bishop/Die.png" rows="8" columns="15" />
     <Sheet name="Attack" path="Bishop/Attack.png" rows="8" columns="15" />
 </Sprite>

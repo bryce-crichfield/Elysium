@@ -10,7 +10,7 @@
         <TeamComponent team="0" />
         <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
         <LayerComponent name="entity" />
-        <CharacterComponent character="Assets/Characters/Archer.xml" />
+        <CharacterComponent character="$characterPath" />
     </Entity>
     <Entity>
         <ParentComponent target="$name" />

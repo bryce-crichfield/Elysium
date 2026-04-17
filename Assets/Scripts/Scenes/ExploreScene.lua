@@ -249,13 +249,16 @@ function ExploreScene:OnEvent(event)
             ScenePush("OptionsScene")
             return true
         elseif event.key == KEY_I then
-            -- Pass the first selected unit into the inventory screen (nil = no unit)
-            local firstSelected = nil
+            -- Resolve characterPath now, while ExploreScene's world is active
+            local characterPath = nil
             for entity, _ in pairs(self.selected) do
-                firstSelected = entity
+                local charComp = HasComponent(entity, "Character") and GetComponent(entity, "Character") or nil
+                if charComp and charComp.characterPath ~= "" then
+                    characterPath = charComp.characterPath
+                end
                 break
             end
-            ScenePush("InventoryScene", { characterId = firstSelected })
+            ScenePush("InventoryScene", { characterPath = characterPath })
             return true
         elseif event.key == KEY_1 then
             self.debugDraw = not self.debugDraw

@@ -1,0 +1,21 @@
+<Character name="Bishop">
+    <Portrait path="Textures/Portraits/Bishop128.jpg" />
+    <Stats>
+        <Stat name="level" value="1"  max="20" />
+        <Stat name="hp"    value="40" max="40" />
+        <Stat name="mp"    value="60" max="60" />
+        <Stat name="str"   value="4"  max="20" />
+        <Stat name="dex"   value="7"  max="20" />
+        <Stat name="int"   value="18" max="20" />
+    </Stats>
+    <Inventory>
+        <Item slot="weapon" id="staff"          quantity="1" />
+        <Item slot="body"   id="robes"          quantity="1" />
+        <Item slot="neck"   id="amulet_of_light" quantity="1" />
+    </Inventory>
+    <Abilities>
+        <Ability id="heal" />
+        <Ability id="smite" />
+        <Ability id="bless" />
+    </Abilities>
+</Character>

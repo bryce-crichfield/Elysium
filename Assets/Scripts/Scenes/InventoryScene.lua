@@ -92,13 +92,10 @@ function InventoryScene:Initialize(params)
     self.equippedBySlot = {}   -- slot name -> CharacterItem
     self.backpackItems  = {}   -- array of CharacterItem not in paperdoll slots
 
-    local characterId = params and params.characterId
-    if characterId then
-        local charComp = HasComponent(characterId, "Character") and GetComponent(characterId, "Character") or nil
-        if charComp and charComp.characterPath ~= "" then
-            self.character = GetCharacter(charComp.characterPath)
-            self.characterPath = charComp.characterPath
-        end
+    local characterPath = params and params.characterPath
+    if characterPath and characterPath ~= "" then
+        self.character = GetCharacter(characterPath)
+        self.characterPath = characterPath
     end
 
     if self.character then
@@ -115,12 +112,12 @@ function InventoryScene:Initialize(params)
         local titleEnt = GetEntityByName("MODAL_TITLE")
         if titleEnt and titleEnt ~= 0 then
             local t = GetComponent(titleEnt, "Text")
-            if t then t.text = self.character.name .. "  —  Inventory" end
+            if t then t.content = self.character.name .. "  —  Inventory" end
         end
         local charHeaderEnt = GetEntityByName("CHAR_HEADER")
         if charHeaderEnt and charHeaderEnt ~= 0 then
             local t = GetComponent(charHeaderEnt, "Text")
-            if t then t.text = self.character.name end
+            if t then t.content = self.character.name end
         end
 
         Log("InventoryScene: loaded character '" .. self.character.name .. "'")

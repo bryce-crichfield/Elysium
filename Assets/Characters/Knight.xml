@@ -1,0 +1,21 @@
+<Character name="Knight">
+    <Portrait path="Textures/Portraits/Knight128.jpg" />
+    <Stats>
+        <Stat name="level" value="1"  max="20" />
+        <Stat name="hp"    value="90" max="90" />
+        <Stat name="mp"    value="10" max="10" />
+        <Stat name="str"   value="16" max="20" />
+        <Stat name="dex"   value="8"  max="20" />
+        <Stat name="int"   value="4"  max="20" />
+    </Stats>
+    <Inventory>
+        <Item slot="weapon"  id="longsword"      quantity="1" />
+        <Item slot="offhand" id="kite_shield"    quantity="1" />
+        <Item slot="body"    id="chainmail"      quantity="1" />
+        <Item slot="head"    id="iron_helm"      quantity="1" />
+    </Inventory>
+    <Abilities>
+        <Ability id="shield_bash" />
+        <Ability id="rally" />
+    </Abilities>
+</Character>

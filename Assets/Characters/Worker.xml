@@ -1,0 +1,19 @@
+<Character name="Worker">
+    <Portrait path="Textures/Portraits/Worker128.jpg" />
+    <Stats>
+        <Stat name="level" value="1"  max="20" />
+        <Stat name="hp"    value="45" max="45" />
+        <Stat name="mp"    value="5"  max="5" />
+        <Stat name="str"   value="9"  max="20" />
+        <Stat name="dex"   value="12" max="20" />
+        <Stat name="int"   value="6"  max="20" />
+    </Stats>
+    <Inventory>
+        <Item slot="weapon" id="pickaxe"      quantity="1" />
+        <Item slot="body"   id="work_clothes" quantity="1" />
+    </Inventory>
+    <Abilities>
+        <Ability id="build" />
+        <Ability id="gather" />
+    </Abilities>
+</Character>

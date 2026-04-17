@@ -13,6 +13,6 @@
     <Sheet name="Idle" path="Militia/Idle.png" rows="8" columns="15" />
     <Sheet name="Walk" path="Militia/Walk.png" rows="8" columns="15" />
     <Sheet name="Run" path="Militia/Run.png" rows="8" columns="15" />
-    <Sheet name="Death" path="Militia/Death.png" rows="8" columns="15" />
+    <Sheet name="Death" path="Militia/Die.png" rows="8" columns="15" />
     <Sheet name="Attack" path="Militia/Attack.png" rows="8" columns="15" />
 </Sprite>
