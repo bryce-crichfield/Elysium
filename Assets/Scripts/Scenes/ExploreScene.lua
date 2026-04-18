@@ -108,9 +108,15 @@ end
 
 local CAMERA_SPEED = 400  -- world units per second
 
+local function playerInControl()
+    return GetGameState() == GameState.EXPLORE
+end
+
 function ExploreScene:Update(dt)
     self.time = (self.time or 0) + dt
     refreshPortraits(self.selected)
+
+    if not playerInControl() then return end
 
     -- WASD camera pan
     local dx, dy = 0, 0
@@ -229,6 +235,8 @@ function ExploreScene:Render()
 end
 
 function ExploreScene:OnEvent(event)
+    if not playerInControl() then return end
+
     if event.type == "MouseMoved" then
         self.mouseWX = event.wx
         self.mouseWY = event.wy

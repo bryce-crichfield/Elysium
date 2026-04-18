@@ -581,6 +581,21 @@ void ScriptService::BindRaylibConstants() {
     lua["MOUSE_LEFT"] = 0;
     lua["MOUSE_RIGHT"] = 1;
     lua["MOUSE_MIDDLE"] = 2;
+
+    // GameState constants table
+    sol::table gs = lua.create_table();
+    gs["EXPLORE"]    = (int)Elysium::GameState::Explore;
+    gs["CUTSCENE"]   = (int)Elysium::GameState::Cutscene;
+    gs["COMBAT"]     = (int)Elysium::GameState::Combat;
+    gs["TRANSITION"] = (int)Elysium::GameState::Transition;
+    lua["GameState"] = gs;
+
+    lua.set_function("GetGameState", []() -> int {
+        return (int)Elysium::Application::GetInstance().GetGameState();
+    });
+    lua.set_function("SetGameState", [](int state) {
+        Elysium::Application::GetInstance().SetGameState(static_cast<Elysium::GameState>(state));
+    });
 }
 
 sol::table ScriptService::GetOrLoadScript(Path path) {

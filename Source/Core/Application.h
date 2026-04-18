@@ -13,6 +13,8 @@ namespace Elysium {
 
 enum class AppMode { Play, Editor };
 
+enum class GameState { Explore, Cutscene, Combat, Transition };
+
 struct ApplicationConfig {
     int windowWidth = 1280;
     int windowHeight = 720;
@@ -81,6 +83,9 @@ class Application {
     void SetMode(AppMode mode);
     AppMode GetMode() const { return mode_; }
 
+    void SetGameState(GameState state) { gameState_ = state; }
+    GameState GetGameState() const { return gameState_; }
+
     // Get time in seconds since application start
     float GetTime() const { return startTime_; }
 
@@ -103,6 +108,7 @@ class Application {
     std::vector<std::unique_ptr<Editor>> editors_;
 
     AppMode mode_ = AppMode::Play;
+    GameState gameState_ = GameState::Explore;
 
     bool initialized_ = false;
     bool shouldClose_ = false;
