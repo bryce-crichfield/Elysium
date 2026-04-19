@@ -1,5 +1,6 @@
 #include "AssetEditor.h"
 #include "Core/Application.h"
+#include "Core/Asset.h"
 #include "Core/Path.h"
 #include "Services/AssetService.h"
 #include "imgui.h"
@@ -69,15 +70,14 @@ void AssetEditor::RenderTreeRecursive(const fs::path& currentPath, Application& 
         } else {
             // Optimization: AssetService has pathToName_, use that if you can
             // otherwise we'll stick to the scan for now.
-            const Asset* activeAsset = nullptr;
+            const IAsset* activeAsset = nullptr;
             for (const auto& [assetName, asset] : assetService.GetAllAssets()) {
-                // Compare relative paths (GetPath returns full path, use GetRelativePath instead)
-                if (asset.GetPath().GetRelativePath() == file.relativePath) {
-                    activeAsset = &asset;
+                if (asset->GetPath().GetRelativePath() == file.relativePath) {
+                    activeAsset = asset.get();
                     break;
                 }
             }
-            
+
             bool isLoaded = (activeAsset != nullptr && activeAsset->IsLoaded());
             
             // Apply status coloring

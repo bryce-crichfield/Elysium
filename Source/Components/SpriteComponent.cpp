@@ -60,7 +60,7 @@ namespace Elysium {
         spriteAssetNames.push_back("<None>");
 
         for (const auto& [name, asset] : allAssets) {
-            if (asset.GetType() == AssetType::SPRITE && asset.IsLoaded()) {
+            if (asset->GetType() == AssetType::SPRITE && asset->IsLoaded()) {
                 spriteAssetNames.push_back(name.GetRelativePath());
             }
         }

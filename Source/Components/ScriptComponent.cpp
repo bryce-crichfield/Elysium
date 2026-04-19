@@ -52,7 +52,7 @@ namespace Elysium {
         std::vector<std::string> scriptPaths;
         scriptPaths.push_back("<None>");
         for (const auto& [name, asset] : allAssets) {
-            if (asset.GetType() == AssetType::SCRIPT && asset.IsLoaded()) {
+            if (asset->GetType() == AssetType::SCRIPT && asset->IsLoaded()) {
                 scriptPaths.push_back(name.GetRelativePath());
             }
         }

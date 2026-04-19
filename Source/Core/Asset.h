@@ -1,14 +1,7 @@
 #pragma once
 
-#include <string>
-#include <variant>
 #include "Core/Event.h"
 #include "Core/Path.h"
-#include "Core/Script.h"
-#include "Character.h"
-#include "Sprite.h"
-#include "Tile.h"
-#include "raylib.h"
 
 #ifndef ASSETS_PATH
 #define ASSETS_PATH "./Assets/"
@@ -29,74 +22,48 @@ enum class AssetType {
     CHARACTER
 };
 
-class Asset {
-   public:
-    Asset() = default;
-    Asset(AssetType type, Path path);
-    ~Asset() = default;
+namespace Services { class AssetService; }
 
-    AssetType GetType() const { return type_; }
-    Path GetPath() const { return path_; }
+class IAsset {
+public:
+    explicit IAsset(Path path) : path_(std::move(path)) {}
+    virtual ~IAsset() = default;
+
+    // Off-thread: pure I/O — no GPU or OpenAL calls
+    virtual void LoadData() = 0;
+
+    // Main-thread: promote raw data to GPU resources (e.g. Image → Texture2D)
+    virtual void Finalize() {}
+    virtual bool NeedsFinalization() const { return false; }
+
+    // Main-thread: trigger dependent asset loads (e.g. sprite sheet textures)
+    virtual void OnLoaded(Services::AssetService&) {}
+
+    // Main-thread: release GPU/audio resources
+    virtual void Unload() = 0;
+
+    virtual AssetType GetType() const = 0;
+
     bool IsLoaded() const { return loaded_; }
-    bool HasImageData() const { return hasImageData_; }
-    bool HasWaveData() const { return hasWaveData_; }
+    Path GetPath() const { return path_; }
 
-    Texture2D GetTexture() const;
-    Sound GetSound() const;
-    Music GetMusic() const;
-    Font GetFont() const;
-    Model GetModel() const;
-    Shader GetShader() const;
-    Image GetImageData() const { return imageData_; }
-    Wave GetWaveData() const { return waveData_; }
-    Sprite    GetSprite() const;
-    Script    GetScript() const;
-    Tile      GetTile() const;
-    Character GetCharacter() const;
-
-    void SetTexture(const Texture2D& texture);
-    void SetSound(const Sound& sound);
-    void SetMusic(const Music& music);
-    void SetFont(const Font& font);
-    void SetModel(const Model& model);
-    void SetShader(const Shader& shader);
-    void SetImageData(const Image& image);
-    void SetWaveData(const Wave& wave);
-    void SetSprite(const Sprite& sprite);
-    void SetScript(const Script& script);
-    void SetTile(const Tile& tile);
-    void SetCharacter(const Character& character);
-
-    void Unload();
-
-   private:
-    AssetType type_;
+protected:
     Path path_;
     bool loaded_ = false;
-    bool hasImageData_ = false;
-    bool hasWaveData_ = false;
-
-    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite, Script, Tile, Character> data_;
-    Image imageData_{};
-    Wave waveData_{};
 };
 
-enum class AssetEventType {
-    LOADED,
-    UNLOADED,
-    RELOADED
-};
+// --- Asset events (unchanged API) ---
+
+enum class AssetEventType { LOADED, UNLOADED, RELOADED };
 
 class AssetEvent : public Event {
 public:
-    AssetEvent(Path path, AssetEventType type) : path_(path), type_(type) {}
-
+    AssetEvent(Path path, AssetEventType type) : path_(path), eventType_(type) {}
     Path GetPath() const { return path_; }
-    AssetEventType GetType() const { return type_; }
-
+    AssetEventType GetType() const { return eventType_; }
 private:
     Path path_;
-    AssetEventType type_;
+    AssetEventType eventType_;
 };
 
 class IAssetEventListener : public IEventListener {

@@ -51,7 +51,7 @@ namespace Elysium {
         std::vector<std::string> tileAssetNames;
         tileAssetNames.push_back("<None>");
         for (const auto& [name, asset] : allAssets) {
-            if (asset.GetType() == AssetType::TILE && asset.IsLoaded()) {
+            if (asset->GetType() == AssetType::TILE && asset->IsLoaded()) {
                 tileAssetNames.push_back(name.GetRelativePath());
             }
         }

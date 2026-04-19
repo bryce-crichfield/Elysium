@@ -9,7 +9,6 @@
 #include "Services/LogService.h"
 #include "Services/ScriptService.h"
 #include "System.h"
-#include "Systems/CameraSystem.h"
 #include "Systems/MovementSystem.h"
 #include "Systems/RenderSystem.h"
 #include "Systems/SpriteSystem.h"

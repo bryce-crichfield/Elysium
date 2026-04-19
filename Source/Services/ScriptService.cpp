@@ -3,6 +3,7 @@
 #include "Services/ScriptService.h"
 #include "Core/Application.h"
 #include "Core/Common.h"
+#include "Core/Assets/ScriptAsset.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
 #include "Services/AssetService.h"
@@ -607,13 +608,13 @@ sol::table ScriptService::GetOrLoadScript(Path path) {
     }
 
     auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
-    auto asset = assetService.GetAsset(path);
-    if (!asset) {
+    auto* scriptAsset = assetService.GetTyped<Elysium::ScriptAsset>(path);
+    if (!scriptAsset) {
         LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: Asset not found", path.c_str());
         return sol::nil;
     }
 
-    auto script= asset->GetScript();
+    const auto& script = scriptAsset->Get();
     if (script.source.empty()) {
         LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: Script is empty", path.c_str());
         return sol::nil;

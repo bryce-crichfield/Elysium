@@ -1,5 +1,6 @@
 #include "ScriptEditor.h"
 #include "Core/Application.h"
+#include "Core/Asset.h"
 #include "Core/Script.h"
 #include "Services/ScriptService.h"
 #include "Services/AssetService.h"
@@ -29,7 +30,7 @@ void ScriptEditor::Draw(Application& app) {
 
         if (ImGui::BeginCombo("Select Script", selectedAssetName.c_str())) {
             for (const auto& [name, asset] : allAssets) {
-                if (asset.GetType() == AssetType::SCRIPT) {
+                if (asset->GetType() == AssetType::SCRIPT) {
                     std::string nameStr = name.GetRelativePath();
                     bool isSelected = (selectedAssetName == nameStr);
                     if (ImGui::Selectable(nameStr.c_str(), isSelected)) {
@@ -49,7 +50,7 @@ void ScriptEditor::Draw(Application& app) {
         
         if (ImGui::Button("Save")) {
             if (!selectedAssetName.empty()) {
-                Asset* asset = assetService.GetAsset(Path(selectedAssetName));
+                IAsset* asset = assetService.GetAsset(Path(selectedAssetName));
                 if (asset) {
                     std::string fullPath = asset->GetPath().GetFullPath();
                     auto scriptSource = textEditor_.GetText();
