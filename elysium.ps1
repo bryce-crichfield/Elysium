@@ -76,7 +76,7 @@ function Elysium_Build {
         # Use Ninja generator with MinGW and override shell
         $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
         $env:ComSpec = "C:\Windows\System32\cmd.exe"
-        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE=Debug -DTRACY_ENABLE=ON -DSQLITECPP_RUN_CPPCHECK=OFF ..
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE=Debug -DTRACY_ENABLE=ON -DSQLITECPP_RUN_CPPCHECK=OFF -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" ..
         if ($LASTEXITCODE -eq 0) {
             cmake --build .
         }
