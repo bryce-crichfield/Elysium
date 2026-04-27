@@ -1,0 +1,28 @@
+name: Elysium Windows Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Run Setup & Build
+        shell: pwsh
+        run: .\elysium.ps1 --Setup --Build
+
+      - name: Upload Elysium artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Elysium-${{ github.sha }}
+          path: Binary/Elysium.exe
+          if-no-files-found: error
+          retention-days: 30
