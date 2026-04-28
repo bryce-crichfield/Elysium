@@ -6,7 +6,7 @@ API: draw(canvas: PIL.Image.Image, t: float) -> None
 
 import math
 from PIL import Image
-import sprite_graphics as sprite_graphics
+import Tools.SpriteAnimator.sprite_graphics as sprite_graphics
 
 FRAME_W = 64
 FRAME_H = 32

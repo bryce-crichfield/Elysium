@@ -31,7 +31,12 @@ void InvokeService::Update(float deltaTime) {
 }
 
 void InvokeService::OnNetworkData(const NetworkDataMessage& msg) {
-    SerialBuffer buffer(reinterpret_cast<const uint8_t*>(msg.data), msg.length);
+    if (msg.channel != static_cast<uint8_t>(NetworkChannel::Reliable)) {
+        LOG_WARNINGF("Invoke", "Ignoring invoke packet on channel %d", msg.channel);
+        return;
+    }
+    
+    SerialBuffer buffer(msg.data.data(), msg.data.size());  // reads from owned vector
 
     if (buffer.Size() < PacketHeader::SIZE) return;
 
@@ -55,10 +60,14 @@ void InvokeService::OnNetworkData(const NetworkDataMessage& msg) {
 
             auto& entry = it->second;
 
-            SerializableObject request = entry.deserializeRequest(buffer);
-            SerializableObject response = entry.invoke(msg.peer, request);
-
-            SendInvokeResponse(msg.peer, invokeHeader.invokeId, invokeHeader.procedureId, response);
+            try {
+                SerializableObject request = entry.deserializeRequest(buffer);
+                SerializableObject response = entry.invoke(msg.peer, request);
+                SendInvokeResponse(msg.peer, invokeHeader.invokeId, invokeHeader.procedureId, response);
+            } catch (const std::exception& e) {
+                LOG_ERRORF("Invoke", "Malformed payload for procedure %u: %s",
+                           invokeHeader.procedureId, e.what());
+            }
             break;
         }
 

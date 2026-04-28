@@ -4,6 +4,7 @@
 #include "Core/Editor.h"
 #include "Core/Future.h"
 #include "Network/Network.h"
+#include "Network/Generated.h"
 
 namespace Elysium::Services {
 class NetworkService;
@@ -23,9 +24,9 @@ class NetworkEditor : public Editor {
 
     bool waitingForPing_ = false;
     bool hasPingResult_ = false;
-    Future<PingResponse> pingFuture_;
+    Future<Generated::PingResponse> pingFuture_;
     uint32_t pingCounter_ = 0;
-    PingResponse lastPingResponse_;
+    Generated::PingResponse lastPingResponse_;
 };
 
 }  // namespace Elysium

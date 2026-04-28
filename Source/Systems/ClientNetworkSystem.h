@@ -5,6 +5,7 @@
 #include "Core/Future.h"
 #include "Entity.h"
 #include "Network/Network.h"
+#include "Network/Generated.h"
 #include "System.h"
 
 namespace Elysium {
@@ -34,7 +35,7 @@ class ClientNetworkSystem : public System {
     bool isSynced_ = false;
     uint32_t latencyMs_ = 0;
     bool waitingForPing_ = false;
-    Future<PingResponse> pingFuture_;
+    Future<Generated::PingResponse> pingFuture_;
 
     std::unordered_map<uint32_t, Entity> networkToLocalEntity_;
     std::vector<Entity> serverOwnedEntities_;

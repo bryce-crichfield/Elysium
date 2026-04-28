@@ -9,6 +9,7 @@
 namespace Elysium {
 
 using namespace Services;
+using namespace Generated;
 
 NetworkEditor::NetworkEditor() : Editor("Network") {}
 
