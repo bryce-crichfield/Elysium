@@ -17,18 +17,16 @@
 
 // Now include raylib via Application.h
 #include "Core/Common.h"
-#include "Core/Application.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"
-#include "Services/SceneService.h"
 
 #include <tracy/Tracy.hpp>
 #include "Network/Generated.h"
 
 namespace Elysium::Services {
 
-NetworkService::NetworkService() {
+NetworkService::NetworkService(ServiceRegistry& registry) : Service(registry) {
     name_ = "NetworkService";
 }
 
@@ -106,7 +104,7 @@ bool NetworkService::StartServer(uint16_t port, size_t maxClients) {
     LOG_INFOF("Network", "Server started on port %d", port);
 
     using namespace Elysium::Generated;
-    auto& invoke = Application::GetInstance().GetService<Services::InvokeService>();
+    auto& invoke = registry_.GetService<InvokeService>();
 
     invoke.Register<Ping>(
         std::function<PingResponse(NetworkPeer, const PingRequest&)>(
@@ -126,6 +124,16 @@ bool NetworkService::StartServer(uint16_t port, size_t maxClients) {
             SpawnPlayerResponse resp;
             resp.entityId = 1;
             resp.success = true;
+            return resp;
+        }));
+
+    invoke.Register<Test>(
+        std::function<TestResponse(NetworkPeer, const TestRequest&)>(
+        [](NetworkPeer peer, const TestRequest& req) -> TestResponse {
+            LOG_INFOF("ServerNet", "Test request from peer=%zu value1=%u value2='%s'",
+                      peer, req.value1, req.value2.c_str());
+            TestResponse resp;
+            resp.result = "Hello, " + req.value2 + "! Your value1 doubled is " + std::to_string(req.value1 * 2);
             return resp;
         }));
 
@@ -199,7 +207,7 @@ bool NetworkService::Stop() {
 
     isRunning_ = false;
     connectedPeers_ = 0;
-    auto& messageService = Application::GetInstance().GetService<Elysium::Services::MessageService>();
+    auto& messageService = registry_.GetService<MessageService>();
     messageService.Post<NetworkStoppedMessage>();
     LOG_INFO("Network", "Network stopped");
     return true;
@@ -210,7 +218,7 @@ void NetworkService::NetworkThread() {
     ENetEvent event;
 
     while (!shouldStop_) {
-        auto& messageService = Application::GetInstance().GetService<Elysium::Services::MessageService>();
+        auto& messageService = registry_.GetService<MessageService>();
         {
             ZoneScopedN("NetworkService::Poll");
             std::lock_guard<std::mutex> lock(hostMutex_);

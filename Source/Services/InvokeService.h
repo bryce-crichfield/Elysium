@@ -43,7 +43,7 @@ struct PendingInvoke {
 
 class InvokeService : public Elysium::Service {
 public:
-    InvokeService();
+    InvokeService(ServiceRegistry& registry);
     ~InvokeService() = default;
     InvokeService(const InvokeService&) = delete;
     InvokeService& operator=(const InvokeService&) = delete;
@@ -81,7 +81,7 @@ public:
             resp.Write(buf);
         };
 
-        registry_[methodId] = std::move(entry);
+        invokeHandlers_[methodId] = std::move(entry);
     }
 
     /**
@@ -89,8 +89,8 @@ public:
      */
     template <Serializable Request, Serializable Response>
     Response InvokeLocal(InvokeMethodId methodId, const Request& request) {
-        auto it = registry_.find(methodId);
-        if (it == registry_.end()) {
+        auto it = invokeHandlers_.find(methodId);
+        if (it == invokeHandlers_.end()) {
             throw std::runtime_error("InvokeService: no handler for method " + std::to_string(methodId));
         }
 
@@ -169,7 +169,7 @@ private:
 
     uint32_t nextInvokeId_ = 1;
     uint32_t currentTick_ = 0;
-    std::unordered_map<InvokeMethodId, InvokeHandler> registry_;
+    std::unordered_map<InvokeMethodId, InvokeHandler> invokeHandlers_;
     std::unordered_map<uint32_t, PendingInvoke> pending_;
 };
 

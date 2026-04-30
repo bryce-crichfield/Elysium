@@ -1,17 +1,16 @@
 #include "Services/InvokeService.h"
-#include "Core/Application.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"
 
 namespace Elysium::Services {
 
-InvokeService::InvokeService() {
+InvokeService::InvokeService(ServiceRegistry& registry) : Service(registry) {
     name_ = "InvokeService";
 }
 
 void InvokeService::Initialize() {
-    auto& messageService = Application::GetInstance().GetService<MessageService>();
+    auto& messageService = registry_.GetService<MessageService>();
 
     messageService.Subscribe<NetworkDataMessage>(this,
         [this](const NetworkDataMessage& msg) {
@@ -20,9 +19,9 @@ void InvokeService::Initialize() {
 }
 
 void InvokeService::Shutdown() {
-    auto& messageService = Application::GetInstance().GetService<MessageService>();
+    auto& messageService = registry_.GetService<MessageService>();
     messageService.UnsubscribeAll(this);
-    registry_.clear();
+    invokeHandlers_.clear();
     pending_.clear();
 }
 
@@ -52,8 +51,8 @@ void InvokeService::OnNetworkData(const NetworkDataMessage& msg) {
             InvokeHeader invokeHeader{};
             InvokeHeader::Read(invokeHeader, buffer);
 
-            auto it = registry_.find(invokeHeader.procedureId);
-            if (it == registry_.end()) {
+            auto it = invokeHandlers_.find(invokeHeader.procedureId);
+            if (it == invokeHandlers_.end()) {
                 LOG_ERRORF("Invoke", "No handler for procedure %u", invokeHeader.procedureId);
                 return;
             }
@@ -94,7 +93,7 @@ void InvokeService::OnNetworkData(const NetworkDataMessage& msg) {
 }
 
 void InvokeService::SendPacket(NetworkPeer peer, const SerialBuffer& buffer) {
-    auto& networkService = Application::GetInstance().GetService<NetworkService>();
+    auto& networkService = registry_.GetService<NetworkService>();
     if (networkService.GetMode() == NetworkMode::Client) {
         networkService.SendToServer(buffer.Data(), buffer.Size());
     } else {
