@@ -127,16 +127,6 @@ bool NetworkService::StartServer(uint16_t port, size_t maxClients) {
             return resp;
         }));
 
-    invoke.Register<Test>(
-        std::function<TestResponse(NetworkPeer, const TestRequest&)>(
-        [](NetworkPeer peer, const TestRequest& req) -> TestResponse {
-            LOG_INFOF("ServerNet", "Test request from peer=%zu value1=%u value2='%s'",
-                      peer, req.value1, req.value2.c_str());
-            TestResponse resp;
-            resp.result = "Hello, " + req.value2 + "! Your value1 doubled is " + std::to_string(req.value1 * 2);
-            return resp;
-        }));
-
     LOG_INFO("ServerNet", "Registered Ping and SpawnPlayer handlers");
 
     return true;
