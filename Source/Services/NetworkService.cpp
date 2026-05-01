@@ -17,17 +17,16 @@
 
 // Now include raylib via Application.h
 #include "Core/Common.h"
-#include "Core/Application.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"
-#include "Services/SceneService.h"
 
 #include <tracy/Tracy.hpp>
+#include "Network/Generated.h"
 
 namespace Elysium::Services {
 
-NetworkService::NetworkService() {
+NetworkService::NetworkService(ServiceRegistry& registry) : Service(registry) {
     name_ = "NetworkService";
 }
 
@@ -103,6 +102,33 @@ bool NetworkService::StartServer(uint16_t port, size_t maxClients) {
     networkThread_ = std::thread(&NetworkService::NetworkThread, this);
 
     LOG_INFOF("Network", "Server started on port %d", port);
+
+    using namespace Elysium::Generated;
+    auto& invoke = registry_.GetService<InvokeService>();
+
+    invoke.Register<Ping>(
+        std::function<PingResponse(NetworkPeer, const PingRequest&)>(
+        [this](NetworkPeer peer, const PingRequest& req) -> PingResponse {
+            LOG_INFOF("ServerNet", "Ping from peer=%zu clientTick=%u", peer, req.clientTick);
+            PingResponse resp;
+            resp.serverTick = static_cast<uint32_t>(GetTime() * 1000);
+            resp.echoClientTick = req.clientTick;
+            return resp;
+        }));
+
+    invoke.Register<SpawnPlayer>(
+        std::function<SpawnPlayerResponse(NetworkPeer, const SpawnPlayerRequest&)>(
+        [](NetworkPeer peer, const SpawnPlayerRequest& req) -> SpawnPlayerResponse {
+            LOG_INFOF("ServerNet", "SpawnPlayer from peer=%zu scene=%u player='%s'",
+                      peer, req.sceneId, req.playerName.c_str());
+            SpawnPlayerResponse resp;
+            resp.entityId = 1;
+            resp.success = true;
+            return resp;
+        }));
+
+    LOG_INFO("ServerNet", "Registered Ping and SpawnPlayer handlers");
+
     return true;
 }
 
@@ -171,7 +197,7 @@ bool NetworkService::Stop() {
 
     isRunning_ = false;
     connectedPeers_ = 0;
-    auto& messageService = Application::GetInstance().GetService<Elysium::Services::MessageService>();
+    auto& messageService = registry_.GetService<MessageService>();
     messageService.Post<NetworkStoppedMessage>();
     LOG_INFO("Network", "Network stopped");
     return true;
@@ -182,7 +208,7 @@ void NetworkService::NetworkThread() {
     ENetEvent event;
 
     while (!shouldStop_) {
-        auto& messageService = Application::GetInstance().GetService<Elysium::Services::MessageService>();
+        auto& messageService = registry_.GetService<MessageService>();
         {
             ZoneScopedN("NetworkService::Poll");
             std::lock_guard<std::mutex> lock(hostMutex_);
@@ -211,13 +237,14 @@ void NetworkService::NetworkThread() {
                         auto peerId = peerMap_.find(event.peer);
                         NetworkPeer peer = (peerId != peerMap_.end()) ? peerId->second : INVALID_PEER;
 
-                        messageService.Post<NetworkDataMessage>(
-                            peer,
+                        // Copy data BEFORE destroying the packet
+                        std::vector<uint8_t> data(
                             event.packet->data,
-                            event.packet->dataLength,
-                            event.channelID);
+                            event.packet->data + event.packet->dataLength);
 
-                        enet_packet_destroy(event.packet);
+                        enet_packet_destroy(event.packet);  // safe to destroy now, we own the copy
+
+                        messageService.Post<NetworkDataMessage>(peer, std::move(data), event.channelID);
                         break;
                     }
 

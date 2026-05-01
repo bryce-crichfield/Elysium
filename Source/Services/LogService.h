@@ -43,7 +43,7 @@ struct LogEntry {
 
 class LogService : public Elysium::Service {
    public:
-    LogService();
+    LogService(ServiceRegistry& registry);
     ~LogService();
 
     void Initialize() override;

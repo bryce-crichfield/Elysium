@@ -10,7 +10,7 @@ namespace Elysium::Services {
 
 class MessageService : public Service {
    public:
-    MessageService();
+    MessageService(ServiceRegistry& registry);
     ~MessageService() = default;
 
     // Service interface

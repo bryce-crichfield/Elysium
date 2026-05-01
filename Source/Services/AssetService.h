@@ -16,7 +16,7 @@ namespace Elysium::Services {
 
 class AssetService : public Elysium::Service {
    public:
-    AssetService();
+    AssetService(ServiceRegistry& registry);
 
     // Service interface
     void Initialize() override;

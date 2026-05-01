@@ -28,7 +28,7 @@ static void FreeScene(SceneRegistration& data) {
 // Constructor
 // =============================================================================
 
-SceneService::SceneService() {
+SceneService::SceneService(ServiceRegistry& registry) : Service(registry) {
     name_ = "SceneService";
 }
 

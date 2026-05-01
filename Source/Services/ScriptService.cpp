@@ -23,7 +23,7 @@
 
 namespace Elysium::Services {
 
-ScriptService::ScriptService() {
+ScriptService::ScriptService(ServiceRegistry& registry) : Service(registry) {
     name_ = "ScriptService";
 }
 

@@ -15,7 +15,7 @@ namespace Elysium {
 
 class TaskService : public Service {
    public:
-    TaskService() {
+    TaskService(ServiceRegistry& registry) : Service(registry) {
         name_ = "TaskService";
     }
 

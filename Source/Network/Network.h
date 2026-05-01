@@ -21,13 +21,12 @@ enum class NetworkMode {
 
 class NetworkDataMessage : public Message {
 public:
-    NetworkDataMessage(NetworkPeer peer, const void* data, size_t length, uint8_t channel)
-        : peer(peer), data(data), length(length), channel(channel) {}
+    NetworkDataMessage(NetworkPeer peer, std::vector<uint8_t> data, uint8_t channel)
+        : peer(peer), data(std::move(data)), channel(channel) {}
 
     NetworkPeer peer;
     uint8_t channel;
-    const void* data;
-    size_t length;
+    std::vector<uint8_t> data;  // owned, not a raw pointer
 };
 
 class NetworkConnectedMessage : public Message {
@@ -221,44 +220,9 @@ private:
     SerialBuffer& buffer_;
 };
 
-// ── Test RPC types ──────────────────────────────────────────────────────────
-struct PingRequest {
-    uint32_t clientTick = 0;
-
-    static void Write(const PingRequest& self, SerialBuffer& buffer) {
-        buffer.WriteU32(self.clientTick);
-    }
-    static void Read(PingRequest& self, SerialBuffer& buffer) {
-        self.clientTick = buffer.ReadU32();
-    }
-};
-
-struct PingResponse {
-    uint32_t serverTick = 0;
-    uint32_t echoClientTick = 0;
-
-    static void Write(const PingResponse& self, SerialBuffer& buffer) {
-        buffer.WriteU32(self.serverTick);
-        buffer.WriteU32(self.echoClientTick);
-    }
-    static void Read(PingResponse& self, SerialBuffer& buffer) {
-        self.serverTick = buffer.ReadU32();
-        self.echoClientTick = buffer.ReadU32();
-    }
-};
-
-struct Ping {};
-
 }  // namespace Elysium
 
 namespace Elysium::Services {
 template <typename T>
 struct InvokeMethod;
-
-template <>
-struct InvokeMethod<Elysium::Ping> {
-    using Request = Elysium::PingRequest;
-    using Response = Elysium::PingResponse;
-    static constexpr InvokeMethodId Id = 0xFF;
-};
 }  // namespace Elysium::Services

@@ -21,7 +21,7 @@ class MessageService;
 
 class NetworkService : public Service {
 public:
-    NetworkService();
+    NetworkService(ServiceRegistry& registry);
     ~NetworkService() override;
 
     void Initialize() override;

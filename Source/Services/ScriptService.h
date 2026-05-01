@@ -12,7 +12,7 @@ namespace Elysium::Services {
 
 class ScriptService : public Elysium::Service {
 public:
-    ScriptService();
+    ScriptService(ServiceRegistry& registry);
     ~ScriptService() override;
 
     void Initialize() override;

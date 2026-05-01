@@ -12,7 +12,7 @@
 
 namespace Elysium::Services {
 
-AssetService::AssetService() {
+AssetService::AssetService(ServiceRegistry& registry) : Service(registry) {
     name_ = "AssetService";
 }
 
