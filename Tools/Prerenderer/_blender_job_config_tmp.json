@@ -1,0 +1,11 @@
+{
+  "character_path": "C:/Users/Bryce/Documents/GitHub/Elysium2/Tools/Prerenderer/Characters/Swat.fbx",
+  "animation_path": "C:/Users/Bryce/Documents/GitHub/Elysium2/Tools/Prerenderer/Animations/Idle_Rifle_Gun_Drawn.fbx",
+  "output_dir": "C:/Users/Bryce/Documents/GitHub/Elysium2/Build/PreRender\\Idle_Rifle_Gun_Drawn",
+  "sprite_size": 128,
+  "num_directions": 8,
+  "camera_height_angle": 55.0,
+  "frame_step": 12,
+  "render_engine": "",
+  "camera_follow_mode": "xy"
+}

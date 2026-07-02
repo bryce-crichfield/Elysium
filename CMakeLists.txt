@@ -137,13 +137,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/lua
     ${CMAKE_SOURCE_DIR}/Vendor/sol2/include
     ${CMAKE_SOURCE_DIR}/Vendor/ImGuiColorTextEdit
+    ${CMAKE_SOURCE_DIR}/Vendor/tracy/public
 )
-
-if(TRACY_ENABLE)
-    target_include_directories(${PROJECT_NAME} PRIVATE
-        ${CMAKE_SOURCE_DIR}/Vendor/tracy/public
-    )
-endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     # In debug, both assets and appdata resolve relative to the source directory

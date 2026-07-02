@@ -11,6 +11,9 @@ namespace Elysium {
         Entity parent = INVALID_ENTITY;
         std::string targetName;
 
+        ParentComponent() = default;
+        ParentComponent(Entity parent, const std::string& targetName) : parent(parent), targetName(targetName) {}
+
         static constexpr const char* Name() { return "Parent"; }
         static constexpr const char* XmlTag() { return "ParentComponent"; }
 

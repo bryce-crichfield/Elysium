@@ -1,0 +1,17 @@
+{
+  "vars": {
+    "blender_exe": "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe",
+    "character_path": "C:/Users/Bryce/Documents/GitHub/Elysium2/Tools/Prerenderer/Characters/Swat.fbx",
+    "render_dir": "C:/Users/Bryce/Documents/GitHub/Elysium2/Build/PreRender",
+    "sheet_dir": "C:/Users/Bryce/Documents/GitHub/Elysium2/Assets/Sprites",
+    "sprite_size": "128",
+    "num_directions": "8",
+    "camera_height_angle": "55",
+    "frame_step": "12",
+    "render_engine": "Auto",
+    "camera_follow_mode": "Follow XY, lock height (recommended)"
+  },
+  "animation_paths": [
+    "C:/Users/Bryce/Documents/GitHub/Elysium2/Tools/Prerenderer/Animations/Idle_Rifle_Gun_Drawn.fbx"
+  ]
+}

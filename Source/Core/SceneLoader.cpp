@@ -92,22 +92,22 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
 
         for (size_t i = 0; i < tilemask.size(); i++) {
             int id = tilemask[i];
+            auto defIt = tileDefinitions.find(id);
+            if (defIt == tileDefinitions.end()) continue;
+
             int tileX = (int)(i % tilemapWidth);
             int tileY = (int)(i / tilemapWidth);
             int worldX = isIsometric ? (tileX - tileY) * (int)(tileWidth  / 2) : tileX * (int)tileWidth;
             int worldY = isIsometric ? (tileX + tileY) * (int)(tileHeight / 2) : tileY * (int)tileHeight;
 
-            const TileDef& def = tileDefinitions[id];
+            const TileDef& def = defIt->second;
 
             auto entity = world->CreateEntity();
             world->AddComponent<PositionComponent>(entity, PositionComponent(worldX, worldY));
             world->AddComponent<NameComponent>(entity, NameComponent(std::string("Tile_") + std::to_string(i)));
             world->AddComponent<LayerComponent>(entity, LayerComponent(def.layerName));
             world->AddComponent<TileComponent>(entity, TileComponent(def.tileName, def.variantName, isIsometric, tileWidth, tileHeight));
-            ParentComponent parentComp;
-            parentComp.parent = tilemapParent;
-            parentComp.targetName = "Tilemap";
-            world->AddComponent<ParentComponent>(entity, parentComp);
+            world->AddComponent<ParentComponent>(entity, ParentComponent(tilemapParent, "Tilemap"));
             world->AddChild(tilemapParent, entity);
         }
     });

@@ -29,6 +29,7 @@
 #include "Core/RenderContext.h"
 #include "Core/Scene.h"
 #include "Core/SystemRegistry.h"
+#include "Services/LogService.h"
 #include "Services/AssetService.h"
 #include "Services/SceneService.h"
 #include "raylib.h"

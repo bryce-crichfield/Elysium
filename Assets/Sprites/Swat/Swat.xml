@@ -1,0 +1,15 @@
+<Sprite name="Swat" originX="0.5" originY="0.65">
+    <Sequences>
+        <Sequence name="north"  indicies="0:*" />
+        <Sequence name="northwest"  indicies="1:*" />
+        <Sequence name="west"  indicies="2:*" />
+        <Sequence name="southwest"  indicies="3:*" />
+        <Sequence name="south"  indicies="4:*" />
+        <Sequence name="southeast"  indicies="5:*" />
+        <Sequence name="east"  indicies="6:*" />
+        <Sequence name="northeast"  indicies="7:*" />
+    </Sequences>
+
+    <Sheet name="Run" path="Swat/Run.png" rows="8" columns="16" />
+    <Sheet name="Idle" path="Swat/Idle.png" rows="8" columns="27" />
+</Sprite>

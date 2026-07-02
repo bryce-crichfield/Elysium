@@ -71,14 +71,19 @@ function Elysium_Build {
         New-Item -ItemType Directory -Force -Path "$ELYSIUM_ROOT\Build" | Out-Null
         New-Item -ItemType Directory -Force -Path "$ELYSIUM_ROOT\Binary" | Out-Null
 
-        Set-Location "$ELYSIUM_ROOT\Build"
+        Set-Location "$ELYSIUM_ROOT"
 
         # Use Ninja generator with MinGW and override shell
         $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
         $env:ComSpec = "C:\Windows\System32\cmd.exe"
-        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE=Debug -DTRACY_ENABLE=ON -DSQLITECPP_RUN_CPPCHECK=OFF -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" ..
+        # TRACY_ENABLE is OFF: combined with -static linking, Tracy's background
+        # worker threads hit a winpthreads nanosleep/timed-wait bug in this
+        # mingw-w64/GCC build that corrupts the stack canary ("stack smashing
+        # detected") shortly after InitWindow. Re-enable once that's resolved
+        # upstream or -static is dropped for winpthread.
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE=Debug -DTRACY_ENABLE=OFF -DSQLITECPP_RUN_CPPCHECK=OFF -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" -B Build
         if ($LASTEXITCODE -eq 0) {
-            cmake --build .
+            cmake --build Build
         }
     }
     finally {

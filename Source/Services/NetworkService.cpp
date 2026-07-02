@@ -178,7 +178,9 @@ bool NetworkService::Stop() {
 }
 
 void NetworkService::NetworkThread() {
+#ifdef TRACY_ENABLE
     tracy::SetThreadName("Network Thread");
+#endif
     ENetEvent event;
 
     while (!shouldStop_) {

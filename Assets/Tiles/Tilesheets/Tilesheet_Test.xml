@@ -1,0 +1,5 @@
+<Tile name="Test" originX="0.5" originY="0.5">
+    <Sheet path="Tilesheets/Tilesheet_Test.png" rows="1" cols="2"/>
+    <Variant name="dark" index="0:0"/>
+    <Variant name="light"  index="0:1"/>
+</Tile>
