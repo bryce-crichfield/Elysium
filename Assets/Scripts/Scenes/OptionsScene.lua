@@ -45,11 +45,11 @@ end
 
 -- Returns true if screen-space point (px, py) is inside an entity's rect.
 local function hitTest(entity, px, py)
-    local pos  = GetComponent(entity, "Position")
+    local pos  = GetComponent(entity, "Transform")
     local rect = GetComponent(entity, "Rectangle")
     if not pos or not rect then return false end
-    return px >= pos.x and px <= pos.x + rect.width
-       and py >= pos.y and py <= pos.y + rect.height
+    return px >= pos.worldX and px <= pos.worldX + rect.width
+       and py >= pos.worldY and py <= pos.worldY + rect.height
 end
 
 function OptionsScene:OnEvent(event)

@@ -2,7 +2,7 @@
 #include "Systems/CollisionSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Scene.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/ColliderComponent.h"
 #include "Components/KinematicsComponent.h"
 #include <cmath>
@@ -29,21 +29,21 @@ void PhysicsResponseSystem::Update(float deltaTime) {
         // Let scripts handle trigger overlaps
         if (ca.isTrigger || cb.isTrigger) continue;
 
-        if (!world->HasComponent<PositionComponent>(a) ||
-            !world->HasComponent<PositionComponent>(b)) continue;
+        if (!world->HasComponent<TransformComponent>(a) ||
+            !world->HasComponent<TransformComponent>(b)) continue;
 
         bool aKin = world->HasComponent<KinematicsComponent>(a);
         bool bKin = world->HasComponent<KinematicsComponent>(b);
         if (!aKin && !bKin) continue;  // Both static — nothing to push
 
-        auto& posA = world->GetComponent<PositionComponent>(a);
-        auto& posB = world->GetComponent<PositionComponent>(b);
+        auto& transformA = world->GetComponent<TransformComponent>(a);
+        auto& transformB = world->GetComponent<TransformComponent>(b);
 
         // Compute centers (position is entity anchor; collider offset shifts the AABB center)
-        float centerAX = posA.x + ca.offsetX;
-        float centerAY = posA.y + ca.offsetY;
-        float centerBX = posB.x + cb.offsetX;
-        float centerBY = posB.y + cb.offsetY;
+        float centerAX = transformA.worldX + ca.offsetX;
+        float centerAY = transformA.worldY + ca.offsetY;
+        float centerBX = transformB.worldX + cb.offsetX;
+        float centerBY = transformB.worldY + cb.offsetY;
 
         float dx = centerBX - centerAX;
         float dy = centerBY - centerAY;
@@ -64,14 +64,16 @@ void PhysicsResponseSystem::Update(float deltaTime) {
             float signX = (dx >= 0.0f) ? 1.0f : -1.0f;
 
             if (aKin) {
-                posA.x -= signX * overlapX * aShare;
+                // world* is a cache TransformSystem overwrites next frame, so the
+                // correction is applied to local* (the delta is the same either way).
+                transformA.localX -= signX * overlapX * aShare;
                 auto& kinA = world->GetComponent<KinematicsComponent>(a);
                 // Cancel velocity component that was pushing into B
                 if (signX > 0.0f && kinA.velocity.x > 0.0f) kinA.velocity.x = 0.0f;
                 if (signX < 0.0f && kinA.velocity.x < 0.0f) kinA.velocity.x = 0.0f;
             }
             if (bKin) {
-                posB.x += signX * overlapX * bShare;
+                transformB.localX += signX * overlapX * bShare;
                 auto& kinB = world->GetComponent<KinematicsComponent>(b);
                 if (signX > 0.0f && kinB.velocity.x < 0.0f) kinB.velocity.x = 0.0f;
                 if (signX < 0.0f && kinB.velocity.x > 0.0f) kinB.velocity.x = 0.0f;
@@ -81,13 +83,13 @@ void PhysicsResponseSystem::Update(float deltaTime) {
             float signY = (dy >= 0.0f) ? 1.0f : -1.0f;
 
             if (aKin) {
-                posA.y -= signY * overlapY * aShare;
+                transformA.localY -= signY * overlapY * aShare;
                 auto& kinA = world->GetComponent<KinematicsComponent>(a);
                 if (signY > 0.0f && kinA.velocity.y > 0.0f) kinA.velocity.y = 0.0f;
                 if (signY < 0.0f && kinA.velocity.y < 0.0f) kinA.velocity.y = 0.0f;
             }
             if (bKin) {
-                posB.y += signY * overlapY * bShare;
+                transformB.localY += signY * overlapY * bShare;
                 auto& kinB = world->GetComponent<KinematicsComponent>(b);
                 if (signY > 0.0f && kinB.velocity.y < 0.0f) kinB.velocity.y = 0.0f;
                 if (signY < 0.0f && kinB.velocity.y > 0.0f) kinB.velocity.y = 0.0f;

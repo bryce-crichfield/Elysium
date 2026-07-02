@@ -61,6 +61,11 @@ void WorldEditor::DrawEntityToolbar(EditorService& service) {
     auto* world = service.GetWorld();
     const auto& componentPlaceholders = service.GetComponentPlaceholders();
 
+    // View toggle — kept at the very top of the entity list so it's the first
+    // thing a user sees when deciding how to browse entities.
+    ImGui::Checkbox("Hierarchy View", &showHierarchyView_);
+    ImGui::Separator();
+
     ImGui::Text("Search: ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-1);
@@ -126,13 +131,6 @@ void WorldEditor::DrawEntityToolbar(EditorService& service) {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Expects: function(entity) -> bool");
         }
-    }
-
-    ImGui::Separator();
-
-    // View toggle
-    if (ImGui::SmallButton(showHierarchyView_ ? "View: Hierarchy" : "View: Flat")) {
-        showHierarchyView_ = !showHierarchyView_;
     }
 
     ImGui::Separator();

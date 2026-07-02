@@ -36,10 +36,10 @@ function ExploreScene:Update(dt)
             local inv = 1 / math.sqrt(2)
             dx, dy = dx * inv, dy * inv
         end
-        local pos = GetComponent(self.cameraEntity, "Position")
+        local pos = GetComponent(self.cameraEntity, "Transform")
         if pos then
-            pos.x = pos.x + dx * CAMERA_SPEED * dt
-            pos.y = pos.y + dy * CAMERA_SPEED * dt
+            pos.localX = pos.localX + dx * CAMERA_SPEED * dt
+            pos.localY = pos.localY + dy * CAMERA_SPEED * dt
         end
     end
 end
@@ -79,8 +79,8 @@ function ExploreScene:Render()
 
         local cursor = GetEntityByName("CURSOR")
         if cursor and cursor ~= 0 then
-            local pos = GetComponent(cursor, "Position")
-            if pos then pos.x = cx; pos.y = cy end
+            local pos = GetComponent(cursor, "Transform")
+            if pos then pos.localX = cx; pos.localY = cy end
         end
     end
 
@@ -88,11 +88,11 @@ function ExploreScene:Render()
     if self.debugDraw then
         local colColor = {r=0, g=255, b=200, a=180}
         for _, entity in ipairs(GetEntities()) do
-            local pos = GetComponent(entity, "Position")
+            local pos = GetComponent(entity, "Transform")
             local col = GetComponent(entity, "Collider")
             if pos and col then
-                local rx = pos.x + col.offsetX - col.width  * 0.5
-                local ry = pos.y + col.offsetY - col.height * 0.5
+                local rx = pos.worldX + col.offsetX - col.width  * 0.5
+                local ry = pos.worldY + col.offsetY - col.height * 0.5
                 DrawLine(rx,             ry,             rx + col.width, ry,              colColor, "selection")
                 DrawLine(rx + col.width, ry,             rx + col.width, ry + col.height, colColor, "selection")
                 DrawLine(rx + col.width, ry + col.height, rx,            ry + col.height, colColor, "selection")

@@ -7,7 +7,7 @@
 #include <cfloat>
 #include <algorithm>
 #include <cmath>
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/BoundsComponent.h"
 
 namespace Elysium::Systems {
@@ -45,8 +45,8 @@ void SpatialSystem::Update(float deltaTime) {
     
     // 2. Re-bin all entities with Position + Bounds (or just Unit tag?)
     // Using BoundsComponent to determine "size" and Position for location
-    world->Query<PositionComponent, BoundsComponent>([&](Entity e, auto& pos, auto& bounds) {
-        GridNode* node = GetNodeFromWorld({pos.x, pos.y});
+    world->Query<TransformComponent, BoundsComponent>([&](Entity e, auto& transform, auto& bounds) {
+        GridNode* node = GetNodeFromWorld({transform.worldX, transform.worldY});
         if (node) {
             node->occupants.push_back(e);
         }
@@ -117,9 +117,9 @@ std::vector<Entity> SpatialSystem::GetNearbyEntities(Vector2 position, float rad
             if (node) {
                 for (Entity e : node->occupants) {
                     // Refine distance check
-                    if (world->HasComponent<PositionComponent>(e)) {
-                        auto& pos = world->GetComponent<PositionComponent>(e);
-                        if (Vector2Distance(position, {pos.x, pos.y}) <= radius) {
+                    if (world->HasComponent<TransformComponent>(e)) {
+                        auto& transform = world->GetComponent<TransformComponent>(e);
+                        if (Vector2Distance(position, {transform.worldX, transform.worldY}) <= radius) {
                             result.push_back(e);
                         }
                     }

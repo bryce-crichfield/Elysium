@@ -15,7 +15,7 @@
 #include "Components/FollowComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/LayerComponent.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/RectangleComponent.h"
 #include "Components/TileComponent.h"
 #include "raylib.h"
@@ -86,21 +86,21 @@ void SaveTilemap(XMLBuilder& builder, World* world) {
     float tileWidth = 64.0f, tileHeight = 32.0f;
     bool isIsometric = false;
 
-    world->Query<TileComponent, PositionComponent, LayerComponent>(
-        [&](Entity, TileComponent& tile, PositionComponent& pos, LayerComponent& layer) {
+    world->Query<TileComponent, TransformComponent, LayerComponent>(
+        [&](Entity, TileComponent& tile, TransformComponent& transform, LayerComponent& layer) {
             tileWidth    = tile.tileWidth;
             tileHeight   = tile.tileHeight;
             isIsometric  = tile.isIsometric;
 
             int tx, ty;
             if (isIsometric) {
-                float sum  = 2.0f * pos.y / tileHeight;
-                float diff = 2.0f * pos.x / tileWidth;
+                float sum  = 2.0f * transform.localY / tileHeight;
+                float diff = 2.0f * transform.localX / tileWidth;
                 tx = (int)std::round((sum + diff) / 2.0f);
                 ty = (int)std::round((sum - diff) / 2.0f);
             } else {
-                tx = (int)std::round(pos.x / tileWidth);
-                ty = (int)std::round(pos.y / tileHeight);
+                tx = (int)std::round(transform.localX / tileWidth);
+                ty = (int)std::round(transform.localY / tileHeight);
             }
 
             tiles.push_back({tx, ty, tile.tileName, tile.variantName, layer.name});

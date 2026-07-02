@@ -17,17 +17,17 @@ local function easeOutCubic(t)
 end
 
 function SlideIn:Initialize(entity)
-    local pos = GetComponent(entity, "Position")
+    local pos = GetComponent(entity, "Transform")
     if not pos then return end
 
-    self.targetX = pos.x
+    self.targetX = pos.localX
     self.elapsed = 0.0
     self.done    = false
     -- Elements higher on screen (smaller Y) arrive first.
     -- Anchor the stagger at y=80 so the topmost element has zero delay.
-    self.delay   = math.max(0.0, (pos.y - 80.0) * STAGGER_SCALE)
+    self.delay   = math.max(0.0, (pos.localY - 80.0) * STAGGER_SCALE)
 
-    pos.x = pos.x - SLIDE_DIST
+    pos.localX = pos.localX - SLIDE_DIST
 end
 
 function SlideIn:Update(entity, dt)
@@ -38,16 +38,16 @@ function SlideIn:Update(entity, dt)
     local t = (self.elapsed - self.delay) / SLIDE_DURATION
     if t < 0.0 then return end  -- still in stagger window
 
-    local pos = GetComponent(entity, "Position")
+    local pos = GetComponent(entity, "Transform")
     if not pos then return end
 
     if t >= 1.0 then
-        pos.x     = self.targetX
+        pos.localX = self.targetX
         self.done = true
         return
     end
 
-    pos.x = (self.targetX - SLIDE_DIST) + easeOutCubic(t) * SLIDE_DIST
+    pos.localX = (self.targetX - SLIDE_DIST) + easeOutCubic(t) * SLIDE_DIST
 end
 
 return SlideIn

@@ -1,7 +1,7 @@
 <Entities>
     <Entity>
         <NameComponent name="$name" />
-        <PositionComponent x="$x" y="$y" />
+        <TransformComponent x="$x" y="$y" />
         <SpriteComponent spriteName="Sprites/Archer/Cursor.xml" sheetName="Cursor" sequenceName="hover" />
         <LayerComponent name="selection" />
     </Entity>

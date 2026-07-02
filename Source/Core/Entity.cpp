@@ -116,8 +116,7 @@ World::World() {
     ComponentRegistry::Instance().RegisterAllComponents(*this);
 
     // RegisterComponent<NameComponent>(); // Handled by Registry
-    // RegisterComponent<PositionComponent>(); // Handled by Registry
-    RegisterComponent<ScaleComponent>();
+    // RegisterComponent<TransformComponent>(); // Handled by Registry
     RegisterComponent<MovementComponent>();
     RegisterComponent<LayerComponent>();
     RegisterComponent<LightComponent>();

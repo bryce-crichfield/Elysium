@@ -17,9 +17,9 @@ end
 function Walkaround:Initialize(entity)
     Unit.Initialize(self, entity)
 
-    local pos = GetComponent(entity, "Position")
-    self.homeX = pos and pos.x or 0
-    self.homeY = pos and pos.y or 0
+    local pos = GetComponent(entity, "Transform")
+    self.homeX = pos and pos.worldX or 0
+    self.homeY = pos and pos.worldY or 0
 
     self.phase    = "waiting"
     -- Stagger first move so all units don't depart at the same instant

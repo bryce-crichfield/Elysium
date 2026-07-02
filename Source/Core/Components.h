@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Components/NameComponent.h"
-#include "Components/PositionComponent.h"
-#include "Components/ScaleComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/HealthComponent.h"
 #include "Components/LayerComponent.h"
 #include "Components/RectangleComponent.h"

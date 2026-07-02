@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cmake --build:*)"
+      "Bash(cmake --build:*)",
+      "Bash(xargs wc -l)",
+      "PowerShell($env:Path -split ';')",
+      "Bash(/c/msys64/mingw64/bin/objdump.exe -p \"/c/Users/Bryce/Documents/GitHub/Elysium2/Binary/Elysium.exe\")",
+      "Bash(/c/msys64/mingw64/bin/gdb.exe -batch -ex \"run\" -ex \"bt full\" --args \"./Binary/Elysium.exe\")",
+      "PowerShell(.\\\\elysium.ps1 --Clean --Build)",
+      "PowerShell(Test-Path *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 *)"
     ]
   }
 }

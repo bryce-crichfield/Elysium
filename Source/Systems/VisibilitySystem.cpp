@@ -1,7 +1,7 @@
 #include "Systems/VisibilitySystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Entity.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/LayerComponent.h"
 #include "Components/TeamComponent.h"
 #include "Components/LightComponent.h"
@@ -28,23 +28,23 @@ void VisibilitySystem::Update(float deltaTime) {
     };
     std::vector<VisionSource> sources;
 
-    world->Query<PositionComponent, LightComponent, ColliderComponent, ParentComponent>(
-        [&](Entity e, auto& pos, auto& light, auto& collider, auto& parentComp) {
+    world->Query<TransformComponent, LightComponent, ColliderComponent, ParentComponent>(
+        [&](Entity e, auto& transform, auto& light, auto& collider, auto& parentComp) {
             if (parentComp.parent == INVALID_ENTITY) return;
             if (!world->HasComponent<TeamComponent>(parentComp.parent)) return;
             if (world->GetComponent<TeamComponent>(parentComp.parent).team != 0) return;
-            sources.push_back({{pos.x, pos.y}, collider.width * 0.5f, collider.height * 0.5f});
+            sources.push_back({{transform.worldX, transform.worldY}, collider.width * 0.5f, collider.height * 0.5f});
         });
 
     // For every enemy unit, check if it falls within any vision ellipse.
-    world->Query<PositionComponent, LayerComponent, TeamComponent>(
-        [&](Entity e, auto& pos, auto& layer, auto& team) {
+    world->Query<TransformComponent, LayerComponent, TeamComponent>(
+        [&](Entity e, auto& transform, auto& layer, auto& team) {
             if (team.team == 0) return;
 
             bool visible = false;
             for (const auto& src : sources) {
-                float dx = pos.x - src.position.x;
-                float dy = pos.y - src.position.y;
+                float dx = transform.worldX - src.position.x;
+                float dy = transform.worldY - src.position.y;
                 float nx = dx / src.radiusX;
                 float ny = dy / src.radiusY;
                 if (nx * nx + ny * ny <= 1.0f) {

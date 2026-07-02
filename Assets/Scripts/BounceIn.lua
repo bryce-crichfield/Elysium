@@ -19,15 +19,15 @@ local function easeOutBack(t)
 end
 
 function BounceIn:Initialize(entity)
-    local pos = GetComponent(entity, "Position")
+    local pos = GetComponent(entity, "Transform")
     if not pos then return end
 
-    self.targetX = pos.x
+    self.targetX = pos.localX
     self.elapsed = 0.0
     self.done    = false
-    self.delay   = math.max(0.0, (pos.y - 80.0) * STAGGER_SCALE)
+    self.delay   = math.max(0.0, (pos.localY - 80.0) * STAGGER_SCALE)
 
-    pos.x = pos.x - SLIDE_DIST
+    pos.localX = pos.localX - SLIDE_DIST
 end
 
 function BounceIn:Update(entity, dt)
@@ -37,16 +37,16 @@ function BounceIn:Update(entity, dt)
     local t = (self.elapsed - self.delay) / SLIDE_DURATION
     if t < 0.0 then return end
 
-    local pos = GetComponent(entity, "Position")
+    local pos = GetComponent(entity, "Transform")
     if not pos then return end
 
     if t >= 1.0 then
-        pos.x    = self.targetX
+        pos.localX = self.targetX
         self.done = true
         return
     end
 
-    pos.x = (self.targetX - SLIDE_DIST) + easeOutBack(t) * SLIDE_DIST
+    pos.localX = (self.targetX - SLIDE_DIST) + easeOutBack(t) * SLIDE_DIST
 end
 
 return BounceIn

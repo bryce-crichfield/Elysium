@@ -3,6 +3,7 @@
 
     <Systems>
         <System type="ScriptSystem" />
+        <System type="TransformSystem" />
         <System type="UiSystem" />
         <System type="RenderSystem" />
     </Systems>
@@ -17,7 +18,7 @@
     <Entities>
         <Entity>
             <NameComponent name="CAMERA" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <CameraComponent />
         </Entity>
 
@@ -25,7 +26,7 @@
         <Entity>
             <LayerComponent name="overlay" />
             <NameComponent name="BACKDROP" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="640" height="480" background="#000000AA" />
         </Entity>
 
@@ -33,19 +34,19 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="MODAL_BG" />
-            <PositionComponent x="14" y="12" />
+            <TransformComponent x="14" y="12" />
             <RectangleComponent width="612" height="456" background="#1C1C1EFF" border="#4A4A52FF" />
         </Entity>
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="MODAL_TITLE" />
-            <PositionComponent x="308" y="20" />
+            <TransformComponent x="308" y="20" />
             <TextComponent text="Inventory" fontSize="16" color="#E5E5EAFF" />
         </Entity>
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="ESC_HINT" />
-            <PositionComponent x="454" y="456" />
+            <TransformComponent x="454" y="456" />
             <TextComponent text="ESC to close" fontSize="12" color="#636366FF" />
         </Entity>
 
@@ -66,7 +67,7 @@
         <!-- Horizontal root: positions INV_PANEL and CHAR_PANEL side by side -->
         <Entity>
             <NameComponent name="PANEL_ROW" />
-            <PositionComponent x="26" y="42" />
+            <TransformComponent x="26" y="42" />
             <UiComponent containerType="Horizontal" gap="8" />
         </Entity>
 
@@ -74,7 +75,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="INV_PANEL" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="290" height="420" background="#28282CFF" border="#3A3A3EFF" />
             <UiComponent containerType="Vertical" gap="0" />
             <ParentComponent target="PANEL_ROW" />
@@ -82,7 +83,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="INV_HEADER" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="290" height="26" background="#2E2E36FF" border="#3A3A3EFF" />
             <TextComponent text="Backpack" fontSize="13" color="#AEAEB2FF" />
             <UiComponent />
@@ -93,7 +94,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="CHAR_PANEL" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="290" height="420" background="#28282CFF" border="#3A3A3EFF" />
             <UiComponent containerType="Vertical" gap="0" />
             <ParentComponent target="PANEL_ROW" />
@@ -101,7 +102,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="CHAR_HEADER" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="290" height="26" background="#2E2E36FF" border="#3A3A3EFF" />
             <TextComponent text="Character" fontSize="13" color="#AEAEB2FF" />
             <UiComponent />

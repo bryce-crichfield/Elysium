@@ -14,9 +14,8 @@
 #include "Components/LayerComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/NameComponent.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/RectangleComponent.h"
-#include "Components/ScaleComponent.h"
 #include "Components/SelectionComponent.h"
 #include "Components/SpriteComponent.h"
 #include "Components/TextComponent.h"
@@ -148,9 +147,9 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
     _renderQueue.clear();
 
     Vector2 cameraPos = {0, 0};
-    if (world->HasComponent<PositionComponent>(cameraEntity)) {
-        auto& pos = world->GetComponent<PositionComponent>(cameraEntity);
-        cameraPos = { pos.x, pos.y };
+    if (world->HasComponent<TransformComponent>(cameraEntity)) {
+        auto& transform = world->GetComponent<TransformComponent>(cameraEntity);
+        cameraPos = { transform.worldX, transform.worldY };
     }
 
     float halfW = (camera.viewport.width  * 0.5f) / camera.zoom;
@@ -167,10 +166,11 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
 
     {
         ProfileN("Collect Renderables");
-        world->Query<PositionComponent>([&](Entity entity, auto& pos) {
+        world->Query<TransformComponent>([&](Entity entity, auto& transform) {
             if (world->HasComponent<CameraComponent>(entity))
                 return;
 
+            Vector2 pos = { transform.worldX, transform.worldY };
 
             uint8_t mask = 0;
             if (world->HasComponent<LightComponent>(entity))     mask |= RC_Light;
@@ -386,10 +386,10 @@ void RenderSystem::RenderText(RenderContext& ctx, Entity entity, Vector2 pos, co
     const auto& component = world->GetComponent<TextComponent>(entity);
 
     float scaleX = 1.0f, scaleY = 1.0f;
-    if (world->HasComponent<ScaleComponent>(entity)) {
-        const auto& scale = world->GetComponent<ScaleComponent>(entity);
-        scaleX = scale.x;
-        scaleY = scale.y;
+    if (world->HasComponent<TransformComponent>(entity)) {
+        const auto& transform = world->GetComponent<TransformComponent>(entity);
+        scaleX = transform.worldScaleX;
+        scaleY = transform.worldScaleY;
     }
 
     int scaledFontSize = (int)(component.fontSize * ((scaleX + scaleY) * 0.5f));
@@ -439,10 +439,10 @@ void RenderSystem::RenderSprite(RenderContext& ctx, Entity entity, Vector2 pos, 
     Rectangle sourceRect = { col * frameWidth, row * frameHeight, frameWidth, frameHeight };
 
     float scaleX = 1.0f, scaleY = 1.0f;
-    if (world->HasComponent<ScaleComponent>(entity)) {
-        const auto& scale = world->GetComponent<ScaleComponent>(entity);
-        scaleX = scale.x;
-        scaleY = scale.y;
+    if (world->HasComponent<TransformComponent>(entity)) {
+        const auto& transform = world->GetComponent<TransformComponent>(entity);
+        scaleX = transform.worldScaleX;
+        scaleY = transform.worldScaleY;
     }
 
     float scaledWidth  = frameWidth  * scaleX;
@@ -553,8 +553,8 @@ void RenderSystem::PushBlendMode(RenderContext& ctx, const SceneLayerBlend& blen
 }
 
 Matrix RenderSystem::CalculateTransform(Entity cameraEntity, const SceneLayer& layer) {
-    auto& cameraPosition = world->GetComponent<PositionComponent>(cameraEntity);
-    auto& camera         = world->GetComponent<CameraComponent>(cameraEntity);
+    auto& cameraTransform = world->GetComponent<TransformComponent>(cameraEntity);
+    auto& camera          = world->GetComponent<CameraComponent>(cameraEntity);
 
     switch (layer.space) {
         case SceneLayerSpace::Screen2D:
@@ -566,7 +566,7 @@ Matrix RenderSystem::CalculateTransform(Entity cameraEntity, const SceneLayer& l
             };
             Matrix centerTranslation = MatrixTranslate(viewportCenter.x, viewportCenter.y, 0);
             Matrix scale             = MatrixScale(camera.zoom, camera.zoom, 1.0f);
-            Matrix cameraTranslation = MatrixTranslate(-cameraPosition.x, -cameraPosition.y, 0);
+            Matrix cameraTranslation = MatrixTranslate(-cameraTransform.worldX, -cameraTransform.worldY, 0);
             return MatrixMultiply(MatrixMultiply(centerTranslation, scale), cameraTranslation);
         }
     }

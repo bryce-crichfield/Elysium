@@ -105,7 +105,7 @@ function RemoveComponent(entity, componentName) end
 ---@return Entity[]
 function FindEntitiesWithComponent(componentName) end
 
---- Find the nearest entity (with PositionComponent) that has the given component.
+--- Find the nearest entity (with TransformComponent) that has the given component.
 ---@param x number
 ---@param y number
 ---@param componentName string

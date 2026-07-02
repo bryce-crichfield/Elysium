@@ -3,6 +3,7 @@
 
     <Systems>
         <System type="ScriptSystem" />
+        <System type="TransformSystem" />
         <System type="UiSystem" />
         <System type="RenderSystem" />
     </Systems>
@@ -16,7 +17,7 @@
     <Entities>
         <Entity>
             <NameComponent name="CAMERA" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <CameraComponent />
         </Entity>
 
@@ -24,7 +25,7 @@
         <Entity>
             <LayerComponent name="overlay" />
             <NameComponent name="BACKDROP" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="640" height="480" background="#000000BB" />
         </Entity>
 
@@ -32,7 +33,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="OPTS_PANEL" />
-            <PositionComponent x="190" y="80" />
+            <TransformComponent x="190" y="80" />
             <RectangleComponent width="260" height="320" background="#1C1C1EFF" border="#4A4A52FF" />
         </Entity>
 
@@ -40,7 +41,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="OPTS_TITLE" />
-            <PositionComponent x="255" y="94" />
+            <TransformComponent x="255" y="94" />
             <TextComponent text="Options" fontSize="18" color="#E5E5EAFF" />
         </Entity>
 
@@ -56,14 +57,14 @@
         <!-- ─────────────────────────────────────────────────────────── -->
         <Entity>
             <NameComponent name="OPTS_BUTTONS" />
-            <PositionComponent x="206" y="128" />
+            <TransformComponent x="206" y="128" />
             <UiComponent containerType="Vertical" gap="10" />
         </Entity>
 
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="RESUME_BTN" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="228" height="36" background="#2A2A2EFF" border="#5A5A62FF" />
             <TextComponent text="Resume" fontSize="16" color="#E5E5EAFF" />
             <UiComponent />
@@ -73,7 +74,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="AUDIO_BTN" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="228" height="36" background="#2A2A2EFF" border="#3A3A42FF" />
             <TextComponent text="Audio Settings" fontSize="16" color="#8E8E93FF" />
             <UiComponent />
@@ -83,7 +84,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="VIDEO_BTN" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="228" height="36" background="#2A2A2EFF" border="#3A3A42FF" />
             <TextComponent text="Video Settings" fontSize="16" color="#8E8E93FF" />
             <UiComponent />
@@ -93,7 +94,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="CONTROLS_BTN" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="228" height="36" background="#2A2A2EFF" border="#3A3A42FF" />
             <TextComponent text="Controls" fontSize="16" color="#8E8E93FF" />
             <UiComponent />
@@ -103,7 +104,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="BACK_BTN" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="228" height="36" background="#2A1C1CFF" border="#6A3030FF" />
             <TextComponent text="Back to Main Menu" fontSize="16" color="#FF9580FF" />
             <UiComponent />
@@ -114,7 +115,7 @@
         <Entity>
             <LayerComponent name="ui" />
             <NameComponent name="ESC_HINT" />
-            <PositionComponent x="220" y="410" />
+            <TransformComponent x="220" y="410" />
             <TextComponent text="ESC to resume" fontSize="12" color="#636366FF" />
         </Entity>
     </Entities>

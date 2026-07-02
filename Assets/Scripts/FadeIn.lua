@@ -16,10 +16,10 @@ end
 local function lerp(a, b, t) return a + (b - a) * t end
 
 function FadeIn:Initialize(entity)
-    local pos = GetComponent(entity, "Position")
+    local pos = GetComponent(entity, "Transform")
     self.elapsed  = 0.0
     self.done     = false
-    self.delay    = pos and math.max(0.0, (pos.y - 80.0) * STAGGER_SCALE) or 0.0
+    self.delay    = pos and math.max(0.0, (pos.localY - 80.0) * STAGGER_SCALE) or 0.0
 
     -- Capture and zero the alpha on Text
     local text = GetComponent(entity, "Text")

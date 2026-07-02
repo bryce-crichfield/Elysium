@@ -11,6 +11,7 @@
         <System type="SpriteSystem" />
         <System type="TileSystem" />
         <System type="FollowSystem" />
+        <System type="TransformSystem" />
         <System type="VisibilitySystem" />
         <System type="UiSystem" />
         <System type="RenderSystem" />
@@ -47,7 +48,7 @@
     <Entities>
         <Entity>
             <NameComponent name="CAMERA" />
-            <PositionComponent />
+            <TransformComponent />
             <CameraComponent target="ENTITY_0" zoom="1" />
         </Entity>
     </Entities>

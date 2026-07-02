@@ -7,13 +7,12 @@
 #include "Components/CameraComponent.h"
 #include "Components/DebugComponent.h"
 #include "Components/NameComponent.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/RectangleComponent.h"
 #include "Components/CircleComponent.h"
 #include "Components/TextComponent.h"
 #include "Components/SpriteComponent.h"
 #include "Components/LightComponent.h"
-#include "Components/ScaleComponent.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "raymath.h"
@@ -48,7 +47,7 @@ DebugSystem::~DebugSystem() {
 }
 
 void DebugSystem::Update(float deltaTime) {
-    world->Query<DebugComponent, PositionComponent>([&](Entity entity, auto& debug, auto& pos) {
+    world->Query<DebugComponent, TransformComponent>([&](Entity entity, auto& debug, auto& transform) {
         auto debuggables = GetDebuggables(entity);
         if (debuggables.empty()) return;
 
@@ -56,13 +55,9 @@ void DebugSystem::Update(float deltaTime) {
         Vector2 max = {std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest()};
         bool foundAny = false;
 
-        float scaleX = 1.0f;
-        float scaleY = 1.0f;
-        if (world->HasComponent<ScaleComponent>(entity)) {
-            auto& scale = world->GetComponent<ScaleComponent>(entity);
-            scaleX = scale.x;
-            scaleY = scale.y;
-        }
+        Vector2 pos = {transform.worldX, transform.worldY};
+        float scaleX = transform.worldScaleX;
+        float scaleY = transform.worldScaleY;
 
         // Resolve this entity's layer space once, used by per-component AABB logic below.
         bool isScreen2D = false;
@@ -215,23 +210,23 @@ void DebugSystem::OnMouseMoved(MouseMovedEvent& event) {
             cameraEntity = entity;
         });
 
-        if (cameraEntity != INVALID_ENTITY && world->HasComponent<PositionComponent>(cameraEntity)) {
-            auto& pos = world->GetComponent<PositionComponent>(cameraEntity);
+        if (cameraEntity != INVALID_ENTITY && world->HasComponent<TransformComponent>(cameraEntity)) {
+            auto& transform = world->GetComponent<TransformComponent>(cameraEntity);
             auto& cam = world->GetComponent<CameraComponent>(cameraEntity);
             float zoom = cam.zoom;
             if (zoom != 0.0f) {
-                pos.x -= delta.x / zoom;
-                pos.y -= delta.y / zoom;
+                transform.localX -= delta.x / zoom;
+                transform.localY -= delta.y / zoom;
             }
         }
-        return; 
-    }
-
-    if (!isDragging_ || selectedEntity_ == 0 || !world->HasComponent<PositionComponent>(selectedEntity_)) {
         return;
     }
 
-    auto& pos = world->GetComponent<PositionComponent>(selectedEntity_);
+    if (!isDragging_ || selectedEntity_ == 0 || !world->HasComponent<TransformComponent>(selectedEntity_)) {
+        return;
+    }
+
+    auto& pos = world->GetComponent<TransformComponent>(selectedEntity_);
 
     // Check layer to decide coordinate space
     std::string layerName = "default";
@@ -248,8 +243,8 @@ void DebugSystem::OnMouseMoved(MouseMovedEvent& event) {
     }
 
     if (isScreenSpace) {
-        pos.x += delta.x;
-        pos.y += delta.y;
+        pos.localX += delta.x;
+        pos.localY += delta.y;
     } else {
         // Convert delta to world space
         // We need the camera zoom for scale. 
@@ -267,8 +262,8 @@ void DebugSystem::OnMouseMoved(MouseMovedEvent& event) {
         
         // Avoid division by zero
         if (zoom != 0.0f) {
-            pos.x += delta.x / zoom;
-            pos.y += delta.y / zoom;
+            pos.localX += delta.x / zoom;
+            pos.localY += delta.y / zoom;
         }
     }
 }
@@ -289,7 +284,7 @@ Vector2 DebugSystem::FramebufferToWorld(Vector2 fbPos) {
         return fbPos;  // No camera, assume screen space
     }
 
-    auto& cameraPosition = world->GetComponent<PositionComponent>(cameraEntity);
+    auto& cameraTransform = world->GetComponent<TransformComponent>(cameraEntity);
     auto& camera = world->GetComponent<CameraComponent>(cameraEntity);
 
     // Reverse the viewport centering
@@ -304,8 +299,8 @@ Vector2 DebugSystem::FramebufferToWorld(Vector2 fbPos) {
 
     // Reverse the camera translation (add camera position back)
     Vector2 worldPos = {
-        unscaled.x + cameraPosition.x,
-        unscaled.y + cameraPosition.y};
+        unscaled.x + cameraTransform.worldX,
+        unscaled.y + cameraTransform.worldY};
 
     return worldPos;
 }

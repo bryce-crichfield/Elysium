@@ -5,7 +5,7 @@
 
 namespace Elysium {
     struct CameraComponent {
-        // Expects PositionComponent
+        // Expects TransformComponent
         Rectangle viewport;
         float zoom = 1.0f;
         std::vector<int> layerMask;  // which layers this camera renders

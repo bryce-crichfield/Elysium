@@ -104,7 +104,7 @@ function Unit:Update(entity, dt)
 
     -- Health bar
     local health = GetComponent(entity, "Health")
-    local pos    = GetComponent(entity, "Position")
+    local pos    = GetComponent(entity, "Transform")
     if not health or not pos then return end
 
     local fill = math.max(0, math.min(1, health.current / health.max))
@@ -130,8 +130,8 @@ function Unit:Update(entity, dt)
     -- Layout
     local barW = 32
     local barH = 4
-    local barX = pos.x - barW * 0.5
-    local barY = pos.y + 10   -- near the feet
+    local barX = pos.worldX - barW * 0.5
+    local barY = pos.worldY + 10   -- near the feet
 
     local layer = GetComponent(entity, "Layer")
     if not layer or layer.isVisible == false then

@@ -15,7 +15,7 @@
 #include <limits>
 #include <cmath>
 #include "Components/CameraComponent.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Systems/CollisionSystem.h"
 #include "Systems/MovementSystem.h"
 #include "Systems/RenderSystem.h"
@@ -91,9 +91,9 @@ static Vector2 WorldToScreen(const Vector2& worldPos) {
 
     world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
         if (!foundCamera && cameraComp.isVisible) {
-            if (world->HasComponent<PositionComponent>(camEnt)) {
-                auto& pos = world->GetComponent<PositionComponent>(camEnt);
-                cameraPos = { pos.x, pos.y };
+            if (world->HasComponent<TransformComponent>(camEnt)) {
+                auto& transform = world->GetComponent<TransformComponent>(camEnt);
+                cameraPos = { transform.worldX, transform.worldY };
             }
             zoom = cameraComp.zoom;
             viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
@@ -121,9 +121,9 @@ static Vector2 ScreenToWorld(Vector2 screenPos) {
 
     world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
         if (!foundCamera && cameraComp.isVisible) {
-            if (world->HasComponent<PositionComponent>(camEnt)) {
-                auto& pos = world->GetComponent<PositionComponent>(camEnt);
-                cameraPos = { pos.x, pos.y };
+            if (world->HasComponent<TransformComponent>(camEnt)) {
+                auto& transform = world->GetComponent<TransformComponent>(camEnt);
+                cameraPos = { transform.worldX, transform.worldY };
             }
             zoom = cameraComp.zoom;
             viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
@@ -343,11 +343,11 @@ void ScriptService::BindEntityAPI() {
             }
             if (!has) continue;
 
-            if (!world->HasComponent<PositionComponent>(e)) continue;
+            if (!world->HasComponent<TransformComponent>(e)) continue;
 
-            auto& pos = world->GetComponent<PositionComponent>(e);
-            float dx = pos.x - x;
-            float dy = pos.y - y;
+            auto& transform = world->GetComponent<TransformComponent>(e);
+            float dx = transform.worldX - x;
+            float dy = transform.worldY - y;
             float dist = dx * dx + dy * dy;
 
             if (dist < nearestDist) {

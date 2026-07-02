@@ -3,6 +3,7 @@
 
     <Systems>
         <System type="ScriptSystem" />
+        <System type="TransformSystem" />
         <System type="UiSystem" />
         <System type="RenderSystem" />
     </Systems>
@@ -16,14 +17,14 @@
         <!-- Camera (required for rendering) -->
         <Entity>
             <NameComponent name="CAMERA" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <CameraComponent />
         </Entity>
 
         <!-- Title -->
         <Entity>
             <NameComponent name="Title" />
-            <PositionComponent x="320" y="80" />
+            <TransformComponent x="320" y="80" />
             <TextComponent text="ELYSIUM" fontSize="60" color="#FFFFFF" layerName="ui" />
             <UiComponent />
             <ScriptComponent scriptName="Scripts/TypeWriter.lua" />
@@ -32,7 +33,7 @@
         <!-- Subtitle -->
         <Entity>
             <NameComponent name="Subtitle" />
-            <PositionComponent x="320" y="140" />
+            <TransformComponent x="320" y="140" />
             <TextComponent text="A Scripted Game Engine" fontSize="20" color="#AAAAAA" layerName="ui" />
             <UiComponent />
             <ScriptComponent scriptName="Scripts/FadeIn.lua" />
@@ -43,14 +44,14 @@
              y=220 so the three 50px buttons + 10px gaps center around y=250. -->
         <Entity>
             <NameComponent name="ButtonPanel" />
-            <PositionComponent x="220" y="220" />
+            <TransformComponent x="220" y="220" />
             <UiComponent containerType="Vertical" gap="10" />
         </Entity>
 
         <!-- Play Button -->
         <Entity>
             <NameComponent name="PlayButton" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="200" height="50" background="#2266AA" border="#44AAFF" layerName="ui" />
             <TextComponent text="Play Game" fontSize="24" color="#FFFFFF" layerName="ui" />
             <UiComponent />
@@ -60,7 +61,7 @@
         <!-- Options Button -->
         <Entity>
             <NameComponent name="OptionsButton" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="200" height="50" background="#226644" border="#44AA66" layerName="ui" />
             <TextComponent text="Options" fontSize="24" color="#FFFFFF" layerName="ui" />
             <UiComponent />
@@ -70,7 +71,7 @@
         <!-- Quit Button -->
         <Entity>
             <NameComponent name="QuitButton" />
-            <PositionComponent x="0" y="0" />
+            <TransformComponent x="0" y="0" />
             <RectangleComponent width="200" height="50" background="#662222" border="#AA4444" layerName="ui" />
             <TextComponent text="Quit" fontSize="24" color="#FFFFFF" layerName="ui" />
             <UiComponent />
@@ -80,7 +81,7 @@
         <!-- Version text -->
         <Entity>
             <NameComponent name="Version" />
-            <PositionComponent x="320" y="460" />
+            <TransformComponent x="320" y="460" />
             <TextComponent text="v0.1.0 - Scripting Demo" fontSize="14" color="#666666" layerName="ui" />
             <UiComponent />
         </Entity>

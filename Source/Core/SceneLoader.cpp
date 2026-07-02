@@ -88,7 +88,7 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
         // Create a container entity for all tiles
         Entity tilemapParent = world->CreateEntity();
         world->AddComponent<NameComponent>(tilemapParent, NameComponent("Tilemap"));
-        world->AddComponent<PositionComponent>(tilemapParent, PositionComponent(0, 0));
+        world->AddComponent<TransformComponent>(tilemapParent, TransformComponent(0, 0));
 
         for (size_t i = 0; i < tilemask.size(); i++) {
             int id = tilemask[i];
@@ -103,7 +103,7 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
             const TileDef& def = defIt->second;
 
             auto entity = world->CreateEntity();
-            world->AddComponent<PositionComponent>(entity, PositionComponent(worldX, worldY));
+            world->AddComponent<TransformComponent>(entity, TransformComponent(worldX, worldY));
             world->AddComponent<NameComponent>(entity, NameComponent(std::string("Tile_") + std::to_string(i)));
             world->AddComponent<LayerComponent>(entity, LayerComponent(def.layerName));
             world->AddComponent<TileComponent>(entity, TileComponent(def.tileName, def.variantName, isIsometric, tileWidth, tileHeight));

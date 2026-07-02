@@ -32,10 +32,10 @@ end
 
 function Selection:Render(time)
     for entity in pairs(self.selected) do
-        local pos = GetComponent(entity, "Position")
+        local pos = GetComponent(entity, "Transform")
         if pos then
             local pulse = 1.0 + 0.1 * math.sin(time * (2 * math.pi / 1.5))
-            DrawEllipse(pos.x, pos.y + SELECTION_Y_OFFSET,
+            DrawEllipse(pos.worldX, pos.worldY + SELECTION_Y_OFFSET,
                         RING_W * pulse, RING_H * pulse,
                         {r=0, g=255, b=0, a=255}, "selection")
         end
@@ -88,8 +88,8 @@ function Selection:_clickSelect(wx, wy)
     self:_clearOnly()
     local nearest = FindNearestEntity(wx, wy, "Kinematics")
     if nearest ~= 0 and self._filter(nearest) then
-        local pos = GetComponent(nearest, "Position")
-        if pos and Distance(wx, wy, pos.x, pos.y) <= SELECTION_RADIUS then
+        local pos = GetComponent(nearest, "Transform")
+        if pos and Distance(wx, wy, pos.worldX, pos.worldY) <= SELECTION_RADIUS then
             self.selected[nearest] = true
             AddComponent(nearest, "Selection")
             Log("Selected entity " .. nearest)
@@ -106,8 +106,8 @@ function Selection:_dragSelect()
     local count = 0
     for _, entity in ipairs(GetEntities()) do
         if HasComponent(entity, "Kinematics") and self._filter(entity) then
-            local pos = GetComponent(entity, "Position")
-            if pos and pos.x >= x1 and pos.x <= x2 and pos.y >= y1 and pos.y <= y2 then
+            local pos = GetComponent(entity, "Transform")
+            if pos and pos.worldX >= x1 and pos.worldX <= x2 and pos.worldY >= y1 and pos.worldY <= y2 then
                 self.selected[entity] = true
                 AddComponent(entity, "Selection")
                 count = count + 1

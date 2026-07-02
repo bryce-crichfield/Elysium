@@ -5,13 +5,13 @@
 #include "Core/Scene.h"
 #include "raymath.h"
 #include "Components/KinematicsComponent.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 
 namespace Elysium::Systems {
 
 void KinematicsSystem::Update(float deltaTime) {
-    world->Query<KinematicsComponent, PositionComponent>(
-        [&](Entity e, auto& kin, auto& pos) {
+    world->Query<KinematicsComponent, TransformComponent>(
+        [&](Entity e, auto& kin, auto& transform) {
             // 1. Integrate Acceleration into Velocity
             // v = v + a * dt
             if (kin.acceleration.x != 0 || kin.acceleration.y != 0) {
@@ -50,8 +50,8 @@ void KinematicsSystem::Update(float deltaTime) {
             // p = p + v * dt
             // Only update if moving noticeably
             if (Vector2LengthSqr(kin.velocity) > 0.001f) {
-                pos.x += kin.velocity.x * deltaTime;
-                pos.y += kin.velocity.y * deltaTime;
+                transform.localX += kin.velocity.x * deltaTime;
+                transform.localY += kin.velocity.y * deltaTime;
             }
 
             // Reset acceleration for next frame (force accumulation style)

@@ -8,12 +8,12 @@ function MenuButton:Initialize()
 end
 
 function MenuButton:Update(entity, dt)
-    -- local mousePos = GetMousePosition() 
+    -- local mousePos = GetMousePosition()
     -- local screenMousePos = WorldToScreen(mousePos)
-    -- local pos = GetComponent(entity, "Position")
+    -- local pos = GetComponent(entity, "Transform")
     -- local rect = GetComponent(entity, "Rectangle")
-    -- self.isHovering = screenMousePos.x >= pos.x and screenMousePos.x <= pos.x + rect.width
-    --     and screenMousePos.y >= pos.y and screenMousePos.y <= pos.y + rect.height
+    -- self.isHovering = screenMousePos.x >= pos.worldX and screenMousePos.x <= pos.worldX + rect.width
+    --     and screenMousePos.y >= pos.worldY and screenMousePos.y <= pos.worldY + rect.height
 
     -- grab the rectangle and cycle its color over time
     local rect = GetComponent(entity, "Rectangle")
@@ -35,11 +35,11 @@ function MenuButton:OnEvent(entity, event)
         local mouseX = event.x
         local mouseY = event.y
 
-        local pos = GetComponent(entity, "Position")
+        local pos = GetComponent(entity, "Transform")
         local rect = GetComponent(entity, "Rectangle")
 
-        self.isHovering = mouseX >= pos.x and mouseX <= pos.x + rect.width
-            and mouseY >= pos.y and mouseY <= pos.y + rect.height
+        self.isHovering = mouseX >= pos.worldX and mouseX <= pos.worldX + rect.width
+            and mouseY >= pos.worldY and mouseY <= pos.worldY + rect.height
     end
 
     if event.type == "MouseButtonReleased" and event.button == MOUSE_LEFT then

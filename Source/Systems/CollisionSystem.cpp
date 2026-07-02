@@ -2,7 +2,7 @@
 #include "Core/SystemRegistry.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/ColliderComponent.h"
 #include "raylib.h"
 
@@ -23,8 +23,8 @@ void CollisionSystem::Update(float deltaTime) {
     };
     std::vector<CollidableEntity> collidables;
 
-    world->Query<PositionComponent, ColliderComponent>(
-        [&](Entity e, auto& pos, auto& collider) {
+    world->Query<TransformComponent, ColliderComponent>(
+        [&](Entity e, auto& transform, auto& collider) {
             CollidableEntity ce;
             ce.entity = e;
             ce.collider = collider;
@@ -43,11 +43,11 @@ void CollisionSystem::Update(float deltaTime) {
 
             // AABB intersection test
             auto aRect = a.collider.GetRect(
-                world->GetComponent<PositionComponent>(a.entity).x,
-                world->GetComponent<PositionComponent>(a.entity).y);
+                world->GetComponent<TransformComponent>(a.entity).worldX,
+                world->GetComponent<TransformComponent>(a.entity).worldY);
             auto bRect = b.collider.GetRect(
-                world->GetComponent<PositionComponent>(b.entity).x,
-                world->GetComponent<PositionComponent>(b.entity).y);
+                world->GetComponent<TransformComponent>(b.entity).worldX,
+                world->GetComponent<TransformComponent>(b.entity).worldY);
 
             if (CheckCollisionRecs(aRect, bRect)) {
                 collisions_.insert(CollisionPair(a.entity, b.entity));

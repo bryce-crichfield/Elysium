@@ -21,8 +21,8 @@ function PortraitSlot:Initialize(entity)
     local idx = nameComp and tonumber(nameComp.name:match("PORTRAIT_(%d+)"))
     self.slotIndex = idx and (idx + 1) or 0   -- convert to 1-based
 
-    local pos = GetComponent(entity, "Position")
-    self.baseY       = pos and pos.y or 0
+    local pos = GetComponent(entity, "Transform")
+    self.baseY       = pos and pos.localY or 0
     self.t           = 0        -- 0 = fully offscreen below, 1 = resting position
     self.visible     = false
     self.pendingTex  = ""       -- texture requested by scene script
@@ -61,11 +61,11 @@ function PortraitSlot:Update(entity, dt)
     local ease   = smoothstep(self.t)
     local offset = (1.0 - ease) * SLIDE_DIST   -- 0 at rest, SLIDE_DIST when hidden
 
-    local pos  = GetComponent(entity, "Position")
+    local pos  = GetComponent(entity, "Transform")
     local rect = GetComponent(entity, "Rectangle")
 
     if pos then
-        pos.y = self.baseY + offset
+        pos.localY = self.baseY + offset
     end
 
     if rect then

@@ -1,7 +1,7 @@
 <Entities>
     <Entity>
         <NameComponent name="$name" />
-        <PositionComponent x="$x" y="$y" />
+        <TransformComponent x="$x" y="$y" />
         <MovementComponent state="Idle" goalX="$x" goalY="$y" />
         <KinematicsComponent maxSpeed="120" friction="5" />
         <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south" />

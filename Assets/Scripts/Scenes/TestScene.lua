@@ -20,26 +20,26 @@ function TestScene:Update(dt)
     end
 
     for i, entity in ipairs(GetEntities()) do
-        local pos = GetComponent(entity, "Position")
+        local pos = GetComponent(entity, "Transform")
         local kinematics = GetComponent(entity, "Kinematics")
-        if pos.x < -400 or pos.x > 400 then
+        if pos.localX < -400 or pos.localX > 400 then
             kinematics.velocity.x = -kinematics.velocity.x
         end
-        if pos.y < -200 or pos.y > 200 then
+        if pos.localY < -200 or pos.localY > 200 then
             kinematics.velocity.y = -kinematics.velocity.y
         end
 
         SetComponent(entity, "Kinematics", kinematics)
-        SetComponent(entity, "Position", pos)
+        SetComponent(entity, "Transform", pos)
     end
 end
 
 function TestScene:Render()
     local count = 0
     for _, entity in ipairs(GetEntities()) do
-        local pos = GetComponent(entity, "Position")
+        local pos = GetComponent(entity, "Transform")
         if pos then
-            DrawCircle(pos.x, pos.y, 20, {r = 255, g = 0, b = 0, a = 255}, "default")
+            DrawCircle(pos.worldX, pos.worldY, 20, {r = 255, g = 0, b = 0, a = 255}, "default")
         end
         count = count + 1
     end
@@ -56,11 +56,11 @@ end
 function TestScene:CreateCircle()
     local entity = CreateEntity()
 
-    AddComponent(entity, "Position")
-    local pos = GetComponent(entity, "Position")
-    pos.x = math.random(-300, 300)
-    pos.y = math.random(-200, 200)
-    SetComponent(entity, "Position", pos)
+    AddComponent(entity, "Transform")
+    local pos = GetComponent(entity, "Transform")
+    pos.localX = math.random(-300, 300)
+    pos.localY = math.random(-200, 200)
+    SetComponent(entity, "Transform", pos)
 
     AddComponent(entity, "Kinematics")
     local kinematics = GetComponent(entity, "Kinematics")

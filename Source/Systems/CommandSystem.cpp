@@ -6,7 +6,7 @@
 #include "Services/LogService.h"
 #include "Components/AttackComponent.h"
 #include "Components/CameraComponent.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/MovementComponent.h"
 #include "Components/SelectionComponent.h"
 
@@ -48,11 +48,11 @@ Vector2 CommandSystem::FramebufferToWorld(Vector2 fbPos) {
     CameraComponent* camera = nullptr;
     Vector2 cameraPos = {0, 0};
 
-    world->Query<CameraComponent, PositionComponent>([&](Entity entity, auto& cam, auto& pos) {
+    world->Query<CameraComponent, TransformComponent>([&](Entity entity, auto& cam, auto& transform) {
         if (cam.isVisible) {
             cameraEntity = entity;
             camera = &cam;
-            cameraPos = {pos.x, pos.y};
+            cameraPos = {transform.worldX, transform.worldY};
         }
     });
 

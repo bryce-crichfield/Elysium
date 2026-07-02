@@ -30,16 +30,21 @@ void UiSystem::Update(float /*deltaTime*/) {
         TraverseTree(root, [&](Entity e) {
             UiComponent& ui = world->GetComponent<UiComponent>(e);
             if (ui.containerType == UiContainerType::None) return;
-            if (!world->HasComponent<PositionComponent>(e)) return;
+            if (!world->HasComponent<TransformComponent>(e)) return;
 
-            PositionComponent& origin = world->GetComponent<PositionComponent>(e);
+            // origin.worldX/Y was already composed by TransformSystem (from this
+            // entity's own local offset plus any non-UI ancestor). This system then
+            // writes children's worldX/Y directly with the stacked layout position,
+            // bypassing local-offset composition entirely — UI layout owns the final
+            // screen-space placement, not the generic hierarchy composition.
+            TransformComponent& origin = world->GetComponent<TransformComponent>(e);
             float offset = 0.0f;
 
             for (Entity child : world->GetChildren(e)) {
                 if (!world->HasComponent<UiComponent>(child)) continue;
-                if (!world->HasComponent<PositionComponent>(child)) continue;
+                if (!world->HasComponent<TransformComponent>(child)) continue;
 
-                PositionComponent& childPos = world->GetComponent<PositionComponent>(child);
+                TransformComponent& childPos = world->GetComponent<TransformComponent>(child);
 
                 float childW = 0.0f, childH = 0.0f;
                 if (world->HasComponent<RectangleComponent>(child)) {
@@ -66,13 +71,13 @@ void UiSystem::Update(float /*deltaTime*/) {
 
                 if (ui.containerType == UiContainerType::Vertical) {
                     // Main axis: y (stacked top-down).  Cross axis: x (aligned).
-                    childPos.x = origin.x + alignOffset(ui.alignHorizontal, containerW, childW);
-                    childPos.y = origin.y + offset;
+                    childPos.worldX = origin.worldX + alignOffset(ui.alignHorizontal, containerW, childW);
+                    childPos.worldY = origin.worldY + offset;
                     offset += childH + ui.gap;
                 } else {  // Horizontal
                     // Main axis: x (stacked left-right).  Cross axis: y (aligned).
-                    childPos.x = origin.x + offset;
-                    childPos.y = origin.y + alignOffset(ui.alignVertical, containerH, childH);
+                    childPos.worldX = origin.worldX + offset;
+                    childPos.worldY = origin.worldY + alignOffset(ui.alignVertical, containerH, childH);
                     offset += childW + ui.gap;
                 }
             }

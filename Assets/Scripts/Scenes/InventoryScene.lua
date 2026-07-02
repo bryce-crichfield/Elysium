@@ -67,11 +67,11 @@ function InventoryScene:Render()
     local layer = "ui_fg"
 
     -- ── Inventory grid ────────────────────────────────────────────────────────
-    local invPos = self.invPanel ~= 0 and GetComponent(self.invPanel, "Position") or nil
+    local invPos = self.invPanel ~= 0 and GetComponent(self.invPanel, "Transform") or nil
     if invPos then
         local gridW   = GRID_COLS * SLOT_SIZE + (GRID_COLS - 1) * SLOT_GAP   -- 256
-        local startX  = invPos.x + math.floor((PANEL_W - gridW) / 2)         -- centred
-        local startY  = invPos.y + HEADER_H + 8                               -- below header
+        local startX  = invPos.worldX + math.floor((PANEL_W - gridW) / 2)    -- centred
+        local startY  = invPos.worldY + HEADER_H + 8                          -- below header
 
         for row = 0, GRID_ROWS - 1 do
             for col = 0, GRID_COLS - 1 do
@@ -83,12 +83,12 @@ function InventoryScene:Render()
     end
 
     -- ── Character sheet equipment slots ──────────────────────────────────────
-    local charPos = self.charPanel ~= 0 and GetComponent(self.charPanel, "Position") or nil
+    local charPos = self.charPanel ~= 0 and GetComponent(self.charPanel, "Transform") or nil
     if charPos then
         for _, slot in ipairs(EQUIP_SLOTS) do
             drawFilledRect(
-                charPos.x + slot.dx,
-                charPos.y + slot.dy,
+                charPos.worldX + slot.dx,
+                charPos.worldY + slot.dy,
                 slot.w, slot.h,
                 C_EQUIP_FILL, C_EQUIP_BORDER, layer)
         end

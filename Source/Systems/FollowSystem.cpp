@@ -1,27 +1,25 @@
 #include "Systems/FollowSystem.h"
 #include "Core/SystemRegistry.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/FollowComponent.h"
 #include "Components/ParentComponent.h"
 
 namespace Elysium::Systems {
 
+// Drives the entity's own local offset toward the follow target's offset;
+// TransformSystem composes that local offset with the parent's world
+// transform, so this system must never touch worldX/worldY itself (doing so
+// would double-apply the offset once here and once in composition).
 void FollowSystem::Update(float deltaTime) {
-    world->Query<PositionComponent, FollowComponent, ParentComponent>([&](Entity entity, auto& pos, auto& follow, auto& parentComp) {
-        Entity parent = parentComp.parent;
-        if (parent == INVALID_ENTITY) return;
-        if (!world->HasComponent<PositionComponent>(parent)) return;
-
-        auto& targetPos = world->GetComponent<PositionComponent>(parent);
-        float targetX = targetPos.x + follow.offsetX;
-        float targetY = targetPos.y + follow.offsetY;
+    world->Query<TransformComponent, FollowComponent, ParentComponent>([&](Entity entity, auto& t, auto& follow, auto& parentComp) {
+        if (parentComp.parent == INVALID_ENTITY) return;
 
         if (follow.speed <= 0.0f) {
-            pos.x = targetX;
-            pos.y = targetY;
+            t.localX = follow.offsetX;
+            t.localY = follow.offsetY;
         } else {
-            pos.x += (targetX - pos.x) * follow.speed * deltaTime;
-            pos.y += (targetY - pos.y) * follow.speed * deltaTime;
+            t.localX += (follow.offsetX - t.localX) * follow.speed * deltaTime;
+            t.localY += (follow.offsetY - t.localY) * follow.speed * deltaTime;
         }
     });
 }

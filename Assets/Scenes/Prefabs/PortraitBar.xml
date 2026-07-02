@@ -3,21 +3,21 @@
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_BAR_BG" />
-        <PositionComponent x="0" y="400" />
+        <TransformComponent x="0" y="400" />
         <RectangleComponent width="640" height="80" background="#00000000" border="#00000000" texture="Textures/Ui/portrait_bar_bg.png" />
     </Entity>
 
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_0" />
-        <PositionComponent x="10" y="408" />
+        <TransformComponent x="10" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
         <ScriptComponent scriptName="Scripts/PortraitSlot.lua" />
     </Entity>
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_0_FRAME" />
-        <PositionComponent x="10" y="408" />
+        <TransformComponent x="10" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" texture="Textures/Ui/portrait_frame.png" />
         <ParentComponent target="PORTRAIT_0" />
         <FollowComponent followSpeed="-1" />
@@ -26,14 +26,14 @@
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_1" />
-        <PositionComponent x="82" y="408" />
+        <TransformComponent x="82" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
         <ScriptComponent scriptName="Scripts/PortraitSlot.lua" />
     </Entity>
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_1_FRAME" />
-        <PositionComponent x="82" y="408" />
+        <TransformComponent x="82" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" texture="Textures/Ui/portrait_frame.png" />
         <ParentComponent target="PORTRAIT_1" />
         <FollowComponent followSpeed="-1" />
@@ -42,14 +42,14 @@
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_2" />
-        <PositionComponent x="154" y="408" />
+        <TransformComponent x="154" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
         <ScriptComponent scriptName="Scripts/PortraitSlot.lua" />
     </Entity>
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_2_FRAME" />
-        <PositionComponent x="154" y="408" />
+        <TransformComponent x="154" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" texture="Textures/Ui/portrait_frame.png" />
         <ParentComponent target="PORTRAIT_2" />
         <FollowComponent followSpeed="-1" />
@@ -58,14 +58,14 @@
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_3" />
-        <PositionComponent x="226" y="408" />
+        <TransformComponent x="226" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
         <ScriptComponent scriptName="Scripts/PortraitSlot.lua" />
     </Entity>
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_3_FRAME" />
-        <PositionComponent x="226" y="408" />
+        <TransformComponent x="226" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" texture="Textures/Ui/portrait_frame.png" />
         <ParentComponent target="PORTRAIT_3" />
         <FollowComponent followSpeed="-1" />
@@ -74,14 +74,14 @@
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_4" />
-        <PositionComponent x="298" y="408" />
+        <TransformComponent x="298" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" />
         <ScriptComponent scriptName="Scripts/PortraitSlot.lua" />
     </Entity>
     <Entity>
         <LayerComponent name="ui" />
         <NameComponent name="PORTRAIT_4_FRAME" />
-        <PositionComponent x="298" y="408" />
+        <TransformComponent x="298" y="408" />
         <RectangleComponent width="64" height="64" background="#00000000" border="#00000000" texture="Textures/Ui/portrait_frame.png" />
         <ParentComponent target="PORTRAIT_4" />
         <FollowComponent followSpeed="-1" />

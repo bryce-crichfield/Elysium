@@ -7,7 +7,7 @@
 #include "raymath.h"
 #include <algorithm>
 #include "Components/MovementComponent.h"
-#include "Components/PositionComponent.h"
+#include "Components/TransformComponent.h"
 #include "Components/BoundsComponent.h"
 #include "Components/KinematicsComponent.h"
 namespace Elysium::Systems {
@@ -33,7 +33,7 @@ void MovementSystem::Update(float deltaTime) {
         MoveCommand cmd = moveCommands_.front();
         moveCommands_.pop();
 
-        auto& pos = world->GetComponent<PositionComponent>(cmd.entity);
+        auto& transform = world->GetComponent<TransformComponent>(cmd.entity);
         auto& mv = world->GetComponent<MovementComponent>(cmd.entity);
 
         mv.goal = cmd.target;
@@ -43,8 +43,8 @@ void MovementSystem::Update(float deltaTime) {
         mv.stuckRetryCount = 0;
         mv.stuckCheckAccumMs = 0;
 
-        // Perform A* pathfinding and set the result to mv.waypoints. 
-        std::vector<Vector2> result = spatialSystem_->FindPath(Vector2{pos.x, pos.y}, cmd.target);
+        // Perform A* pathfinding and set the result to mv.waypoints.
+        std::vector<Vector2> result = spatialSystem_->FindPath(Vector2{transform.worldX, transform.worldY}, cmd.target);
         mv.waypoints = std::move(result);
 
         // If no path found, consider going Idle or just setting goal directly.
@@ -54,10 +54,10 @@ void MovementSystem::Update(float deltaTime) {
         }
     }
 
-    world->Query<PositionComponent, KinematicsComponent, MovementComponent>(
-        [&](Entity e, auto& pos, auto& kin, auto& mv) {
+    world->Query<TransformComponent, KinematicsComponent, MovementComponent>(
+        [&](Entity e, auto& transform, auto& kin, auto& mv) {
 
-            Vector2 currentPos = {pos.x, pos.y};
+            Vector2 currentPos = {transform.worldX, transform.worldY};
 
             if (mv.state == MovementState::Idle) {
                 kin.velocity = {0, 0};
@@ -135,8 +135,8 @@ void MovementSystem::Update(float deltaTime) {
 
             // All waypoints consumed — arrived at goal.
             if (mv.currentWaypointIndex >= (int)mv.waypoints.size()) {
-                // pos.x = mv.goal.x;
-                // pos.y = mv.goal.y;
+                // transform.localX = mv.goal.x;
+                // transform.localY = mv.goal.y;
                 mv.state = MovementState::Idle;
                 mv.waypoints.clear();
                 mv.currentWaypointIndex = 0;

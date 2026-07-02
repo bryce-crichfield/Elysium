@@ -1,7 +1,7 @@
 <Entities>
     <Entity>
         <NameComponent name="$name" />
-        <PositionComponent x="$x" y="$y" />
+        <TransformComponent x="$x" y="$y" />
         <MovementComponent state="Idle" goalX="$x" goalY="$y" />
         <KinematicsComponent maxSpeed="150" friction="5" />
         <SpriteComponent spriteName="$spriteName" sheetName="Idle" sequenceName="south" />
@@ -14,7 +14,7 @@
     <Entity>
         <ParentComponent target="$name" />
         <FollowComponent followSpeed="0" />
-        <PositionComponent />
+        <TransformComponent />
         <LayerComponent name="shadow" />
         <LightComponent color="#ffffffff" radius="500" intensity="0.0" />
         <ColliderComponent width="600" height="300" />

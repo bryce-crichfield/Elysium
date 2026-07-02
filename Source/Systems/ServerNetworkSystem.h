@@ -42,7 +42,7 @@ class ServerNetworkSystem : public System {
 
     /**
      * Register an entity for network tracking
-     * Called automatically for entities with PositionComponent
+     * Called automatically for entities with TransformComponent
      */
     void TrackEntity(Entity entity);
 
