@@ -6,6 +6,7 @@
 #include "Services/NetworkService.h"
 
 namespace Elysium {
+using namespace Generated;
 
 ClientNetworkSystem::ClientNetworkSystem(Context context)
     : System(context) {

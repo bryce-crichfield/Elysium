@@ -24,7 +24,7 @@ struct ComponentPlaceholder {
 
 class EditorService : public Elysium::Service {
    public:
-    EditorService();
+    EditorService(ServiceRegistry& registry);
     ~EditorService() = default;
 
     // Service interface

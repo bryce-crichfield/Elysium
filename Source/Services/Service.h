@@ -8,8 +8,11 @@
 
 namespace Elysium {
 
+class ServiceRegistry;
+
 class Service {
    public:
+    Service(ServiceRegistry& registry) : registry_(registry) {}
     virtual ~Service() = default;
 
     virtual void Initialize() = 0;
@@ -21,6 +24,7 @@ class Service {
 
    protected:
     std::string name_ = "UndefinedService";
+    ServiceRegistry& registry_;
 };
 
 class ServiceRegistry {
@@ -35,6 +39,11 @@ class ServiceRegistry {
     T& GetService() {
         auto typeIndex = std::type_index(typeid(T));
         return dynamic_cast<T&>(*services_.at(typeIndex));
+    }
+
+    template <typename T>
+    bool HasService() const {
+        return services_.count(std::type_index(typeid(T))) > 0;
     }
 
     std::vector<Service*> GetAllServices() {

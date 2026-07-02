@@ -41,15 +41,15 @@ bool Application::Initialize(const std::string& configPath) {
         return true;
     }
 
-    RegisterService(std::make_unique<Elysium::Services::LogService>());
-    RegisterService(std::make_unique<Elysium::Services::MessageService>());
-    RegisterService(std::make_unique<Elysium::Services::NetworkService>());
-    RegisterService(std::make_unique<Elysium::Services::InvokeService>());
-    RegisterService(std::make_unique<Elysium::TaskService>());
-    RegisterService(std::make_unique<Elysium::Services::AssetService>());
-    RegisterService(std::make_unique<Elysium::Services::EditorService>());
-    RegisterService(std::make_unique<Elysium::Services::SceneService>());
-    RegisterService(std::make_unique<Elysium::Services::ScriptService>());
+    RegisterService(std::make_unique<Elysium::Services::LogService>(serviceRegistry_));
+    RegisterService(std::make_unique<Elysium::Services::MessageService>(serviceRegistry_));
+    RegisterService(std::make_unique<Elysium::Services::NetworkService>(serviceRegistry_));
+    RegisterService(std::make_unique<Elysium::Services::InvokeService>(serviceRegistry_));
+    RegisterService(std::make_unique<Elysium::TaskService>(serviceRegistry_));
+    RegisterService(std::make_unique<Elysium::Services::AssetService>(serviceRegistry_));
+    RegisterService(std::make_unique<Elysium::Services::EditorService>(serviceRegistry_));
+    RegisterService(std::make_unique<Elysium::Services::SceneService>(serviceRegistry_));
+    RegisterService(std::make_unique<Elysium::Services::ScriptService>(serviceRegistry_));
 
     RegisterEditor<SceneEditor>();
     RegisterEditor<WorldEditor>();

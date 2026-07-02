@@ -8,7 +8,7 @@
 
 namespace Elysium::Services {
 
-EditorService::EditorService() {
+EditorService::EditorService(ServiceRegistry& registry) : Service(registry) {
     name_ = "EditorService";
 }
 

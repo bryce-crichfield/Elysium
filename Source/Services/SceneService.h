@@ -73,7 +73,7 @@ class SceneService : public Elysium::Service {
 public:
     friend class Elysium::SceneEditor;
 
-    SceneService();
+    SceneService(ServiceRegistry& registry);
     ~SceneService() = default;
     SceneService(const SceneService&) = delete;
     SceneService& operator=(const SceneService&) = delete;

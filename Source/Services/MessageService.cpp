@@ -1,11 +1,10 @@
 #include "Services/MessageService.h"
 #include <typeindex>
-#include "Core/Application.h"
 #include "Services/SceneService.h"
 
 namespace Elysium::Services {
 
-MessageService::MessageService() {
+MessageService::MessageService(ServiceRegistry& registry) : Service(registry) {
 }
 
 // Service interface
@@ -24,11 +23,10 @@ void MessageService::Update(float deltaTime) {
     messagesProcessedThisFrame_ = messages.size();
     totalMessagesProcessed_ += messages.size();
 
-    auto& scenes = Application::GetInstance().GetService<SceneService>();
-
     for (auto& msg : messages) {
-        // Dispatch to SceneService (existing behavior)
-        scenes.OnMessage(*msg);
+        if (registry_.HasService<SceneService>()) {
+            registry_.GetService<SceneService>().OnMessage(*msg);
+        }
 
         // Dispatch to subscribed handlers
         {
