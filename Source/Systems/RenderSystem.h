@@ -4,6 +4,9 @@
 #include "Components/CameraComponent.h"
 #include "Components/RectangleComponent.h"
 #include "Components/CircleComponent.h"
+#include "Components/EllipseComponent.h"
+#include "Components/LineComponent.h"
+#include "Components/PolygonComponent.h"
 #include "Components/TextComponent.h"
 #include "Components/SpriteComponent.h"
 #include "Components/TextureComponent.h"
@@ -20,20 +23,23 @@
 namespace Elysium::Systems {
 
 // Bitmask of renderable components an entity has — set during collect, used during render
-enum RenderComponentFlags : uint8_t {
+enum RenderComponentFlags : uint16_t {
     RC_Rectangle = 1 << 0,
     RC_Circle    = 1 << 1,
     RC_Text      = 1 << 2,
     RC_Sprite    = 1 << 3,
     RC_Light     = 1 << 4,
     RC_Tile      = 1 << 5,
+    RC_Ellipse   = 1 << 6,
+    RC_Line      = 1 << 7,
+    RC_Polygon   = 1 << 8,
 };
 
 // Lightweight sort key — no component data, just enough to sort and identify the entity
 struct RenderKey {
     uint8_t  layerIndex;
     uint8_t  hierarchyDepth;
-    uint8_t  componentMask;
+    uint16_t componentMask;
     uint8_t  isWorldSpace;   // 1 = World2D (Y-sort); 0 = Screen2D (declaration order)
     float    y;
     float    x;
@@ -77,6 +83,9 @@ protected:
     void RenderSprite   (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
     void RenderTile     (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
     void RenderLight    (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+    void RenderEllipse  (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+    void RenderLine     (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
+    void RenderPolygon  (RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer);
 
     // Render deferred draw commands for a given layer
     void RenderDrawCommands(RenderContext& ctx, const SceneLayer& layer);

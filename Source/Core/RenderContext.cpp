@@ -93,8 +93,20 @@ void RenderContext::DrawRectangleLinesEx(Rectangle rec, float lineThick, Color c
     ::DrawRectangleLinesEx(rec, lineThick, color);
 }
 
+void RenderContext::DrawRectangleRounded(Rectangle rec, float roundness, int segments, Color color) {
+    ::DrawRectangleRounded(rec, roundness, segments, color);
+}
+
+void RenderContext::DrawRectangleRoundedLinesEx(Rectangle rec, float roundness, int segments, float lineThick, Color color) {
+    ::DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, color);
+}
+
 void RenderContext::DrawLine(float x1, float y1, float x2, float y2, Color color) {
     DrawLineV({x1, y1}, {x2, y2}, color);
+}
+
+void RenderContext::DrawLineEx(float x1, float y1, float x2, float y2, float thick, Color color) {
+    ::DrawLineEx({x1, y1}, {x2, y2}, thick, color);
 }
 
 void RenderContext::DrawCircle(float x, float y, float radius, Color color) {
@@ -124,6 +136,10 @@ void RenderContext::DrawEllipseGradient(float cx, float cy, float radiusH, float
     rlEnd();
 }
 
+void RenderContext::DrawEllipse(float centerX, float centerY, float radiusH, float radiusV, Color color) {
+    ::DrawEllipse((int)centerX, (int)centerY, radiusH, radiusV, color);
+}
+
 void RenderContext::DrawEllipseLines(float centerX, float centerY, float radiusH, float radiusV, Color color) {
     ::DrawEllipseLines((int)centerX, (int)centerY, radiusH, radiusV, color);
 }
@@ -134,6 +150,12 @@ void RenderContext::DrawText(const char* text, float x, float y, int fontSize, C
 
 void RenderContext::DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint) {
     ::DrawTexturePro(texture, source, dest, origin, rotation, tint);
+}
+
+void RenderContext::DrawTriangleList(const std::vector<Vector2>& triangleVerts, Color color) {
+    for (size_t i = 0; i + 2 < triangleVerts.size(); i += 3) {
+        ::DrawTriangle(triangleVerts[i], triangleVerts[i + 1], triangleVerts[i + 2], color);
+    }
 }
 
 void RenderContext::BeginTextureMode(RenderTexture2D& target) {

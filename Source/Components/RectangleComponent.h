@@ -9,8 +9,11 @@ namespace Elysium {
         Color background;
         Color border;
         std::string textureName;
+        float strokeWidth;
+        float cornerRadius;  // raylib roundness ratio; 0 = square corners
 
-        RectangleComponent(float width = 1, float height = 1, Color background = {}, Color border = {}, const std::string& textureName = "");
+        RectangleComponent(float width = 1, float height = 1, Color background = {}, Color border = {}, const std::string& textureName = "",
+                            float strokeWidth = 1.0f, float cornerRadius = 0.0f);
 
         static constexpr const char* Name() { return "Rectangle"; }
         static constexpr const char* XmlTag() { return "RectangleComponent"; }

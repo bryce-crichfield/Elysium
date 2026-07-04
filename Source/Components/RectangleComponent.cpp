@@ -4,13 +4,17 @@
 #include "imgui.h"
 
 namespace Elysium {
-    RectangleComponent::RectangleComponent(float width, float height, Color background, Color border, const std::string& textureName)
-        : width(width), height(height), background(background), border(border), textureName(textureName) {}
+    RectangleComponent::RectangleComponent(float width, float height, Color background, Color border, const std::string& textureName,
+                                            float strokeWidth, float cornerRadius)
+        : width(width), height(height), background(background), border(border), textureName(textureName),
+          strokeWidth(strokeWidth), cornerRadius(cornerRadius) {}
 
     void RectangleComponent::SaveXml(const RectangleComponent& c, XMLBuilder& builder) {
         auto b = builder.AddElement("RectangleComponent")
             .SetAttribute("width", c.width)
-            .SetAttribute("height", c.height);
+            .SetAttribute("height", c.height)
+            .SetAttribute("strokeWidth", c.strokeWidth)
+            .SetAttribute("cornerRadius", c.cornerRadius);
         std::string bgHex = ColorToHex(c.background);
         std::string borderHex = ColorToHex(c.border);
         if (!bgHex.empty()) b.SetAttribute("background", bgHex.c_str());
@@ -21,6 +25,8 @@ namespace Elysium {
     void RectangleComponent::LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el) {
         c.width = el->FloatAttribute("width", 100.0f);
         c.height = el->FloatAttribute("height", 100.0f);
+        c.strokeWidth = el->FloatAttribute("strokeWidth", 1.0f);
+        c.cornerRadius = el->FloatAttribute("cornerRadius", 0.0f);
         std::string backgroundHex = el->Attribute("background") ? el->Attribute("background") : "";
         std::string borderHex = el->Attribute("border") ? el->Attribute("border") : "";
         std::string textureName = el->Attribute("texture") ? el->Attribute("texture") : "";
@@ -63,6 +69,11 @@ namespace Elysium {
                         (unsigned char)(border[2] * 255), (unsigned char)(border[3] * 255)};
         }
 
+        Label("Stroke Width: ");
+        ImGui::DragFloat("##StrokeWidth", &c.strokeWidth, 0.1f, 0.0f, 50.0f);
+        Label("Corner Radius: ");
+        ImGui::DragFloat("##CornerRadius", &c.cornerRadius, 0.01f, 0.0f, 1.0f);
+
         Label("Texture: ");
         char buffer[256];
         std::strncpy(buffer, c.textureName.c_str(), sizeof(buffer));
@@ -81,6 +92,8 @@ namespace Elysium {
             [](RectangleComponent& r) { return r.border; },
             [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); });
         ut["textureName"] = &RectangleComponent::textureName;
+        ut["strokeWidth"] = &RectangleComponent::strokeWidth;
+        ut["cornerRadius"] = &RectangleComponent::cornerRadius;
     }
 
     void RectangleComponent::SetFromLua(RectangleComponent& c, sol::object v) {
@@ -88,6 +101,8 @@ namespace Elysium {
             sol::table t = v.as<sol::table>();
             c.width = t.get_or("width", c.width);
             c.height = t.get_or("height", c.height);
+            c.strokeWidth = t.get_or("strokeWidth", c.strokeWidth);
+            c.cornerRadius = t.get_or("cornerRadius", c.cornerRadius);
             if (t["background"].valid()) c.background = ObjectToColor(t["background"]);
             if (t["border"].valid()) c.border = ObjectToColor(t["border"]);
             if (t["textureName"].valid()) c.textureName = t["textureName"];

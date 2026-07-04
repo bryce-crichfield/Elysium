@@ -24,6 +24,7 @@
 #include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
+#include "Core/Geometry.h"
 #include "Core/Path.h"
 #include "Core/RenderContext.h"
 #include "Core/Scene.h"
@@ -172,18 +173,21 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
 
             Vector2 pos = { transform.worldX, transform.worldY };
 
-            uint8_t mask = 0;
+            uint16_t mask = 0;
             if (world->HasComponent<LightComponent>(entity))     mask |= RC_Light;
 
             auto hasLight = (mask & RC_Light) != 0;
             if (!hasLight && (pos.x < worldLeft || pos.x > worldRight ||
                 pos.y < worldTop  || pos.y > worldBottom))
                 return;
-                
+
             if (world->HasComponent<RectangleComponent>(entity)) mask |= RC_Rectangle;
             if (world->HasComponent<CircleComponent>(entity))    mask |= RC_Circle;
             if (world->HasComponent<TextComponent>(entity))      mask |= RC_Text;
             if (world->HasComponent<SpriteComponent>(entity))    mask |= RC_Sprite;
+            if (world->HasComponent<EllipseComponent>(entity))   mask |= RC_Ellipse;
+            if (world->HasComponent<LineComponent>(entity))      mask |= RC_Line;
+            if (world->HasComponent<PolygonComponent>(entity))   mask |= RC_Polygon;
             if (world->HasComponent<TileComponent>(entity)) {
                 const auto& tc = world->GetComponent<TileComponent>(entity);
                 if (!tc.tileName.empty()) mask |= RC_Tile;
@@ -357,6 +361,12 @@ void RenderSystem::RenderEntity(RenderContext& ctx, const RenderKey& key, const 
         RenderText(ctx, key.entity, pos, layer);
     if (key.componentMask & RC_Light)
         RenderLight(ctx, key.entity, pos, layer);
+    if (key.componentMask & RC_Ellipse)
+        RenderEllipse(ctx, key.entity, pos, layer);
+    if (key.componentMask & RC_Line)
+        RenderLine(ctx, key.entity, pos, layer);
+    if (key.componentMask & RC_Polygon)
+        RenderPolygon(ctx, key.entity, pos, layer);
 }
 
 void RenderSystem::RenderRectangle(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
@@ -367,9 +377,19 @@ void RenderSystem::RenderRectangle(RenderContext& ctx, Entity entity, Vector2 po
     float topLeftY = (layer.space == SceneLayerSpace::Screen2D)
         ? pos.y : pos.y - component.height * 0.5f;
 
-    ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
-    if (component.border.a > 0) {
-        ctx.DrawRectangleLines(topLeftX, topLeftY, component.width, component.height, component.border);
+    Rectangle rect = { topLeftX, topLeftY, component.width, component.height };
+    const int roundedSegments = 8;
+
+    if (component.cornerRadius > 0.0f) {
+        ctx.DrawRectangleRounded(rect, component.cornerRadius, roundedSegments, component.background);
+        if (component.border.a > 0) {
+            ctx.DrawRectangleRoundedLinesEx(rect, component.cornerRadius, roundedSegments, component.strokeWidth, component.border);
+        }
+    } else {
+        ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
+        if (component.border.a > 0) {
+            ctx.DrawRectangleLinesEx(rect, component.strokeWidth, component.border);
+        }
     }
 
     if (!component.textureName.empty()) {
@@ -390,6 +410,44 @@ void RenderSystem::RenderCircle(RenderContext& ctx, Entity entity, Vector2 pos, 
     ctx.DrawCircle(pos.x, pos.y, component.radius, component.background);
     if (component.border.a > 0) {
         ctx.DrawCircleLines(pos.x, pos.y, component.radius, component.border);
+    }
+}
+
+void RenderSystem::RenderEllipse(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& component = world->GetComponent<EllipseComponent>(entity);
+    ctx.DrawEllipse(pos.x, pos.y, component.radiusH, component.radiusV, component.background);
+    if (component.border.a > 0) {
+        ctx.DrawEllipseLines(pos.x, pos.y, component.radiusH, component.radiusV, component.border);
+    }
+}
+
+void RenderSystem::RenderLine(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& component = world->GetComponent<LineComponent>(entity);
+    ctx.DrawLineEx(pos.x + component.x1, pos.y + component.y1,
+                   pos.x + component.x2, pos.y + component.y2,
+                   component.thickness, component.color);
+}
+
+void RenderSystem::RenderPolygon(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
+    const auto& component = world->GetComponent<PolygonComponent>(entity);
+    if (component.points.size() < 3) return;
+
+    std::vector<Vector2> worldPoints;
+    worldPoints.reserve(component.points.size());
+    for (const auto& p : component.points) {
+        worldPoints.push_back({ pos.x + p.x, pos.y + p.y });
+    }
+
+    if (component.fill.a > 0) {
+        std::vector<Vector2> triangles = TriangulatePolygon(worldPoints);
+        ctx.DrawTriangleList(triangles, component.fill);
+    }
+    if (component.border.a > 0) {
+        for (size_t i = 0; i < worldPoints.size(); i++) {
+            const Vector2& a = worldPoints[i];
+            const Vector2& b = worldPoints[(i + 1) % worldPoints.size()];
+            ctx.DrawLine(a.x, a.y, b.x, b.y, component.border);
+        }
     }
 }
 
@@ -525,10 +583,8 @@ void RenderSystem::RenderDrawCommands(RenderContext& ctx, const SceneLayer& laye
             } else if constexpr (std::is_same_v<T, DrawTextCmd>) {
                 ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color);
             } else if constexpr (std::is_same_v<T, DrawPolygonCmd>) {
-                const auto& pts = c.points;
-                for (int i = 1; i + 1 < (int)pts.size(); i++) {
-                    DrawTriangle(pts[0], pts[i + 1], pts[i], c.color);
-                }
+                std::vector<Vector2> triangles = TriangulatePolygon(c.points);
+                ctx.DrawTriangleList(triangles, c.color);
             }
         }, cmd);
     }
