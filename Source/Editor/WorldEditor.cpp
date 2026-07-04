@@ -75,7 +75,7 @@ void WorldEditor::DrawEntityToolbar(EditorService& service) {
     ImGui::Separator();
 
     // Filter panel
-    if (ImGui::CollapsingHeader("Lua Filter", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader("Lua Filter", ImGuiTreeNodeFlags_None)) {
         static char luaBuffer[1024] = "function filter(e)\n  return true\nend";
         
         // Use a tall input box for the script
@@ -425,8 +425,7 @@ void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
         label = "Entity " + std::to_string(entity);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
-                             | ImGuiTreeNodeFlags_SpanAvailWidth
-                             | ImGuiTreeNodeFlags_DefaultOpen;
+                             | ImGuiTreeNodeFlags_SpanAvailWidth;
     if (!hasChildren)
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
     if (entity == selectedEntity)

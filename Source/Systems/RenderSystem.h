@@ -6,6 +6,7 @@
 #include "Components/CircleComponent.h"
 #include "Components/TextComponent.h"
 #include "Components/SpriteComponent.h"
+#include "Components/TextureComponent.h"
 #include "Components/TileComponent.h"
 #include "Components/LightComponent.h"
 #include "Core/SceneLayer.h"

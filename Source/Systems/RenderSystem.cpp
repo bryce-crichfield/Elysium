@@ -201,9 +201,10 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
                 }
             }
 
-            // hierarchyDepth not yet populated here — kept as 0 for now,
-            // same as the previous path which never set it during collect either.
-            _renderQueue.push_back({ layerIndex, 0, mask, isWorldSpace, pos.y, pos.x, entity });
+            // Cached by TransformSystem alongside worldX/Y each frame — no extra
+            // hierarchy walk needed here, just clamp to the key's uint8_t width.
+            uint8_t hierarchyDepth = (uint8_t)std::min<uint32_t>(transform.worldDepth, 255u);
+            _renderQueue.push_back({ layerIndex, hierarchyDepth, mask, isWorldSpace, pos.y, pos.x, entity });
         });
     }
 
@@ -262,6 +263,14 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
 
 void RenderSystem::RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, std::span<const RenderKey> keys) {
     ProfileN("Render Immediate Layer");
+
+    if (layer.opacity < 1.0f) {
+        // A faded layer has to be alpha-blended as a single unit, which needs a
+        // render texture even though this layer isn't flagged isComposited.
+        RenderCompositedLayer(ctx, cameraEntity, layer, keys);
+        return;
+    }
+
     Matrix viewProjectionTransform = CalculateTransform(cameraEntity, layer);
     PushBlendMode(ctx, layer.layerBlend);
     ctx.PushMatrix();
@@ -320,7 +329,9 @@ void RenderSystem::RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity
     PushBlendMode(ctx, layer.compositeBlend);
     Rectangle src = {0, 0, (float)w, -(float)h};
     Rectangle dst = {camera.viewport.x, camera.viewport.y, (float)w, (float)h};
-    ctx.DrawTexturePro(compositionBuffer.texture, src, dst, {0, 0}, 0.0f, WHITE);
+    Color compositeTint = WHITE;
+    compositeTint.a = (unsigned char)(255.0f * std::clamp(layer.opacity, 0.0f, 1.0f));
+    ctx.DrawTexturePro(compositionBuffer.texture, src, dst, {0, 0}, 0.0f, compositeTint);
 
     ctx.PopBlendMode();
 
@@ -409,34 +420,15 @@ void RenderSystem::RenderText(RenderContext& ctx, Entity entity, Vector2 pos, co
 }
 
 void RenderSystem::RenderSprite(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
-    const auto& component = world->GetComponent<SpriteComponent>(entity);
+    // Resolved once per frame-change by SpriteSystem; nothing left to look up here
+    // beyond fetching the actual texture handle for the draw call.
+    if (!world->HasComponent<TextureComponent>(entity)) return;
+    const auto& tex = world->GetComponent<TextureComponent>(entity);
+    if (tex.textureName.empty()) return;
+
     auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
-
-    Sprite sprite = assets.GetSprite(Path(component.spriteName));
-    if (sprite.name.empty()) return;
-
-    auto sheetIt = sprite.sheets.find(component.sheetName);
-    if (sheetIt == sprite.sheets.end()) return;
-    const SpriteSheet& sheet = sheetIt->second;
-
-    auto seqIt = sheet.sequences.find(component.sequenceName);
-    if (seqIt == sheet.sequences.end()) return;
-    const SpriteSequence& sequence = seqIt->second;
-
-    if (sequence.indices.empty()) return;
-
-    size_t frameIdx   = component.sequenceIndex % sequence.indices.size();
-    size_t linearIndex = sequence.indices[frameIdx];
-
-    Texture2D texture = assets.GetTexture(Path("Sprites/" + sheet.path));
+    Texture2D texture = assets.GetTexture(Path(tex.textureName));
     if (texture.id == 0) return;
-
-    float frameWidth  = (float)texture.width  / (float)sheet.cols;
-    float frameHeight = (float)texture.height / (float)sheet.rows;
-    size_t col = linearIndex % sheet.cols;
-    size_t row = linearIndex / sheet.cols;
-
-    Rectangle sourceRect = { col * frameWidth, row * frameHeight, frameWidth, frameHeight };
 
     float scaleX = 1.0f, scaleY = 1.0f;
     if (world->HasComponent<TransformComponent>(entity)) {
@@ -445,17 +437,17 @@ void RenderSystem::RenderSprite(RenderContext& ctx, Entity entity, Vector2 pos, 
         scaleY = transform.worldScaleY;
     }
 
-    float scaledWidth  = frameWidth  * scaleX;
-    float scaledHeight = frameHeight * scaleY;
+    float scaledWidth  = tex.sourceRect.width  * scaleX;
+    float scaledHeight = tex.sourceRect.height * scaleY;
 
     Rectangle destRect = {
-        pos.x - scaledWidth  * sprite.originX,
-        pos.y - scaledHeight * sprite.originY,
+        pos.x - scaledWidth  * tex.originX,
+        pos.y - scaledHeight * tex.originY,
         scaledWidth,
         scaledHeight
     };
 
-    ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+    ctx.DrawTexturePro(texture, tex.sourceRect, destRect, {0, 0}, 0.0f, tex.tint);
 }
 
 void RenderSystem::RenderTile(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
@@ -491,7 +483,7 @@ void RenderSystem::RenderTile(RenderContext& ctx, Entity entity, Vector2 pos, co
         frameHeight
     };
 
-    ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+    ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, comp.tint);
 }
 
 void RenderSystem::RenderLight(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {

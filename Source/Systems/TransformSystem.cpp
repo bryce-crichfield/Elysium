@@ -15,12 +15,13 @@ void TransformSystem::Update(float /*deltaTime*/) {
     });
 
     for (Entity root : roots) {
-        ComposeRecursive(root, nullptr);
+        ComposeRecursive(root, nullptr, 0);
     }
 }
 
-void TransformSystem::ComposeRecursive(Entity entity, const TransformComponent* parentWorld) {
+void TransformSystem::ComposeRecursive(Entity entity, const TransformComponent* parentWorld, uint32_t depth) {
     auto& t = world->GetComponent<TransformComponent>(entity);
+    t.worldDepth = depth;
 
     if (!parentWorld) {
         t.worldX = t.localX;
@@ -48,7 +49,7 @@ void TransformSystem::ComposeRecursive(Entity entity, const TransformComponent* 
     std::vector<Entity> children(world->GetChildren(entity));
     for (Entity child : children) {
         if (world->HasComponent<TransformComponent>(child)) {
-            ComposeRecursive(child, &t);
+            ComposeRecursive(child, &t, depth + 1);
         }
     }
 }

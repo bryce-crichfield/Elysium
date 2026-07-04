@@ -1,5 +1,6 @@
 #pragma once
 #include "Core/Component.h"
+#include "raylib.h"
 #include <string>
 
 namespace Elysium {
@@ -7,6 +8,7 @@ namespace Elysium {
         std::string tileName;                   // path to tile asset, e.g. "Tiles/Tile/Tile.xml"
         std::string variantName = "default";    // which variant to render
         bool isIsometric = false;               // used by RenderSystem to detect scene projection
+        Color tint = WHITE;                     // per-instance draw tint
 
         // Set by SceneLoader from Tilemap attributes — grid cell size in world units.
         // Not part of the Tile asset; used by SceneSaver to reverse-engineer grid coords.

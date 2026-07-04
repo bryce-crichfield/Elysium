@@ -1,5 +1,6 @@
 #pragma once
 #include "Core/Component.h"
+#include <cstdint>
 
 namespace Elysium {
     // Local fields are the authored, parent-relative transform and are the only
@@ -14,6 +15,7 @@ namespace Elysium {
         float worldX = 0.0f, worldY = 0.0f;
         float worldScaleX = 1.0f, worldScaleY = 1.0f;
         float worldRotation = 0.0f;
+        uint32_t worldDepth = 0;  // hierarchy depth (0 = root), cached by TransformSystem
 
         TransformComponent(float x = 0.0f, float y = 0.0f);
 

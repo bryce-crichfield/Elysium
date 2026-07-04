@@ -9,6 +9,7 @@
 #include "Components/LightComponent.h"
 #include "Components/TextComponent.h"
 #include "Components/SpriteComponent.h"
+#include "Components/TextureComponent.h"
 #include "Components/MovementComponent.h"
 #include "Components/KinematicsComponent.h"
 #include "Components/BoundsComponent.h"

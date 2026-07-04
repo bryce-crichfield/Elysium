@@ -87,6 +87,11 @@ namespace Elysium {
         std::string worldRotationId = "##TransformWorldRotation_" + std::to_string(e);
         ImGui::DragFloat(worldRotationId.c_str(), &c.worldRotation, 1.0f);
 
+        Label("Depth: ");
+        int depth = (int)c.worldDepth;
+        std::string worldDepthId = "##TransformWorldDepth_" + std::to_string(e);
+        ImGui::DragInt(worldDepthId.c_str(), &depth, 1.0f);
+
         ImGui::EndDisabled();
     }
 
@@ -102,6 +107,7 @@ namespace Elysium {
         ut["worldScaleX"] = &TransformComponent::worldScaleX;
         ut["worldScaleY"] = &TransformComponent::worldScaleY;
         ut["worldRotation"] = &TransformComponent::worldRotation;
+        ut["worldDepth"] = &TransformComponent::worldDepth;
     }
 
     void TransformComponent::SetFromLua(TransformComponent& c, sol::object v) {

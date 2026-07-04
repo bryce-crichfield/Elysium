@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/System.h"
 #include "Core/Entity.h"
+#include <cstdint>
 
 namespace Elysium {
     struct TransformComponent;
@@ -19,7 +20,7 @@ class TransformSystem : public System {
     void Update(float deltaTime) override;
 
    private:
-    void ComposeRecursive(Entity entity, const TransformComponent* parentWorld);
+    void ComposeRecursive(Entity entity, const TransformComponent* parentWorld, uint32_t depth);
 };
 
 }  // namespace Elysium::Systems

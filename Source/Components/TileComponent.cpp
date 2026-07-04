@@ -2,6 +2,7 @@
 #include "Core/Application.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Asset.h"
+#include "Core/Xml.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "imgui.h"
@@ -10,10 +11,16 @@ namespace Elysium {
 
     void TileComponent::SaveXml(const TileComponent& c, XMLBuilder& builder) {
         if (c.tileName.empty()) return;
-        builder.AddElement("TileComponent")
+        auto element = builder.AddElement("TileComponent")
             .SetAttribute("tileName", c.tileName.c_str())
             .SetAttribute("variantName", c.variantName.c_str())
             .SetAttribute("isIsometric", c.isIsometric);
+
+        bool isWhite = c.tint.r == 255 && c.tint.g == 255 && c.tint.b == 255 && c.tint.a == 255;
+        if (!isWhite) {
+            std::string tintHex = ColorToHex(c.tint);
+            if (!tintHex.empty()) element.SetAttribute("tint", tintHex.c_str());
+        }
     }
 
     void TileComponent::LoadXml(TileComponent& c, tinyxml2::XMLElement* el) {
@@ -29,6 +36,8 @@ namespace Elysium {
             c.variantName = variantName;
         }
         c.isIsometric = el->BoolAttribute("isIsometric", false);
+        std::string tintHex = el->Attribute("tint") ? el->Attribute("tint") : "";
+        c.tint = ParseHexColor(tintHex, WHITE);
 
         if (!tileName) {
             LOG_WARNING("Scene", "TileComponent missing tileName attribute");
@@ -123,12 +132,29 @@ namespace Elysium {
         Label("Is Isometric:");
         std::string isoId = "##TileIsIso_" + std::to_string(e);
         ImGui::Checkbox(isoId.c_str(), &c.isIsometric);
+
+        float tint[4] = {c.tint.r / 255.0f, c.tint.g / 255.0f, c.tint.b / 255.0f, c.tint.a / 255.0f};
+        Label("Tint: ");
+        std::string tintId = "##TileTint_" + std::to_string(e);
+        if (ImGui::ColorEdit4(tintId.c_str(), tint)) {
+            c.tint = {(unsigned char)(tint[0] * 255), (unsigned char)(tint[1] * 255),
+                      (unsigned char)(tint[2] * 255), (unsigned char)(tint[3] * 255)};
+        }
+    }
+
+    static Color TileObjectToColor(const sol::object& obj) {
+        if (obj.is<Color>()) return obj.as<Color>();
+        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), WHITE);
+        return WHITE;
     }
 
     void TileComponent::BindLua(sol::usertype<TileComponent>& ut) {
         ut["tileName"]    = &TileComponent::tileName;
         ut["variantName"] = &TileComponent::variantName;
         ut["isIsometric"] = &TileComponent::isIsometric;
+        ut["tint"] = sol::property(
+            [](TileComponent& c) { return c.tint; },
+            [](TileComponent& c, sol::object v) { c.tint = TileObjectToColor(v); });
     }
 
     void TileComponent::SetFromLua(TileComponent& c, sol::object v) {
@@ -137,6 +163,7 @@ namespace Elysium {
             c.tileName    = t.get_or("tileName",    c.tileName);
             c.variantName = t.get_or("variantName", c.variantName);
             c.isIsometric = t.get_or("isIsometric", c.isIsometric);
+            if (t["tint"].valid()) c.tint = TileObjectToColor(t["tint"]);
         }
     }
 

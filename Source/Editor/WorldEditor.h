@@ -39,7 +39,7 @@ class WorldEditor : public Editor {
     // Panel state
     float leftPanelWidth_ = 240.0f;
     bool isDraggingSplitter_ = false;
-    bool showHierarchyView_ = false;
+    bool showHierarchyView_ = true;
 
     std::string filterScriptBuffer_;
     std::vector<Entity> filteredEntities_;
