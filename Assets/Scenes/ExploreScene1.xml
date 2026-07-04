@@ -1,0 +1,61 @@
+<Scene type="ExploreScene">
+    <SceneScript path="Scripts/Scenes/ExploreScene.lua" />
+
+    <Systems>
+        <System type="SpatialSystem" />
+        <System type="MovementSystem" />
+        <System type="KinematicsSystem" />
+        <System type="CollisionSystem" />
+        <!-- <System type="PhysicsResponseSystem" /> -->
+        <System type="ScriptSystem" />
+        <System type="SpriteSystem" />
+        <System type="TileSystem" />
+        <System type="FollowSystem" />
+        <System type="TransformSystem" />
+        <System type="VisibilitySystem" />
+        <System type="UiSystem" />
+        <System type="RenderSystem" />
+    </Systems>
+
+    <!-- TODO: Utilize width and height from SceneConfiguration -->
+    <SceneConfiguration width="800" height="600">
+        <SceneLayer name="background" z="-2" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="default"    z="-1" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="tile"       z="0"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="selection"  z="1"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="entity"     z="2"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="light"      z="4"  space="World"  layerBlend="Additive" compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="shadow"     z="5"  space="World"  layerBlend="Normal"   compositeBlend="Multiply" isComposited="true"  ambient="#000000" />
+        <SceneLayer name="ui"         z="10" space="Screen" layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+    </SceneConfiguration>
+
+    <Include src="Prefabs/Tilemap.xml" />
+    
+    <Include src="Prefabs/Unit.xml" name="Knight" x="300"  y="150" spriteName="Sprites/Swat/Swat.xml" />
+    <Include src="Prefabs/Unit.xml" name="Archer" x="350"  y="250" spriteName="Sprites/Archer/Archer.xml" />
+    <Include src="Prefabs/Unit.xml" name="Bishop" x="250"  y="250" spriteName="Sprites/Bishop/Bishop.xml" />
+    <Include src="Prefabs/Unit.xml" name="Militia" x="200"  y="350" spriteName="Sprites/Militia/Militia.xml" />
+    <Include src="Prefabs/Unit.xml" name="Worker" x="400"  y="300" spriteName="Sprites/Worker/Worker.xml" />
+
+    <Include src="Prefabs/PortraitBar.xml" />
+    
+    <Include src="Prefabs/EnemyArcher.xml" name="Enemy1" x="500"  y="200" />
+    <Include src="Prefabs/EnemyArcher.xml" name="Enemy2" x="600"  y="350" />
+    <Include src="Prefabs/EnemyArcher.xml" name="Enemy3" x="400"  y="450" />
+
+    <Include src="Prefabs/Cursor.xml" name="CURSOR" x="0" y="0" />
+
+    <Include src="Prefabs/TestShapes.xml" />
+    <Include src="Prefabs/TestGroup.xml" />
+    <Include src="Prefabs/TestPathImage.xml" />
+
+    <Include src="Prefabs/SegmentDisplay.xml" />
+
+    <Entities>
+        <Entity>
+            <NameComponent name="CAMERA" />
+            <TransformComponent />
+            <CameraComponent target="ENTITY_0" zoom="1" />
+        </Entity>
+    </Entities>
+</Scene>

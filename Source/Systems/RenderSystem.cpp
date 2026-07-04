@@ -184,7 +184,7 @@ void RenderSystem::RenderView(RenderContext& ctx, Entity cameraEntity) {
             if (world->HasComponent<RectangleComponent>(entity)) mask |= RC_Rectangle;
             if (world->HasComponent<CircleComponent>(entity))    mask |= RC_Circle;
             if (world->HasComponent<TextComponent>(entity))      mask |= RC_Text;
-            if (world->HasComponent<SpriteComponent>(entity))    mask |= RC_Sprite;
+            if (world->HasComponent<TextureComponent>(entity))   mask |= RC_Sprite;
             if (world->HasComponent<EllipseComponent>(entity))   mask |= RC_Ellipse;
             if (world->HasComponent<LineComponent>(entity))      mask |= RC_Line;
             if (world->HasComponent<PolygonComponent>(entity))   mask |= RC_Polygon;
@@ -488,24 +488,47 @@ void RenderSystem::RenderSprite(RenderContext& ctx, Entity entity, Vector2 pos, 
     Texture2D texture = assets.GetTexture(Path(tex.textureName));
     if (texture.id == 0) return;
 
-    float scaleX = 1.0f, scaleY = 1.0f;
+    float scaleX = 1.0f, scaleY = 1.0f, rotation = 0.0f;
     if (world->HasComponent<TransformComponent>(entity)) {
         const auto& transform = world->GetComponent<TransformComponent>(entity);
         scaleX = transform.worldScaleX;
         scaleY = transform.worldScaleY;
+        rotation = transform.worldRotation;
     }
 
     float scaledWidth  = tex.sourceRect.width  * scaleX;
     float scaledHeight = tex.sourceRect.height * scaleY;
 
+    // DrawTexturePro ignores the sign of destRect's width/height (it just takes
+    // abs()), so a negative world scale (e.g. a mirrored TransformComponent, as
+    // produced by SVG-imported assets whose <use> transforms reflect a shape)
+    // can't be expressed through destRect at all. Instead: horizontal mirroring
+    // is expressed via a negated source-rect width (which DrawTexturePro does
+    // honor), and vertical-only mirroring via flipHorizontal + an extra 180
+    // degree rotation, since flipVertical == rotate180(flipHorizontal).
+    bool flipHorizontal = scaledWidth  < 0.0f;
+    bool flipVertical   = scaledHeight < 0.0f;
+
+    Rectangle sourceRect = tex.sourceRect;
+    if (flipHorizontal != flipVertical) sourceRect.width = -sourceRect.width;
+    float drawRotation = rotation + (flipVertical ? 180.0f : 0.0f);
+
+    float absWidth  = std::fabs(scaledWidth);
+    float absHeight = std::fabs(scaledHeight);
+
+    // origin passed to DrawTexturePro is in destRect-local space (i.e. already
+    // scaled), since that's the space the rotation is applied around.
+    Vector2 origin = { absWidth * tex.originX, absHeight * tex.originY };
+
     Rectangle destRect = {
-        pos.x - scaledWidth  * tex.originX,
-        pos.y - scaledHeight * tex.originY,
-        scaledWidth,
-        scaledHeight
+        pos.x,
+        pos.y,
+        absWidth,
+        absHeight
     };
 
-    ctx.DrawTexturePro(texture, tex.sourceRect, destRect, {0, 0}, 0.0f, tex.tint);
+    SetTextureFilter(texture, tex.filterMode == TextureFilterMode::Bilinear ? TEXTURE_FILTER_BILINEAR : TEXTURE_FILTER_POINT);
+    ctx.DrawTexturePro(texture, sourceRect, destRect, origin, drawRotation, tex.tint);
 }
 
 void RenderSystem::RenderTile(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {

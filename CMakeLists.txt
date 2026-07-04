@@ -140,32 +140,68 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/tracy/public
 )
 
-if(CMAKE_BUILD_TYPE STREQUAL Debug)
-    # In debug, both assets and appdata resolve relative to the source directory
-    target_compile_definitions(${PROJECT_NAME} PRIVATE
-        ASSETS_PATH="${CMAKE_SOURCE_DIR}/Assets/"
-        APPDATA_PATH="${CMAKE_SOURCE_DIR}/AppData/"
-    )
-    message(STATUS "Debug build: Assets -> ${CMAKE_SOURCE_DIR}/Assets/")
-    message(STATUS "Debug build: AppData -> ${CMAKE_SOURCE_DIR}/AppData/")
+# Assets always resolve relative to the runtime output directory, in both
+# Debug and Release, so there is one asset root regardless of build type.
+file(GLOB_RECURSE ASSET_FILES "${CMAKE_SOURCE_DIR}/Assets/*")
+
+add_custom_target(copy_assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/Assets ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets
+    DEPENDS ${ASSET_FILES}
+    COMMENT "Copying Assets to runtime directory"
+)
+
+add_dependencies(${PROJECT_NAME} copy_assets)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    ASSETS_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/"
+    APPDATA_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/AppData/"
+)
+message(STATUS "Assets will be copied to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/")
+
+# Regenerate SVG-derived prefabs (Content/Svg/*.svg -> Binary/Assets/...) as a
+# build step, via Tools/SvgExporter's CLI. Generated prefab XML + textures are
+# build artifacts, not source, so they're written straight into the runtime
+# Assets directory and never into source-controlled Assets/.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+    set(SVG_EXPORT_PYTHON ${Python3_EXECUTABLE})
 else()
-    # In release, copy assets and define paths relative to the binary directory
-    file(GLOB_RECURSE ASSET_FILES "${CMAKE_SOURCE_DIR}/Assets/*")
+    # The plain `python`/`python3` executables aren't always on PATH on
+    # Windows; fall back to the py.exe launcher, which resolves installs
+    # find_package(Python3) may miss.
+    find_program(PY_LAUNCHER py)
+    if(PY_LAUNCHER)
+        set(SVG_EXPORT_PYTHON ${PY_LAUNCHER} -3)
+    endif()
+endif()
 
-    add_custom_target(copy_assets
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/Assets ${CMAKE_SOURCE_DIR}/Binary/Assets
-        DEPENDS ${ASSET_FILES}
-        COMMENT "Copying Assets to Binary directory"
-    )
+if(SVG_EXPORT_PYTHON)
+    set(SVG_EXPORTER_DIR ${CMAKE_SOURCE_DIR}/Tools/SvgExporter)
+    file(GLOB SVG_EXPORTER_SOURCES "${SVG_EXPORTER_DIR}/*.py")
+    file(GLOB SVG_SOURCES "${CMAKE_SOURCE_DIR}/Content/Svg/*.svg")
 
-    add_dependencies(${PROJECT_NAME} copy_assets)
+    set(SVG_EXPORT_OUTPUTS "")
+    foreach(svg ${SVG_SOURCES})
+        get_filename_component(svg_name ${svg} NAME_WE)
+        set(out_xml "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/Scenes/Prefabs/${svg_name}.xml")
+        add_custom_command(
+            OUTPUT ${out_xml}
+            COMMAND ${SVG_EXPORT_PYTHON} ${SVG_EXPORTER_DIR}/cli.py ${svg}
+                    --output-dir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets
+            DEPENDS ${svg} ${SVG_EXPORTER_SOURCES}
+            COMMENT "Exporting SVG prefab: ${svg_name}"
+        )
+        list(APPEND SVG_EXPORT_OUTPUTS ${out_xml})
+    endforeach()
 
-    target_compile_definitions(${PROJECT_NAME} PRIVATE
-        ASSETS_PATH="Assets/"
-        APPDATA_PATH="AppData/"
-    )
-    message(STATUS "Release build: Assets will be copied to Binary/Assets/")
+    if(SVG_EXPORT_OUTPUTS)
+        add_custom_target(export_svg_assets ALL DEPENDS ${SVG_EXPORT_OUTPUTS})
+        add_dependencies(export_svg_assets copy_assets)
+        add_dependencies(${PROJECT_NAME} export_svg_assets)
+    endif()
+else()
+    message(WARNING "No Python interpreter found; SVG-derived prefabs under Content/Svg/ will not be regenerated.")
 endif()
 
 # Platform-specific settings
