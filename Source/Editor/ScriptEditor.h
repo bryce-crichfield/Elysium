@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Editor.h"
+#include <cstdint>
 #include "TextEditor.h"
 #include <string>
 
