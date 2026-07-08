@@ -8,7 +8,6 @@
 #include "Components/CameraComponent.h"
 #include "Components/TransformComponent.h"
 #include "Components/MovementComponent.h"
-#include "Components/SelectionComponent.h"
 
 namespace Elysium::Systems {
 

@@ -29,7 +29,7 @@
         <SceneLayer name="ui"         z="10" space="Screen" layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
     </SceneConfiguration>
 
-    <Include src="Prefabs/LcdDisplay.xml" />
+    <Include src="Prefabs/MapTest.xml" />
 
     <Entities>
         <Entity>

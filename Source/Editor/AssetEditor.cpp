@@ -2,6 +2,7 @@
 #include "Core/Application.h"
 #include "Core/Path.h"
 #include "Services/AssetService.h"
+#include "Services/TaskService.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -11,19 +12,22 @@ using namespace Services;
 
 AssetEditor::AssetEditor() : Editor("Asset Browser") {}
 
-void AssetEditor::RefreshDiskCache() {
-    directoryCache_.clear();
-    for (const auto& entry : fs::recursive_directory_iterator(rootPath_)) {
+namespace {
+DiskCache ScanDiskCache(fs::path rootPath) {
+    DiskCache cache;
+    for (const auto& entry : fs::recursive_directory_iterator(rootPath)) {
         std::string parentPath = entry.path().parent_path().generic_string();
-        
+
         DiskFile file;
         file.path = entry.path();
-        file.relativePath = fs::relative(entry.path(), rootPath_).generic_string();
+        file.relativePath = fs::relative(entry.path(), rootPath).generic_string();
         file.isDirectory = entry.is_directory();
-        
-        directoryCache_[parentPath].push_back(file);
+
+        cache[parentPath].push_back(file);
     }
+    return cache;
 }
+}  // namespace
 
 void AssetEditor::Draw(Application& app) {
     auto& assetService = app.GetService<AssetService>();
@@ -36,9 +40,22 @@ void AssetEditor::Draw(Application& app) {
 
     if (rootPath_.empty()) return;
 
-    if (app.GetTime() - lastRefreshTime_ > refreshInterval_) {
-        RefreshDiskCache();
+    // Scan runs on TaskService's worker thread — a synchronous recursive scan here
+    // can stall the whole app for a frame or more (e.g. on a OneDrive-synced folder),
+    // which reads as periodic freezes during unrelated interactions like gizmo dragging.
+    if (!refreshInFlight_ && app.GetTime() - lastRefreshTime_ > refreshInterval_) {
+        refreshInFlight_ = true;
         lastRefreshTime_ = app.GetTime();
+
+        auto& taskService = app.GetService<TaskService>();
+        fs::path rootPath = rootPath_;
+        taskService.Submit<DiskCache>(std::function<DiskCache()>([rootPath]() {
+                          return ScanDiskCache(rootPath);
+                      }))
+            .Then([this](const DiskCache& cache) {
+                directoryCache_ = cache;
+                refreshInFlight_ = false;
+            });
     }
 
     if (ImGui::Begin(name_.c_str())) {

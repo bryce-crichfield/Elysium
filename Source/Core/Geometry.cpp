@@ -99,4 +99,19 @@ std::vector<Vector2> TriangulatePolygon(const std::vector<Vector2>& points) {
     return triangles;
 }
 
+bool PointInPolygon(Vector2 point, const std::vector<Vector2>& points) {
+    bool inside = false;
+    size_t n = points.size();
+    for (size_t i = 0, j = n - 1; i < n; j = i++) {
+        const Vector2& a = points[i];
+        const Vector2& b = points[j];
+        bool crosses = ((a.y > point.y) != (b.y > point.y));
+        if (crosses) {
+            float xIntersect = a.x + (point.y - a.y) * (b.x - a.x) / (b.y - a.y);
+            if (point.x < xIntersect) inside = !inside;
+        }
+    }
+    return inside;
+}
+
 }  // namespace Elysium

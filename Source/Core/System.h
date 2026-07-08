@@ -35,6 +35,11 @@ public:
 
     virtual void Update(float deltaTime) {}
     virtual void Draw() {}
+
+    // Structural systems (e.g. TransformSystem) override this to keep running while the
+    // scene is paused, so editor edits (like dragging an entity) are still reflected —
+    // without resuming gameplay simulation (movement, scripts, physics, etc).
+    virtual bool RunsWhenPaused() const { return false; }
     
     virtual void OnEvent(Event& event) override {}
     virtual void OnMessage(Message& message) override {}

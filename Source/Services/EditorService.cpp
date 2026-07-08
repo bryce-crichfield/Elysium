@@ -1,4 +1,5 @@
 #include "Services/EditorService.h"
+#include <algorithm>
 #include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/ComponentRegistry.h"
@@ -54,16 +55,31 @@ Elysium::World* EditorService::GetWorld() const {
     return scene ? scene->GetWorld() : nullptr;
 }
 
+void EditorService::SelectEntity(Entity entity, bool additive) {
+    if (!additive) {
+        selectedEntities_.clear();
+    }
+    if (entity != INVALID_ENTITY && !IsSelected(entity)) {
+        selectedEntities_.push_back(entity);
+    }
+}
+
+void EditorService::ClearSelection() {
+    selectedEntities_.clear();
+}
+
+bool EditorService::IsSelected(Entity entity) const {
+    return std::find(selectedEntities_.begin(), selectedEntities_.end(), entity) != selectedEntities_.end();
+}
+
 void EditorService::Update(float deltaTime) {
     Profile;
 
-    auto* world = GetWorld();
-
     // Auto-select dragged entities
-    if (world) {
+    if (auto* world = GetWorld()) {
         world->Query<BoundsComponent>([&](Entity entity, auto& bounds) {
             if (bounds.isDragging) {
-                selectedEntity = entity;
+                SelectEntity(entity);
             }
         });
     }

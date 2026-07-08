@@ -159,51 +159,6 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 )
 message(STATUS "Assets will be copied to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/")
 
-# Regenerate SVG-derived prefabs (Content/Svg/*.svg -> Binary/Assets/...) as a
-# build step, via Tools/SvgExporter's CLI. Generated prefab XML + textures are
-# build artifacts, not source, so they're written straight into the runtime
-# Assets directory and never into source-controlled Assets/.
-find_package(Python3 COMPONENTS Interpreter)
-if(Python3_FOUND)
-    set(SVG_EXPORT_PYTHON ${Python3_EXECUTABLE})
-else()
-    # The plain `python`/`python3` executables aren't always on PATH on
-    # Windows; fall back to the py.exe launcher, which resolves installs
-    # find_package(Python3) may miss.
-    find_program(PY_LAUNCHER py)
-    if(PY_LAUNCHER)
-        set(SVG_EXPORT_PYTHON ${PY_LAUNCHER} -3)
-    endif()
-endif()
-
-if(SVG_EXPORT_PYTHON)
-    set(SVG_EXPORTER_DIR ${CMAKE_SOURCE_DIR}/Tools/SvgExporter)
-    file(GLOB SVG_EXPORTER_SOURCES "${SVG_EXPORTER_DIR}/*.py")
-    file(GLOB SVG_SOURCES "${CMAKE_SOURCE_DIR}/Content/Svg/*.svg")
-
-    set(SVG_EXPORT_OUTPUTS "")
-    foreach(svg ${SVG_SOURCES})
-        get_filename_component(svg_name ${svg} NAME_WE)
-        set(out_xml "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/Scenes/Prefabs/${svg_name}.xml")
-        add_custom_command(
-            OUTPUT ${out_xml}
-            COMMAND ${SVG_EXPORT_PYTHON} ${SVG_EXPORTER_DIR}/cli.py ${svg}
-                    --output-dir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets
-            DEPENDS ${svg} ${SVG_EXPORTER_SOURCES}
-            COMMENT "Exporting SVG prefab: ${svg_name}"
-        )
-        list(APPEND SVG_EXPORT_OUTPUTS ${out_xml})
-    endforeach()
-
-    if(SVG_EXPORT_OUTPUTS)
-        add_custom_target(export_svg_assets ALL DEPENDS ${SVG_EXPORT_OUTPUTS})
-        add_dependencies(export_svg_assets copy_assets)
-        add_dependencies(${PROJECT_NAME} export_svg_assets)
-    endif()
-else()
-    message(WARNING "No Python interpreter found; SVG-derived prefabs under Content/Svg/ will not be regenerated.")
-endif()
-
 # Platform-specific settings
 if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES

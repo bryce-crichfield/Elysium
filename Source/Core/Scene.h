@@ -34,7 +34,7 @@ class Scene final : public IEventListener, IMessageListener {
     virtual ~Scene();
 
     // Hook methods - can be overridden by subclasses
-    virtual void OnUpdate(float deltaTime);
+    virtual void OnUpdate(float deltaTime, bool isPlaying);
     virtual void OnDraw(Rectangle screen);
     virtual void OnEvent(Event& event) override;
     virtual void OnMessage(Message& message) override;

@@ -13,7 +13,7 @@
 #include "Editor/AssetEditor.h"
 #include "Editor/NetworkEditor.h"
 #include "Editor/ScriptEditor.h"
-#include "Systems/DebugSystem.h"
+#include "Editor/ViewportEditor.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "rlImGui.h"
@@ -57,6 +57,7 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterEditor<AssetEditor>();
     RegisterEditor<NetworkEditor>();
     RegisterEditor<ScriptEditor>();
+    RegisterEditor<ViewportEditor>();
 
     g_appInstance = this;
     SetTraceLogCallback(CustomTraceLogCallback);
@@ -272,38 +273,7 @@ void Application::Draw() {
             ImGui::DockBuilderFinish(dockspaceId);
         }
 
-        // Game viewport panel
-        auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        if (ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse)) {
-            // Grab content region position and size before drawing the image
-            ImVec2 pos = ImGui::GetCursorScreenPos();
-            ImVec2 avail = ImGui::GetContentRegionAvail();
-
-            rlImGuiImageRenderTextureFit(&sceneService.GetFramebuffer(), true);
-
-            // Tell SceneService where the game viewport is on screen
-            // rlImGuiImageRenderTextureFit centers the image maintaining aspect ratio
-            float fbW = (float)sceneService.GetFramebuffer().texture.width;
-            float fbH = (float)sceneService.GetFramebuffer().texture.height;
-            float fbAspect = fbW / fbH;
-            float regionAspect = avail.x / avail.y;
-
-            float drawW, drawH;
-            if (fbAspect > regionAspect) {
-                drawW = avail.x;
-                drawH = avail.x / fbAspect;
-            } else {
-                drawH = avail.y;
-                drawW = avail.y * fbAspect;
-            }
-            float drawX = pos.x + (avail.x - drawW) * 0.5f;
-            float drawY = pos.y + (avail.y - drawH) * 0.5f;
-
-            sceneService.SetViewportRect(Rectangle{drawX, drawY, drawW, drawH});
-        }
-        ImGui::End();
-        ImGui::PopStyleVar();
+        // Game viewport panel is drawn by ViewportEditor, part of the generic editors loop below.
     } else {
         ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_DockingEnable;
 
@@ -343,28 +313,16 @@ void Application::SetMode(AppMode mode) {
             editor->SetVisible(true);
         }
 
-        // Add DebugSystem to all scenes in the stack
-        for (Scene* scene : sceneService.GetStack()) {
-            if (!scene->GetSystem<Systems::DebugSystem>()) {
-                Context ctx;
-                ctx.application = this;
-                ctx.scene = scene;
-                ctx.world = scene->GetWorld();
-                scene->AddSystem(std::make_unique<Systems::DebugSystem>(ctx));
-            }
-        }
+        // Editing should start paused by default — the user opts into simulating via the Play button.
+        sceneService.SetPlaying(false);
     } else {
         for (auto& editor : editors_) {
             editor->SetVisible(false);
         }
         editorLayoutBuilt_ = false;
 
-        // Remove DebugSystem from all scenes in the stack
-        for (Scene* scene : sceneService.GetStack()) {
-            if (auto* debugSystem = scene->GetSystem<Systems::DebugSystem>()) {
-                scene->RemoveSystem(debugSystem);
-            }
-        }
+        // Fullscreen Play mode always simulates.
+        sceneService.SetPlaying(true);
     }
 }
 

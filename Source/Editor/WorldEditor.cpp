@@ -15,6 +15,11 @@ using namespace Services;
 
 WorldEditor::WorldEditor() : Editor("World Editor") {}
 
+Entity WorldEditor::GetPrimarySelection(EditorService& service) const {
+    const auto& selected = service.GetSelectedEntities();
+    return selected.empty() ? INVALID_ENTITY : selected.back();
+}
+
 void WorldEditor::Draw(Application& app) {
     Profile;
 
@@ -136,14 +141,14 @@ void WorldEditor::DrawEntityToolbar(EditorService& service) {
     ImGui::Separator();
 
     // Entity management buttons
-    Entity selectedEntity = service.GetSelectedEntity();
+    Entity selectedEntity = GetPrimarySelection(service);
     bool canDeselect = selectedEntity != INVALID_ENTITY;
     if (!canDeselect) {
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
     }
     if (ImGui::Button("Deselect")) {
         if (canDeselect)
-            service.SetSelectedEntity(INVALID_ENTITY);
+            service.ClearSelection();
     }
     if (!canDeselect) {
         ImGui::PopStyleVar();
@@ -152,7 +157,7 @@ void WorldEditor::DrawEntityToolbar(EditorService& service) {
 
 void WorldEditor::DrawEntityList(EditorService& service) {
     auto* world = service.GetWorld();
-    Entity selectedEntity = service.GetSelectedEntity();
+    Entity selectedEntity = GetPrimarySelection(service);
 
     if (ImGui::BeginTable("Entities", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
         ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 60.0f);
@@ -179,7 +184,7 @@ void WorldEditor::DrawEntityList(EditorService& service) {
 
             bool isSelected = (entity == selectedEntity);
             if (ImGui::Selectable(std::to_string(entity).c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
-                service.SetSelectedEntity(entity);
+                service.SelectEntity(entity);
             }
 
             DrawEntityContextMenu(service, entity);
@@ -194,7 +199,7 @@ void WorldEditor::DrawEntityList(EditorService& service) {
         if (ImGui::BeginPopupContextWindow("EntityListContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
             if (ImGui::MenuItem("Create Entity")) {
                 Entity newEntity = world->CreateEntity();
-                service.SetSelectedEntity(newEntity);
+                service.SelectEntity(newEntity);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -204,7 +209,7 @@ void WorldEditor::DrawEntityList(EditorService& service) {
 
 void WorldEditor::DrawInspectorToolbar(EditorService& service) {
     auto* world = service.GetWorld();
-    Entity selectedEntity = service.GetSelectedEntity();
+    Entity selectedEntity = GetPrimarySelection(service);
     const auto& componentPlaceholders = service.GetComponentPlaceholders();
 
     if (selectedEntity != INVALID_ENTITY) {
@@ -259,7 +264,7 @@ void WorldEditor::DrawInspectorToolbar(EditorService& service) {
 }
 
 void WorldEditor::DrawInspectorPanel(EditorService& service) {
-    Entity selectedEntity = service.GetSelectedEntity();
+    Entity selectedEntity = GetPrimarySelection(service);
     if (selectedEntity == INVALID_ENTITY)
         return;
 
@@ -287,7 +292,7 @@ void WorldEditor::DrawInspectorPanel(EditorService& service) {
 }
 
 void WorldEditor::DrawComponentPanel(EditorService& service, size_t placeholderIndex) {
-    Entity selectedEntity = service.GetSelectedEntity();
+    Entity selectedEntity = GetPrimarySelection(service);
     auto* world = service.GetWorld();
     const auto& placeholder = service.GetComponentPlaceholders()[placeholderIndex];
 
@@ -319,20 +324,20 @@ void WorldEditor::DrawComponentPanel(EditorService& service, size_t placeholderI
 
 void WorldEditor::DrawEntityContextMenu(EditorService& service, Entity entity) {
     auto* world = service.GetWorld();
-    Entity selectedEntity = service.GetSelectedEntity();
+    Entity selectedEntity = GetPrimarySelection(service);
 
     if (ImGui::BeginPopupContextItem(("EntityContextMenu_" + std::to_string(entity)).c_str())) {
         ImGui::Text("Entity %zu", entity);
         ImGui::Separator();
 
         if (ImGui::MenuItem("Edit")) {
-            service.SetSelectedEntity(entity);
+            service.SelectEntity(entity);
             ImGui::CloseCurrentPopup();
         }
 
         if (ImGui::MenuItem("Clone")) {
             Entity cloned = world->CloneEntity(entity);
-            service.SetSelectedEntity(cloned);
+            service.SelectEntity(cloned);
             ImGui::CloseCurrentPopup();
         }
 
@@ -347,7 +352,7 @@ void WorldEditor::DrawEntityContextMenu(EditorService& service, Entity entity) {
         if (ImGui::MenuItem("Delete")) {
             world->DestroyEntity(entity);
             if (selectedEntity == entity)
-                service.SetSelectedEntity(INVALID_ENTITY);
+                service.ClearSelection();
             ImGui::CloseCurrentPopup();
         }
 
@@ -414,7 +419,7 @@ void WorldEditor::DrawInsertionZone(EditorService& service, Entity parent, Entit
 
 void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
     auto* world = service.GetWorld();
-    Entity selectedEntity = service.GetSelectedEntity();
+    Entity selectedEntity = GetPrimarySelection(service);
 
     // Copy children now — insertion zones can mutate childrenMap_ mid-frame.
     std::vector<Entity> children(world->GetChildren(entity));
@@ -434,7 +439,7 @@ void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
     bool open = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "%s  [%zu]", label.c_str(), entity);
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
-        service.SetSelectedEntity(entity);
+        service.SelectEntity(entity);
 
     // Drag source: let this node be dragged.
     if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
@@ -502,7 +507,7 @@ void WorldEditor::DrawHierarchyTree(EditorService& service) {
                                        ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
         if (ImGui::MenuItem("Create Entity")) {
             Entity e = world->CreateEntity();
-            service.SetSelectedEntity(e);
+            service.SelectEntity(e);
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

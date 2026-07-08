@@ -108,6 +108,14 @@ public:
     void SetViewportRect(Rectangle rect);
     const Rectangle& GetViewportRect() const { return viewportRect_; }
 
+    // Single source of truth for whether gameplay simulation (systems + scripts) is ticking.
+    bool IsPlaying() const { return !paused_; }
+    void SetPlaying(bool playing) { paused_ = !playing; }
+
+    // Converts a raylib-window screen position (e.g. GetMousePosition()) into framebuffer
+    // pixel coordinates using the current viewport rect. Used by editor viewport picking.
+    Vector2 ScreenToFramebuffer(Vector2 screenPos) const;
+
 private:
     void ProcessInput();
     Scene* CreateOrGetScene(const std::string& name);
@@ -120,9 +128,6 @@ private:
         std::string name;
     };
     std::vector<SceneOperation> pendingOperations_;
-
-    // Helper to convert screen coords to framebuffer coords
-    Vector2 ScreenToFramebuffer(Vector2 screenPos) const;
 
     // Rendering helpers
     void CalculateLetterboxing();

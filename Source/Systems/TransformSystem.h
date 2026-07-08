@@ -18,6 +18,7 @@ class TransformSystem : public System {
     using System::System;
 
     void Update(float deltaTime) override;
+    bool RunsWhenPaused() const override { return true; }
 
    private:
     void ComposeRecursive(Entity entity, const TransformComponent* parentWorld, uint32_t depth);

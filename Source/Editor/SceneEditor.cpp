@@ -194,7 +194,6 @@ void SceneEditor::DrawSceneTab(SceneService& service) {
     // Header
     ImGui::Text("Scene: %s", topSceneName.c_str());
     ImGui::Text("Stack Size: %zu", service.GetStackSize());
-    ImGui::Checkbox("Pause Updates", &service.paused_);
     ImGui::Separator();
 
     // Scene Configuration

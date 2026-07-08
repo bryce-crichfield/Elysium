@@ -36,6 +36,10 @@ class WorldEditor : public Editor {
     void DrawInspectorPanel(Services::EditorService& service);
     void DrawComponentPanel(Services::EditorService& service, size_t placeholderIndex);
 
+    // The Inspector shows a single "primary" entity — the most recently selected one.
+    // Multi-select is tracked by EditorService but has no dedicated UI yet.
+    Entity GetPrimarySelection(Services::EditorService& service) const;
+
     // Panel state
     float leftPanelWidth_ = 240.0f;
     bool isDraggingSplitter_ = false;

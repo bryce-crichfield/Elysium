@@ -289,22 +289,26 @@ void SceneService::Update(float deltaTime) {
 
     ApplySceneOperations();
 
-    if (paused_) return;
+    bool isPlaying = !paused_;
 
-    if (deltaTime > 0.0f && deltaTime < 0.1f) {
-        cachedDeltaTime_ = deltaTime;
-    }
+    // Gameplay input/scripting stays paused with the sim; structural systems
+    // (TransformSystem) keep running below so editor edits still take effect.
+    if (isPlaying) {
+        if (deltaTime > 0.0f && deltaTime < 0.1f) {
+            cachedDeltaTime_ = deltaTime;
+        }
 
-    ProcessInput();
+        ProcessInput();
 
-    if (!pendingOperations_.empty()) {
-        ApplySceneOperations();
+        if (!pendingOperations_.empty()) {
+            ApplySceneOperations();
+        }
     }
 
     // Only the top scene runs its update loop.
     // Lower scenes are suspended until they become the top again.
     if (Scene* top = GetTopScene()) {
-        top->OnUpdate(cachedDeltaTime_);
+        top->OnUpdate(cachedDeltaTime_, isPlaying);
     }
 }
 

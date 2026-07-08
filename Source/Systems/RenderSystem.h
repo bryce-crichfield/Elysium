@@ -56,6 +56,15 @@ struct DrawPolygonCmd { std::string layer; std::vector<Vector2> points; Color co
 
 using DrawCommand = std::variant<DrawCircleCmd, DrawLineCmd, DrawRectCmd, DrawEllipseCmd, DrawTextCmd, DrawPolygonCmd>;
 
+// A camera's render-projection parameters, decoupled from any CameraComponent entity — lets
+// the editor's free camera (Services::EditorCamera) drive the same render/pick/project math
+// as a real in-scene camera without needing an ECS entity of its own.
+struct CameraView {
+    Vector2 position;
+    float zoom;
+    Rectangle viewport;
+};
+
 class RenderSystem : public System {
 public:
     using CameraEntity = std::pair<Entity, CameraComponent>;
@@ -68,10 +77,36 @@ public:
 
     void Draw() override;
 
+    // Returns entities under the given framebuffer-space point, ordered topmost-drawn-first.
+    // Reflects the render queue as of the last Draw() call (one frame stale at worst — a
+    // non-issue while the simulation is paused, since nothing moves between frames then).
+    std::vector<Entity> Pick(Vector2 fbPos, Entity cameraEntity);
+    std::vector<Entity> Pick(Vector2 fbPos, const CameraView& view);
+
+    // Forward of Pick()'s screen->world math — projects a World2D point to framebuffer
+    // space, e.g. so editor gizmo handles know where to draw/hit-test themselves.
+    Vector2 WorldToFramebuffer(Vector2 worldPos, Entity cameraEntity);
+    Vector2 WorldToFramebuffer(Vector2 worldPos, const CameraView& view);
+
+    // Shared between DrawSelectionOverlay's handle drawing and ViewportEditor's hit-testing
+    // so the visual size and the click tolerance can't drift apart.
+    static constexpr float kMoveHandleRadius = 8.0f;
+
 protected:
-    virtual void RenderView(RenderContext& ctx, Entity cameraEntity);
-    virtual void RenderImmediateLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, std::span<const RenderKey> keys);
-    virtual void RenderCompositedLayer(RenderContext& ctx, Entity cameraEntity, const SceneLayer& layer, std::span<const RenderKey> keys);
+    bool PickRectangle(Entity entity, Vector2 testPos, Vector2 pos, bool isWorldSpace);
+    bool PickCircle   (Entity entity, Vector2 testPos, Vector2 pos);
+    bool PickEllipse  (Entity entity, Vector2 testPos, Vector2 pos);
+    bool PickSprite   (Entity entity, Vector2 testPos, Vector2 pos);
+    bool PickText     (Entity entity, Vector2 testPos, Vector2 pos, bool isWorldSpace);
+    bool PickLight    (Entity entity, Vector2 testPos, Vector2 pos);
+    bool PickPolygon  (Entity entity, Vector2 testPos, Vector2 pos);
+
+    // Builds a CameraView from a real camera entity's CameraComponent + TransformComponent.
+    CameraView MakeCameraView(Entity cameraEntity);
+
+    virtual void RenderView(RenderContext& ctx, const CameraView& view);
+    virtual void RenderImmediateLayer(RenderContext& ctx, const CameraView& view, const SceneLayer& layer, std::span<const RenderKey> keys);
+    virtual void RenderCompositedLayer(RenderContext& ctx, const CameraView& view, const SceneLayer& layer, std::span<const RenderKey> keys);
 
     // Per-entity dispatch — calls per-component methods based on componentMask
     void RenderEntity(RenderContext& ctx, const RenderKey& key, const SceneLayer& layer);
@@ -93,8 +128,15 @@ protected:
     void FindCameras();
     std::string GetLayerName(Entity entity);
 
+    // Editor-mode-only highlight drawn around EditorService's currently selected entities.
+    void DrawSelectionOverlay(RenderContext& ctx, const CameraView& view);
+
+    // Editor-mode-only: draws each real CameraComponent's viewport bounds as a colored
+    // rectangle in the editor camera's view, since it no longer renders through them directly.
+    void DrawCameraGizmos(RenderContext& ctx, const CameraView& editorView);
+
     void PushBlendMode(RenderContext& ctx, const SceneLayerBlend& blend);
-    Matrix CalculateTransform(Entity camera, const SceneLayer& layer);
+    Matrix CalculateTransform(const CameraView& view, const SceneLayer& layer);
 
     RenderTexture2D& EnsureLightMap(int width, int height);
 

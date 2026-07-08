@@ -4,6 +4,7 @@
 #include "Core/Component.h"
 #include "Core/Application.h"
 #include "Services/ScriptService.h"
+#include "Services/SceneService.h"
 #include "Components/ScriptComponent.h"
 
 namespace Elysium::Systems {
@@ -32,8 +33,8 @@ void ScriptSystem::Update(float deltaTime) {
 }
 
 void ScriptSystem::OnEvent(Event& event) {
-    // Skip input events in Editor mode
-    if (Application::GetInstance().GetMode() == AppMode::Editor) {
+    // Skip input events while the simulation is paused (e.g. editing in Editor mode)
+    if (!Application::GetInstance().GetService<Services::SceneService>().IsPlaying()) {
         return;
     }
 

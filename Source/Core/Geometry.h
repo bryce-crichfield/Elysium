@@ -15,4 +15,8 @@ bool IsClockwise(const std::vector<Vector2>& points);
 // Returns an empty vector if fewer than 3 points are given.
 std::vector<Vector2> TriangulatePolygon(const std::vector<Vector2>& points);
 
+// Even-odd ray casting test. `points` describes a simple polygon in the same
+// space as `point`. Works for either winding order.
+bool PointInPolygon(Vector2 point, const std::vector<Vector2>& points);
+
 }  // namespace Elysium

@@ -32,13 +32,13 @@ Scene::Scene() {
 Scene::~Scene() {
 }
 
-void Scene::OnUpdate(float deltaTime) {
+void Scene::OnUpdate(float deltaTime, bool isPlaying) {
     for (auto& system : systems_) {
-        if (system->IsEnabled())
+        if (system->IsEnabled() && (isPlaying || system->RunsWhenPaused()))
             system->Update(deltaTime);
     }
 
-    if (!sceneScriptPath_.empty()) {
+    if (isPlaying && !sceneScriptPath_.empty()) {
         auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
         scriptService.SetActiveWorld(world_.get());
         if (!isSceneScriptInitialized_) {

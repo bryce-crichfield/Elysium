@@ -130,7 +130,6 @@ World::World() {
     RegisterComponent<CooldownComponent>();
     RegisterComponent<UnitComponent>();
     RegisterComponent<BoundsComponent>();
-    RegisterComponent<SelectionComponent>();
     RegisterComponent<ScriptComponent>();
     RegisterComponent<KinematicsComponent>();
     RegisterComponent<HealthComponent>();
