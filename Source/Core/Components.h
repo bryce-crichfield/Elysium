@@ -14,8 +14,6 @@
 #include "Components/KinematicsComponent.h"
 #include "Components/BoundsComponent.h"
 #include "Components/FollowComponent.h"
-#include "Components/UnitComponent.h"
-#include "Components/CooldownComponent.h"
 #include "Components/AttackComponent.h"
 #include "Components/ScriptComponent.h"
 #include "Components/TileComponent.h"

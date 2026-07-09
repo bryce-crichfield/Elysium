@@ -24,15 +24,5 @@
         </Response>
     </Procedure>
 
-    <Procedure name="GetPlayerStats" id="0x02">
-        <Request>
-            <Field name="player_id" type="u32"/>
-        </Request>
-        <Response>
-            <Field name="kills"   type="u32"/>
-            <Field name="deaths" type="u32"/>
-            <Field name="ping_ms" type="u16"/>
-        </Response>
-    </Procedure>
 
 </Protocol>
