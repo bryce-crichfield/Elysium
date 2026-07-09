@@ -27,6 +27,9 @@ namespace Elysium {
 
         Label("Parent: ");
         ImGui::Text("%s (id=%zu)", c.targetName.c_str(), c.parent);
+
+        Label("Child Index: ");
+        ImGui::Text("%u", c.childIndex);
     }
 
     void ParentComponent::BindLua(sol::usertype<ParentComponent>& ut) {

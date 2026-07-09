@@ -10,6 +10,7 @@ namespace Elysium {
     struct ParentComponent {
         Entity parent = INVALID_ENTITY;
         std::string targetName;
+        uint32_t childIndex = 0; // The index of this child in the parent's children list.
 
         ParentComponent() = default;
         ParentComponent(Entity parent, const std::string& targetName) : parent(parent), targetName(targetName) {}

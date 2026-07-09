@@ -197,7 +197,22 @@ std::string World::GetEntityName(Entity entity) const {
     return "";
 }
 
+void World::DetachFromCurrentParent(Entity child) {
+    for (auto it = childrenMap_.begin(); it != childrenMap_.end(); ) {
+        auto& kids = it->second;
+        kids.erase(std::remove(kids.begin(), kids.end(), child), kids.end());
+        if (kids.empty()) {
+            it = childrenMap_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void World::AddChild(Entity parent, Entity child) {
+    // Ensure child isn't left registered under a stale parent before re-registering.
+    DetachFromCurrentParent(child);
+
     // Record in adjacency map
     childrenMap_[parent].push_back(child);
 
@@ -231,6 +246,9 @@ void World::RemoveChild(Entity parent, Entity child) {
 }
 
 void World::InsertChildBefore(Entity parent, Entity child, Entity beforeSibling) {
+    // Ensure child isn't left registered under a stale parent before re-registering.
+    DetachFromCurrentParent(child);
+
     auto& children = childrenMap_[parent];
     auto it = std::find(children.begin(), children.end(), beforeSibling);
     if (it != children.end()) {

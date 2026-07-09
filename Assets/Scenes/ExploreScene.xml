@@ -37,5 +37,12 @@
             <TransformComponent />
             <CameraComponent target="ENTITY_0" zoom="1" />
         </Entity>
+
+        <Entity>
+            <NameComponent name="Uno" />
+            <TransformComponent x="100" y="100" />
+            <LayerComponent layer="entity" />
+            <TextureComponent texture="/Textures/Tiles/tile.png" sourceRect="0,0,32,32" />
+        </Entity>
     </Entities>
 </Scene>

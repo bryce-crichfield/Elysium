@@ -18,6 +18,7 @@
 #include "Components/SpriteComponent.h"
 #include "Components/TextComponent.h"
 #include "Components/TileComponent.h"
+#include "Components/ParentComponent.h"
 #include "Core/Tile.h"
 #include "Core/Application.h"
 #include "Core/Common.h"
@@ -101,6 +102,7 @@ void RenderSystem::Draw() {
         };
 
         RenderView(ctx, view);
+        DrawAxes(ctx, view);
         DrawCameraGizmos(ctx, view);
         DrawSelectionOverlay(ctx, view);
     } else {
@@ -184,6 +186,30 @@ void RenderSystem::DrawSelectionOverlay(RenderContext& ctx, const CameraView& vi
     }
 
     ctx.PopScissorMode();
+}
+
+void RenderSystem::DrawAxes(RenderContext& ctx, const CameraView& editorView) {
+    const Color xAxisColor = Color{ 255, 0, 0, 255 };
+    const Color yAxisColor = Color{ 0, 255, 0, 255 };
+
+    ctx.PushScissorMode(
+        (int)editorView.viewport.x, (int)editorView.viewport.y,
+        (int)editorView.viewport.width, (int)editorView.viewport.height);
+
+    float invZoom = 1.0f / (editorView.zoom != 0.0f ? editorView.zoom : 1.0f);
+
+    ctx.PushMatrix();
+    ctx.MultiplyMatrix(CalculateTransform(editorView, SceneLayer{}));
+
+    const int minVal = std::numeric_limits<int>::min() / 2;
+    const int maxVal = std::numeric_limits<int>::max() / 2;
+
+    const float lineThickness = 1.5f * invZoom;
+
+    ctx.DrawLineEx((float)minVal, 0.0f, (float)maxVal, 0.0f, lineThickness, xAxisColor);
+    ctx.DrawLineEx(0.0f, (float)minVal, 0.0f, (float)maxVal, lineThickness, yAxisColor);
+
+    ctx.PopMatrix();
 }
 
 void RenderSystem::DrawCameraGizmos(RenderContext& ctx, const CameraView& editorView) {
@@ -324,7 +350,14 @@ void RenderSystem::RenderView(RenderContext& ctx, const CameraView& view) {
             // Cached by TransformSystem alongside worldX/Y each frame — no extra
             // hierarchy walk needed here, just clamp to the key's uint8_t width.
             uint8_t hierarchyDepth = (uint8_t)std::min<uint32_t>(transform.worldDepth, 255u);
-            _renderQueue.push_back({ layerIndex, hierarchyDepth, mask, isWorldSpace, pos.y, pos.x, entity });
+            _renderQueue.push_back({ layerIndex, hierarchyDepth, 0, mask, isWorldSpace, pos.y, pos.x, entity });
+
+            if (world->HasComponent<ParentComponent>(entity)) {
+                const auto& pc = world->GetComponent<ParentComponent>(entity);
+                _renderQueue.back().childIndex = (uint8_t)std::min<uint32_t>(pc.childIndex, 255u);
+            } else {
+                _renderQueue.back().childIndex = 0;
+            }
         });
     }
 
@@ -336,6 +369,8 @@ void RenderSystem::RenderView(RenderContext& ctx, const CameraView& view) {
                     return a.layerIndex < b.layerIndex;
                 if (a.hierarchyDepth != b.hierarchyDepth)
                     return a.hierarchyDepth < b.hierarchyDepth;
+                if (a.childIndex != b.childIndex)
+                    return a.childIndex < b.childIndex;
                 // Y-sort only for World2D layers (painter's algorithm depth ordering).
                 // Screen2D layers preserve XML declaration order via entity ID.
                 if (a.isWorldSpace)
