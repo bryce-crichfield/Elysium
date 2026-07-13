@@ -290,6 +290,10 @@ const std::vector<Entity>& World::GetChildren(Entity parent) const {
     return s_emptyChildren;
 }
 
+const std::unordered_map<Entity, std::vector<Entity>>& World::GetAllChildren() const {
+    return childrenMap_;
+}
+
 Entity World::GetParent(Entity child) const {
     if (HasComponent<ParentComponent>(child)) {
         return GetComponent<ParentComponent>(child).parent;

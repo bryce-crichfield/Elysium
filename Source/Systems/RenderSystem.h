@@ -15,6 +15,7 @@
 #include "Core/SceneLayer.h"
 #include "raylib.h"
 #include <span>
+#include <unordered_set>
 #include <vector>
 #include <string>
 #include <variant>
@@ -129,6 +130,12 @@ protected:
     void FindCameras();
     std::string GetLayerName(Entity entity);
 
+    // Rebuilds _hiddenEntities each frame: seeds from entities whose own
+    // LayerComponent::isVisible is false (e.g. VisibilitySystem's fog-of-war
+    // flag), then cascades that hidden state down through World::GetAllChildren
+    // so descendants without their own LayerComponent inherit it too.
+    void ComputeHiddenEntities();
+
     // Editor-mode-only highlight drawn around EditorService's currently selected entities.
     void DrawSelectionOverlay(RenderContext& ctx, const CameraView& view);
 
@@ -146,6 +153,7 @@ protected:
     std::vector<Entity>      _cameraEntities;
     std::vector<DrawCommand> _drawCommands;
     std::vector<RenderKey>   _renderQueue;    // Reused each frame — reserved once, never deallocated
+    std::unordered_set<Entity> _hiddenEntities;  // Rebuilt each frame by ComputeHiddenEntities
 
     RenderTexture2D _lightMap = {0};
     int _lightMapWidth  = 0;

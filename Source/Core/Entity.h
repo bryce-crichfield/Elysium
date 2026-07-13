@@ -193,6 +193,7 @@ class World {
     // under parent, rather than appending to the end.
     void InsertChildBefore(Entity parent, Entity child, Entity beforeSibling);
     const std::vector<Entity>& GetChildren(Entity parent) const;
+    const std::unordered_map<Entity, std::vector<Entity>>& GetAllChildren() const;
     Entity GetParent(Entity child) const;
     // Returns true if ancestor is in the parent-chain of entity.
     // Used to prevent cycles when reparenting.

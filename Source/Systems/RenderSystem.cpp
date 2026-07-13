@@ -85,6 +85,7 @@ void RenderSystem::Draw() {
         });
     }
 
+    ComputeHiddenEntities();
     FindCameras();
     RenderContext ctx;
 
@@ -245,6 +246,33 @@ CameraView RenderSystem::MakeCameraView(Entity cameraEntity) {
     return CameraView{ position, camera.zoom != 0.0f ? camera.zoom : 1.0f, camera.viewport };
 }
 
+void RenderSystem::ComputeHiddenEntities() {
+    ProfileN("RenderSystem ComputeHiddenEntities");
+    _hiddenEntities.clear();
+
+    // Seed with entities explicitly hidden via their own LayerComponent (e.g.
+    // VisibilitySystem's per-entity fog-of-war flag), then cascade that hidden
+    // state down through the hierarchy so children — sprites, health bars, etc.
+    // that carry no LayerComponent of their own — inherit their ancestor's
+    // hidden state instead of defaulting back to visible.
+    std::vector<Entity> stack;
+    world->Query<LayerComponent>([&](Entity entity, const LayerComponent& layerComp) {
+        if (!layerComp.isVisible) stack.push_back(entity);
+    });
+
+    const auto& allChildren = world->GetAllChildren();
+    while (!stack.empty()) {
+        Entity entity = stack.back();
+        stack.pop_back();
+        if (!_hiddenEntities.insert(entity).second) continue;  // already visited
+
+        auto it = allChildren.find(entity);
+        if (it != allChildren.end()) {
+            for (Entity child : it->second) stack.push_back(child);
+        }
+    }
+}
+
 void RenderSystem::FindCameras() {
     ProfileN("RenderSystem FindCameras");
     _cameraEntities.clear();
@@ -338,14 +366,19 @@ void RenderSystem::RenderView(RenderContext& ctx, const CameraView& view) {
 
             uint8_t layerIndex   = defaultLayerIndex;
             uint8_t isWorldSpace = 0;
+            bool isVisible = true;
             if (world->HasComponent<LayerComponent>(entity)) {
                 const auto& layerComp = world->GetComponent<LayerComponent>(entity);
                 auto it = layerNameToIndex.find(layerComp.name);
                 if (it != layerNameToIndex.end()) {
                     layerIndex   = it->second;
                     isWorldSpace = (layers[layerIndex].space == SceneLayerSpace::World2D) ? 1 : 0;
+                    isVisible = layers[layerIndex].isVisible;
                 }
             }
+
+            if (!isVisible) return;
+            if (_hiddenEntities.contains(entity)) return;
 
             // Cached by TransformSystem alongside worldX/Y each frame — no extra
             // hierarchy walk needed here, just clamp to the key's uint8_t width.
