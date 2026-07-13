@@ -32,7 +32,7 @@ void ViewportEditor::Draw(Application& app) {
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
-        DrawToolbar(sceneService);
+        DrawToolbar(sceneService, editorService);
 
         // Grab content region position and size before drawing the image
         ImVec2 pos = ImGui::GetCursorScreenPos();
@@ -78,7 +78,7 @@ void ViewportEditor::Draw(Application& app) {
     ImGui::PopStyleVar();
 }
 
-void ViewportEditor::DrawToolbar(SceneService& sceneService) {
+void ViewportEditor::DrawToolbar(SceneService& sceneService, EditorService& editor) {
     bool isPlaying = sceneService.IsPlaying();
     if (isPlaying) {
         if (ImGui::Button("Pause")) {
@@ -91,6 +91,13 @@ void ViewportEditor::DrawToolbar(SceneService& sceneService) {
     }
     ImGui::SameLine();
     ImGui::TextDisabled(isPlaying ? "Simulating" : "Paused");
+
+    auto &camera = editor.GetEditorCamera();
+    std::string positionText = "X: " + std::to_string(camera.position.x) + ", Y: " + std::to_string(camera.position.y);
+    std::string zoomText = "Zoom: " + std::to_string(camera.zoom);
+
+    ImGui::SameLine();
+    ImGui::Text("%s | %s", positionText.c_str(), zoomText.c_str());
 }
 
 void ViewportEditor::InitializeEditorCameraIfNeeded(EditorService& editorService) {

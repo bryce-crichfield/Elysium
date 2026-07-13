@@ -21,7 +21,7 @@ class TransformSystem : public System {
     bool RunsWhenPaused() const override { return true; }
 
    private:
-    void ComposeRecursive(Entity entity, const TransformComponent* parentWorld, uint32_t depth);
+    void ComposeRecursive(Entity entity, const TransformComponent* parentWorld, uint32_t depth, uint32_t index);
 };
 
 }  // namespace Elysium::Systems

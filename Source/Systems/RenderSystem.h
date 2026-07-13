@@ -39,6 +39,7 @@ enum RenderComponentFlags : uint16_t {
 struct RenderKey {
     uint8_t  layerIndex;
     uint8_t  hierarchyDepth;
+    uint8_t  childIndex;
     uint16_t componentMask;
     uint8_t  isWorldSpace;   // 1 = World2D (Y-sort); 0 = Screen2D (declaration order)
     float    y;
@@ -134,6 +135,8 @@ protected:
     // Editor-mode-only: draws each real CameraComponent's viewport bounds as a colored
     // rectangle in the editor camera's view, since it no longer renders through them directly.
     void DrawCameraGizmos(RenderContext& ctx, const CameraView& editorView);
+
+    void DrawAxes(RenderContext& ctx, const CameraView& editorView);
 
     void PushBlendMode(RenderContext& ctx, const SceneLayerBlend& blend);
     Matrix CalculateTransform(const CameraView& view, const SceneLayer& layer);

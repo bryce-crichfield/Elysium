@@ -26,7 +26,7 @@ class ViewportEditor : public Editor {
     void Draw(Application& app) override;
 
    private:
-    void DrawToolbar(Services::SceneService& sceneService);
+    void DrawToolbar(Services::SceneService& sceneService, Services::EditorService& editor);
 
     // Snaps the editor camera to the first real CameraComponent's transform/zoom the first
     // time a world becomes available, so scenes don't open centered on the origin.

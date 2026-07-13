@@ -54,9 +54,6 @@ namespace Elysium {
             ImGui::SetNextItemWidth(-1);
         };
 
-        ImGui::TextDisabled("Resolved (read-only)");
-        ImGui::BeginDisabled();
-
         Label("Texture: ");
         std::string textureId = "##TextureName_" + std::to_string(e);
         char buffer[256];
@@ -67,8 +64,6 @@ namespace Elysium {
         float rect[4] = {c.sourceRect.x, c.sourceRect.y, c.sourceRect.width, c.sourceRect.height};
         std::string rectId = "##TextureSourceRect_" + std::to_string(e);
         ImGui::DragFloat4(rectId.c_str(), rect, 1.0f);
-
-        ImGui::EndDisabled();
 
         ImGui::Spacing();
         ImGui::TextDisabled("Per-instance");

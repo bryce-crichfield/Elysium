@@ -133,6 +133,13 @@ class World {
     // Rebuilt from ParentComponent data at load time; never persisted directly.
     std::unordered_map<Entity, std::vector<Entity>> childrenMap_;
 
+    // Strips child out of whichever parent's list it currently sits in (if any),
+    // scanning childrenMap_ directly rather than trusting a caller-supplied old
+    // parent. Called by AddChild/InsertChildBefore so a child can never end up
+    // registered under two parents at once, even if a reparent gets invoked
+    // more than once for the same drag (e.g. overlapping ImGui drop targets).
+    void DetachFromCurrentParent(Entity child);
+
    public:
     World();  // Declaration only
     ~World() = default;
