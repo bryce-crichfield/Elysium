@@ -127,8 +127,6 @@ World::World() {
     RegisterComponent<CameraComponent>();
     RegisterComponent<FollowComponent>();
     RegisterComponent<TileComponent>();
-    RegisterComponent<CooldownComponent>();
-    RegisterComponent<UnitComponent>();
     RegisterComponent<BoundsComponent>();
     RegisterComponent<ScriptComponent>();
     RegisterComponent<KinematicsComponent>();

@@ -1,7 +1,6 @@
 #pragma once
 #include "Core/Component.h"
 #include "Core/Event.h"
-#include "Core/Signal.h"
 #include "Components/LayerComponent.h"
 #include "Core/SceneLayer.h"
 #include "raylib.h"
