@@ -92,11 +92,34 @@ function Elysium_Build {
 }
 
 function Elysium_Run {
+    param(
+        [string]$ProjectPath,
+        [bool]$EditorMode
+    )
+
     $currentLocation = Get-Location
 
     try {
         Set-Location "$ELYSIUM_ROOT\Binary"
-        Start-Process -FilePath ".\Elysium.exe" -NoNewWindow
+
+        $resolveProject = $null
+
+        if ([System.IO.Path]::IsPathRooted($ProjectPath)) {
+            $resolvedProject = $ProjectPath
+        } else {
+            $resolvedProject = "$ELYSIUM_ROOT\$ProjectPath"
+        }
+
+        if ([string]::IsNullOrEmpty($resolvedProject) -or -not (Test-Path -Path $resolvedProject)) {
+            throw "Project file not found: $resolvedProject"
+        }
+
+        $exeArgs = @("--Project=$resolvedProject")
+        if ($EditorMode) {
+            $exeArgs += "--Editor=true"
+        }
+
+        Start-Process -FilePath ".\Elysium.exe" -ArgumentList $exeArgs -NoNewWindow
     }
     finally {
         Set-Location $currentLocation
@@ -108,6 +131,8 @@ $shouldSetup = $false
 $shouldClean = $false
 $shouldBuild = $false
 $shouldRun = $false
+$projectArg = $null
+$editorArg = $false
 
 foreach ($arg in $args) {
     switch -Regex ($arg) {
@@ -115,11 +140,16 @@ foreach ($arg in $args) {
         "^--[Cc]lean$" { $shouldClean = $true }
         "^--[Bb]uild$" { $shouldBuild = $true }
         "^--[Rr]un$" { $shouldRun = $true }
+        "^--[Pp]roject=(.+)$" { $projectArg = $matches[1] }
+        "^--[Ee]ditor$" { $editorArg = $true }
+        "^--[Ee]ditor=(.+)$" { $editorArg = ($matches[1] -eq "true") }
         "^--[Hh]elp$" {
-            Write-Host "Usage: .\script.ps1 [--Clean] [--Build] [--Run] [--Help]"
+            Write-Host "Usage: .\script.ps1 [--Clean] [--Build] [--Run] [--Project=<path>] [--Editor] [--Help]"
             Write-Host "  --Clean: Clean build artifacts"
             Write-Host "  --Build: Build the project"
             Write-Host "  --Run: Run the executable"
+            Write-Host "  --Project=<path>: Project.xml to load (default: Projects\HelloWorld\Project.xml)"
+            Write-Host "  --Editor: Start in editor mode"
             Write-Host "  --Help: Show this help message"
             Write-Host ""
             Write-Host "Operations are executed in order: Clean -> Build -> Run"
@@ -146,7 +176,7 @@ if ($shouldBuild) {
 }
 
 if ($shouldRun) {
-    Elysium_Run
+    Elysium_Run -ProjectPath $projectArg -EditorMode $editorArg
 }
 
 # If no arguments provided, show help

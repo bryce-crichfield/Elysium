@@ -14,8 +14,10 @@ namespace Elysium {
 
 // Determines which root directory a Path resolves relative to.
 enum class PathRoot {
-    Assets,   // Resolves relative to ASSETS_PATH  (read-only game content)
+    Assets,   // Resolves relative to the current project's asset root (read-only game content)
     AppData,  // Resolves relative to APPDATA_PATH (runtime saves, user data)
+    Engine,   // Resolves relative to the compile-time ASSETS_PATH, regardless of
+              // which project is loaded (editor-only resources: fonts, icons, etc.)
 };
 
 class Path {
@@ -27,6 +29,12 @@ class Path {
     std::string GetFullPath() const;
     const std::string& GetRelativePath() const { return relativePath_; }
     PathRoot GetRoot() const { return root_; }
+
+    // Overrides the root that PathRoot::Assets resolves against (defaults to the
+    // compile-time ASSETS_PATH). Must end in a trailing '/', and should be set
+    // before any Path is resolved — e.g. from the project manifest at startup.
+    static void SetAssetsRoot(const std::string& root);
+    static const std::string& GetAssetsRoot();
 
     std::string GetFilename(const std::string& extension = "") const;
 

@@ -60,9 +60,14 @@ sol::protected_function_result ScriptService::ExecuteString(const std::string& s
 void ScriptService::InitLuaContext() {
     lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::table, sol::lib::string, sol::lib::math, sol::lib::debug);
 
-    // Configure package.path so require("Scripts/Component") resolves to Assets/Scripts/Component.lua
-    std::string assetsPath = ASSETS_PATH;
-    lua["package"]["path"] = assetsPath + "?.lua;" + assetsPath + "?/init.lua";
+    // Configure package.path so require("Scripts/Foo") resolves Lua modules two ways:
+    // first against the current project's own asset root (game scripts), falling
+    // back to the engine's compile-time ASSETS_PATH (shared Lua helpers like
+    // Scripts/Elysium/Component.lua that ship with the engine, not the project).
+    std::string projectAssetsPath = Path::GetAssetsRoot();
+    std::string engineAssetsPath = ASSETS_PATH;
+    lua["package"]["path"] = projectAssetsPath + "?.lua;" + projectAssetsPath + "?/init.lua;" +
+                              engineAssetsPath + "?.lua;" + engineAssetsPath + "?/init.lua";
 }
 
 // Active world set by ScriptSystem before executing scripts

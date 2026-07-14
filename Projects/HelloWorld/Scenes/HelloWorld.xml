@@ -1,0 +1,18 @@
+<Scene type="HelloWorld">
+    <SceneScript path="Scripts/HelloWorld.lua" />
+
+    <Systems>
+        <System type="ScriptSystem" />
+        <System type="TransformSystem" />
+        <System type="UiSystem" />
+        <System type="RenderSystem" />
+    </Systems>
+
+    <!-- TODO: Utilize width and height from SceneConfiguration -->
+    <SceneConfiguration width="800" height="600">
+        <SceneLayer name="background" z="-2" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="default"    z="-1" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="entity"     z="2"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="ui"         z="10" space="Screen" layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+    </SceneConfiguration>
+</Scene>

@@ -5,6 +5,21 @@
 
 namespace Elysium {
 
+namespace {
+std::string& AssetsRootMutable() {
+    static std::string root = ASSETS_PATH;
+    return root;
+}
+}  // namespace
+
+void Path::SetAssetsRoot(const std::string& root) {
+    AssetsRootMutable() = root;
+}
+
+const std::string& Path::GetAssetsRoot() {
+    return AssetsRootMutable();
+}
+
 Path::Path(const std::string& relativePath, PathRoot root)
     : relativePath_(relativePath), root_(root) {
 }
@@ -52,8 +67,13 @@ std::vector<Path> Path::GetFolders() const {
 
 void Path::UpdateFullPath() const {
     if (!fullPathCached_) {
-        const char* base = (root_ == PathRoot::AppData) ? APPDATA_PATH : ASSETS_PATH;
-        cachedFullPath_ = std::string(base) + relativePath_;
+        std::string base;
+        switch (root_) {
+            case PathRoot::AppData: base = APPDATA_PATH; break;
+            case PathRoot::Engine:  base = ASSETS_PATH; break;
+            default:                base = AssetsRootMutable(); break;
+        }
+        cachedFullPath_ = base + relativePath_;
         fullPathCached_ = true;
     }
 }

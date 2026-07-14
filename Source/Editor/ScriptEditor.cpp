@@ -14,7 +14,7 @@ ScriptEditor::ScriptEditor() : Editor("Scripts") {
 
 void ScriptEditor::Initialize(const ApplicationConfig& config) {
     const std::string editorFontName = config.editorFontName;
-    Path editorFontPath("Fonts/" + editorFontName);
+    Path editorFontPath("Fonts/" + editorFontName, PathRoot::Engine);
     font_ = ImGui::GetIO().Fonts->AddFontFromFileTTF(editorFontPath.GetFullPath().c_str(), (float)fontSize_);
 
     textEditor_.SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());

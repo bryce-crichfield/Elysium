@@ -4,6 +4,8 @@
 #include "Services/AssetService.h"
 #include "Services/TaskService.h"
 #include "imgui.h"
+#include <algorithm>
+#include <cctype>
 
 namespace Elysium {
 
@@ -13,6 +15,11 @@ using namespace Services;
 AssetEditor::AssetEditor() : Editor("Asset Browser") {}
 
 namespace {
+std::string ToLower(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    return s;
+}
+
 DiskCache ScanDiskCache(fs::path rootPath) {
     DiskCache cache;
     for (const auto& entry : fs::recursive_directory_iterator(rootPath)) {
@@ -25,6 +32,15 @@ DiskCache ScanDiskCache(fs::path rootPath) {
 
         cache[parentPath].push_back(file);
     }
+
+    // Folders first, then files, alphabetically (case-insensitive) within each group.
+    for (auto& [parentPath, files] : cache) {
+        std::sort(files.begin(), files.end(), [](const DiskFile& a, const DiskFile& b) {
+            if (a.isDirectory != b.isDirectory) return a.isDirectory > b.isDirectory;
+            return ToLower(a.path.filename().string()) < ToLower(b.path.filename().string());
+        });
+    }
+
     return cache;
 }
 }  // namespace
@@ -32,10 +48,12 @@ DiskCache ScanDiskCache(fs::path rootPath) {
 void AssetEditor::Draw(Application& app) {
     auto& assetService = app.GetService<AssetService>();
 
-    // Discovery & Polling
+    // Discovery & Polling — rooted at the current project's asset root, not the
+    // engine's own Assets/ (which holds editor-only resources loaded via
+    // PathRoot::Engine and shouldn't show up as browsable project content).
     if (rootPath_.empty()) {
-        if (fs::exists("./Assets")) rootPath_ = fs::canonical("./Assets");
-        else if (fs::exists("../Assets")) rootPath_ = fs::canonical("../Assets");
+        const std::string& assetsRoot = Path::GetAssetsRoot();
+        if (fs::exists(assetsRoot)) rootPath_ = fs::canonical(assetsRoot);
     }
 
     if (rootPath_.empty()) return;
