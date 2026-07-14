@@ -36,8 +36,10 @@ std::string ColorToHex(Color color);
 
 Color ParseHexColor(const std::string& hex, Color defaultColor = BLANK);
 
-// Processes XML '<Include src="path" />' tags by loading and merging referenced files into main document
-bool ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath);
+// Returns the directory portion of filePath (including the trailing separator), so
+// paths referenced from within the file (e.g. a prefab's <PrefabInstance src="...">)
+// can be resolved relative to the file rather than the process's working directory.
+std::string GetBasePath(const std::string& filePath);
 
 template <typename Func>
 void VisitElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func) {

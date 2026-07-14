@@ -10,6 +10,7 @@
 #include "Core/ComponentRegistry.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Components.h"
+#include "Core/Prefab.h"
 #include "Systems/SpatialSystem.h"
 #include "raylib.h"
 #include "tinyxml2.h"
@@ -113,71 +114,64 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
     });
 }
 
-// Create map of tag name to component parser functions
-using ComponentLoader = std::function<void(XMLElement*, World*, Entity)>;
-const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
-    static std::unordered_map<std::string, ComponentLoader> componentLoaders;
-
-    if (!componentLoaders.empty())
-        return componentLoaders;
-
-    // Load from registry
-    const auto& registryLoaders = ComponentRegistry::Instance().GetXmlLoaders();
-    for(const auto& [name, loader] : registryLoaders) {
-        componentLoaders[name] = loader;
-    }
-    
-    // Register custom overrides
-    componentLoaders["CameraComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity) {
-        CameraComponent cam{};
-        CameraComponent::LoadXml(cam, xmlComponent);
-        world->AddComponent(entity, cam);
-
-        // If a follow target is specified, add FollowComponent + ParentComponent so
-        // FollowSystem will move the camera toward that target.
-        std::string target = xmlComponent->Attribute("target") ? xmlComponent->Attribute("target") : "";
-        if (!target.empty()) {
-            world->AddComponent(entity, FollowComponent{});  // speed=0 → instant by default
-            ParentComponent parentComp;
-            parentComp.targetName = target;
-            world->AddComponent(entity, parentComp);
-        }
-    };
-
-    return componentLoaders;
-}
-
 void LoadEntities(XMLElement* root, World* world) {
-    // Load entities
+    // Load hand-authored entities
     LOG_INFO("Scene", "Starting entity loading");
 
-    // ForEachElement handles multiple <Entities> blocks — the original inline block
-    // plus any injected by <Include> tags (each prefab file has <Entities> as its root).
     ForEachElement(root, "Entities", [&](XMLElement* entities) {
         LOG_DEBUG("Scene", "Processing Entities section");
         ForEachElement(entities, "Entity", [&](XMLElement* xmlEntity) {
-            // Create the entity
             Entity entity = world->CreateEntity();
             LOG_DEBUGF("Scene", "Created entity: %zu", entity);
+            LoadEntityComponents(xmlEntity, world, entity);
+        });
+    });
+}
 
-            // Create the components
-            ForEachChild(xmlEntity, [&](XMLElement* component) {
-                std::string componentType = component->Name();
-                auto parser = ComponentLoaders().find(componentType);
-                if (parser != ComponentLoaders().end()) {
-                    LOG_DEBUGF("Scene", "Processing component: %s", componentType.c_str());
-                    parser->second(component, world, entity);
+// Loads every <PrefabInstance src="..." id="..."> under `root`, spawning the referenced
+// prefab's entities into `world`, tagging them with PrefabInstanceComponent, and applying
+// the instance's <Override> list on top.
+void LoadPrefabInstances(XMLElement* root, World* world, const std::string& basePath) {
+    ForEachElement(root, "PrefabInstance", [&](XMLElement* xmlInstance) {
+        const char* src = xmlInstance->Attribute("src");
+        if (!src) {
+            LOG_ERROR("Scene", "PrefabInstance missing required 'src' attribute; skipping.");
+            return;
+        }
+        const char* instanceIdAttr = xmlInstance->Attribute("id");
+        if (!instanceIdAttr) {
+            LOG_ERRORF("Scene", "PrefabInstance for '%s' missing required 'id' attribute; skipping.", src);
+            return;
+        }
+        std::string instanceId = instanceIdAttr;
 
-                    // Backward compatibility: if a component has a layerName attribute, 
-                    // add a LayerComponent to the entity if it doesn't have one.
-                    const char* layerName = component->Attribute("layerName");
-                    if (layerName && !world->HasComponent<LayerComponent>(entity)) {
-                        world->AddComponent<LayerComponent>(entity, LayerComponent(layerName));
-                    }
-                } else {
-                    LOG_WARNINGF("Scene", "Unknown component type: %s", componentType.c_str());
-                }
-            });
+        std::string fullPath = basePath + src;
+        XMLDocument prefabDoc;
+        XMLElement* entitiesRoot = nullptr;
+        if (!LoadPrefabFile(fullPath, prefabDoc, entitiesRoot)) {
+            return;
+        }
+
+        PrefabIdMap idToEntity = LoadPrefabEntities(entitiesRoot, world, instanceId);
+
+        for (const auto& [localId, entity] : idToEntity) {
+            PrefabInstanceComponent instanceComp;
+            instanceComp.src = src;
+            instanceComp.instanceId = instanceId;
+            instanceComp.localEntityId = localId;
+            world->AddComponent<PrefabInstanceComponent>(entity, instanceComp);
+        }
+
+        ForEachElement(xmlInstance, "Override", [&](XMLElement* xmlOverride) {
+            int localId = xmlOverride->IntAttribute("entity", -1);
+            const char* component = xmlOverride->Attribute("component");
+            const char* field = xmlOverride->Attribute("field");
+            const char* value = xmlOverride->Attribute("value");
+            if (!component || !field || !value) {
+                LOG_WARNINGF("Scene", "Malformed Override in PrefabInstance '%s'; skipping.", instanceId.c_str());
+                return;
+            }
+            ApplyPrefabOverride(world, idToEntity, localId, component, field, value);
         });
     });
 }
@@ -187,6 +181,10 @@ void LoadEntities(XMLElement* root, World* world) {
 void ResolveHierarchy(World* world) {
     world->Query<ParentComponent>([&](Entity child, ParentComponent& pc) {
         if (pc.targetName.empty()) return;
+        // Already resolved directly (e.g. an intra-prefab link resolved by local id in
+        // LoadPrefabEntities) — skip the by-name lookup so it doesn't log a spurious
+        // "could not resolve" warning for a targetName that was never meant to be a name.
+        if (pc.parent != INVALID_ENTITY) return;
         Entity parent = INVALID_ENTITY;
         if (world->GetEntityByName(pc.targetName, &parent)) {
             world->AddChild(parent, child);
@@ -242,6 +240,7 @@ bool LoadScene(Scene& scene, const std::string& path) {
     LoadLayers(root, scene);
     LoadTilemap(root, world_, tileWidth, tileHeight, isIsometric);
     LoadEntities(root, world_);
+    LoadPrefabInstances(root, world_, GetBasePath(path));
     ResolveHierarchy(world_);
     LoadSystems(root, scene);
 

@@ -1,8 +1,8 @@
 <Entities>
-    <Entity>
-        <NameComponent name="$name" />
-        <TransformComponent x="$x" y="$y" />
-        <MovementComponent state="Idle" goalX="$x" goalY="$y" />
+    <Entity id="0">
+        <NameComponent name="EnemyArcher" />
+        <TransformComponent x="0" y="0" />
+        <MovementComponent state="Idle" goalX="0" goalY="0" />
         <KinematicsComponent maxSpeed="120" friction="5" />
         <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south" />
         <ColliderComponent width="32" height="32" />

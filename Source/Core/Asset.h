@@ -24,7 +24,8 @@ enum class AssetType {
     SHADER,
     SPRITE,
     SCRIPT,
-    TILE
+    TILE,
+    PREFAB
 };
 
 class Asset {

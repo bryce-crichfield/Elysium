@@ -20,3 +20,4 @@
 #include "Components/CameraComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/UiComponent.h"
+#include "Components/PrefabInstanceComponent.h"

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 #include "Core/Component.h"
@@ -35,13 +36,18 @@ struct EditorCamera {
 class EditorService : public Elysium::Service {
    public:
     EditorService(ServiceRegistry& registry);
-    ~EditorService() = default;
+    // Defined in the .cpp, where World is a complete type — required for
+    // std::unique_ptr<World> to destroy prefabWorld_.
+    ~EditorService();
 
     // Service interface
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
 
+    // Returns the scratch prefab world while editing a prefab directly (see
+    // OpenPrefabForEditing), otherwise the top scene's world. WorldEditor always goes
+    // through this rather than the scene directly, so it needs no prefab-specific code.
     Elysium::World* GetWorld() const;
 
     // Component introspection (used by WorldEditor)
@@ -56,10 +62,23 @@ class EditorService : public Elysium::Service {
     // The free camera RenderSystem renders through while in AppMode::Editor.
     EditorCamera& GetEditorCamera() { return editorCamera_; }
 
+    // Prefab editing: loads `relativePath`'s raw (unnamespaced) entities into a fresh
+    // scratch World and points GetWorld() at it, so the same WorldEditor UI can edit a
+    // prefab file's own entities directly instead of a scene's.
+    bool IsEditingPrefab() const { return static_cast<bool>(prefabWorld_); }
+    const std::string& GetEditingPrefabPath() const { return editingPrefabPath_; }
+    void OpenPrefabForEditing(const std::string& relativePath);
+    void ClosePrefabEditing();
+    // Writes the scratch world's entities back to the prefab file as plain
+    // <Entity id="..."> blocks (the source of truth — no PrefabInstance/Override here).
+    bool SavePrefabEditing();
+
    private:
     std::vector<ComponentPlaceholder> componentPlaceholders;
     std::vector<Entity> selectedEntities_;
     EditorCamera editorCamera_;
+    std::unique_ptr<Elysium::World> prefabWorld_;
+    std::string editingPrefabPath_;
 
     void RegisterComponentTypes();
 };

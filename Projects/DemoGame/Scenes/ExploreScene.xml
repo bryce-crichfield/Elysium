@@ -29,7 +29,11 @@
         <SceneLayer name="ui"         z="10" space="Screen" layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
     </SceneConfiguration>
 
-    <Include src="Prefabs/MapTest.xml" />
+    <PrefabInstance src="Prefabs/Unit.xml" id="Knight1">
+        <Override entity="0" component="TransformComponent" field="x" value="320" />
+        <Override entity="0" component="TransformComponent" field="y" value="480" />
+        <Override entity="0" component="NameComponent" field="name" value="Knight1" />
+    </PrefabInstance>
 
     <Entities>
         <Entity>

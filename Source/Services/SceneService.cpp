@@ -235,6 +235,13 @@ Scene* SceneService::GetTopScene() const {
     return sceneStack_.empty() ? nullptr : sceneStack_.back();
 }
 
+std::string SceneService::GetScenePath(Scene* scene) const {
+    for (const auto& [name, data] : scenes_) {
+        if (data.scene == scene) return data.xmlPath;
+    }
+    return "";
+}
+
 // =============================================================================
 // Scene Management
 // =============================================================================
