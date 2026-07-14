@@ -34,6 +34,21 @@ void WorldEditor::Draw(Application& app) {
             return;
         }
 
+        if (service.IsEditingPrefab()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.85f, 0.3f, 1.0f));
+            ImGui::Text("Editing Prefab: %s", service.GetEditingPrefabPath().c_str());
+            ImGui::PopStyleColor();
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Save")) {
+                service.SavePrefabEditing();
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Close")) {
+                service.ClosePrefabEditing();
+            }
+            ImGui::Separator();
+        }
+
         // Left side header
         ImGui::Text("Entities");
         ImGui::SameLine(leftPanelWidth_ + 10);

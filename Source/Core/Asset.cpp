@@ -167,6 +167,7 @@ void Asset::Unload() {
                 break;
             case AssetType::SCRIPT:
             case AssetType::TILE:
+            case AssetType::PREFAB:
                 // Pure data — nothing to GPU-unload
                 break;
         }

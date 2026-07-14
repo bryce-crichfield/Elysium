@@ -1,18 +1,18 @@
 <Entities>
-    <Entity>
-        <NameComponent name="$name" />
-        <TransformComponent x="$x" y="$y" />
-        <MovementComponent state="Idle" goalX="$x" goalY="$y" />
+    <Entity id="0">
+        <NameComponent name="Unit" />
+        <TransformComponent x="0" y="0" />
+        <MovementComponent state="Idle" goalX="0" goalY="0" />
         <KinematicsComponent maxSpeed="150" friction="5" />
-        <SpriteComponent spriteName="$spriteName" sheetName="Idle" sequenceName="south" />
+        <SpriteComponent spriteName="Sprites/Archer/Archer.xml" sheetName="Idle" sequenceName="south" />
         <ColliderComponent width="32" height="32" />
         <HealthComponent max="100" />
         <TeamComponent team="0" />
         <ScriptComponent scriptName="Scripts/Elysium/Unit.lua" />
         <LayerComponent name="entity" />
     </Entity>
-    <Entity>
-        <ParentComponent target="$name" />
+    <Entity id="1">
+        <ParentComponent target="0" />
         <FollowComponent followSpeed="0" />
         <TransformComponent />
         <LayerComponent name="shadow" />

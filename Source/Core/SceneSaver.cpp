@@ -11,6 +11,7 @@
 #include "System.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
+#include "Core/Prefab.h"
 #include "Components/CameraComponent.h"
 #include "Components/FollowComponent.h"
 #include "Components/ParentComponent.h"
@@ -18,6 +19,7 @@
 #include "Components/TransformComponent.h"
 #include "Components/RectangleComponent.h"
 #include "Components/TileComponent.h"
+#include "Components/PrefabInstanceComponent.h"
 #include "raylib.h"
 #include "tinyxml2.h"
 
@@ -167,6 +169,12 @@ void SaveEntities(XMLBuilder& builder, World* world) {
 
     const auto& entities = world->GetLivingEntities();
     for (Entity entity : entities) {
+        // Prefab-instance entities are saved via SavePrefabInstances instead, as a
+        // <PrefabInstance>/<Override> block rather than a flattened <Entity>.
+        if (world->HasComponent<PrefabInstanceComponent>(entity)) {
+            continue;
+        }
+
         std::string entityName = world->GetEntityName(entity);
 
         // Skip layer entities and tile entities as they're saved separately
@@ -191,6 +199,68 @@ void SaveEntities(XMLBuilder& builder, World* world) {
                 if (!parentComp.targetName.empty()) {
                     cameraBuilder.SetAttribute("target", parentComp.targetName.c_str());
                 }
+            }
+        }
+    }
+}
+
+// Groups entities carrying PrefabInstanceComponent by instance id, diffs each against a
+// freshly-loaded copy of its prefab's current defaults, and emits a
+// <PrefabInstance src=... id=...> block per group containing only the fields that
+// differ. Anything not listed as an Override is read fresh from the prefab file on the
+// next load, which is what makes editing a prefab propagate to its placements.
+void SavePrefabInstances(XMLBuilder& builder, World* world, const std::string& basePath) {
+    struct InstanceGroup {
+        std::string src;
+        std::vector<Entity> entities;
+    };
+    std::map<std::string, InstanceGroup> groups;  // keyed by instanceId, ordered for stable output
+
+    for (Entity entity : world->GetLivingEntities()) {
+        if (!world->HasComponent<PrefabInstanceComponent>(entity)) continue;
+        const auto& pic = world->GetComponent<PrefabInstanceComponent>(entity);
+        auto& group = groups[pic.instanceId];
+        group.src = pic.src;
+        group.entities.push_back(entity);
+    }
+
+    for (const auto& [instanceId, group] : groups) {
+        std::string fullPath = basePath + group.src;
+        XMLDocument prefabDoc;
+        XMLElement* entitiesRoot = nullptr;
+        if (!LoadPrefabFile(fullPath, prefabDoc, entitiesRoot)) {
+            LOG_ERRORF("Scene", "Skipping save of PrefabInstance '%s': could not reload '%s'",
+                       instanceId.c_str(), group.src.c_str());
+            continue;
+        }
+
+        // Reconstruct defaults with the SAME instanceId as the live entities so
+        // namespaced fields (NameComponent, intra-prefab ParentComponent targets)
+        // compare as unmodified when the user hasn't actually changed them.
+        World defaultWorld;
+        PrefabIdMap defaultIdToEntity = LoadPrefabEntities(entitiesRoot, &defaultWorld, instanceId);
+
+        auto instanceBuilder = builder.AddElement("PrefabInstance")
+                                   .SetAttribute("src", group.src.c_str())
+                                   .SetAttribute("id", instanceId.c_str());
+
+        for (Entity liveEntity : group.entities) {
+            const auto& pic = world->GetComponent<PrefabInstanceComponent>(liveEntity);
+            auto defaultIt = defaultIdToEntity.find(pic.localEntityId);
+            if (defaultIt == defaultIdToEntity.end()) {
+                LOG_WARNINGF("Scene",
+                             "PrefabInstance '%s': entity id %d no longer exists in '%s'; dropping its overrides.",
+                             instanceId.c_str(), pic.localEntityId, group.src.c_str());
+                continue;
+            }
+
+            auto overrides = DiffPrefabEntity(pic.localEntityId, world, liveEntity, &defaultWorld, defaultIt->second);
+            for (const auto& ov : overrides) {
+                instanceBuilder.AddElement("Override")
+                    .SetAttribute("entity", ov.entity)
+                    .SetAttribute("component", ov.component.c_str())
+                    .SetAttribute("field", ov.field.c_str())
+                    .SetAttribute("value", ov.value.c_str());
             }
         }
     }
@@ -226,6 +296,7 @@ bool SaveScene(Scene& scene, const std::string& path) {
     SaveLayers(builder, scene);
     SaveTilemap(builder, world);
     SaveEntities(builder, world);
+    SavePrefabInstances(builder, world, GetBasePath(path));
 
     if (!SaveXml(path, doc)) {
         LOG_ERROR("Scene", "Failed to save scene file.");

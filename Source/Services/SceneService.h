@@ -93,6 +93,9 @@ public:
 
     // Stack queries
     Scene* GetTopScene() const;
+    // Full on-disk path of `scene`'s XML file, or "" if not a registered scene.
+    // Used to resolve <PrefabInstance src="..."> relative to the scene's directory.
+    std::string GetScenePath(Scene* scene) const;
     size_t GetStackSize() const { return sceneStack_.size(); }
     bool IsEmpty() const { return sceneStack_.empty(); }
     const std::vector<Scene*>& GetStack() const { return sceneStack_; }

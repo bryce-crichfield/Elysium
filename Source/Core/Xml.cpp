@@ -2,9 +2,6 @@
 #include <tinyxml2.h>
 #include <stdexcept>
 #include <cstdio>
-#include <fstream>
-#include <sstream>
-#include <unordered_map>
 #include "Services/LogService.h"
 
 namespace Elysium {
@@ -45,68 +42,12 @@ Color ParseHexColor(const std::string& hex, Color defaultColor) {
     return defaultColor;
 }
 
-// Processes XML '<Include src="path" key="value" .../>' tags.
-// All attributes besides "src" are treated as template parameters: every occurrence
-// of "$key" in the included file's raw text is replaced with "value" before parsing.
-// This lets prefab files use placeholders like $name, $x, $y.
-bool ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath) {
-    while (true) {
-        tinyxml2::XMLElement* includeElem = doc.RootElement()->FirstChildElement("Include");
-        if (!includeElem) break;
-
-        const char* src = includeElem->Attribute("src");
-        if (!src) {
-            includeElem->Parent()->DeleteChild(includeElem);
-            continue;
-        }
-
-        // Collect template parameters (all attributes except "src")
-        std::unordered_map<std::string, std::string> params;
-        for (const tinyxml2::XMLAttribute* attr = includeElem->FirstAttribute();
-             attr != nullptr; attr = attr->Next()) {
-            if (std::string(attr->Name()) != "src") {
-                params[attr->Name()] = attr->Value();
-            }
-        }
-
-        // Read the included file as raw text
-        std::string fullPath = basePath + src;
-        std::ifstream file(fullPath);
-        if (!file.is_open()) {
-            LOG_ERRORF("Scene", "Failed to open include file: %s", fullPath.c_str());
-            includeElem->Parent()->DeleteChild(includeElem);
-            continue;
-        }
-        std::ostringstream ss;
-        ss << file.rdbuf();
-        std::string content = ss.str();
-
-        // Substitute $key → value for each template parameter
-        for (const auto& [key, value] : params) {
-            std::string token = "$" + key;
-            size_t pos = 0;
-            while ((pos = content.find(token, pos)) != std::string::npos) {
-                content.replace(pos, token.length(), value);
-                pos += value.length();
-            }
-        }
-
-        // Parse the substituted text and inject the root element
-        tinyxml2::XMLDocument includeDoc;
-        if (includeDoc.Parse(content.c_str()) == tinyxml2::XML_SUCCESS) {
-            tinyxml2::XMLElement* includedRoot = includeDoc.RootElement();
-            if (includedRoot) {
-                tinyxml2::XMLElement* clone = includedRoot->DeepClone(&doc)->ToElement();
-                includeElem->Parent()->InsertAfterChild(includeElem, clone);
-            }
-        } else {
-            LOG_ERRORF("Scene", "Failed to parse include file: %s", fullPath.c_str());
-        }
-
-        includeElem->Parent()->DeleteChild(includeElem);
+std::string GetBasePath(const std::string& filePath) {
+    auto sep = filePath.find_last_of("/\\");
+    if (sep != std::string::npos) {
+        return filePath.substr(0, sep + 1);
     }
-
-    return true;
+    return "";
 }
 
 bool LoadXml(const std::string& filePath, tinyxml2::XMLDocument& doc) {
@@ -116,19 +57,6 @@ bool LoadXml(const std::string& filePath, tinyxml2::XMLDocument& doc) {
         return false;
     } else {
         LOG_INFO("Xml", "XML file loaded successfully");
-    }
-
-    // Derive basePath from the file's directory so <Include src="..."> can use paths
-    // relative to the scene file rather than the working directory.
-    std::string basePath;
-    auto sep = filePath.find_last_of("/\\");
-    if (sep != std::string::npos) {
-        basePath = filePath.substr(0, sep + 1);
-    }
-
-    if (!ProcessIncludes(doc, basePath)) {
-        LOG_ERROR("Xml", "Failed to process includes.");
-        return false;
     }
 
     return true;
