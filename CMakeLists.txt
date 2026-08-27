@@ -155,7 +155,6 @@ add_dependencies(${PROJECT_NAME} copy_assets)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     ASSETS_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/"
-    APPDATA_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/AppData/"
 )
 message(STATUS "Assets will be copied to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/")
 

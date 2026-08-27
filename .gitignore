@@ -102,6 +102,4 @@ node_modules/
 # tmclaude temporary files
 tmpclaude-*
 
-# AppData
-AppData/
 **/__pycache__/

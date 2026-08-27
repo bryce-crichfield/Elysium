@@ -9,10 +9,6 @@
 #include "Tile.h"
 #include "raylib.h"
 
-#ifndef ASSETS_PATH
-#define ASSETS_PATH "./Assets/"
-#endif
-
 namespace Elysium {
 
 enum class AssetType {

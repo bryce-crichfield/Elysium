@@ -6,16 +6,11 @@
 #define ASSETS_PATH "./Assets/"
 #endif
 
-#ifndef APPDATA_PATH
-#define APPDATA_PATH "./AppData/"
-#endif
-
 namespace Elysium {
 
 // Determines which root directory a Path resolves relative to.
 enum class PathRoot {
     Assets,   // Resolves relative to the current project's asset root (read-only game content)
-    AppData,  // Resolves relative to APPDATA_PATH (runtime saves, user data)
     Engine,   // Resolves relative to the compile-time ASSETS_PATH, regardless of
               // which project is loaded (editor-only resources: fonts, icons, etc.)
 };

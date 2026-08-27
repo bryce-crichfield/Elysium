@@ -102,7 +102,11 @@ function Elysium_Run {
     try {
         Set-Location "$ELYSIUM_ROOT\Binary"
 
-        $resolveProject = $null
+        if ([string]::IsNullOrEmpty($ProjectPath)) {
+            throw "Project path is required. Specify it with --Project=<path>."
+        }
+
+        $ProjectPath = '{0}\Project.xml' -f $ProjectPath.TrimEnd('\', '/')
 
         if ([System.IO.Path]::IsPathRooted($ProjectPath)) {
             $resolvedProject = $ProjectPath
@@ -110,7 +114,7 @@ function Elysium_Run {
             $resolvedProject = "$ELYSIUM_ROOT\$ProjectPath"
         }
 
-        if ([string]::IsNullOrEmpty($resolvedProject) -or -not (Test-Path -Path $resolvedProject)) {
+        if (-not (Test-Path -Path $resolvedProject -PathType Leaf)) {
             throw "Project file not found: $resolvedProject"
         }
 
@@ -148,7 +152,7 @@ foreach ($arg in $args) {
             Write-Host "  --Clean: Clean build artifacts"
             Write-Host "  --Build: Build the project"
             Write-Host "  --Run: Run the executable"
-            Write-Host "  --Project=<path>: Project.xml to load (default: Projects\HelloWorld\Project.xml)"
+            Write-Host "  --Project=<path>: Project directory to load, e.g. Projects\DemoGame (required for --Run)"
             Write-Host "  --Editor: Start in editor mode"
             Write-Host "  --Help: Show this help message"
             Write-Host ""

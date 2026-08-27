@@ -69,9 +69,8 @@ void Path::UpdateFullPath() const {
     if (!fullPathCached_) {
         std::string base;
         switch (root_) {
-            case PathRoot::AppData: base = APPDATA_PATH; break;
-            case PathRoot::Engine:  base = ASSETS_PATH; break;
-            default:                base = AssetsRootMutable(); break;
+            case PathRoot::Engine: base = ASSETS_PATH; break;
+            default:               base = AssetsRootMutable(); break;
         }
         cachedFullPath_ = base + relativePath_;
         fullPathCached_ = true;
