@@ -1,5 +1,5 @@
 #include "Core/Geometry.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 #include <algorithm>
 
 namespace Elysium {

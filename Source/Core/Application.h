@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Services/Service.h"
+#include "Core/ServiceLocator.h"
 #include "Editor.h"
 
 #include <memory>
@@ -34,9 +34,16 @@ struct ApplicationConfig {
     static bool FromXML(const std::string& path, ApplicationConfig& out);
 };
 
+// Application is owned by main.cpp as a plain local object — not a singleton.
+// Nothing else should hold a reference to it; Systems/Components/Editors/
+// Services all reach app-owned state (mode, config, clock) through
+// IApplicationService via the ServiceLocator, same as every other service.
 class Application {
    public:
-    static Application& GetInstance();
+    Application() = default;
+    ~Application() = default;
+    Application(const Application&) = delete;
+    Application& operator=(const Application&) = delete;
 
     bool Initialize(const std::string& configPath = "Config/ApplicationConfig.xml");
     void Run();
@@ -44,19 +51,11 @@ class Application {
 
     const ApplicationConfig& GetConfig() const { return config_; }
 
-    template <typename T>
-    T& GetService() {
-        return serviceRegistry_.GetService<T>();
-    }
-
-    template <typename T>
-    void RegisterService(std::unique_ptr<T> service) {
-        serviceRegistry_.RegisterService(std::move(service));
-    }
+    ServiceLocator& GetServiceLocator() { return serviceLocator_; }
 
     template <typename T, typename... Args>
     T& RegisterEditor(Args&&... args) {
-        auto editor = std::make_unique<T>(std::forward<Args>(args)...);
+        auto editor = std::make_unique<T>(serviceLocator_, std::forward<Args>(args)...);
         T& ref = *editor;
         editors_.push_back(std::move(editor));
         return ref;
@@ -85,11 +84,6 @@ class Application {
     float GetTime() const { return startTime_; }
 
    private:
-    Application() = default;
-    ~Application() = default;
-    Application(const Application&) = delete;
-    Application& operator=(const Application&) = delete;
-
     void Update(float deltaTime);
     void Draw();
     void DrawMenuBar();
@@ -99,7 +93,7 @@ class Application {
 
     ApplicationConfig config_;
 
-    ServiceRegistry serviceRegistry_;
+    ServiceLocator serviceLocator_;
     std::vector<std::unique_ptr<Editor>> editors_;
 
     AppMode mode_ = AppMode::Play;

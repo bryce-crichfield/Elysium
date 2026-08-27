@@ -3,7 +3,7 @@
 #include "imgui.h"
 
 namespace Elysium {
-    void BoundsComponent::LoadXml(BoundsComponent& c, tinyxml2::XMLElement* el) {
+    void BoundsComponent::LoadXml(BoundsComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         // Computed component
     }
 
@@ -12,7 +12,7 @@ namespace Elysium {
         return WHITE;
     }
 
-    void BoundsComponent::Inspect(BoundsComponent& c, Entity e) {
+    void BoundsComponent::Inspect(BoundsComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

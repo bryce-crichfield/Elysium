@@ -27,8 +27,8 @@ namespace Elysium {
         static constexpr const char* Name() { return "Collider"; }
         static constexpr const char* XmlTag() { return "ColliderComponent"; }
 
-        static void LoadXml(ColliderComponent& c, tinyxml2::XMLElement* el);
-        static void Inspect(ColliderComponent& c, Entity e);
+        static void LoadXml(ColliderComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
+        static void Inspect(ColliderComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<ColliderComponent>& ut);
         static void SetFromLua(ColliderComponent& c, sol::object v);
     };

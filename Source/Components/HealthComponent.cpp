@@ -3,13 +3,13 @@
 #include "imgui.h"
 
 namespace Elysium {
-    void HealthComponent::LoadXml(HealthComponent& c, tinyxml2::XMLElement* el) {
+    void HealthComponent::LoadXml(HealthComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         float maxVal = el->FloatAttribute("max", 100.0f);
         c.max = maxVal;
         c.current = maxVal;
     }
 
-    void HealthComponent::Inspect(HealthComponent& c, Entity e) {
+    void HealthComponent::Inspect(HealthComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

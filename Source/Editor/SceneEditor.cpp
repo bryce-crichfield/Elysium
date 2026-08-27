@@ -1,6 +1,7 @@
 #include "SceneEditor.h"
 #include <algorithm>
 #include "Core/Application.h"
+#include "Interfaces/ISceneService.h"
 #include "Core/Common.h"
 #include "Core/SceneLayer.h"
 #include "Core/System.h"
@@ -11,9 +12,9 @@ namespace Elysium {
 
 using namespace Services;
 
-SceneEditor::SceneEditor() : Editor("Scene Editor") {}
+SceneEditor::SceneEditor(ServiceLocator& services) : Editor(services, "Scene Editor") {}
 
-Scene* SceneEditor::GetEditorScene(SceneService& service) {
+Scene* SceneEditor::GetEditorScene(ISceneService& service) {
     if (editorSelectedScene_) {
         for (Scene* s : service.GetStack()) {
             if (s == editorSelectedScene_) return editorSelectedScene_;
@@ -24,10 +25,10 @@ Scene* SceneEditor::GetEditorScene(SceneService& service) {
     return service.GetTopScene();
 }
 
-void SceneEditor::Draw(Application& app) {
+void SceneEditor::Draw() {
     Profile;
 
-    auto& service = app.GetService<SceneService>();
+    auto& service = services_.Get<ISceneService>();
 
     ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
@@ -50,12 +51,12 @@ void SceneEditor::Draw(Application& app) {
     ImGui::End();
 }
 
-void SceneEditor::DrawScenesTab(SceneService& service) {
+void SceneEditor::DrawScenesTab(ISceneService& service) {
     // Scene Management Buttons
-    bool hasSelection = selectedSceneIndex_ >= 0 && selectedSceneIndex_ < (int)service.scenes_.size();
+    bool hasSelection = selectedSceneIndex_ >= 0 && selectedSceneIndex_ < (int)service.GetSceneRegistry().size();
 
     if (ImGui::Button("Push") && hasSelection) {
-        auto it = service.scenes_.begin();
+        auto it = service.GetSceneRegistry().begin();
         std::advance(it, selectedSceneIndex_);
         service.Push(it->first);
     }
@@ -65,7 +66,7 @@ void SceneEditor::DrawScenesTab(SceneService& service) {
 
     ImGui::SameLine();
     if (ImGui::Button("Replace") && hasSelection) {
-        auto it = service.scenes_.begin();
+        auto it = service.GetSceneRegistry().begin();
         std::advance(it, selectedSceneIndex_);
         service.Replace(it->first);
     }
@@ -101,7 +102,7 @@ void SceneEditor::DrawScenesTab(SceneService& service) {
         ImGui::TableHeadersRow();
 
         int index = 0;
-        for (const auto& [name, sceneData] : service.scenes_) {
+        for (const auto& [name, sceneData] : service.GetSceneRegistry()) {
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
@@ -114,7 +115,7 @@ void SceneEditor::DrawScenesTab(SceneService& service) {
 
             ImGui::TableSetColumnIndex(2);
             bool inStack = false;
-            for (Scene* s : service.sceneStack_) {
+            for (Scene* s : service.GetStack()) {
                 if (s == sceneData.scene) {
                     inStack = true;
                     break;
@@ -136,7 +137,7 @@ void SceneEditor::DrawScenesTab(SceneService& service) {
         ImGui::TableSetupColumn("Scene Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
-        const auto& stack = service.sceneStack_;
+        const auto& stack = service.GetStack();
         for (int i = (int)stack.size() - 1; i >= 0; --i) {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
@@ -150,7 +151,7 @@ void SceneEditor::DrawScenesTab(SceneService& service) {
 
             ImGui::TableSetColumnIndex(1);
             std::string sceneName = "Unknown";
-            for (const auto& [name, data] : service.scenes_) {
+            for (const auto& [name, data] : service.GetSceneRegistry()) {
                 if (data.scene == stack[i]) {
                     sceneName = name;
                     break;
@@ -174,7 +175,7 @@ void SceneEditor::DrawScenesTab(SceneService& service) {
     }
 }
 
-void SceneEditor::DrawSceneTab(SceneService& service) {
+void SceneEditor::DrawSceneTab(ISceneService& service) {
     Scene* topScene = GetEditorScene(service);
     if (!topScene) {
         ImGui::Text("No scenes in stack");
@@ -184,7 +185,7 @@ void SceneEditor::DrawSceneTab(SceneService& service) {
 
     // Find scene name
     std::string topSceneName = "Unknown";
-    for (const auto& [name, data] : service.scenes_) {
+    for (const auto& [name, data] : service.GetSceneRegistry()) {
         if (data.scene == topScene) {
             topSceneName = name;
             break;
@@ -325,7 +326,7 @@ void SceneEditor::DrawSceneTab(SceneService& service) {
     }
 }
 
-void SceneEditor::DrawSystemsTab(SceneService& service) {
+void SceneEditor::DrawSystemsTab(ISceneService& service) {
     Scene* topScene = GetEditorScene(service);
     if (!topScene) {
         ImGui::Text("No active scene");

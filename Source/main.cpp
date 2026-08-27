@@ -3,6 +3,7 @@
 #include "Core/Common.h"
 #include "Core/Path.h"
 #include "Core/Project.h"
+#include "Interfaces/ISceneService.h"
 #include "Services/Services.h"
 
 int main(int argc, char** argv) {
@@ -16,7 +17,7 @@ int main(int argc, char** argv) {
     }
     Elysium::Path::SetAssetsRoot(project.rootDir);
 
-    Elysium::Application& app = Elysium::Application::GetInstance();
+    Elysium::Application app;
 
     if (!app.Initialize(project.configPath)) {
         return -1;
@@ -26,7 +27,7 @@ int main(int argc, char** argv) {
         app.SetMode(Elysium::AppMode::Editor);
     }
 
-    auto& sceneService = app.GetService<Elysium::Services::SceneService>();
+    auto& sceneService = app.GetServiceLocator().Get<Elysium::Services::ISceneService>();
     sceneService.Push(project.entryScene);
 
     app.Run();

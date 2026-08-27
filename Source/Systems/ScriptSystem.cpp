@@ -2,7 +2,8 @@
 #include "Core/Path.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Component.h"
-#include "Core/Application.h"
+#include "Interfaces/IScriptService.h"
+#include "Interfaces/ISceneService.h"
 #include "Services/ScriptService.h"
 #include "Services/SceneService.h"
 #include "Components/ScriptComponent.h"
@@ -12,7 +13,7 @@ namespace Elysium::Systems {
 ScriptSystem::ScriptSystem(Context context) : System(context) {}
 
 void ScriptSystem::Update(float deltaTime) {
-    auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+    auto& scriptService = services->Get<Services::IScriptService>();
     scriptService.SetActiveWorld(world);
 
     world->Query<ScriptComponent>([&](Entity entity, auto& scriptComp) {
@@ -34,11 +35,11 @@ void ScriptSystem::Update(float deltaTime) {
 
 void ScriptSystem::OnEvent(Event& event) {
     // Skip input events while the simulation is paused (e.g. editing in Editor mode)
-    if (!Application::GetInstance().GetService<Services::SceneService>().IsPlaying()) {
+    if (!services->Get<Services::ISceneService>().IsPlaying()) {
         return;
     }
 
-    auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+    auto& scriptService = services->Get<Services::IScriptService>();
     scriptService.SetActiveWorld(world);
 
     // For other events, dispatch to all scripted entities

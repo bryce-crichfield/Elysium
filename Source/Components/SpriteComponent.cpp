@@ -1,7 +1,7 @@
 #include "Components/SpriteComponent.h"
 #include "Core/ComponentRegistry.h"
-#include "Core/Application.h"
 #include "Core/Xml.h"
+#include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "imgui.h"
@@ -19,7 +19,7 @@ namespace Elysium {
             .SetAttribute("sequenceName", c.sequenceName.c_str());
     }
 
-    void SpriteComponent::LoadXml(SpriteComponent& c, tinyxml2::XMLElement* el) {
+    void SpriteComponent::LoadXml(SpriteComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         const char* spriteName = el->Attribute("spriteName");
         const char* sheetName = el->Attribute("sheetName");
         const char* sequenceName = el->Attribute("sequenceName");
@@ -28,7 +28,7 @@ namespace Elysium {
             c.spriteName = spriteName;
 
             // Load the sprite if not already loaded
-            auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+            auto& assetService = services.Get<Elysium::Services::IAssetService>();
             assetService.LoadAsset(AssetType::SPRITE, Path(spriteName));
         }
         if (sheetName) {
@@ -43,7 +43,7 @@ namespace Elysium {
         }
     }
 
-    void SpriteComponent::Inspect(SpriteComponent& c, Entity e) {
+    void SpriteComponent::Inspect(SpriteComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);
@@ -51,7 +51,7 @@ namespace Elysium {
             ImGui::SetNextItemWidth(-1);
         };
 
-        auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+        auto& assetService = services.Get<Elysium::Services::IAssetService>();
         const auto& allAssets = assetService.GetAllAssets();
 
         // Sprite asset picker

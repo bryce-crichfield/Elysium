@@ -7,13 +7,10 @@
 #include "Core/Message.h"
 #include "Core/Serial.h"
 #include "Core/Scene.h"
+#include "Interfaces/ISceneService.h"
 #include "Services/InvokeService.h"
 #include "Service.h"
 #include "raylib.h"
-
-namespace Elysium {
-class SceneEditor;
-}
 
 namespace Elysium::Services {
 
@@ -61,19 +58,9 @@ struct InvokeMethod<SceneChange> {
     static constexpr InvokeMethodId Id = 0x01;
 };
 
-struct SceneRegistration {
-    std::string name;
-    Scene* scene = nullptr;
-    SceneFactory factory;
-    std::string xmlPath;
-    bool xmlLoaded = false;
-};
-
-class SceneService : public Elysium::Service {
+class SceneService : public Elysium::Service, public ISceneService {
 public:
-    friend class Elysium::SceneEditor;
-
-    SceneService(ServiceRegistry& registry);
+    SceneService(ServiceLocator& registry);
     ~SceneService() = default;
     SceneService(const SceneService&) = delete;
     SceneService& operator=(const SceneService&) = delete;
@@ -81,40 +68,41 @@ public:
     // Service interface
     void Initialize() override;
     void Shutdown() override;
-    void OnMessage(const Message& message);
+    void OnMessage(const Message& message) override;
     void Update(float deltaTime) override;
     void Render() override;
-    
+
     // Stack operations
-    void Push(const std::string& sceneName);
-    void Pop();
-    void Replace(const std::string& sceneName);
-    void Clear();
+    void Push(const std::string& sceneName) override;
+    void Pop() override;
+    void Replace(const std::string& sceneName) override;
+    void Clear() override;
 
     // Stack queries
-    Scene* GetTopScene() const;
-    size_t GetStackSize() const { return sceneStack_.size(); }
-    bool IsEmpty() const { return sceneStack_.empty(); }
-    const std::vector<Scene*>& GetStack() const { return sceneStack_; }
+    Scene* GetTopScene() const override;
+    size_t GetStackSize() const override { return sceneStack_.size(); }
+    bool IsEmpty() const override { return sceneStack_.empty(); }
+    const std::vector<Scene*>& GetStack() const override { return sceneStack_; }
+    const std::unordered_map<std::string, SceneRegistration>& GetSceneRegistry() const override { return scenes_; }
 
     // Rendering info getters
-    const Rectangle& GetLetterboxRect() const { return letterboxRect_; }
-    float GetScaleX() const { return scaleX_; }
-    float GetScaleY() const { return scaleY_; }
-    RenderTexture2D& GetFramebuffer() { return framebuffer_; }
+    const Rectangle& GetLetterboxRect() const override { return letterboxRect_; }
+    float GetScaleX() const override { return scaleX_; }
+    float GetScaleY() const override { return scaleY_; }
+    RenderTexture2D& GetFramebuffer() override { return framebuffer_; }
 
     // The viewport rect is where on the window the framebuffer is actually drawn.
     // Application or editor sets this so input coordinates can be translated correctly.
-    void SetViewportRect(Rectangle rect);
-    const Rectangle& GetViewportRect() const { return viewportRect_; }
+    void SetViewportRect(Rectangle rect) override;
+    const Rectangle& GetViewportRect() const override { return viewportRect_; }
 
     // Single source of truth for whether gameplay simulation (systems + scripts) is ticking.
-    bool IsPlaying() const { return !paused_; }
-    void SetPlaying(bool playing) { paused_ = !playing; }
+    bool IsPlaying() const override { return !paused_; }
+    void SetPlaying(bool playing) override { paused_ = !playing; }
 
     // Converts a raylib-window screen position (e.g. GetMousePosition()) into framebuffer
     // pixel coordinates using the current viewport rect. Used by editor viewport picking.
-    Vector2 ScreenToFramebuffer(Vector2 screenPos) const;
+    Vector2 ScreenToFramebuffer(Vector2 screenPos) const override;
 
 private:
     void ProcessInput();

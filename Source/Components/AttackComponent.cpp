@@ -3,13 +3,13 @@
 #include "imgui.h"
 
 namespace Elysium {
-    void AttackComponent::LoadXml(AttackComponent& c, tinyxml2::XMLElement* el) {
+    void AttackComponent::LoadXml(AttackComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.range = el->FloatAttribute("range", 100.0f);
         c.damage = el->FloatAttribute("damage", 10.0f);
         c.cooldown = el->FloatAttribute("cooldown", 1.0f);
     }
 
-    void AttackComponent::Inspect(AttackComponent& c, Entity e) {
+    void AttackComponent::Inspect(AttackComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

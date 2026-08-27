@@ -9,10 +9,10 @@ namespace Elysium {
 
 class ScriptEditor : public Editor {
 public:
-    ScriptEditor();
+    explicit ScriptEditor(ServiceLocator& services);
 
     void Initialize(const ApplicationConfig& config) override;
-    void Draw(Application& app) override;
+    void Draw() override;
 
 private:
     TextEditor textEditor_;

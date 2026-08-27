@@ -18,7 +18,7 @@ namespace Elysium {
         if (!colorHex.empty()) b.SetAttribute("color", colorHex.c_str());
     }
 
-    void LineComponent::LoadXml(LineComponent& c, tinyxml2::XMLElement* el) {
+    void LineComponent::LoadXml(LineComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.x1 = el->FloatAttribute("x1", 0.0f);
         c.y1 = el->FloatAttribute("y1", 0.0f);
         c.x2 = el->FloatAttribute("x2", 50.0f);
@@ -34,7 +34,7 @@ namespace Elysium {
         return WHITE;
     }
 
-    void LineComponent::Inspect(LineComponent& c, Entity e) {
+    void LineComponent::Inspect(LineComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

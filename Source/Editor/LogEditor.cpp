@@ -1,6 +1,7 @@
 #include "LogEditor.h"
 #include <algorithm>
 #include "Core/Application.h"
+#include "Interfaces/ILogService.h"
 #include "Core/Common.h"
 #include "Services/LogService.h"
 #include "imgui.h"
@@ -9,7 +10,7 @@ namespace Elysium {
 
 using namespace Services;
 
-LogEditor::LogEditor() : Editor("Log Viewer") {
+LogEditor::LogEditor(ServiceLocator& services) : Editor(services, "Log Viewer") {
     // Enable all log levels by default
     levelFilters_[LogLevel::DEBUG] = true;
     levelFilters_[LogLevel::INFO] = true;
@@ -17,10 +18,10 @@ LogEditor::LogEditor() : Editor("Log Viewer") {
     levelFilters_[LogLevel::Error] = true;
 }
 
-void LogEditor::Draw(Application& app) {
+void LogEditor::Draw() {
     Profile;
 
-    auto& service = app.GetService<LogService>();
+    auto& service = services_.Get<ILogService>();
 
     ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
@@ -36,7 +37,7 @@ void LogEditor::Draw(Application& app) {
     ImGui::End();
 }
 
-void LogEditor::DrawHeader(LogService& service) {
+void LogEditor::DrawHeader(ILogService& service) {
     const auto& logBuffer = service.GetLogBuffer();
     const auto& topics = service.GetAllTopics();
 
@@ -89,7 +90,7 @@ void LogEditor::DrawHeader(LogService& service) {
     }
 }
 
-void LogEditor::DrawFilterPanel(LogService& service) {
+void LogEditor::DrawFilterPanel(ILogService& service) {
     if (ImGui::BeginChild("FilterPanel", ImVec2(0, 200), true)) {
         DrawLevelFilters();
         ImGui::SameLine();
@@ -137,7 +138,7 @@ void LogEditor::DrawLevelFilters() {
     ImGui::PopStyleColor();
 }
 
-void LogEditor::DrawTopicFilters(LogService& service) {
+void LogEditor::DrawTopicFilters(ILogService& service) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.1f, 0.1f, 0.1f, 0.3f));
     if (ImGui::BeginChild("TopicFilters", ImVec2(0, 180), true)) {
         auto topics = service.GetAllTopics();
@@ -180,7 +181,7 @@ void LogEditor::DrawTopicFilters(LogService& service) {
     ImGui::PopStyleColor();
 }
 
-void LogEditor::DrawLogEntries(LogService& service) {
+void LogEditor::DrawLogEntries(ILogService& service) {
     if (ImGui::BeginChild("LogScrollRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar)) {
         const auto& logBuffer = service.GetLogBuffer();
 
@@ -267,7 +268,7 @@ void LogEditor::HandleLogSelection(int logIndex, const std::vector<int>& visible
     }
 }
 
-void LogEditor::DrawLogContextMenu(LogService& service, int logIndex, const LogEntry& entry,
+void LogEditor::DrawLogContextMenu(ILogService& service, int logIndex, const LogEntry& entry,
                                    const std::string& fullLogText) {
     if (ImGui::BeginPopupContextItem(("log_context_" + std::to_string(logIndex)).c_str())) {
         if (ImGui::MenuItem("Copy This Line")) {

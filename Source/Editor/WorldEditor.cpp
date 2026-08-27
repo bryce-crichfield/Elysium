@@ -1,6 +1,8 @@
 #include "WorldEditor.h"
 #include <algorithm>
 #include "Core/Application.h"
+#include "Interfaces/IEditorService.h"
+#include "Interfaces/IScriptService.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
 #include "Services/EditorService.h"
@@ -13,17 +15,17 @@ namespace Elysium {
 
 using namespace Services;
 
-WorldEditor::WorldEditor() : Editor("World Editor") {}
+WorldEditor::WorldEditor(ServiceLocator& services) : Editor(services, "World Editor") {}
 
-Entity WorldEditor::GetPrimarySelection(EditorService& service) const {
+Entity WorldEditor::GetPrimarySelection(IEditorService& service) const {
     const auto& selected = service.GetSelectedEntities();
     return selected.empty() ? INVALID_ENTITY : selected.back();
 }
 
-void WorldEditor::Draw(Application& app) {
+void WorldEditor::Draw() {
     Profile;
 
-    auto& service = app.GetService<EditorService>();
+    auto& service = services_.Get<IEditorService>();
     auto* world = service.GetWorld();
 
     ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_FirstUseEver);
@@ -62,7 +64,7 @@ void WorldEditor::Draw(Application& app) {
     ImGui::End();
 }
 
-void WorldEditor::DrawEntityToolbar(EditorService& service) {
+void WorldEditor::DrawEntityToolbar(IEditorService& service) {
     auto* world = service.GetWorld();
     const auto& componentPlaceholders = service.GetComponentPlaceholders();
 
@@ -109,7 +111,7 @@ void WorldEditor::DrawEntityToolbar(EditorService& service) {
             char finalScript[2048]; 
             snprintf(finalScript, sizeof(finalScript), scriptTemplate, luaBuffer);
 
-            auto& scripts = Application::GetInstance().GetService<ScriptService>();
+            auto& scripts = services_.Get<IScriptService>();
             // 4. Execute the formatted string, not just the raw buffer
             auto result = scripts.ExecuteString(finalScript);
             filteredEntities_.clear();
@@ -155,7 +157,7 @@ void WorldEditor::DrawEntityToolbar(EditorService& service) {
     }
 }
 
-void WorldEditor::DrawEntityList(EditorService& service) {
+void WorldEditor::DrawEntityList(IEditorService& service) {
     auto* world = service.GetWorld();
     Entity selectedEntity = GetPrimarySelection(service);
 
@@ -207,7 +209,7 @@ void WorldEditor::DrawEntityList(EditorService& service) {
     }
 }
 
-void WorldEditor::DrawInspectorToolbar(EditorService& service) {
+void WorldEditor::DrawInspectorToolbar(IEditorService& service) {
     auto* world = service.GetWorld();
     Entity selectedEntity = GetPrimarySelection(service);
     const auto& componentPlaceholders = service.GetComponentPlaceholders();
@@ -263,7 +265,7 @@ void WorldEditor::DrawInspectorToolbar(EditorService& service) {
     }
 }
 
-void WorldEditor::DrawInspectorPanel(EditorService& service) {
+void WorldEditor::DrawInspectorPanel(IEditorService& service) {
     Entity selectedEntity = GetPrimarySelection(service);
     if (selectedEntity == INVALID_ENTITY)
         return;
@@ -291,7 +293,7 @@ void WorldEditor::DrawInspectorPanel(EditorService& service) {
     }
 }
 
-void WorldEditor::DrawComponentPanel(EditorService& service, size_t placeholderIndex) {
+void WorldEditor::DrawComponentPanel(IEditorService& service, size_t placeholderIndex) {
     Entity selectedEntity = GetPrimarySelection(service);
     auto* world = service.GetWorld();
     const auto& placeholder = service.GetComponentPlaceholders()[placeholderIndex];
@@ -322,7 +324,7 @@ void WorldEditor::DrawComponentPanel(EditorService& service, size_t placeholderI
 
 
 
-void WorldEditor::DrawEntityContextMenu(EditorService& service, Entity entity) {
+void WorldEditor::DrawEntityContextMenu(IEditorService& service, Entity entity) {
     auto* world = service.GetWorld();
     Entity selectedEntity = GetPrimarySelection(service);
 
@@ -360,7 +362,7 @@ void WorldEditor::DrawEntityContextMenu(EditorService& service, Entity entity) {
     }
 }
 
-void WorldEditor::DrawInsertionZone(EditorService& service, Entity parent, Entity beforeSibling) {
+void WorldEditor::DrawInsertionZone(IEditorService& service, Entity parent, Entity beforeSibling) {
     auto* world = service.GetWorld();
 
     // Two-level PushID gives each zone a unique scope without string allocation.
@@ -417,7 +419,7 @@ void WorldEditor::DrawInsertionZone(EditorService& service, Entity parent, Entit
     ImGui::PopID();
 }
 
-void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
+void WorldEditor::DrawHierarchyNode(IEditorService& service, Entity entity) {
     auto* world = service.GetWorld();
     Entity selectedEntity = GetPrimarySelection(service);
 
@@ -479,7 +481,7 @@ void WorldEditor::DrawHierarchyNode(EditorService& service, Entity entity) {
     }
 }
 
-void WorldEditor::DrawHierarchyTree(EditorService& service) {
+void WorldEditor::DrawHierarchyTree(IEditorService& service) {
     auto* world = service.GetWorld();
 
     // Build a snapshot of root entities so insertion-zone drops don't invalidate iteration.

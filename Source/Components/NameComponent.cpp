@@ -6,7 +6,7 @@
 namespace Elysium {
     NameComponent::NameComponent(const std::string& name) : name(name) {}
 
-    void NameComponent::LoadXml(NameComponent& c, tinyxml2::XMLElement* el) {
+    void NameComponent::LoadXml(NameComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         const char* val = el->Attribute("name");
         if(val) c.name = val;
     }
@@ -16,7 +16,7 @@ namespace Elysium {
             .SetAttribute("name", c.name.c_str());
     }
 
-    void NameComponent::Inspect(NameComponent& c, Entity e) {
+    void NameComponent::Inspect(NameComponent& c, Entity e, ServiceLocator& services) {
         ImGui::AlignTextToFramePadding();
         ImGui::Text("Name: ");
         ImGui::SameLine(140.0f);

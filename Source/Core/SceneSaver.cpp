@@ -7,7 +7,7 @@
 #include "Application.h"
 #include "Entity.h"
 #include "Scene.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 #include "System.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"

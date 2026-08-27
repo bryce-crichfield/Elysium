@@ -18,9 +18,9 @@ namespace Elysium {
         static constexpr const char* Name() { return "Sprite"; }
         static constexpr const char* XmlTag() { return "SpriteComponent"; }
 
-        static void LoadXml(SpriteComponent& c, tinyxml2::XMLElement* el);
+        static void LoadXml(SpriteComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const SpriteComponent& c, XMLBuilder& builder);
-        static void Inspect(SpriteComponent& c, Entity e);
+        static void Inspect(SpriteComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<SpriteComponent>& ut);
         static void SetFromLua(SpriteComponent& c, sol::object v);
     };

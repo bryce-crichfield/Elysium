@@ -5,7 +5,7 @@
 
 namespace Elysium {
 
-    void TeamComponent::LoadXml(TeamComponent& c, tinyxml2::XMLElement* el) {
+    void TeamComponent::LoadXml(TeamComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.team = el->IntAttribute("team", 0);
     }
 
@@ -14,7 +14,7 @@ namespace Elysium {
             .SetAttribute("team", c.team);
     }
 
-    void TeamComponent::Inspect(TeamComponent& c, Entity e) {
+    void TeamComponent::Inspect(TeamComponent& c, Entity e, ServiceLocator& services) {
         ImGui::AlignTextToFramePadding();
         ImGui::Text("Team:");
         ImGui::SameLine(140.0f);

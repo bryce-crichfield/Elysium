@@ -1,16 +1,18 @@
 #include "Services/InvokeService.h"
+#include "Interfaces/IMessageService.h"
+#include "Interfaces/INetworkService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"
 
 namespace Elysium::Services {
 
-InvokeService::InvokeService(ServiceRegistry& registry) : Service(registry) {
+InvokeService::InvokeService(ServiceLocator& registry) : Service(registry) {
     name_ = "InvokeService";
 }
 
 void InvokeService::Initialize() {
-    auto& messageService = registry_.GetService<MessageService>();
+    auto& messageService = registry_.Get<IMessageService>();
 
     messageService.Subscribe<NetworkDataMessage>(this,
         [this](const NetworkDataMessage& msg) {
@@ -19,7 +21,7 @@ void InvokeService::Initialize() {
 }
 
 void InvokeService::Shutdown() {
-    auto& messageService = registry_.GetService<MessageService>();
+    auto& messageService = registry_.Get<IMessageService>();
     messageService.UnsubscribeAll(this);
     invokeHandlers_.clear();
     pending_.clear();
@@ -27,6 +29,44 @@ void InvokeService::Shutdown() {
 
 void InvokeService::Update(float deltaTime) {
     // Work happens via message subscriptions
+}
+
+void InvokeService::RegisterRaw(InvokeMethodId methodId, RawHandler invoke, DeserializeRequestFunc deserializeRequest) {
+    InvokeHandler entry;
+    entry.invoke = std::move(invoke);
+    entry.deserializeRequest = std::move(deserializeRequest);
+    entry.serializeResponse = [](const SerializableObject& resp, SerialBuffer& buf) {
+        resp.Write(buf);
+    };
+    invokeHandlers_[methodId] = std::move(entry);
+}
+
+SerializableObject InvokeService::InvokeLocalRaw(InvokeMethodId methodId, const SerializableObject& request) {
+    auto it = invokeHandlers_.find(methodId);
+    if (it == invokeHandlers_.end()) {
+        throw std::runtime_error("InvokeService: no handler for method " + std::to_string(methodId));
+    }
+    return it->second.invoke(LOCAL_PEER, request);
+}
+
+void InvokeService::InvokeRemoteRaw(NetworkPeer peer, InvokeMethodId methodId, const SerializableObject& request,
+                                     ResolveResponseFunc resolveResponse) {
+    uint32_t invokeId = nextInvokeId_++;
+
+    PacketWriter writer;
+    writer.BeginPacket(PacketType::InvokeRequest, currentTick_)
+          .WriteInvokeHeader(invokeId, methodId);
+
+    SerialBuffer reqBuf;
+    request.Write(reqBuf);
+    writer.WriteBytes(reqBuf.Data(), reqBuf.Size());
+
+    auto buffer = writer.Build();
+    SendPacket(peer, buffer);
+
+    PendingInvoke pending;
+    pending.deserializeAndResolve = std::move(resolveResponse);
+    pending_[invokeId] = std::move(pending);
 }
 
 void InvokeService::OnNetworkData(const NetworkDataMessage& msg) {
@@ -93,7 +133,7 @@ void InvokeService::OnNetworkData(const NetworkDataMessage& msg) {
 }
 
 void InvokeService::SendPacket(NetworkPeer peer, const SerialBuffer& buffer) {
-    auto& networkService = registry_.GetService<NetworkService>();
+    auto& networkService = registry_.Get<INetworkService>();
     if (networkService.GetMode() == NetworkMode::Client) {
         networkService.SendToServer(buffer.Data(), buffer.Size());
     } else {

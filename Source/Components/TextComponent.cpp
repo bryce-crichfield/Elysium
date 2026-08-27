@@ -17,7 +17,7 @@ namespace Elysium {
             .SetAttribute("a", c.color.a);
     }
 
-    void TextComponent::LoadXml(TextComponent& c, tinyxml2::XMLElement* el) {
+    void TextComponent::LoadXml(TextComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.content = el->Attribute("text") ? el->Attribute("text") : "";
         c.fontSize = el->IntAttribute("fontSize", 12);
         std::string colorHex = el->Attribute("color") ? el->Attribute("color") : "";
@@ -29,7 +29,7 @@ namespace Elysium {
         return WHITE;
     }
 
-    void TextComponent::Inspect(TextComponent& c, Entity e) {
+    void TextComponent::Inspect(TextComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

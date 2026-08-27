@@ -22,9 +22,9 @@ namespace Elysium {
         static constexpr const char* Name() { return "Transform"; }
         static constexpr const char* XmlTag() { return "TransformComponent"; }
 
-        static void LoadXml(TransformComponent& c, tinyxml2::XMLElement* el);
+        static void LoadXml(TransformComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const TransformComponent& c, XMLBuilder& builder);
-        static void Inspect(TransformComponent& c, Entity e);
+        static void Inspect(TransformComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<TransformComponent>& ut);
         static void SetFromLua(TransformComponent& c, sol::object v);
     };

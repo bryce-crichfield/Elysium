@@ -7,7 +7,7 @@ namespace Elysium {
     LayerComponent::LayerComponent(const std::string& name, bool isVisible)
         : name(name), isVisible(isVisible) {}
 
-    void LayerComponent::LoadXml(LayerComponent& c, tinyxml2::XMLElement* el) {
+    void LayerComponent::LoadXml(LayerComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         const char* name = el->Attribute("name");
         c.name = name ? name : "default";
         c.isVisible = el->BoolAttribute("visible", true);
@@ -19,7 +19,7 @@ namespace Elysium {
         if (!c.isVisible) b.SetAttribute("visible", false);
     }
 
-    void LayerComponent::Inspect(LayerComponent& c, Entity e) {
+    void LayerComponent::Inspect(LayerComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

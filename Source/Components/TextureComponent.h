@@ -22,9 +22,9 @@ namespace Elysium {
         static constexpr const char* Name() { return "Texture"; }
         static constexpr const char* XmlTag() { return "TextureComponent"; }
 
-        static void LoadXml(TextureComponent& c, tinyxml2::XMLElement* el);
+        static void LoadXml(TextureComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const TextureComponent& c, XMLBuilder& builder);
-        static void Inspect(TextureComponent& c, Entity e);
+        static void Inspect(TextureComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<TextureComponent>& ut);
     };
 }

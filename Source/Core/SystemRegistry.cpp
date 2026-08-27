@@ -1,6 +1,6 @@
 #include "Core/SystemRegistry.h"
 #include "Core/System.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 
 namespace Elysium {
 

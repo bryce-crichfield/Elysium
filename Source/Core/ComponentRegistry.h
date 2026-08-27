@@ -36,14 +36,14 @@ namespace Elysium {
             // 2. Register XML Loader
             if constexpr (XmlLoadable<T>) {
                 const char* xmlTag = name;
-                
+
                 if constexpr (requires { T::XmlTag(); }) {
                     xmlTag = T::XmlTag();
                 }
 
-                xmlLoaders_[xmlTag] = [](XMLElement* el, World* w, Entity e) {
+                xmlLoaders_[xmlTag] = [](XMLElement* el, World* w, Entity e, ServiceLocator& services) {
                     T comp{};
-                    T::LoadXml(comp, el);
+                    T::LoadXml(comp, el, services);
                     w->AddComponent<T>(e, std::move(comp));
                 };
             }
@@ -59,10 +59,10 @@ namespace Elysium {
 
             // 4. Register Inspector
             if constexpr (Inspectable<T>) {
-                inspectors_[name] = [](World* w, Entity e) {
+                inspectors_[name] = [](World* w, Entity e, ServiceLocator& services) {
                     if (w->HasComponent<T>(e)) {
                         auto& comp = w->GetComponent<T>(e);
-                        T::Inspect(comp, e);
+                        T::Inspect(comp, e, services);
                     }
                 };
             }
@@ -98,13 +98,13 @@ namespace Elysium {
         // Apply registrations
         void RegisterAllComponents(World& world);
         
-        using XmlLoaderFunc = std::function<void(tinyxml2::XMLElement*, World*, Entity)>;
+        using XmlLoaderFunc = std::function<void(tinyxml2::XMLElement*, World*, Entity, ServiceLocator&)>;
         const std::unordered_map<std::string, XmlLoaderFunc>& GetXmlLoaders() const { return xmlLoaders_; }
 
         using XmlSaverFunc = std::function<void(XMLBuilder&, World*, Entity)>;
         const std::map<std::string, XmlSaverFunc>& GetXmlSavers() const { return xmlSavers_; }
 
-        using InspectorFunc = std::function<void(World*, Entity)>;
+        using InspectorFunc = std::function<void(World*, Entity, ServiceLocator&)>;
         const std::unordered_map<std::string, InspectorFunc>& GetInspectors() const { return inspectors_; }
 
         void BindAllScripts(sol::state& lua);

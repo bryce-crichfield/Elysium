@@ -4,7 +4,7 @@
 
 namespace Elysium {
 
-    void ParentComponent::LoadXml(ParentComponent& c, tinyxml2::XMLElement* el) {
+    void ParentComponent::LoadXml(ParentComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         const char* target = el->Attribute("target");
         c.targetName = target ? target : "";
         // parent (Entity ID) is populated later by the hierarchy resolution pass
@@ -17,7 +17,7 @@ namespace Elysium {
         }
     }
 
-    void ParentComponent::Inspect(ParentComponent& c, Entity e) {
+    void ParentComponent::Inspect(ParentComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

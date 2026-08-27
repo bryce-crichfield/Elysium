@@ -9,7 +9,7 @@
 
 namespace Elysium::Services {
 
-LogService::LogService(ServiceRegistry& registry)
+LogService::LogService(ServiceLocator& registry)
     : Service(registry), initialized_(false), shouldStop_(false) {
     name_ = "LogService";
     logBuffer_.reserve(MAX_LOG_BUFFER_SIZE);
@@ -193,23 +193,6 @@ std::string LogService::FormatTimestamp(const std::chrono::system_clock::time_po
     ss << '.' << std::setfill('0') << std::setw(3) << ms.count();
 
     return ss.str();
-}
-
-// Static standardized logging methods
-void LogService::LogInfo(const std::string& topic, const std::string& message) {
-    TraceLog(LOG_INFO, "[%s] - %s", topic.c_str(), message.c_str());
-}
-
-void LogService::LogWarning(const std::string& topic, const std::string& message) {
-    TraceLog(LOG_WARNING, "[%s] - %s", topic.c_str(), message.c_str());
-}
-
-void LogService::LogError(const std::string& topic, const std::string& message) {
-    TraceLog(LOG_ERROR, "[%s] - %s", topic.c_str(), message.c_str());
-}
-
-void LogService::LogDebug(const std::string& topic, const std::string& message) {
-    TraceLog(LOG_DEBUG, "[%s] - %s", topic.c_str(), message.c_str());
 }
 
 // Enhanced LogLevel-based methods

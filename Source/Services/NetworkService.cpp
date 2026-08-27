@@ -17,6 +17,8 @@
 
 // Now include raylib via Application.h
 #include "Core/Common.h"
+#include "Interfaces/IInvokeService.h"
+#include "Interfaces/IMessageService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"
@@ -26,7 +28,7 @@
 
 namespace Elysium::Services {
 
-NetworkService::NetworkService(ServiceRegistry& registry) : Service(registry) {
+NetworkService::NetworkService(ServiceLocator& registry) : Service(registry) {
     name_ = "NetworkService";
 }
 
@@ -104,7 +106,7 @@ bool NetworkService::StartServer(uint16_t port, size_t maxClients) {
     LOG_INFOF("Network", "Server started on port %d", port);
 
     using namespace Elysium::Generated;
-    auto& invoke = registry_.GetService<InvokeService>();
+    auto& invoke = registry_.Get<IInvokeService>();
 
     invoke.Register<Ping>(
         std::function<PingResponse(NetworkPeer, const PingRequest&)>(
@@ -197,7 +199,7 @@ bool NetworkService::Stop() {
 
     isRunning_ = false;
     connectedPeers_ = 0;
-    auto& messageService = registry_.GetService<MessageService>();
+    auto& messageService = registry_.Get<IMessageService>();
     messageService.Post<NetworkStoppedMessage>();
     LOG_INFO("Network", "Network stopped");
     return true;
@@ -210,7 +212,7 @@ void NetworkService::NetworkThread() {
     ENetEvent event;
 
     while (!shouldStop_) {
-        auto& messageService = registry_.GetService<MessageService>();
+        auto& messageService = registry_.Get<IMessageService>();
         {
             ZoneScopedN("NetworkService::Poll");
             std::lock_guard<std::mutex> lock(hostMutex_);

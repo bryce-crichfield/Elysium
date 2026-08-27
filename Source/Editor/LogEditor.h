@@ -7,7 +7,7 @@
 #include "Core/Editor.h"
 
 namespace Elysium::Services {
-class LogService;
+class ILogService;
 enum class LogLevel;
 struct LogEntry;
 }  // namespace Elysium::Services
@@ -16,18 +16,18 @@ namespace Elysium {
 
 class LogEditor : public Editor {
    public:
-    LogEditor();
+    explicit LogEditor(ServiceLocator& services);
 
-    void Draw(Application& app) override;
+    void Draw() override;
 
    private:
-    void DrawHeader(Services::LogService& service);
-    void DrawFilterPanel(Services::LogService& service);
+    void DrawHeader(Services::ILogService& service);
+    void DrawFilterPanel(Services::ILogService& service);
     void DrawLevelFilters();
-    void DrawTopicFilters(Services::LogService& service);
-    void DrawLogEntries(Services::LogService& service);
+    void DrawTopicFilters(Services::ILogService& service);
+    void DrawLogEntries(Services::ILogService& service);
     void HandleLogSelection(int logIndex, const std::vector<int>& visibleIndices);
-    void DrawLogContextMenu(Services::LogService& service, int logIndex, const Services::LogEntry& entry,
+    void DrawLogContextMenu(Services::ILogService& service, int logIndex, const Services::LogEntry& entry,
                             const std::string& fullLogText);
 
     bool ShouldDisplayEntry(const Services::LogEntry& entry) const;

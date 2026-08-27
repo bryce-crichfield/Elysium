@@ -1,5 +1,7 @@
 #include "NetworkEditor.h"
 #include "Core/Application.h"
+#include "Interfaces/IInvokeService.h"
+#include "Interfaces/INetworkService.h"
 #include "Core/Common.h"
 #include "Services/InvokeService.h"
 #include "Services/LogService.h"
@@ -11,12 +13,12 @@ namespace Elysium {
 using namespace Services;
 using namespace Generated;
 
-NetworkEditor::NetworkEditor() : Editor("Network") {}
+NetworkEditor::NetworkEditor(ServiceLocator& services) : Editor(services, "Network") {}
 
-void NetworkEditor::Draw(Application& app) {
+void NetworkEditor::Draw() {
     Profile;
 
-    auto& service = app.GetService<NetworkService>();
+    auto& service = services_.Get<INetworkService>();
 
     ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
@@ -69,7 +71,7 @@ void NetworkEditor::Draw(Application& app) {
             ImGui::Separator();
             ImGui::Text("Test RPC");
             if (ImGui::Button("Send Ping")) {
-                auto& invoke = app.GetService<InvokeService>();
+                auto& invoke = services_.Get<IInvokeService>();
                 PingRequest req;
                 req.clientTick = ++pingCounter_;
                 auto future = invoke.Invoke<Ping>(SERVER_PEER, req);

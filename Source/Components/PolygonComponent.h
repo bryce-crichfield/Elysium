@@ -14,9 +14,9 @@ namespace Elysium {
         static constexpr const char* Name() { return "Polygon"; }
         static constexpr const char* XmlTag() { return "PolygonComponent"; }
 
-        static void LoadXml(PolygonComponent& c, tinyxml2::XMLElement* el);
+        static void LoadXml(PolygonComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const PolygonComponent& c, XMLBuilder& builder);
-        static void Inspect(PolygonComponent& c, Entity e);
+        static void Inspect(PolygonComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<PolygonComponent>& ut);
         static void SetFromLua(PolygonComponent& c, sol::object v);
     };

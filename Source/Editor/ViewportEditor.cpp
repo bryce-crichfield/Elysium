@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <cmath>
 #include "Core/Application.h"
+#include "Interfaces/IApplicationService.h"
+#include "Interfaces/IEditorService.h"
+#include "Interfaces/ISceneService.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
 #include "Core/World.h"
@@ -20,13 +23,13 @@ namespace Elysium {
 using namespace Services;
 using Systems::CameraView;
 
-ViewportEditor::ViewportEditor() : Editor("Game") {}
+ViewportEditor::ViewportEditor(ServiceLocator& services) : Editor(services, "Game") {}
 
-void ViewportEditor::Draw(Application& app) {
+void ViewportEditor::Draw() {
     Profile;
 
-    auto& sceneService = app.GetService<SceneService>();
-    auto& editorService = app.GetService<EditorService>();
+    auto& sceneService = services_.Get<ISceneService>();
+    auto& editorService = services_.Get<IEditorService>();
 
     InitializeEditorCameraIfNeeded(editorService);
 
@@ -44,7 +47,7 @@ void ViewportEditor::Draw(Application& app) {
         // (i.e. before this frame's pan/zoom input is applied) so picking and gizmo
         // hit-testing line up with what's actually on screen right now.
         auto& editorCam = editorService.GetEditorCamera();
-        const auto& config = app.GetConfig();
+        const auto& config = services_.Get<IApplicationService>().GetConfig();
         CameraView view{
             editorCam.position,
             editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
@@ -78,7 +81,7 @@ void ViewportEditor::Draw(Application& app) {
     ImGui::PopStyleVar();
 }
 
-void ViewportEditor::DrawToolbar(SceneService& sceneService, EditorService& editor) {
+void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& editor) {
     bool isPlaying = sceneService.IsPlaying();
     if (isPlaying) {
         if (ImGui::Button("Pause")) {
@@ -100,7 +103,7 @@ void ViewportEditor::DrawToolbar(SceneService& sceneService, EditorService& edit
     ImGui::Text("%s | %s", positionText.c_str(), zoomText.c_str());
 }
 
-void ViewportEditor::InitializeEditorCameraIfNeeded(EditorService& editorService) {
+void ViewportEditor::InitializeEditorCameraIfNeeded(IEditorService& editorService) {
     auto* world = editorService.GetWorld();
     if (world != lastWorld_) {
         lastWorld_ = world;
@@ -123,7 +126,7 @@ void ViewportEditor::InitializeEditorCameraIfNeeded(EditorService& editorService
     });
 }
 
-void ViewportEditor::HandleEditorCameraInput(SceneService& sceneService, EditorService& editorService) {
+void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEditorService& editorService) {
     auto& cam = editorService.GetEditorCamera();
     bool hovered = ImGui::IsItemHovered();
 
@@ -147,7 +150,7 @@ void ViewportEditor::HandleEditorCameraInput(SceneService& sceneService, EditorS
             // Same viewport-center/zoom math as RenderSystem::CalculateTransform's World2D
             // branch — find the world point under the cursor before changing zoom, then
             // re-solve the camera position so that same world point stays under the cursor.
-            const auto& config = Application::GetInstance().GetConfig();
+            const auto& config = services_.Get<IApplicationService>().GetConfig();
             Vector2 viewportCenter = { config.framebufferWidth * 0.5f, config.framebufferHeight * 0.5f };
             Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(GetMousePosition());
 
@@ -167,7 +170,7 @@ void ViewportEditor::HandleEditorCameraInput(SceneService& sceneService, EditorS
     }
 }
 
-void ViewportEditor::HandleGizmoOrPick(SceneService& sceneService, EditorService& editorService, const CameraView& view) {
+void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
     auto* world = editorService.GetWorld();
 
     // Continue or end an in-progress drag. Either way, swallow this frame's click —
@@ -205,7 +208,7 @@ void ViewportEditor::HandleGizmoOrPick(SceneService& sceneService, EditorService
     HandleViewportClick(sceneService, editorService, view);
 }
 
-void ViewportEditor::HandleViewportClick(SceneService& sceneService, EditorService& editorService, const CameraView& view) {
+void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
     if (!ImGui::IsItemClicked(ImGuiMouseButton_Left))
         return;
 

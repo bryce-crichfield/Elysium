@@ -1,5 +1,8 @@
 #include "AssetEditor.h"
 #include "Core/Application.h"
+#include "Interfaces/IApplicationService.h"
+#include "Interfaces/IAssetService.h"
+#include "Interfaces/ITaskService.h"
 #include "Core/Path.h"
 #include "Services/AssetService.h"
 #include "Services/TaskService.h"
@@ -12,7 +15,7 @@ namespace Elysium {
 namespace fs = std::filesystem;
 using namespace Services;
 
-AssetEditor::AssetEditor() : Editor("Asset Browser") {}
+AssetEditor::AssetEditor(ServiceLocator& services) : Editor(services, "Asset Browser") {}
 
 namespace {
 std::string ToLower(std::string s) {
@@ -45,8 +48,8 @@ DiskCache ScanDiskCache(fs::path rootPath) {
 }
 }  // namespace
 
-void AssetEditor::Draw(Application& app) {
-    auto& assetService = app.GetService<AssetService>();
+void AssetEditor::Draw() {
+    auto& assetService = services_.Get<IAssetService>();
 
     // Discovery & Polling — rooted at the current project's asset root, not the
     // engine's own Assets/ (which holds editor-only resources loaded via
@@ -61,11 +64,11 @@ void AssetEditor::Draw(Application& app) {
     // Scan runs on TaskService's worker thread — a synchronous recursive scan here
     // can stall the whole app for a frame or more (e.g. on a OneDrive-synced folder),
     // which reads as periodic freezes during unrelated interactions like gizmo dragging.
-    if (!refreshInFlight_ && app.GetTime() - lastRefreshTime_ > refreshInterval_) {
+    if (!refreshInFlight_ && services_.Get<IApplicationService>().GetTime() - lastRefreshTime_ > refreshInterval_) {
         refreshInFlight_ = true;
-        lastRefreshTime_ = app.GetTime();
+        lastRefreshTime_ = services_.Get<IApplicationService>().GetTime();
 
-        auto& taskService = app.GetService<TaskService>();
+        auto& taskService = services_.Get<ITaskService>();
         fs::path rootPath = rootPath_;
         taskService.Submit<DiskCache>(std::function<DiskCache()>([rootPath]() {
                           return ScanDiskCache(rootPath);
@@ -77,13 +80,13 @@ void AssetEditor::Draw(Application& app) {
     }
 
     if (ImGui::Begin(name_.c_str())) {
-        RenderTreeRecursive(rootPath_, app);
+        RenderTreeRecursive(rootPath_);
     }
     ImGui::End();
 }
 
-void AssetEditor::RenderTreeRecursive(const fs::path& currentPath, Application& app) {
-    auto& assetService = app.GetService<AssetService>();
+void AssetEditor::RenderTreeRecursive(const fs::path& currentPath) {
+    auto& assetService = services_.Get<IAssetService>();
     
     std::string pathKey = currentPath.generic_string();
     if (directoryCache_.find(pathKey) == directoryCache_.end()) return;
@@ -98,7 +101,7 @@ void AssetEditor::RenderTreeRecursive(const fs::path& currentPath, Application& 
         if (file.isDirectory) {
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth;
             if (ImGui::TreeNodeEx(name.c_str(), flags)) {
-                RenderTreeRecursive(file.path, app);
+                RenderTreeRecursive(file.path);
                 ImGui::TreePop();
             }
         } else {

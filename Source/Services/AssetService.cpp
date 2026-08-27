@@ -1,7 +1,7 @@
 #include "Services/AssetService.h"
 #include <filesystem>
-#include "Core/Application.h"
 #include "Core/Common.h"
+#include "Interfaces/ITaskService.h"
 #include "Services/LogService.h"
 #include "Services/TaskService.h"
 #include "imgui.h"
@@ -12,7 +12,7 @@
 
 namespace Elysium::Services {
 
-AssetService::AssetService(ServiceRegistry& registry) : Service(registry) {
+AssetService::AssetService(ServiceLocator& registry) : Service(registry) {
     name_ = "AssetService";
 }
 
@@ -73,7 +73,7 @@ Future<Asset> AssetService::LoadAsset(AssetType type, Path path) {
     // while the background task is in flight.
     assetsByPath_[path] = Asset(type, path);
 
-    auto& taskService = Application::GetInstance().GetService<TaskService>();
+    auto& taskService = registry_.Get<ITaskService>();
 
     Future<Asset> future = taskService.Submit<Asset>(
         std::function<Asset()>([type, path]() -> Asset {

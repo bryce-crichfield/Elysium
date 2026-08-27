@@ -20,11 +20,11 @@ using DiskCache = std::map<std::string, std::vector<DiskFile>>;
 
 class AssetEditor : public Editor {
 public:
-    AssetEditor();
-    void Draw(Application& app) override;
+    explicit AssetEditor(ServiceLocator& services);
+    void Draw() override;
 
 private:
-    void RenderTreeRecursive(const std::filesystem::path& currentPath, Application& app);
+    void RenderTreeRecursive(const std::filesystem::path& currentPath);
 
     std::filesystem::path rootPath_;
 

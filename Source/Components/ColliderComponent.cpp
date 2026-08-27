@@ -3,7 +3,7 @@
 #include "imgui.h"
 
 namespace Elysium {
-    void ColliderComponent::LoadXml(ColliderComponent& c, tinyxml2::XMLElement* el) {
+    void ColliderComponent::LoadXml(ColliderComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         if (el->Attribute("width")) c.width = el->FloatAttribute("width");
         if (el->Attribute("height")) c.height = el->FloatAttribute("height");
         if (el->Attribute("offsetX")) c.offsetX = el->FloatAttribute("offsetX");
@@ -11,7 +11,7 @@ namespace Elysium {
         if (el->Attribute("isTrigger")) c.isTrigger = el->BoolAttribute("isTrigger");
     }
 
-    void ColliderComponent::Inspect(ColliderComponent& c, Entity e) {
+    void ColliderComponent::Inspect(ColliderComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text("%s", label);

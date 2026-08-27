@@ -11,34 +11,34 @@ class World;
 }
 
 namespace Elysium::Services {
-class EditorService;
+class IEditorService;
 }
 
 namespace Elysium {
 
 class WorldEditor : public Editor {
    public:
-    WorldEditor();
+    explicit WorldEditor(ServiceLocator& services);
 
-    void Draw(Application& app) override;
+    void Draw() override;
 
    private:
-    void DrawEntityToolbar(Services::EditorService& service);
-    void DrawEntityList(Services::EditorService& service);
-    void DrawHierarchyTree(Services::EditorService& service);
-    void DrawHierarchyNode(Services::EditorService& service, Entity entity);
+    void DrawEntityToolbar(Services::IEditorService& service);
+    void DrawEntityList(Services::IEditorService& service);
+    void DrawHierarchyTree(Services::IEditorService& service);
+    void DrawHierarchyNode(Services::IEditorService& service, Entity entity);
     // Renders a thin drop zone used for reordering and reparenting via drag-and-drop.
     // parent: the entity whose childrenMap_ will receive the drop (INVALID_ENTITY = root level).
     // beforeSibling: the sibling to insert before; INVALID_ENTITY = append at end.
-    void DrawInsertionZone(Services::EditorService& service, Entity parent, Entity beforeSibling);
-    void DrawEntityContextMenu(Services::EditorService& service, Entity entity);
-    void DrawInspectorToolbar(Services::EditorService& service);
-    void DrawInspectorPanel(Services::EditorService& service);
-    void DrawComponentPanel(Services::EditorService& service, size_t placeholderIndex);
+    void DrawInsertionZone(Services::IEditorService& service, Entity parent, Entity beforeSibling);
+    void DrawEntityContextMenu(Services::IEditorService& service, Entity entity);
+    void DrawInspectorToolbar(Services::IEditorService& service);
+    void DrawInspectorPanel(Services::IEditorService& service);
+    void DrawComponentPanel(Services::IEditorService& service, size_t placeholderIndex);
 
     // The Inspector shows a single "primary" entity — the most recently selected one.
     // Multi-select is tracked by EditorService but has no dedicated UI yet.
-    Entity GetPrimarySelection(Services::EditorService& service) const;
+    Entity GetPrimarySelection(Services::IEditorService& service) const;
 
     // Panel state
     float leftPanelWidth_ = 240.0f;

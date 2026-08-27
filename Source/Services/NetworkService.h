@@ -7,6 +7,7 @@
 #include <thread>
 #include "Service.h"
 
+#include "Interfaces/INetworkService.h"
 #include "Network/Network.h"
 
 // Forward declare ENet types to avoid pulling enet.h into the header
@@ -19,30 +20,30 @@ namespace Elysium::Services {
 
 class MessageService;
 
-class NetworkService : public Service {
+class NetworkService : public Service, public INetworkService {
 public:
-    NetworkService(ServiceRegistry& registry);
+    NetworkService(ServiceLocator& registry);
     ~NetworkService() override;
 
     void Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
 
-    bool Start(NetworkConfig config);
-    bool Stop();
+    bool Start(NetworkConfig config) override;
+    bool Stop() override;
 
-    void SendToServer(const void* data, size_t length, bool reliable = true);
-    void SendToClient(ENetPeer* peer, const void* data, size_t length, bool reliable = true);
-    void BroadcastToClients(const void* data, size_t length, bool reliable = true);
+    void SendToServer(const void* data, size_t length, bool reliable = true) override;
+    void SendToClient(ENetPeer* peer, const void* data, size_t length, bool reliable = true) override;
+    void BroadcastToClients(const void* data, size_t length, bool reliable = true) override;
 
-    bool IsRunning() const { return isRunning_; }
-    NetworkMode GetMode() const { return config_.mode; }
+    bool IsRunning() const override { return isRunning_; }
+    NetworkMode GetMode() const override { return config_.mode; }
 
-    uint32_t GetConnectedPeers() const { return connectedPeers_; }
-    uint32_t GetPacketsSent() const { return packetsSent_; }
-    uint32_t GetPacketsReceived() const { return packetsReceived_; }
-    uint64_t GetBytesSent() const { return bytesSent_; }
-    uint64_t GetBytesReceived() const { return bytesReceived_; }
+    uint32_t GetConnectedPeers() const override { return connectedPeers_; }
+    uint32_t GetPacketsSent() const override { return packetsSent_; }
+    uint32_t GetPacketsReceived() const override { return packetsReceived_; }
+    uint64_t GetBytesSent() const override { return bytesSent_; }
+    uint64_t GetBytesReceived() const override { return bytesReceived_; }
 
 private:
     void OnNetworkData(const NetworkDataMessage& data);

@@ -18,9 +18,9 @@ namespace Elysium {
         static constexpr const char* Name() { return "Rectangle"; }
         static constexpr const char* XmlTag() { return "RectangleComponent"; }
 
-        static void LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el);
+        static void LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const RectangleComponent& c, XMLBuilder& builder);
-        static void Inspect(RectangleComponent& c, Entity e);
+        static void Inspect(RectangleComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<RectangleComponent>& ut);
         static void SetFromLua(RectangleComponent& c, sol::object v);
     };

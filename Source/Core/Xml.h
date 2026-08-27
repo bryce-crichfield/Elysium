@@ -20,10 +20,12 @@ namespace Elysium {
 
 class XMLBuilder;  // forward declaration for XmlSavable concept
 
-// Concept for components that can be loaded from XML
+// Concept for components that can be loaded from XML. Every component takes a
+// ServiceLocator& uniformly, even the majority that ignore it — one code path
+// beats a two-signature concept for the handful that need IAssetService etc.
 template<typename T>
-concept XmlLoadable = requires(T& c, XMLElement* el) {
-    { T::LoadXml(c, el) } -> std::same_as<void>;
+concept XmlLoadable = requires(T& c, XMLElement* el, ServiceLocator& services) {
+    { T::LoadXml(c, el, services) } -> std::same_as<void>;
 };
 
 // Concept for components that can be saved to XML

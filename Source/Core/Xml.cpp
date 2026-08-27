@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
-#include "Services/LogService.h"
+#include "Core/Log.h"
 
 namespace Elysium {
 

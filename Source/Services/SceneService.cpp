@@ -1,9 +1,12 @@
 #include "Services/SceneService.h"
 #include <typeinfo>
-#include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/Event.h"
 #include "Core/Path.h"
+#include "Interfaces/IApplicationService.h"
+#include "Interfaces/IInvokeService.h"
+#include "Interfaces/IMessageService.h"
+#include "Interfaces/IScriptService.h"
 #include "Services/InvokeService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
@@ -28,14 +31,13 @@ static void FreeScene(SceneRegistration& data) {
 // Constructor
 // =============================================================================
 
-SceneService::SceneService(ServiceRegistry& registry) : Service(registry) {
+SceneService::SceneService(ServiceLocator& registry) : Service(registry) {
     name_ = "SceneService";
 }
 
 void SceneService::Initialize() {
     Profile;
-    auto& app = Application::GetInstance();
-    const auto& config = app.GetConfig();
+    const auto& config = registry_.Get<IApplicationService>().GetConfig();
 
     // Load scenes from Scenes folder
     Path scenesDir("Scenes");
@@ -45,7 +47,7 @@ void SceneService::Initialize() {
         if (!filename.empty()) {
             std::string sceneName = filename.substr(0, filename.find_last_of('.'));
             std::string xmlPath = file.GetRelativePath();
-            SceneFactory factory = []() { return new Scene(); };
+            SceneFactory factory = [](ServiceLocator& services) { return new Scene(services); };
             SceneRegistration data{sceneName, nullptr, factory, xmlPath, false};
             scenes_.emplace(sceneName, data);
             LOG_INFOF("SceneService", "Registered scene: %s", sceneName.c_str());
@@ -55,7 +57,7 @@ void SceneService::Initialize() {
     framebuffer_ = LoadRenderTexture(config.framebufferWidth, config.framebufferHeight);
     CalculateLetterboxing();
 
-    auto& invokeService = Application::GetInstance().GetService<InvokeService>();
+    auto& invokeService = registry_.Get<IInvokeService>();
     invokeService.Register<SceneChange>(
         std::function<SceneChangeResponseMessage(NetworkPeer, const SceneChangeRequestMessage&)>(
         [this](NetworkPeer, const SceneChangeRequestMessage& req) -> SceneChangeResponseMessage {
@@ -142,7 +144,7 @@ void SceneService::ApplySceneOperations() {
                 EnterScene(scene, op.name);
                 LOG_INFOF("SceneService", "Pushed scene: %s (stack size: %zu)", op.name.c_str(), sceneStack_.size());
 
-                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                auto& messageService = registry_.Get<IMessageService>();
                 messageService.Post<SceneChangedMessage>(SceneChangeOp::Push, op.name);
                 break;
             }
@@ -167,7 +169,7 @@ void SceneService::ApplySceneOperations() {
 
                 LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
 
-                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                auto& messageService = registry_.Get<IMessageService>();
                 messageService.Post<SceneChangedMessage>(SceneChangeOp::Pop, "");
                 break;
             }
@@ -202,7 +204,7 @@ void SceneService::ApplySceneOperations() {
                 EnterScene(scene, op.name);
                 LOG_INFOF("SceneService", "Replaced top scene with: %s", op.name.c_str());
 
-                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                auto& messageService = registry_.Get<IMessageService>();
                 messageService.Post<SceneChangedMessage>(SceneChangeOp::Replace, op.name);
                 break;
             }
@@ -222,7 +224,7 @@ void SceneService::ApplySceneOperations() {
                 }
                 LOG_INFO("SceneService", "Cleared scene stack");
 
-                auto& messageService = Application::GetInstance().GetService<MessageService>();
+                auto& messageService = registry_.Get<IMessageService>();
                 messageService.Post<SceneChangedMessage>(SceneChangeOp::Clear, "");
                 break;
             }
@@ -247,7 +249,7 @@ Scene* SceneService::CreateOrGetScene(const std::string& name) {
 
     SceneRegistration& sceneData = it->second;
     if (!sceneData.scene) {
-        sceneData.scene = sceneData.factory();
+        sceneData.scene = sceneData.factory(registry_);
     }
 
     return sceneData.scene;
@@ -317,7 +319,7 @@ void SceneService::Update(float deltaTime) {
 // =============================================================================
 
 void SceneService::CalculateLetterboxing() {
-    auto& app = Application::GetInstance();
+    auto& app = registry_.Get<IApplicationService>();
     const auto& config = app.GetConfig();
 
     int windowWidth = GetScreenWidth();
@@ -341,7 +343,7 @@ void SceneService::CalculateLetterboxing() {
     }
 
     // In play mode the viewport matches the letterbox
-    if (Application::GetInstance().GetMode() == AppMode::Play) {
+    if (app.GetMode() == AppMode::Play) {
         viewportRect_ = letterboxRect_;
     }
 }
@@ -349,7 +351,7 @@ void SceneService::CalculateLetterboxing() {
 // Renders to the framebuffer, but it's up to the caller to blit it to the screen
 void SceneService::Render() {
     Profile;
-    auto& app = Application::GetInstance();
+    auto& app = registry_.Get<IApplicationService>();
     const auto& config = app.GetConfig();
 
     // Recalculate letterboxing if window was resized
@@ -372,7 +374,7 @@ void SceneService::Render() {
     EndTextureMode();
 
     // In editor mode, the ImGui "Game" panel blits the framebuffer
-    if (Application::GetInstance().GetMode() == AppMode::Editor) {
+    if (app.GetMode() == AppMode::Editor) {
         return;
     }
 
@@ -389,8 +391,7 @@ void SceneService::SetViewportRect(Rectangle rect) {
 }
 
 Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const {
-    auto& app = Application::GetInstance();
-    const auto& config = app.GetConfig();
+    const auto& config = registry_.Get<IApplicationService>().GetConfig();
 
     // Use viewport rect to translate screen coords to framebuffer coords
     float fbX = (screenPos.x - viewportRect_.x) / viewportRect_.width * config.framebufferWidth;
@@ -478,7 +479,7 @@ void SceneService::ProcessInput() {
             lastMousePos = mousePos;
 
             // The Script Service cache's mouse position for GetMousePosition
-            auto& scriptService = Application::GetInstance().GetService<ScriptService>();
+            auto& scriptService = registry_.Get<IScriptService>();
             scriptService.SetMousePosition(fbPos.x, fbPos.y);
         }
     }

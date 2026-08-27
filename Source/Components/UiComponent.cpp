@@ -35,7 +35,7 @@ static const char* AlignmentName(UiAlignment a) {
     }
 }
 
-void UiComponent::LoadXml(UiComponent& c, tinyxml2::XMLElement* el) {
+void UiComponent::LoadXml(UiComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
     c.containerType  = ParseContainerType(el->Attribute("containerType"));
     el->QueryFloatAttribute("gap", &c.gap);
     c.alignHorizontal = ParseAlignment(el->Attribute("alignHorizontal"));
@@ -54,7 +54,7 @@ void UiComponent::SaveXml(const UiComponent& c, XMLBuilder& builder) {
         elem.SetAttribute("alignVertical", AlignmentName(c.alignVertical));
 }
 
-void UiComponent::Inspect(UiComponent& c, Entity) {
+void UiComponent::Inspect(UiComponent& c, Entity, ServiceLocator& services) {
     const char* containerItems[] = { "None", "Vertical", "Horizontal" };
     int current = static_cast<int>(c.containerType);
     if (ImGui::Combo("Container", &current, containerItems, 3))

@@ -1,18 +1,16 @@
 #pragma once
 
-#include <memory>
 #include <string>
-#include <typeindex>
-#include <unordered_map>
-#include <vector>
+#include "Core/ServiceLocator.h"
 
 namespace Elysium {
 
-class ServiceRegistry;
-
+// Lifecycle contract the ServiceLocator drives internally (Initialize/Update/
+// Shutdown loop). Nothing outside Services/ or Application should ever see
+// this type — consumers depend on the IXService interfaces instead.
 class Service {
    public:
-    Service(ServiceRegistry& registry) : registry_(registry) {}
+    Service(ServiceLocator& locator) : registry_(locator) {}
     virtual ~Service() = default;
 
     virtual void Initialize() = 0;
@@ -24,37 +22,7 @@ class Service {
 
    protected:
     std::string name_ = "UndefinedService";
-    ServiceRegistry& registry_;
+    ServiceLocator& registry_;
 };
 
-class ServiceRegistry {
-   public:
-    template <typename T>
-    void RegisterService(std::unique_ptr<T> service) {
-        auto typeIndex = std::type_index(typeid(T));
-        services_[typeIndex] = std::move(service);
-    }
-
-    template <typename T>
-    T& GetService() {
-        auto typeIndex = std::type_index(typeid(T));
-        return dynamic_cast<T&>(*services_.at(typeIndex));
-    }
-
-    template <typename T>
-    bool HasService() const {
-        return services_.count(std::type_index(typeid(T))) > 0;
-    }
-
-    std::vector<Service*> GetAllServices() {
-        std::vector<Service*> result;
-        for (auto& [typeIndex, service] : services_) {
-            result.push_back(service.get());
-        }
-        return result;
-    }
-
-   private:
-    std::unordered_map<std::type_index, std::unique_ptr<Service>> services_;
-};
 }  // namespace Elysium

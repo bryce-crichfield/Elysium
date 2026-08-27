@@ -22,7 +22,7 @@ namespace Elysium {
         if (!c.textureName.empty()) b.SetAttribute("texture", c.textureName.c_str());
     }
 
-    void RectangleComponent::LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el) {
+    void RectangleComponent::LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.width = el->FloatAttribute("width", 100.0f);
         c.height = el->FloatAttribute("height", 100.0f);
         c.strokeWidth = el->FloatAttribute("strokeWidth", 1.0f);
@@ -41,7 +41,7 @@ namespace Elysium {
         return WHITE;
     }
 
-    void RectangleComponent::Inspect(RectangleComponent& c, Entity e) {
+    void RectangleComponent::Inspect(RectangleComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

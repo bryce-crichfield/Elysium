@@ -5,6 +5,7 @@
 #include <vector>
 #include "Asset.h"
 #include "Core/Future.h"
+#include "Interfaces/IAssetService.h"
 #include "Service.h"
 #include "raylib.h"
 
@@ -14,9 +15,9 @@ class TaskService;
 
 namespace Elysium::Services {
 
-class AssetService : public Elysium::Service {
+class AssetService : public Elysium::Service, public IAssetService {
    public:
-    AssetService(ServiceRegistry& registry);
+    AssetService(ServiceLocator& registry);
 
     // Service interface
     void Initialize() override;
@@ -25,26 +26,26 @@ class AssetService : public Elysium::Service {
 
     // Async asset loading — I/O runs on background thread,
     // cache insertion happens on main thread via Future continuations
-    Future<Asset> LoadAsset(AssetType type, Path path);
-    Future<Asset> ReloadAsset(AssetType type, Path path);
+    Future<Asset> LoadAsset(AssetType type, Path path) override;
+    Future<Asset> ReloadAsset(AssetType type, Path path) override;
 
-    void FinalizeAssets();  // Convert raw data to GPU resources on main thread
-    bool IsAssetLoaded(Path path) const;
+    void FinalizeAssets() override;  // Convert raw data to GPU resources on main thread
+    bool IsAssetLoaded(Path path) const override;
 
     // Get assets by name
-    Asset* GetAsset(Path path);
-    Texture2D GetTexture(Path path);
-    Sound GetSound(Path path);
-    Music GetMusic(Path path);
-    Font GetFont(Path path);
-    Model GetModel(Path path);
-    Shader GetShader(Path path);
-    Sprite GetSprite(Path path);
-    Script GetScript(Path path);
-    Tile   GetTile(Path path);
+    Asset* GetAsset(Path path) override;
+    Texture2D GetTexture(Path path) override;
+    Sound GetSound(Path path) override;
+    Music GetMusic(Path path) override;
+    Font GetFont(Path path) override;
+    Model GetModel(Path path) override;
+    Shader GetShader(Path path) override;
+    Sprite GetSprite(Path path) override;
+    Script GetScript(Path path) override;
+    Tile   GetTile(Path path) override;
 
     // Asset enumeration
-    const std::unordered_map<Path, Asset>& GetAllAssets() const { return assetsByPath_; }
+    const std::unordered_map<Path, Asset>& GetAllAssets() const override { return assetsByPath_; }
 
    private:
     // Performs I/O to load raw asset data — thread-safe, does NOT touch assetsByPath_

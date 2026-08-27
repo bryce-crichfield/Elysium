@@ -6,7 +6,7 @@ namespace Elysium {
     TransformComponent::TransformComponent(float x, float y)
         : localX(x), localY(y), worldX(x), worldY(y) {}
 
-    void TransformComponent::LoadXml(TransformComponent& c, tinyxml2::XMLElement* el) {
+    void TransformComponent::LoadXml(TransformComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.localX = el->FloatAttribute("x", 0.0f);
         c.localY = el->FloatAttribute("y", 0.0f);
         c.localScaleX = el->FloatAttribute("scaleX", 1.0f);
@@ -32,7 +32,7 @@ namespace Elysium {
         if (c.localRotation != 0.0f) element.SetAttribute("rotation", c.localRotation);
     }
 
-    void TransformComponent::Inspect(TransformComponent& c, Entity e) {
+    void TransformComponent::Inspect(TransformComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

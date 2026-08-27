@@ -17,7 +17,7 @@ namespace Elysium {
 constexpr float TILE_WIDTH = 32.0f;
 constexpr float TILE_HEIGHT = 32.0f;
 
-struct Application;
+class ServiceLocator;
 
 struct SceneConfiguration {
     std::string name;
@@ -30,8 +30,10 @@ struct SceneConfiguration {
 
 class Scene final : public IEventListener, IMessageListener {
    public:
-    Scene();
+    explicit Scene(ServiceLocator& services);
     virtual ~Scene();
+
+    ServiceLocator& GetServices() const { return services_; }
 
     // Hook methods - can be overridden by subclasses
     virtual void OnUpdate(float deltaTime, bool isPlaying);
@@ -75,6 +77,7 @@ class Scene final : public IEventListener, IMessageListener {
 
 protected:
     // Core scene components
+    ServiceLocator& services_;
     std::unique_ptr<World> world_;
     std::vector<std::unique_ptr<System>> systems_;
     SceneConfiguration configuration_;
@@ -84,7 +87,7 @@ protected:
 };
 
 // Scene factory function type - declared after Scene class is defined
-using SceneFactory = std::function<Scene*()>;
+using SceneFactory = std::function<Scene*(ServiceLocator&)>;
 
 bool LoadScene(Scene& scene, const std::string& path);
 bool SaveScene(Scene& scene, const std::string& path);

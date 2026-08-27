@@ -7,22 +7,22 @@
 namespace Elysium {
 
 namespace Services {
-class SceneService;
+class ISceneService;
 }
 
 class SceneEditor : public Editor {
 public:
-    SceneEditor();
+    explicit SceneEditor(ServiceLocator& services);
 
-    void Draw(Application& app) override;
+    void Draw() override;
 
 private:
-    void DrawScenesTab(Services::SceneService& service);
-    void DrawSceneTab(Services::SceneService& service);
-    void DrawSystemsTab(Services::SceneService& service);
+    void DrawScenesTab(Services::ISceneService& service);
+    void DrawSceneTab(Services::ISceneService& service);
+    void DrawSystemsTab(Services::ISceneService& service);
 
     // Returns the editor-selected scene if it is still in the stack, otherwise the top scene.
-    Scene* GetEditorScene(Services::SceneService& service);
+    Scene* GetEditorScene(Services::ISceneService& service);
 
     // Panel state
     float leftPanelWidth_ = 300.0f;

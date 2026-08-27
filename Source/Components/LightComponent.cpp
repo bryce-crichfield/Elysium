@@ -12,7 +12,7 @@ namespace Elysium {
         if (!colorHex.empty()) el.SetAttribute("color", colorHex.c_str());
     }
 
-    void LightComponent::LoadXml(LightComponent& c, tinyxml2::XMLElement* el) {
+    void LightComponent::LoadXml(LightComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.radius = el->FloatAttribute("radius", 50.0f);
         c.intensity = el->FloatAttribute("intensity", 0.5f);
 
@@ -35,7 +35,7 @@ namespace Elysium {
         return WHITE;
     }
 
-    void LightComponent::Inspect(LightComponent& c, Entity e) {
+    void LightComponent::Inspect(LightComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

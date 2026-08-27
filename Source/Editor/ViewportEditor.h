@@ -10,8 +10,8 @@ class World;
 }  // namespace Elysium
 
 namespace Elysium::Services {
-class SceneService;
-class EditorService;
+class ISceneService;
+class IEditorService;
 }  // namespace Elysium::Services
 
 namespace Elysium {
@@ -21,25 +21,25 @@ namespace Elysium {
 // coordinates into the framebuffer coordinates RenderSystem::Pick() expects.
 class ViewportEditor : public Editor {
    public:
-    ViewportEditor();
+    explicit ViewportEditor(ServiceLocator& services);
 
-    void Draw(Application& app) override;
+    void Draw() override;
 
    private:
-    void DrawToolbar(Services::SceneService& sceneService, Services::EditorService& editor);
+    void DrawToolbar(Services::ISceneService& sceneService, Services::IEditorService& editor);
 
     // Snaps the editor camera to the first real CameraComponent's transform/zoom the first
     // time a world becomes available, so scenes don't open centered on the origin.
-    void InitializeEditorCameraIfNeeded(Services::EditorService& editorService);
+    void InitializeEditorCameraIfNeeded(Services::IEditorService& editorService);
 
     // Middle-mouse-drag pan + scroll-wheel zoom (anchored under the cursor) for the free
     // editor camera.
-    void HandleEditorCameraInput(Services::SceneService& sceneService, Services::EditorService& editorService);
+    void HandleEditorCameraInput(Services::ISceneService& sceneService, Services::IEditorService& editorService);
 
     // Dispatches each frame to either continuing/starting a gizmo drag, or (if neither
     // applies) the ordinary click-to-pick path. Only one of the two ever runs per press.
-    void HandleGizmoOrPick(Services::SceneService& sceneService, Services::EditorService& editorService, const Systems::CameraView& view);
-    void HandleViewportClick(Services::SceneService& sceneService, Services::EditorService& editorService, const Systems::CameraView& view);
+    void HandleGizmoOrPick(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
+    void HandleViewportClick(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
     void ApplyGizmoDrag(World* world, Entity entity, float zoom, Vector2 fbDelta);
 
     // Click-cycling state: repeat-clicking the same spot advances through overlapping hits.

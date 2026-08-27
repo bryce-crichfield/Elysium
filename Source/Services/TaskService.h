@@ -9,13 +9,14 @@
 #include <vector>
 
 #include "Core/Future.h"
+#include "Interfaces/ITaskService.h"
 #include "Service.h"
 
 namespace Elysium {
 
-class TaskService : public Service {
+class TaskService : public Service, public Services::ITaskService {
    public:
-    TaskService(ServiceRegistry& registry) : Service(registry) {
+    TaskService(ServiceLocator& registry) : Service(registry) {
         name_ = "TaskService";
     }
 
@@ -40,18 +41,10 @@ class TaskService : public Service {
         }
     }
 
-    // Submit work to the background thread, get a Future back.
-    // The callable runs on the worker thread. The Future resolves there,
-    // but continuations registered via Then() fire on the main thread during Update().
-    template <typename T>
-    Future<T> Submit(std::function<T()> work) {
-        Future<T> future;
-
-        auto task = [future, work = std::move(work)]() mutable {
-            T result = work();
-            future.Resolve(std::move(result));
-        };
-
+    // Submit work to the background thread. The task runs on the worker thread;
+    // pollCompleted is polled on the main thread during Update() to know when to
+    // fire the caller's Future continuations (see ITaskService::Submit<T>).
+    void SubmitRaw(std::function<void()> task, std::function<bool()> pollCompleted) override {
         {
             std::lock_guard<std::mutex> lock(workMutex_);
             workQueue_.push(std::move(task));
@@ -59,15 +52,10 @@ class TaskService : public Service {
         }
         workCondition_.notify_one();
 
-        // Track the future for polling on the main thread
         {
             std::lock_guard<std::mutex> lock(pollMutex_);
-            pollCallbacks_.push_back([future]() mutable -> bool {
-                return future.Poll();
-            });
+            pollCallbacks_.push_back(std::move(pollCompleted));
         }
-
-        return future;
     }
 
     // Drains completed futures on the main thread, firing their Then() continuations
@@ -92,7 +80,7 @@ class TaskService : public Service {
         }
     }
 
-    bool IsIdle() const {
+    bool IsIdle() const override {
         return pendingCount_.load() == 0;
     }
 

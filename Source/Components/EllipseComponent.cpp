@@ -17,7 +17,7 @@ namespace Elysium {
         if (!borderHex.empty()) b.SetAttribute("border", borderHex.c_str());
     }
 
-    void EllipseComponent::LoadXml(EllipseComponent& c, tinyxml2::XMLElement* el) {
+    void EllipseComponent::LoadXml(EllipseComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.radiusH = el->FloatAttribute("radiusH", 50.0f);
         c.radiusV = el->FloatAttribute("radiusV", 50.0f);
         std::string fillHex = el->Attribute("fill") ? el->Attribute("fill") : "";
@@ -33,7 +33,7 @@ namespace Elysium {
         return WHITE;
     }
 
-    void EllipseComponent::Inspect(EllipseComponent& c, Entity e) {
+    void EllipseComponent::Inspect(EllipseComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

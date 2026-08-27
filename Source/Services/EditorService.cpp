@@ -1,15 +1,15 @@
 #include "Services/EditorService.h"
 #include <algorithm>
-#include "Core/Application.h"
 #include "Core/Common.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Components.h"
 #include "Core/Entity.h"
+#include "Interfaces/ISceneService.h"
 #include "Services/SceneService.h"
 
 namespace Elysium::Services {
 
-EditorService::EditorService(ServiceRegistry& registry) : Service(registry) {
+EditorService::EditorService(ServiceLocator& registry) : Service(registry) {
     name_ = "EditorService";
 }
 
@@ -25,8 +25,8 @@ void EditorService::RegisterComponentTypes() {
     for (const auto& [name, inspectorFunc] : inspectors) {
         ComponentPlaceholder placeholder;
         placeholder.name = name;
-        placeholder.drawFunc = [inspectorFunc](Entity e, Elysium::World* w) {
-            inspectorFunc(w, e);
+        placeholder.drawFunc = [inspectorFunc, this](Entity e, Elysium::World* w) {
+            inspectorFunc(w, e, registry_);
         };
 
         if (auto* access = ComponentRegistry::Instance().GetLuaAccess(name)) {
@@ -49,8 +49,7 @@ void EditorService::RegisterComponentTypes() {
 }
 
 Elysium::World* EditorService::GetWorld() const {
-    auto& app = Elysium::Application::GetInstance();
-    auto& sceneService = app.GetService<SceneService>();
+    auto& sceneService = registry_.Get<ISceneService>();
     auto* scene = sceneService.GetTopScene();
     return scene ? scene->GetWorld() : nullptr;
 }

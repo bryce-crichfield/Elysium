@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Interfaces/IScriptService.h"
 #include "Service.h"
 #include <string>
 #include <unordered_map>
@@ -10,9 +11,9 @@
 
 namespace Elysium::Services {
 
-class ScriptService : public Elysium::Service {
+class ScriptService : public Elysium::Service, public IScriptService {
 public:
-    ScriptService(ServiceRegistry& registry);
+    ScriptService(ServiceLocator& registry);
     ~ScriptService() override;
 
     void Initialize() override;
@@ -20,27 +21,26 @@ public:
     void Update(float deltaTime) override;
 
     // Core execution
-    sol::protected_function_result ExecuteString(const std::string& scriptString);
+    sol::protected_function_result ExecuteString(const std::string& scriptString) override;
 
+    bool InitializeEntity(Entity entity, Path scriptPath) override;
+    bool UpdateEntity(Entity entity, Path scriptPath, float deltaTime) override;
+    void OnEntityEvent(Entity entity, Path scriptPath, Event& event) override;
 
-    bool InitializeEntity(Entity entity, Path scriptPath);
-    bool UpdateEntity(Entity entity, Path scriptPath, float deltaTime);
-    void OnEntityEvent(Entity entity, Path scriptPath, Event& event);
+    bool InitializeScene(Path scriptPath) override;
+    bool UpdateScene(Path scriptPath, float deltaTime) override;
+    bool RenderScene(Path scriptPath) override;
+    void OnSceneEvent(Path scriptPath, Event& event) override;
 
-    bool InitializeScene(Path scriptPath);
-    bool UpdateScene(Path scriptPath, float deltaTime);
-    bool RenderScene(Path scriptPath);
-    void OnSceneEvent(Path scriptPath, Event& event);
+    void ReloadScript(Path scriptPath) override;
 
-    void ReloadScript(Path scriptPath);
+    void InspectEntityScript(Entity entity, Path scriptPath) override;
 
-    void InspectEntityScript(Entity entity, Path scriptPath);
+    sol::state& GetLua() override { return lua; }
 
-    sol::state& GetLua() { return lua; }
+    void SetActiveWorld(Elysium::World* w) override;
 
-    static void SetActiveWorld(Elysium::World* w);
-
-    void SetMousePosition(float x, float y) { _mousePosition = {x, y}; }
+    void SetMousePosition(float x, float y) override { _mousePosition = {x, y}; }
 private:
     sol::state lua;
 

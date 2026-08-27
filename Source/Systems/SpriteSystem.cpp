@@ -6,7 +6,7 @@
 #include "Components/SpriteComponent.h"
 #include "Components/TextureComponent.h"
 
-#include "Core/Application.h"
+#include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
 
 namespace Elysium::Systems {
@@ -18,7 +18,7 @@ SpriteSystem::SpriteSystem(Context context) : System(context) {
 // source rect and writes it into the entity's TextureComponent. tint/origin are only
 // seeded on first resolve (isNewTexture) so per-instance overrides survive later
 // frame-advances instead of being stomped back to the asset defaults every time.
-static void ResolveTexture(Elysium::World* world, Elysium::Services::AssetService& assets,
+static void ResolveTexture(Elysium::World* world, Elysium::Services::IAssetService& assets,
                             Entity entity, const SpriteComponent& spriteComp) {
     Sprite sprite = assets.GetSprite(Path(spriteComp.spriteName));
     if (sprite.name.empty()) return;
@@ -57,7 +57,7 @@ static void ResolveTexture(Elysium::World* world, Elysium::Services::AssetServic
 }
 
 void SpriteSystem::Update(float deltaTime) {
-    auto& assets = Application::GetInstance().GetService<Services::AssetService>();
+    auto& assets = services->Get<Services::IAssetService>();
 
     world->Query<SpriteComponent>([&](Entity entity, auto& spriteComp) {
         bool frameChanged = !world->HasComponent<TextureComponent>(entity);

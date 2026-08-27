@@ -1,8 +1,9 @@
 #define SOL_HEADER_ONLY 1
 #define SOL_ALL_SAFETIES_ON 1
 #include "Services/ScriptService.h"
-#include "Core/Application.h"
 #include "Core/Common.h"
+#include "Interfaces/IAssetService.h"
+#include "Interfaces/ISceneService.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
 #include "Services/AssetService.h"
@@ -23,8 +24,14 @@
 
 namespace Elysium::Services {
 
-ScriptService::ScriptService(ServiceRegistry& registry) : Service(registry) {
+// Lua bindings below are captureless free functions with no instance context,
+// same reason s_activeWorld exists — this mirrors that existing pattern
+// instead of introducing a new one.
+static ServiceLocator* s_services = nullptr;
+
+ScriptService::ScriptService(ServiceLocator& registry) : Service(registry) {
     name_ = "ScriptService";
+    s_services = &registry;
 }
 
 ScriptService::~ScriptService() {
@@ -73,15 +80,14 @@ void ScriptService::InitLuaContext() {
 // Active world set by ScriptSystem before executing scripts
 static Elysium::World* s_activeWorld = nullptr;
 
-void ScriptService::SetActiveWorld(Elysium::World* w) {
+void ScriptService::SetActiveWorld(World* w) {
     s_activeWorld = w;
 }
 
 static Elysium::World* GetActiveWorld() {
     if (s_activeWorld) return s_activeWorld;
     // Fallback for scripts run outside ScriptSystem (e.g. editor Lua filter)
-    auto& app = Elysium::Application::GetInstance();
-    auto* scene = app.GetService<Elysium::Services::SceneService>().GetTopScene();
+    auto* scene = s_services->Get<ISceneService>().GetTopScene();
     return scene ? scene->GetWorld() : nullptr;
 }
 
@@ -211,20 +217,16 @@ void ScriptService::BindEntityAPI() {
 
     // Scene
     lua.set_function("SceneClear", []() {
-        auto& app = Elysium::Application::GetInstance();
-        app.GetService<Elysium::Services::SceneService>().Clear();
+        s_services->Get<ISceneService>().Clear();
     });
     lua.set_function("SceneReplace", [](const std::string& sceneName) {
-        auto& app = Elysium::Application::GetInstance();
-        app.GetService<Elysium::Services::SceneService>().Replace(sceneName);
+        s_services->Get<ISceneService>().Replace(sceneName);
     });
     lua.set_function("ScenePush", [](const std::string& sceneName) {
-        auto& app = Elysium::Application::GetInstance();
-        app.GetService<Elysium::Services::SceneService>().Push(sceneName);
+        s_services->Get<ISceneService>().Push(sceneName);
     });
     lua.set_function("ScenePop", []() {
-        auto& app = Elysium::Application::GetInstance();
-        app.GetService<Elysium::Services::SceneService>().Pop();
+        s_services->Get<ISceneService>().Pop();
     });
 
     // Input Polling
@@ -372,8 +374,7 @@ void ScriptService::BindEntityAPI() {
 
     // Collision queries
     lua.set_function("AreColliding", [](Entity a, Entity b) -> bool {
-        auto& app = Elysium::Application::GetInstance();
-        auto* scene = app.GetService<Elysium::Services::SceneService>().GetTopScene();
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
         if (!scene) return false;
 
         auto* collisionSystem = scene->GetSystem<Elysium::Systems::CollisionSystem>();
@@ -383,8 +384,7 @@ void ScriptService::BindEntityAPI() {
     });
 
     lua.set_function("IssueMoveCommand", [](Entity entity, float x, float y) {
-        auto& app = Elysium::Application::GetInstance();
-        auto* scene = app.GetService<Elysium::Services::SceneService>().GetTopScene();
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
         if (!scene) return;
 
         auto* movementSystem = scene->GetSystem<Elysium::Systems::MovementSystem>();
@@ -396,8 +396,7 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("GetCollisions", [this](Entity entity) -> sol::table {
         sol::table result = lua.create_table();
 
-        auto& app = Elysium::Application::GetInstance();
-        auto* scene = app.GetService<Elysium::Services::SceneService>().GetTopScene();
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
         if (!scene) return result;
 
         auto* collisionSystem = scene->GetSystem<Elysium::Systems::CollisionSystem>();
@@ -508,7 +507,7 @@ sol::table ScriptService::GetOrLoadScript(Path path) {
         return it->second;
     }
 
-    auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+    auto& assetService = s_services->Get<IAssetService>();
     auto asset = assetService.GetAsset(path);
     if (!asset) {
         LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: Asset not found", path.c_str());

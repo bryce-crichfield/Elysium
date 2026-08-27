@@ -20,7 +20,7 @@
 #include "Components/TileComponent.h"
 #include "Components/ParentComponent.h"
 #include "Core/Tile.h"
-#include "Core/Application.h"
+#include "Interfaces/IApplicationService.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
 #include "Core/Geometry.h"
@@ -29,8 +29,11 @@
 #include "Core/Scene.h"
 #include "Core/SystemRegistry.h"
 #include "Services/LogService.h"
+#include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
+#include "Interfaces/IEditorService.h"
 #include "Services/EditorService.h"
+#include "Interfaces/ISceneService.h"
 #include "Services/SceneService.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -89,11 +92,11 @@ void RenderSystem::Draw() {
     FindCameras();
     RenderContext ctx;
 
-    if (Application::GetInstance().GetMode() == AppMode::Editor) {
+    if (services->Get<Services::IApplicationService>().GetMode() == AppMode::Editor) {
         // Editor mode renders through the free editor camera rather than any in-scene
         // CameraComponent — real cameras are drawn as gizmos instead (DrawCameraGizmos).
-        auto& editorService = Application::GetInstance().GetService<Services::EditorService>();
-        const auto& config = Application::GetInstance().GetConfig();
+        auto& editorService = services->Get<Services::IEditorService>();
+        const auto& config = services->Get<Services::IApplicationService>().GetConfig();
         auto& editorCam = editorService.GetEditorCamera();
 
         CameraView view{
@@ -118,7 +121,7 @@ void RenderSystem::Draw() {
 }
 
 void RenderSystem::DrawSelectionOverlay(RenderContext& ctx, const CameraView& view) {
-    auto& editorService = Application::GetInstance().GetService<Services::EditorService>();
+    auto& editorService = services->Get<Services::IEditorService>();
     const auto& selected = editorService.GetSelectedEntities();
     if (selected.empty()) return;
 
@@ -510,7 +513,7 @@ void RenderSystem::RenderCompositedLayer(RenderContext& ctx, const CameraView& v
     ctx.EndTextureMode();
 
     // Restore SceneService's framebuffer
-    auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
+    auto& sceneService = services->Get<Services::ISceneService>();
     ctx.BeginTextureMode(sceneService.GetFramebuffer());
 
     PushBlendMode(ctx, layer.compositeBlend);
@@ -576,7 +579,7 @@ void RenderSystem::RenderRectangle(RenderContext& ctx, Entity entity, Vector2 po
     }
 
     if (!component.textureName.empty()) {
-        auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+        auto& assets = services->Get<Elysium::Services::IAssetService>();
         Texture2D texture = assets.GetTexture(Path(component.textureName));
         if (texture.id != 0) {
             Rectangle sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
@@ -667,7 +670,7 @@ void RenderSystem::RenderSprite(RenderContext& ctx, Entity entity, Vector2 pos, 
     const auto& tex = world->GetComponent<TextureComponent>(entity);
     if (tex.textureName.empty()) return;
 
-    auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+    auto& assets = services->Get<Elysium::Services::IAssetService>();
     Texture2D texture = assets.GetTexture(Path(tex.textureName));
     if (texture.id == 0) return;
 
@@ -716,7 +719,7 @@ void RenderSystem::RenderSprite(RenderContext& ctx, Entity entity, Vector2 pos, 
 
 void RenderSystem::RenderTile(RenderContext& ctx, Entity entity, Vector2 pos, const SceneLayer& layer) {
     const auto& comp = world->GetComponent<TileComponent>(entity);
-    auto& assets = Application::GetInstance().GetService<Elysium::Services::AssetService>();
+    auto& assets = services->Get<Elysium::Services::IAssetService>();
 
     Tile tile = assets.GetTile(Path(comp.tileName));
     if (tile.IsEmpty()) return;

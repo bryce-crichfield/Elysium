@@ -3,13 +3,13 @@
 #include "imgui.h"
 
 namespace Elysium {
-    void FollowComponent::LoadXml(FollowComponent& c, tinyxml2::XMLElement* el) {
+    void FollowComponent::LoadXml(FollowComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         el->QueryFloatAttribute("followSpeed", &c.speed);
         el->QueryFloatAttribute("offsetX", &c.offsetX);
         el->QueryFloatAttribute("offsetY", &c.offsetY);
     }
 
-    void FollowComponent::Inspect(FollowComponent& c, Entity e) {
+    void FollowComponent::Inspect(FollowComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

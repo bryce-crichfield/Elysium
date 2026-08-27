@@ -10,8 +10,8 @@ namespace Elysium {
         static constexpr const char* Name() { return "Follow"; }
         static constexpr const char* XmlTag() { return "FollowComponent"; }
 
-        static void LoadXml(FollowComponent& c, tinyxml2::XMLElement* el);
-        static void Inspect(FollowComponent& c, Entity e);
+        static void LoadXml(FollowComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
+        static void Inspect(FollowComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<FollowComponent>& ut);
         static void SetFromLua(FollowComponent& c, sol::object v);
     };

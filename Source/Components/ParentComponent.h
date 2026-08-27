@@ -18,9 +18,9 @@ namespace Elysium {
         static constexpr const char* Name() { return "Parent"; }
         static constexpr const char* XmlTag() { return "ParentComponent"; }
 
-        static void LoadXml(ParentComponent& c, tinyxml2::XMLElement* el);
+        static void LoadXml(ParentComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const ParentComponent& c, XMLBuilder& builder);
-        static void Inspect(ParentComponent& c, Entity e);
+        static void Inspect(ParentComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<ParentComponent>& ut);
     };
 }

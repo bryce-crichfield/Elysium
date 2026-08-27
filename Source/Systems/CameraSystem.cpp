@@ -1,6 +1,7 @@
 #include "Systems/CameraSystem.h"
 #include "Core/SystemRegistry.h"
-#include "Core/Application.h"
+#include "Interfaces/IApplicationService.h"
+#include "Interfaces/ISceneService.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
 #include "Components/TransformComponent.h"
@@ -12,7 +13,7 @@ namespace Elysium::Systems {
 
 void CameraSystem::OnEvent(Event& event) {
     // Skip input processing in Editor mode - editor input is handled separately
-    if (Application::GetInstance().GetMode() == AppMode::Editor) {
+    if (services->Get<Services::IApplicationService>().GetMode() == AppMode::Editor) {
         return;
     }
     IMouseListener::DispatchMouseEvent(event);
@@ -68,8 +69,8 @@ void CameraSystem::Update(float deltaTime) {
     const float edgeThreshold = 15.0f;
     const float panSpeed = 600.0f;
 
-    auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
-    const auto& config = Application::GetInstance().GetConfig();
+    auto& sceneService = services->Get<Services::ISceneService>();
+    const auto& config = services->Get<Services::IApplicationService>().GetConfig();
 
     // mousePosition_ is in framebuffer space (0..fbWidth, 0..fbHeight)
     Rectangle viewBounds = {0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};

@@ -2,12 +2,11 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
-#include "Application.h"
+#include "Core/Log.h"
+#include "Core/ServiceLocator.h"
 #include "Entity.h"
 #include "Event.h"
-#include "Services/AssetService.h"
-#include "Services/LogService.h"
-#include "Services/ScriptService.h"
+#include "Interfaces/IScriptService.h"
 #include "System.h"
 #include "Systems/CameraSystem.h"
 #include "Systems/MovementSystem.h"
@@ -20,13 +19,8 @@
 
 namespace Elysium {
 
-Scene::Scene() {
+Scene::Scene(ServiceLocator& services) : services_(services) {
     world_ = std::make_unique<World>();
-
-    Context context;
-    context.application = &Application::GetInstance();
-    context.scene = this;
-    context.world = world_.get();
 }
 
 Scene::~Scene() {
@@ -39,7 +33,7 @@ void Scene::OnUpdate(float deltaTime, bool isPlaying) {
     }
 
     if (isPlaying && !sceneScriptPath_.empty()) {
-        auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+        auto& scriptService = services_.Get<Services::IScriptService>();
         scriptService.SetActiveWorld(world_.get());
         if (!isSceneScriptInitialized_) {
             if (scriptService.InitializeScene(Path(sceneScriptPath_))) {
@@ -64,7 +58,7 @@ void Scene::OnDraw(Rectangle screen) {
 void Scene::OnEvent(Event& event) {
     // Scene script gets first crack at events
     if (!sceneScriptPath_.empty() && isSceneScriptInitialized_) {
-        auto& scriptService = Application::GetInstance().GetService<Services::ScriptService>();
+        auto& scriptService = services_.Get<Services::IScriptService>();
         scriptService.SetActiveWorld(world_.get());
         scriptService.OnSceneEvent(Path(sceneScriptPath_), event);
     }

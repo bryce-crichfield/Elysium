@@ -22,8 +22,8 @@ namespace Elysium {
         static constexpr const char* Name() { return "Bounds"; }
         static constexpr const char* XmlTag() { return "BoundsComponent"; }
 
-        static void LoadXml(BoundsComponent& c, tinyxml2::XMLElement* el);
-        static void Inspect(BoundsComponent& c, Entity e);
+        static void LoadXml(BoundsComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
+        static void Inspect(BoundsComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<BoundsComponent>& ut);
         static void SetFromLua(BoundsComponent& c, sol::object v);
     };

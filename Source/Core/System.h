@@ -5,7 +5,7 @@
 #include "Core/Message.h"
 
 namespace Elysium {
-class Application;
+class ServiceLocator;
 class Scene;
 class World;
 }  // namespace Elysium
@@ -13,14 +13,14 @@ class World;
 namespace Elysium {
 
 struct Context {
-    Application* application;
+    ServiceLocator* services;
     Scene* scene;
     World* world;
 };
 
 class System : public IEventListener, public IMessageListener {
 protected:
-    Application* application;
+    ServiceLocator* services;
     Scene* scene;
     World* world;
 
@@ -29,7 +29,7 @@ protected:
     std::string name_;
 
 public:
-    System(Context context) : application(context.application), scene(context.scene), world(context.world) {
+    System(Context context) : services(context.services), scene(context.scene), world(context.world) {
     }
     virtual ~System() = default;
 

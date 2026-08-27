@@ -10,40 +10,16 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "Core/Log.h"  // LOG_* macros — re-exported here so existing includers don't need to change
+#include "Interfaces/ILogService.h"
 #include "Service.h"
 #include "raylib.h"
 
-// Undefine Windows ERROR macro to avoid conflict with LogLevel::Error
-#ifdef ERROR
-#undef ERROR
-#endif
-
 namespace Elysium::Services {
 
-enum class LogLevel {
-    DEBUG = 0,
-    INFO = 1,
-    WARNING = 2,
-    Error = 3
-};
-
-struct LogEntry {
-    LogLevel level;
-    std::string topic;
-    std::string message;
-    std::chrono::system_clock::time_point timestamp;
-
-    LogEntry(LogLevel lvl, const std::string& tpc, const std::string& msg)
-        : level(lvl), topic(tpc), message(msg), timestamp(std::chrono::system_clock::now()) {}
-
-    // Legacy constructor for compatibility with TraceLog (raylib internal logs)
-    LogEntry(int lvl, const std::string& msg)
-        : level(LogLevel::INFO), topic("System"), message(msg), timestamp(std::chrono::system_clock::now()) {}
-};
-
-class LogService : public Elysium::Service {
+class LogService : public Elysium::Service, public ILogService {
    public:
-    LogService(ServiceRegistry& registry);
+    LogService(ServiceLocator& registry);
     ~LogService();
 
     void Initialize() override;
@@ -51,49 +27,14 @@ class LogService : public Elysium::Service {
     void Shutdown() override;
     void Update(float deltaTime) override;
 
-    // Standardized service logging methods
-    static void LogInfo(const std::string& topic, const std::string& message);
-    static void LogWarning(const std::string& topic, const std::string& message);
-    static void LogError(const std::string& topic, const std::string& message);
-    static void LogDebug(const std::string& topic, const std::string& message);
-
-    // Formatted logging with printf-style arguments
-    template <typename... Args>
-    static void LogInfoF(const std::string& topic, const char* format, Args... args) {
-        char buffer[1024];
-        snprintf(buffer, sizeof(buffer), format, args...);
-        LogInfo(topic, std::string(buffer));
-    }
-
-    template <typename... Args>
-    static void LogWarningF(const std::string& topic, const char* format, Args... args) {
-        char buffer[1024];
-        snprintf(buffer, sizeof(buffer), format, args...);
-        LogWarning(topic, std::string(buffer));
-    }
-
-    template <typename... Args>
-    static void LogErrorF(const std::string& topic, const char* format, Args... args) {
-        char buffer[1024];
-        snprintf(buffer, sizeof(buffer), format, args...);
-        LogError(topic, std::string(buffer));
-    }
-
-    template <typename... Args>
-    static void LogDebugF(const std::string& topic, const char* format, Args... args) {
-        char buffer[1024];
-        snprintf(buffer, sizeof(buffer), format, args...);
-        LogDebug(topic, std::string(buffer));
-    }
-
-    void LogMessage(int logLevel, const std::string& message);
-    void LogMessage(LogLevel level, const std::string& topic, const std::string& message);
+    void LogMessage(int logLevel, const std::string& message) override;
+    void LogMessage(LogLevel level, const std::string& topic, const std::string& message) override;
 
     // Accessors for LogEditor
-    const std::vector<LogEntry>& GetLogBuffer() const { return logBuffer_; }
-    std::vector<std::string> GetAllTopics() const;
-    std::string FormatTimestamp(const std::chrono::system_clock::time_point& timestamp) const;
-    std::string FormatLogEntry(const LogEntry& entry) const;
+    const std::vector<LogEntry>& GetLogBuffer() const override { return logBuffer_; }
+    std::vector<std::string> GetAllTopics() const override;
+    std::string FormatTimestamp(const std::chrono::system_clock::time_point& timestamp) const override;
+    std::string FormatLogEntry(const LogEntry& entry) const override;
 
    private:
     // Core state
@@ -125,14 +66,3 @@ class LogService : public Elysium::Service {
 };
 
 }  // namespace Elysium::Services
-
-// Convenience macros for consistent logging
-#define LOG_INFO(topic, message) Elysium::Services::LogService::LogInfo(topic, message)
-#define LOG_WARNING(topic, message) Elysium::Services::LogService::LogWarning(topic, message)
-#define LOG_ERROR(topic, message) Elysium::Services::LogService::LogError(topic, message)
-#define LOG_DEBUG(topic, message) Elysium::Services::LogService::LogDebug(topic, message)
-
-#define LOG_INFOF(topic, format, ...) Elysium::Services::LogService::LogInfoF(topic, format, __VA_ARGS__)
-#define LOG_WARNINGF(topic, format, ...) Elysium::Services::LogService::LogWarningF(topic, format, __VA_ARGS__)
-#define LOG_ERRORF(topic, format, ...) Elysium::Services::LogService::LogErrorF(topic, format, __VA_ARGS__)
-#define LOG_DEBUGF(topic, format, ...) Elysium::Services::LogService::LogDebugF(topic, format, __VA_ARGS__)

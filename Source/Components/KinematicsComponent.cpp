@@ -9,12 +9,12 @@ namespace Elysium {
             .SetAttribute("maxSpeed", c.maxSpeed);
     }
 
-    void KinematicsComponent::LoadXml(KinematicsComponent& c, tinyxml2::XMLElement* el) {
+    void KinematicsComponent::LoadXml(KinematicsComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.friction = el->FloatAttribute("friction", 5.0f);
         c.maxSpeed = el->FloatAttribute("maxSpeed", 200.0f);
     }
 
-    void KinematicsComponent::Inspect(KinematicsComponent& c, Entity e) {
+    void KinematicsComponent::Inspect(KinematicsComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

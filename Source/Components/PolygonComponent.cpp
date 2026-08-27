@@ -45,7 +45,7 @@ namespace Elysium {
         if (!borderHex.empty()) b.SetAttribute("border", borderHex.c_str());
     }
 
-    void PolygonComponent::LoadXml(PolygonComponent& c, tinyxml2::XMLElement* el) {
+    void PolygonComponent::LoadXml(PolygonComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         std::string pointsStr = el->Attribute("points") ? el->Attribute("points") : "";
         c.points = ParsePoints(pointsStr);
         std::string fillHex = el->Attribute("fill") ? el->Attribute("fill") : "";
@@ -60,7 +60,7 @@ namespace Elysium {
         return WHITE;
     }
 
-    void PolygonComponent::Inspect(PolygonComponent& c, Entity e) {
+    void PolygonComponent::Inspect(PolygonComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

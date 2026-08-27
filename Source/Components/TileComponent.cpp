@@ -1,8 +1,8 @@
 #include "Components/TileComponent.h"
-#include "Core/Application.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Asset.h"
 #include "Core/Xml.h"
+#include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include "imgui.h"
@@ -23,13 +23,13 @@ namespace Elysium {
         }
     }
 
-    void TileComponent::LoadXml(TileComponent& c, tinyxml2::XMLElement* el) {
+    void TileComponent::LoadXml(TileComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         const char* tileName = el->Attribute("tileName");
         const char* variantName = el->Attribute("variantName");
 
         if (tileName) {
             c.tileName = tileName;
-            auto& assetService = Application::GetInstance().GetService<Services::AssetService>();
+            auto& assetService = services.Get<Services::IAssetService>();
             assetService.LoadAsset(AssetType::TILE, Path(tileName));
         }
         if (variantName) {
@@ -44,7 +44,7 @@ namespace Elysium {
         }
     }
 
-    void TileComponent::Inspect(TileComponent& c, Entity e) {
+    void TileComponent::Inspect(TileComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);
@@ -52,7 +52,7 @@ namespace Elysium {
             ImGui::SetNextItemWidth(-1);
         };
 
-        auto& assetService = Application::GetInstance().GetService<Services::AssetService>();
+        auto& assetService = services.Get<Services::IAssetService>();
         const auto& allAssets = assetService.GetAllAssets();
 
         // Tile asset picker

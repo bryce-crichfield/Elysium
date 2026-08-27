@@ -4,7 +4,7 @@
 #include "imgui.h"
 
 namespace Elysium {
-    void MovementComponent::LoadXml(MovementComponent& c, tinyxml2::XMLElement* el) {
+    void MovementComponent::LoadXml(MovementComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         // state
         const char* stateStr = el->Attribute("state");
         if (stateStr) {
@@ -39,7 +39,7 @@ namespace Elysium {
         });
     }
 
-    void MovementComponent::Inspect(MovementComponent& c, Entity e) {
+    void MovementComponent::Inspect(MovementComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text("%s", label);

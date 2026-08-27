@@ -1,10 +1,11 @@
 #include "Services/MessageService.h"
 #include <typeindex>
+#include "Interfaces/ISceneService.h"
 #include "Services/SceneService.h"
 
 namespace Elysium::Services {
 
-MessageService::MessageService(ServiceRegistry& registry) : Service(registry) {
+MessageService::MessageService(ServiceLocator& registry) : Service(registry) {
 }
 
 // Service interface
@@ -12,6 +13,16 @@ void MessageService::Initialize() {
 }
 
 void MessageService::Shutdown() {
+}
+
+void MessageService::PostRaw(std::unique_ptr<Elysium::Message> message) {
+    queue_.Push(std::move(message));
+}
+
+void MessageService::SubscribeRaw(std::type_index type, void* owner,
+                                   std::function<void(const Elysium::Message&)> handler) {
+    std::lock_guard<std::mutex> lock(handlersMutex_);
+    handlers_[type].push_back({owner, std::move(handler)});
 }
 
 void MessageService::Update(float deltaTime) {
@@ -24,8 +35,8 @@ void MessageService::Update(float deltaTime) {
     totalMessagesProcessed_ += messages.size();
 
     for (auto& msg : messages) {
-        if (registry_.HasService<SceneService>()) {
-            registry_.GetService<SceneService>().OnMessage(*msg);
+        if (registry_.Has<ISceneService>()) {
+            registry_.Get<ISceneService>().OnMessage(*msg);
         }
 
         // Dispatch to subscribed handlers

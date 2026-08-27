@@ -1,23 +1,27 @@
 #include "Components/CameraComponent.h"
-#include "Core/Application.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Component.h"
 #include "Core/Xml.h"
+#include "Interfaces/IApplicationService.h"
 #include "imgui.h"
 
 namespace Elysium {
+    // Matches ApplicationConfig's own defaults (Core/Application.h) — a config-derived
+    // viewport is applied in LoadXml once a ServiceLocator is available; this is just
+    // the fallback for components default-constructed outside XML loading (e.g. Lua).
     CameraComponent::CameraComponent()
-        : zoom(1.0f), renderOrder(0), isVisible(true) {
-        const auto& config = Application::GetInstance().GetConfig();
-        viewport = {0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
+        : viewport{0, 0, 640.0f, 480.0f}, zoom(1.0f), renderOrder(0), isVisible(true) {
     }
 
-    void CameraComponent::LoadXml(CameraComponent& c, tinyxml2::XMLElement* el) {
+    void CameraComponent::LoadXml(CameraComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
+        const auto& config = services.Get<Services::IApplicationService>().GetConfig();
+        c.viewport = {0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
+
         std::string target = el->Attribute("target") ? el->Attribute("target") : "";
         c.zoom = el->FloatAttribute("zoom", 1.0f);
     }
 
-    void CameraComponent::Inspect(CameraComponent& c, Entity e) {
+    void CameraComponent::Inspect(CameraComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

@@ -4,13 +4,14 @@
 #include <typeindex>
 #include <unordered_map>
 #include "Core/Message.h"
+#include "Interfaces/IMessageService.h"
 #include "Service.h"
 
 namespace Elysium::Services {
 
-class MessageService : public Service {
+class MessageService : public Service, public IMessageService {
    public:
-    MessageService(ServiceRegistry& registry);
+    MessageService(ServiceLocator& registry);
     ~MessageService() = default;
 
     // Service interface
@@ -18,16 +19,12 @@ class MessageService : public Service {
     void Shutdown() override;
     void Update(float deltaTime) override;
 
-    // Thread-safe: post a message from any thread
-    template <typename T, typename... Args>
-    void Post(Args&&... args);
-
-    // Subscribe to a message type with owner for lifecycle management
-    template <typename T>
-    void Subscribe(void* owner, std::function<void(const T&)> handler);
+    void PostRaw(std::unique_ptr<Elysium::Message> message) override;
+    void SubscribeRaw(std::type_index type, void* owner,
+                       std::function<void(const Elysium::Message&)> handler) override;
 
     // Remove all subscriptions for an owner (call in OnExit/Shutdown)
-    void UnsubscribeAll(void* owner);
+    void UnsubscribeAll(void* owner) override;
 
    private:
     // Type-erased handler that can be called with a Message*
@@ -44,23 +41,5 @@ class MessageService : public Service {
     size_t messagesProcessedThisFrame_ = 0;
     size_t totalMessagesProcessed_ = 0;
 };
-
-// Template implementations
-template <typename T, typename... Args>
-void MessageService::Post(Args&&... args) {
-    queue_.Push(std::make_unique<T>(std::forward<Args>(args)...));
-}
-
-template <typename T>
-void MessageService::Subscribe(void* owner, std::function<void(const T&)> handler) {
-    std::lock_guard<std::mutex> lock(handlersMutex_);
-
-    // Wrap the typed handler in a type-erased wrapper
-    auto wrapper = [handler](const Message& msg) {
-        handler(static_cast<const T&>(msg));
-    };
-
-    handlers_[std::type_index(typeid(T))].push_back({owner, wrapper});
-}
 
 }  // namespace Elysium::Services

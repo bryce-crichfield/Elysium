@@ -1,7 +1,8 @@
 #include "Components/ScriptComponent.h"
 #include "Core/ComponentRegistry.h"
-#include "Core/Application.h"
+#include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
+#include "Interfaces/IScriptService.h"
 #include "Services/ScriptService.h"
 #include "imgui.h"
 
@@ -15,8 +16,8 @@ namespace Elysium {
         }
     }
 
-    void ScriptComponent::LoadXml(ScriptComponent& c, tinyxml2::XMLElement* el) {
-        auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+    void ScriptComponent::LoadXml(ScriptComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
+        auto& assetService = services.Get<Elysium::Services::IAssetService>();
 
         auto loadScript = [&](const char* name) {
             c.AddScript(name);
@@ -38,7 +39,7 @@ namespace Elysium {
         }
     }
 
-    void ScriptComponent::Inspect(ScriptComponent& c, Entity e) {
+    void ScriptComponent::Inspect(ScriptComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);
@@ -46,7 +47,7 @@ namespace Elysium {
             ImGui::SetNextItemWidth(-1);
         };
 
-        auto& assetService = Elysium::Application::GetInstance().GetService<Elysium::Services::AssetService>();
+        auto& assetService = services.Get<Elysium::Services::IAssetService>();
         const auto& allAssets = assetService.GetAllAssets();
 
         std::vector<std::string> scriptPaths;
@@ -111,7 +112,7 @@ namespace Elysium {
 
         // Show script data for all active scripts
         if (c.isActive) {
-            auto& scriptService = Elysium::Application::GetInstance().GetService<Elysium::Services::ScriptService>();
+            auto& scriptService = services.Get<Elysium::Services::IScriptService>();
             for (size_t i = 0; i < c.scriptNames.size(); ++i) {
                 if (!c.scriptNames[i].empty()) {
                     std::string header = "Script Data: " + c.scriptNames[i];

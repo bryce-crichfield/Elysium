@@ -14,9 +14,9 @@ namespace Elysium {
 
 class NetworkEditor : public Editor {
    public:
-    NetworkEditor();
+    explicit NetworkEditor(ServiceLocator& services);
 
-    void Draw(Application& app) override;
+    void Draw() override;
 
    private:
     char addressBuffer_[128] = "127.0.0.1";

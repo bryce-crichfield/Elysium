@@ -1,9 +1,9 @@
 #include "Systems/TileSystem.h"
 #include "Components/TileComponent.h"
-#include "Core/Application.h"
 #include "Core/Asset.h"
 #include "Core/Path.h"
 #include "Core/SystemRegistry.h"
+#include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
 #include "Services/LogService.h"
 #include <unordered_set>
@@ -17,7 +17,7 @@ void TileSystem::Update(float deltaTime) {
     if (initialized_) return;
     initialized_ = true;
 
-    auto& assets = Application::GetInstance().GetService<Services::AssetService>();
+    auto& assets = services->Get<Services::IAssetService>();
 
     std::unordered_set<std::string> seen;
     world->Query<TileComponent>([&](Entity, const TileComponent& tile) {

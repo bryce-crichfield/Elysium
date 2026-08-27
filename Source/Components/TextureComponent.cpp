@@ -1,6 +1,6 @@
 #include "Components/TextureComponent.h"
-#include "Core/Application.h"
 #include "Core/ComponentRegistry.h"
+#include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
 #include "imgui.h"
 #include <cstring>
@@ -29,10 +29,10 @@ namespace Elysium {
         if (c.filterMode != TextureFilterMode::Point) b.SetAttribute("filter", FilterModeName(c.filterMode));
     }
 
-    void TextureComponent::LoadXml(TextureComponent& c, tinyxml2::XMLElement* el) {
+    void TextureComponent::LoadXml(TextureComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         c.textureName = el->Attribute("texture") ? el->Attribute("texture") : "";
         if (!c.textureName.empty()) {
-            auto& assetService = Application::GetInstance().GetService<Services::AssetService>();
+            auto& assetService = services.Get<Services::IAssetService>();
             assetService.LoadAsset(AssetType::TEXTURE, Path(c.textureName));
         }
         c.sourceRect.x = el->FloatAttribute("sourceX", 0.0f);
@@ -46,7 +46,7 @@ namespace Elysium {
         c.filterMode = ParseFilterMode(el->Attribute("filter"));
     }
 
-    void TextureComponent::Inspect(TextureComponent& c, Entity e) {
+    void TextureComponent::Inspect(TextureComponent& c, Entity e, ServiceLocator& services) {
         auto Label = [](const char* label) {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(label);

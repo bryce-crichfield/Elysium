@@ -5,6 +5,9 @@
 #include <thread>
 #include "Common.h"
 #include "Core/Path.h"
+#include "Interfaces/ILogService.h"
+#include "Interfaces/ISceneService.h"
+#include "Services/ApplicationService.h"
 #include "Services/Services.h"
 #include "Services/ScriptService.h"
 #include "Editor/SceneEditor.h"
@@ -20,18 +23,13 @@
 
 namespace Elysium {
 
-Application& Application::GetInstance() {
-    static Application instance;
-    return instance;
-}
-
 static Application* g_appInstance = nullptr;
 
 void CustomTraceLogCallback(int logLevel, const char* text, va_list args) {
     if (g_appInstance) {
         char buffer[1024];
         vsnprintf(buffer, sizeof(buffer), text, args);
-        g_appInstance->GetService<Elysium::Services::LogService>().LogMessage(logLevel, std::string(buffer));
+        g_appInstance->GetServiceLocator().Get<Services::ILogService>().LogMessage(logLevel, std::string(buffer));
     }
 }
 
@@ -41,15 +39,26 @@ bool Application::Initialize(const std::string& configPath) {
         return true;
     }
 
-    RegisterService(std::make_unique<Elysium::Services::LogService>(serviceRegistry_));
-    RegisterService(std::make_unique<Elysium::Services::MessageService>(serviceRegistry_));
-    RegisterService(std::make_unique<Elysium::Services::NetworkService>(serviceRegistry_));
-    RegisterService(std::make_unique<Elysium::Services::InvokeService>(serviceRegistry_));
-    RegisterService(std::make_unique<Elysium::TaskService>(serviceRegistry_));
-    RegisterService(std::make_unique<Elysium::Services::AssetService>(serviceRegistry_));
-    RegisterService(std::make_unique<Elysium::Services::EditorService>(serviceRegistry_));
-    RegisterService(std::make_unique<Elysium::Services::SceneService>(serviceRegistry_));
-    RegisterService(std::make_unique<Elysium::Services::ScriptService>(serviceRegistry_));
+    serviceLocator_.Register<Services::ApplicationService, Services::IApplicationService>(
+        std::make_unique<Services::ApplicationService>(serviceLocator_, *this));
+    serviceLocator_.Register<Services::LogService, Services::ILogService>(
+        std::make_unique<Services::LogService>(serviceLocator_));
+    serviceLocator_.Register<Services::MessageService, Services::IMessageService>(
+        std::make_unique<Services::MessageService>(serviceLocator_));
+    serviceLocator_.Register<Services::NetworkService, Services::INetworkService>(
+        std::make_unique<Services::NetworkService>(serviceLocator_));
+    serviceLocator_.Register<Services::InvokeService, Services::IInvokeService>(
+        std::make_unique<Services::InvokeService>(serviceLocator_));
+    serviceLocator_.Register<TaskService, Services::ITaskService>(
+        std::make_unique<TaskService>(serviceLocator_));
+    serviceLocator_.Register<Services::AssetService, Services::IAssetService>(
+        std::make_unique<Services::AssetService>(serviceLocator_));
+    serviceLocator_.Register<Services::EditorService, Services::IEditorService>(
+        std::make_unique<Services::EditorService>(serviceLocator_));
+    serviceLocator_.Register<Services::SceneService, Services::ISceneService>(
+        std::make_unique<Services::SceneService>(serviceLocator_));
+    serviceLocator_.Register<Services::ScriptService, Services::IScriptService>(
+        std::make_unique<Services::ScriptService>(serviceLocator_));
 
     RegisterEditor<SceneEditor>();
     RegisterEditor<WorldEditor>();
@@ -79,8 +88,14 @@ bool Application::Initialize(const std::string& configPath) {
     rlImGuiSetup(true);
     // SetTargetFPS(config_.targetFPS);
 
+    // Must be set before the first ImGui::NewFrame() (rlImGuiBegin() below), or ImGui
+    // asserts — docking state only matters once editor windows exist (Editor mode),
+    // but the flag itself is harmless to leave enabled in Play mode.
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    ImGui::GetIO().ConfigDockingAlwaysTabBar = true;
 
-    for (auto service : serviceRegistry_.GetAllServices()) {
+
+    for (auto service : serviceLocator_.GetAllServices()) {
         service->Initialize();
     }
 
@@ -125,7 +140,7 @@ void Application::Shutdown() {
 
     g_appInstance = nullptr;
 
-    for (auto service : serviceRegistry_.GetAllServices()) {
+    for (auto service : serviceLocator_.GetAllServices()) {
         service->Shutdown();
     }
 
@@ -144,7 +159,7 @@ void Application::Update(float deltaTime) {
     Profile;
     startTime_ += deltaTime;
 
-    for (auto service : serviceRegistry_.GetAllServices()) {
+    for (auto service : serviceLocator_.GetAllServices()) {
         service->Update(deltaTime);
     }
 
@@ -226,7 +241,7 @@ void Application::Draw() {
     ClearBackground(BLACK);
 
     // Services render their content (SceneService draws scenes to framebuffer)
-    for (auto& service : serviceRegistry_.GetAllServices()) {
+    for (auto& service : serviceLocator_.GetAllServices()) {
         service->Render();
     }
 
@@ -234,9 +249,6 @@ void Application::Draw() {
     rlImGuiBegin();
 
     if (mode_ == AppMode::Editor) {
-        // Enable docking and prevent tab close via middle-click
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        ImGui::GetIO().ConfigDockingAlwaysTabBar = true;
         DrawMenuBar();
         // Full-window dockspace
         ImGuiID dockspaceId = ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
@@ -275,9 +287,7 @@ void Application::Draw() {
 
         // Game viewport panel is drawn by ViewportEditor, part of the generic editors loop below.
     } else {
-        ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_DockingEnable;
-
-        auto& sceneService = Application::GetInstance().GetService<Services::SceneService>();
+        auto& sceneService = serviceLocator_.Get<Services::ISceneService>();
         auto& texture = sceneService.GetFramebuffer().texture;
         auto letterboxRect = sceneService.GetLetterboxRect();
         DrawTexturePro(
@@ -289,7 +299,7 @@ void Application::Draw() {
 
     for (auto& editor : editors_) {
         if (editor->IsVisible()) {
-            editor->Draw(*this);
+            editor->Draw();
         }
     }
 
@@ -306,7 +316,7 @@ void Application::SetMode(AppMode mode) {
     if (mode_ == mode) return;
     mode_ = mode;
 
-    auto& sceneService = GetService<Services::SceneService>();
+    auto& sceneService = serviceLocator_.Get<Services::ISceneService>();
 
     if (mode_ == AppMode::Editor) {
         for (auto& editor : editors_) {

@@ -1,5 +1,8 @@
 #include "ScriptEditor.h"
 #include "Core/Application.h"
+#include "Interfaces/IApplicationService.h"
+#include "Interfaces/IAssetService.h"
+#include "Interfaces/IScriptService.h"
 #include "Core/Script.h"
 #include "Services/ScriptService.h"
 #include "Services/AssetService.h"
@@ -9,7 +12,7 @@
 
 namespace Elysium {
 
-ScriptEditor::ScriptEditor() : Editor("Scripts") {
+ScriptEditor::ScriptEditor(ServiceLocator& services) : Editor(services, "Scripts") {
 }
 
 void ScriptEditor::Initialize(const ApplicationConfig& config) {
@@ -21,10 +24,10 @@ void ScriptEditor::Initialize(const ApplicationConfig& config) {
 
 }
 
-void ScriptEditor::Draw(Application& app) {
+void ScriptEditor::Draw() {
     if (ImGui::Begin("Script Editor", nullptr, ImGuiWindowFlags_NoCollapse)) {
         
-        auto& assetService = app.GetService<Services::AssetService>();
+        auto& assetService = services_.Get<Services::IAssetService>();
         const auto& allAssets = assetService.GetAllAssets();
 
         if (ImGui::BeginCombo("Select Script", selectedAssetName.c_str())) {
@@ -58,7 +61,7 @@ void ScriptEditor::Draw(Application& app) {
                         assetService.ReloadAsset(asset->GetType(), asset->GetPath());
 
                         // Reload in ScriptService (using relative path as identifier)
-                        auto& scriptService = app.GetService<Services::ScriptService>();
+                        auto& scriptService = services_.Get<Services::IScriptService>();
                         scriptService.ReloadScript(asset->GetPath());
                         
                         statusMessage = "Saved and Reloaded " + selectedAssetName;
@@ -73,7 +76,7 @@ void ScriptEditor::Draw(Application& app) {
         
         ImGui::SameLine();
         if (ImGui::Button("Run")) {
-            auto& scriptService = app.GetService<Services::ScriptService>();
+            auto& scriptService = services_.Get<Services::IScriptService>();
             std::string scriptSource = textEditor_.GetText();
             scriptService.ExecuteString(scriptSource);
             statusMessage = "Executed script";
@@ -84,7 +87,7 @@ void ScriptEditor::Draw(Application& app) {
         if (ImGui::InputInt("Font Size", &fontSize_)) {
             if (fontSize_ < 8) fontSize_ = 8;
             if (fontSize_ > 128) fontSize_ = 128;
-            app.RequestFontReload();
+            services_.Get<Services::IApplicationService>().RequestFontReload();
         }
 
         if (!statusMessage.empty()) {
