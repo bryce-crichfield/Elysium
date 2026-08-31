@@ -1,14 +1,12 @@
 #pragma once
 #include "Core/Component.h"
 #include "raylib.h"
-#include <vector>
 
 namespace Elysium {
     struct CameraComponent {
         // Expects TransformComponent
         Rectangle viewport;
         float zoom = 1.0f;
-        std::vector<int> layerMask;  // which layers this camera renders
         int renderOrder = 0;         // for multi-camera setups
         bool isVisible = true;
 

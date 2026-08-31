@@ -189,7 +189,7 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
     }
 
     // Start a drag if this press landed on the single selected entity's move handle.
-    auto* renderSystem = Systems::RenderSystem::GetCurrent();
+    auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     const auto& selected = editorService.GetSelectedEntities();
     if (selected.size() == 1 && world && renderSystem &&
         world->HasComponent<TransformComponent>(selected[0]) &&
@@ -212,7 +212,7 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     if (!ImGui::IsItemClicked(ImGuiMouseButton_Left))
         return;
 
-    auto* renderSystem = Systems::RenderSystem::GetCurrent();
+    auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     if (!renderSystem)
         return;
 

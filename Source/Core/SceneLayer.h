@@ -15,14 +15,13 @@ enum class SceneLayerBlend {
     Normal,
     Additive,
     Multiply,
-    Alpha,
 };
 
 struct SceneLayer {
     std::string name;
-    int zIndex = 0;
+    int zIndex = 0;                 // Render order among layers — lower draws first (see RenderSorter)
     bool isVisible = true;
-    bool isComposited = true;       // If composited, the layer will render to a render target instead of immediately to the framebuffer
+    bool isComposited = false;      // If composited, the layer will render to a render target instead of immediately to the framebuffer
     float opacity = 1.0f;
 
     SceneLayerSpace space = SceneLayerSpace::World2D;

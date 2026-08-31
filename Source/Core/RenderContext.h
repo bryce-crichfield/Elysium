@@ -5,10 +5,19 @@
 
 namespace Elysium {
 
+class ServiceLocator;
+class World;
+
+// The raylib draw-call surface (matrix/blend/scissor stacks) plus the ambient state
+// Renderable Render/Pick functions need: services, world, isIsometric.
 class RenderContext {
 public:
-    RenderContext();
+    RenderContext(ServiceLocator& services, const World& world, bool isIsometric = false);
     ~RenderContext();
+
+    ServiceLocator& GetServices() const { return services_; }
+    const World& GetWorld() const { return world_; }
+    bool IsIsometric() const { return isIsometric_; }
 
     // Matrix Stack
     void PushMatrix();
@@ -52,6 +61,10 @@ public:
     void EndTextureMode();
 
 private:
+    ServiceLocator& services_;
+    const World& world_;
+    bool isIsometric_;
+
     std::vector<BlendMode> _blendStack;
     std::vector<Rectangle> _scissorStack;
 };
