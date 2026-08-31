@@ -17,7 +17,6 @@ namespace Elysium {
         const auto& config = services.Get<Services::IApplicationService>().GetConfig();
         c.viewport = {0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
 
-        std::string target = el->Attribute("target") ? el->Attribute("target") : "";
         c.zoom = el->FloatAttribute("zoom", 1.0f);
     }
 

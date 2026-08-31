@@ -16,7 +16,6 @@ static SceneLayerBlend ParseSceneLayerBlend(const char* str) {
     std::string s = str;
     if (s == "Additive") return SceneLayerBlend::Additive;
     if (s == "Multiply") return SceneLayerBlend::Multiply;
-    if (s == "Alpha") return SceneLayerBlend::Alpha;
     return SceneLayerBlend::Normal;
 }
 

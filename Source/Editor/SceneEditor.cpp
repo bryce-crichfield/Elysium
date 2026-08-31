@@ -212,7 +212,7 @@ void SceneEditor::DrawSceneTab(ISceneService& service) {
     ImGui::Text("Layers:");
 
     static const char* spaceNames[] = {"World2D", "Screen2D"};
-    static const char* blendNames[] = {"Normal", "Additive", "Multiply", "Alpha"};
+    static const char* blendNames[] = {"Normal", "Additive", "Multiply"};
 
     if (ImGui::BeginTable("LayersTable", 8,
                           ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |

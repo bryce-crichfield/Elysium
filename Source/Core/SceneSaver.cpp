@@ -44,8 +44,6 @@ std::string LayerBlendToString(SceneLayerBlend blend) {
             return "Additive";
         case SceneLayerBlend::Multiply:
             return "Multiply";
-        case SceneLayerBlend::Alpha:
-            return "Alpha";
         default:
             return "Normal";
     }

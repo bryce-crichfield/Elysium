@@ -91,6 +91,12 @@ static Elysium::World* GetActiveWorld() {
     return scene ? scene->GetWorld() : nullptr;
 }
 
+// RenderSystem is per-Scene, not a Service — reach it via the top scene, same as AreColliding/IssueMoveCommand.
+static Elysium::Systems::RenderSystem* GetCurrentRenderSystem() {
+    auto* scene = s_services->Get<ISceneService>().GetTopScene();
+    return scene ? scene->GetSystem<Elysium::Systems::RenderSystem>() : nullptr;
+}
+
 static Vector2 WorldToScreen(const Vector2& worldPos) {
     auto* world = GetActiveWorld();
     if (!world) return worldPos;
@@ -422,19 +428,19 @@ void ScriptService::BindEntityAPI() {
     };
 
     lua.set_function("DrawCircle", [tableToColor](float x, float y, float radius, sol::table color, const std::string& layer) {
-        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+        if (auto* rs = GetCurrentRenderSystem()) {
             rs->IssueDrawCommand(Elysium::Systems::DrawCircleCmd{layer, x, y, radius, tableToColor(color)});
         }
     });
 
     lua.set_function("DrawEllipse", [tableToColor](float x, float y, float radiusH, float radiusV, sol::table color, const std::string& layer) {
-        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+        if (auto* rs = GetCurrentRenderSystem()) {
             rs->IssueDrawCommand(Elysium::Systems::DrawEllipseCmd{layer, x, y, radiusH, radiusV, tableToColor(color)});
         }
     });
 
     lua.set_function("DrawLine", [tableToColor](float x1, float y1, float x2, float y2, sol::table color, const std::string& layer) {
-        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+        if (auto* rs = GetCurrentRenderSystem()) {
             rs->IssueDrawCommand(Elysium::Systems::DrawLineCmd{layer, x1, y1, x2, y2, tableToColor(color)});
         }
     });
@@ -442,7 +448,7 @@ void ScriptService::BindEntityAPI() {
     // DrawPolygon(points, color, layer)
     // points is an array of {x, y} tables — pass outline verts in order, no need for a center point.
     lua.set_function("DrawPolygon", [tableToColor](sol::table points, sol::table color, const std::string& layer) {
-        auto* rs = Elysium::Systems::RenderSystem::GetCurrent();
+        auto* rs = GetCurrentRenderSystem();
         if (!rs) return;
         Elysium::Systems::DrawPolygonCmd cmd;
         cmd.layer = layer;
@@ -457,13 +463,13 @@ void ScriptService::BindEntityAPI() {
     });
 
     lua.set_function("DrawText", [tableToColor](const std::string& text, float x, float y, int fontSize, sol::table color, const std::string& layer) {
-        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+        if (auto* rs = GetCurrentRenderSystem()) {
             rs->IssueDrawCommand(Elysium::Systems::DrawTextCmd{layer, text, x, y, fontSize, tableToColor(color)});
         }
     });
 
     lua.set_function("FillRect", [tableToColor](float x, float y, float width, float height, sol::table color, const std::string& layer) {
-        if (auto* rs = Elysium::Systems::RenderSystem::GetCurrent()) {
+        if (auto* rs = GetCurrentRenderSystem()) {
             rs->IssueDrawCommand(Elysium::Systems::DrawRectCmd{layer, x, y, width, height, tableToColor(color)});
         }
     });

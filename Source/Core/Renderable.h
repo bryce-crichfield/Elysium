@@ -1,0 +1,71 @@
+#pragma once
+
+#include <cstdint>
+#include <optional>
+#include <vector>
+#include "raylib.h"
+#include "Core/Entity.h"
+
+namespace Elysium {
+
+class World;
+class RenderContext;
+class ServiceLocator;
+
+using RenderableTypeId = uint32_t;
+
+// One entry in a frame's sorted draw queue. ECS-backed: entity valid, payload null.
+// Value-backed (script draw command): entity invalid, payload points at the command struct.
+struct RenderRecord {
+    uint8_t layerIndex = 0;
+    uint8_t hierarchyDepth = 0;
+    uint8_t childIndex = 0;
+    bool isWorldSpace = false;
+    float x = 0.0f;
+    float y = 0.0f;
+    uint32_t collectionOrder = 0;    // monotonic; final sort tiebreak
+    RenderableTypeId typeId = 0;
+    Entity entity = INVALID_ENTITY;
+    const void* payload = nullptr;
+};
+
+// A registered "kind" of thing that can appear in the render queue.
+struct RenderableType {
+    bool (*Has)(const World&, Entity) = nullptr;   // null for value-backed types
+    void (*Render)(RenderContext&, const RenderRecord&) = nullptr;
+    bool (*Pick)(const World&, const RenderRecord&, Vector2 testPos) = nullptr;
+    std::optional<Rectangle> (*Bounds)(const World&, const RenderRecord&) = nullptr;  // unused, reserved
+    bool skipFrustumCull = false;
+};
+
+class RenderableRegistry {
+public:
+    static RenderableRegistry& Instance() {
+        static RenderableRegistry instance;
+        return instance;
+    }
+
+    RenderableTypeId Register(RenderableType type) {
+        types_.push_back(type);
+        return (RenderableTypeId)(types_.size() - 1);
+    }
+
+    const RenderableType& Get(RenderableTypeId id) const { return types_[id]; }
+    const std::vector<RenderableType>& All() const { return types_; }
+
+private:
+    std::vector<RenderableType> types_;
+};
+
+}  // namespace Elysium
+
+#define RENDERABLE_REGISTER_CONCAT_IMPL(x, y) x##y
+#define RENDERABLE_REGISTER_CONCAT(x, y) RENDERABLE_REGISTER_CONCAT_IMPL(x, y)
+
+// Registers an ECS-component-backed renderable type. Pick/Bounds may be nullptr.
+#define REGISTER_RENDERABLE(HasFn, RenderFn, PickFn, BoundsFn, SkipCull)                 \
+    static bool RENDERABLE_REGISTER_CONCAT(_registered_renderable_, __COUNTER__) = [] {  \
+        ::Elysium::RenderableRegistry::Instance().Register(                              \
+            ::Elysium::RenderableType{ HasFn, RenderFn, PickFn, BoundsFn, SkipCull });   \
+        return true;                                                                     \
+    }();

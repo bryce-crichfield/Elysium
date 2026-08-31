@@ -4,8 +4,8 @@
 
 namespace Elysium {
 
-RenderContext::RenderContext() {
-    // Initialize default states if necessary
+RenderContext::RenderContext(ServiceLocator& services, const World& world, bool isIsometric)
+    : services_(services), world_(world), isIsometric_(isIsometric) {
 }
 
 RenderContext::~RenderContext() {
