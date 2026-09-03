@@ -33,6 +33,15 @@ struct DrawPolygonCmd { std::string layer; std::vector<Vector2> points; Color co
 
 using DrawCommand = std::variant<DrawCircleCmd, DrawLineCmd, DrawRectCmd, DrawEllipseCmd, DrawTextCmd, DrawPolygonCmd>;
 
+// What ViewportEditor needs to draw/hit-test a selected entity's gizmo: whether its position
+// is a world coordinate (needs CameraView projection) or already framebuffer/screen space (a
+// Screen2D-layer entity, per RenderProjector::CalculateTransform's identity branch), plus its
+// world-space bounds if its RenderableType registered a Bounds callback.
+struct EntityRenderInfo {
+    bool isWorldSpace = true;
+    std::optional<Rectangle> bounds;
+};
+
 // Pure projection math — CameraView/SceneLayer -> screen space and back. The seam a future
 // World3D CameraView variant would extend.
 class RenderProjector {
@@ -102,11 +111,10 @@ public:
     std::vector<Entity> Pick(Vector2 fbPos, Entity cameraEntity);
     std::vector<Entity> Pick(Vector2 fbPos, const CameraView& view);
 
-    Vector2 WorldToFramebuffer(Vector2 worldPos, Entity cameraEntity);
-    Vector2 WorldToFramebuffer(Vector2 worldPos, const CameraView& view);
-
-    // Shared with ViewportEditor's gizmo hit-testing so tolerance can't drift from the visual size.
-    static constexpr float kMoveHandleRadius = 8.0f;
+    // Reflects the queue as of the last Draw() call. Used by ViewportEditor for gizmo
+    // drawing/hit-testing/drag math, since an entity's own layer determines whether its
+    // position is world- or screen-space, not anything ViewportEditor can know on its own.
+    EntityRenderInfo GetEntityRenderInfo(Entity entity);
 
 private:
     void FindCameras();

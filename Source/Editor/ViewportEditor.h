@@ -40,7 +40,21 @@ class ViewportEditor : public Editor {
     // applies) the ordinary click-to-pick path. Only one of the two ever runs per press.
     void HandleGizmoOrPick(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
     void HandleViewportClick(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
-    void ApplyGizmoDrag(World* world, Entity entity, float zoom, Vector2 fbDelta);
+    void ApplyGizmoDrag(World* world, Entity entity, float zoom, Vector2 fbDelta, bool isWorldSpace);
+
+    // Editor-only chrome (origin axes, camera gizmos, selection outline, move handle),
+    // drawn on top of the already-blitted framebuffer image via ImGui's draw list.
+    // imageScreenRect is the on-screen rect the framebuffer image was fit into this frame.
+    void DrawViewportOverlays(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+                               const Systems::CameraView& view, Rectangle imageScreenRect);
+
+    // Maps a framebuffer-space position (as returned by RenderProjector::WorldToFramebuffer)
+    // to an ImGui screen-space position within imageScreenRect, for overlay drawing.
+    Vector2 FramebufferToScreen(Vector2 fbPos, Rectangle imageScreenRect) const;
+
+    // Shared between DrawViewportOverlays' move-handle visual and the gizmo hit-test below,
+    // so tolerance can't drift from the visual size.
+    static constexpr float kMoveHandleRadius = 8.0f;
 
     // Click-cycling state: repeat-clicking the same spot advances through overlapping hits.
     Vector2 lastClickFbPos_ = { -1.0f, -1.0f };
@@ -50,6 +64,8 @@ class ViewportEditor : public Editor {
     bool isDraggingGizmo_ = false;
     Entity gizmoEntity_ = INVALID_ENTITY;
     Vector2 lastGizmoFbPos_ = { 0.0f, 0.0f };
+    // Cached at drag-start so the continuing-drag branch doesn't need to re-query RenderSystem.
+    bool gizmoIsWorldSpace_ = true;
 
     // Editor camera pan drag state.
     bool isPanningCamera_ = false;
