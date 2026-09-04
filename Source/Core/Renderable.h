@@ -34,10 +34,11 @@ struct RenderableType {
     bool (*Has)(const World&, Entity) = nullptr;   // null for value-backed types
     void (*Render)(RenderContext&, const RenderRecord&) = nullptr;
     bool (*Pick)(const World&, const RenderRecord&, Vector2 testPos) = nullptr;
-    std::optional<Rectangle> (*Bounds)(const World&, const RenderRecord&) = nullptr;  // unused, reserved
+    std::optional<Rectangle> (*Bounds)(const World&, const RenderRecord&) = nullptr;  
     bool skipFrustumCull = false;
 };
 
+// The at-runtime collection of all "kinds" of things that can be rendered.  See REGISTER_RENDERABLE
 class RenderableRegistry {
 public:
     static RenderableRegistry& Instance() {

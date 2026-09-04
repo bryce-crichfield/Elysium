@@ -149,6 +149,13 @@ static bool PickRectangleImpl(const World& world, const RenderRecord& rec, Vecto
            testPos.y >= top  && testPos.y <= top + component.height;
 }
 
+static std::optional<Rectangle> BoundsRectangleImpl(const World& world, const RenderRecord& rec) {
+    const auto& component = world.GetComponent<RectangleComponent>(rec.entity);
+    float left = rec.isWorldSpace ? rec.x - component.width  * 0.5f : rec.x;
+    float top  = rec.isWorldSpace ? rec.y - component.height * 0.5f : rec.y;
+    return Rectangle{ left, top, component.width, component.height };
+}
+
 static void RenderCircleImpl(RenderContext& ctx, const RenderRecord& rec) {
     const auto& component = ctx.GetWorld().GetComponent<CircleComponent>(rec.entity);
     ctx.DrawCircle(rec.x, rec.y, component.radius, component.background);
@@ -160,6 +167,11 @@ static void RenderCircleImpl(RenderContext& ctx, const RenderRecord& rec) {
 static bool PickCircleImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
     const auto& component = world.GetComponent<CircleComponent>(rec.entity);
     return Vector2Distance(testPos, {rec.x, rec.y}) <= component.radius;
+}
+
+static std::optional<Rectangle> BoundsCircleImpl(const World& world, const RenderRecord& rec) {
+    const auto& component = world.GetComponent<CircleComponent>(rec.entity);
+    return Rectangle{ rec.x - component.radius, rec.y - component.radius, component.radius * 2.0f, component.radius * 2.0f };
 }
 
 static void RenderEllipseImpl(RenderContext& ctx, const RenderRecord& rec) {
@@ -345,6 +357,22 @@ static bool PickSpriteImpl(const World& world, const RenderRecord& rec, Vector2 
     return localX >= 0.0f && localX <= absWidth && localY >= 0.0f && localY <= absHeight;
 }
 
+static std::optional<Rectangle> BoundsSpriteImpl(const World& world, const RenderRecord& rec) {
+    if (!world.HasComponent<TextureComponent>(rec.entity)) return std::nullopt;
+    const auto& tex = world.GetComponent<TextureComponent>(rec.entity);
+
+    float scaleX = 1.0f, scaleY = 1.0f;
+    if (world.HasComponent<TransformComponent>(rec.entity)) {
+        const auto& transform = world.GetComponent<TransformComponent>(rec.entity);
+        scaleX = transform.worldScaleX;
+        scaleY = transform.worldScaleY;
+    }
+
+    float absWidth  = std::fabs(tex.sourceRect.width  * scaleX);
+    float absHeight = std::fabs(tex.sourceRect.height * scaleY);
+    return Rectangle{ rec.x - absWidth * tex.originX, rec.y - absHeight * tex.originY, absWidth, absHeight };
+}
+
 static void RenderLightImpl(RenderContext& ctx, const RenderRecord& rec) {
     const auto& component = ctx.GetWorld().GetComponent<LightComponent>(rec.entity);
     const int numRings = 8;
@@ -500,7 +528,7 @@ void RenderSorter::CollectEntities(World& world, const CameraView& view) {
             return;
 
         uint8_t layerIndex   = defaultLayerIndex_;
-        uint8_t isWorldSpace = 0;
+        uint8_t isWorldSpace = (layers_[defaultLayerIndex_].space == SceneLayerSpace::World2D) ? 1 : 0;
         bool isVisible = true;
         if (world.HasComponent<LayerComponent>(entity)) {
             const auto& layerComp = world.GetComponent<LayerComponent>(entity);
@@ -510,6 +538,8 @@ void RenderSorter::CollectEntities(World& world, const CameraView& view) {
                 isWorldSpace = (layers_[layerIndex].space == SceneLayerSpace::World2D) ? 1 : 0;
                 isVisible    = layers_[layerIndex].isVisible;
             }
+            // else: an unresolvable layer name falls back to defaultLayerIndex_ above — isWorldSpace
+            // must match that same fallback, not stay hardcoded, or Pick()/gizmo projection breaks.
         }
         if (!isVisible) return;
         if (hiddenEntities_.contains(entity)) return;
@@ -877,28 +907,36 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
     return hits;
 }
 
-Vector2 RenderSystem::WorldToFramebuffer(Vector2 worldPos, Entity cameraEntity) {
-    if (!world->HasComponent<CameraComponent>(cameraEntity) ||
-        !world->HasComponent<TransformComponent>(cameraEntity)) {
-        return worldPos;
+EntityRenderInfo RenderSystem::GetEntityRenderInfo(Entity entity) {
+    EntityRenderInfo info;
+    auto& registry = RenderableRegistry::Instance();
+    bool foundAny = false;
+    for (const auto& rec : _sorter.GetQueue()) {
+        if (rec.entity != entity) continue;
+        // isWorldSpace is per-entity (set once from its layer in CollectEntities), identical
+        // across every record the entity produced — safe to take from the first match.
+        if (!foundAny) {
+            info.isWorldSpace = rec.isWorldSpace;
+            foundAny = true;
+        }
+        if (!info.bounds) {
+            const RenderableType& type = registry.Get(rec.typeId);
+            if (type.Bounds) info.bounds = type.Bounds(*world, rec);
+        }
     }
-    return WorldToFramebuffer(worldPos, MakeCameraView(cameraEntity));
-}
-
-Vector2 RenderSystem::WorldToFramebuffer(Vector2 worldPos, const CameraView& view) {
-    return RenderProjector::WorldToFramebuffer(worldPos, view);
+    return info;
 }
 
 // Grouped here rather than in each component's .cpp — avoids a Components->Systems include.
-REGISTER_RENDERABLE(HasTileImpl,      RenderTileImpl,      nullptr,           nullptr, false)
-REGISTER_RENDERABLE(HasRectangleImpl, RenderRectangleImpl, PickRectangleImpl, nullptr, false)
-REGISTER_RENDERABLE(HasCircleImpl,    RenderCircleImpl,    PickCircleImpl,    nullptr, false)
-REGISTER_RENDERABLE(HasSpriteImpl,    RenderSpriteImpl,    PickSpriteImpl,    nullptr, false)
-REGISTER_RENDERABLE(HasTextImpl,      RenderTextImpl,      PickTextImpl,      nullptr, false)
-REGISTER_RENDERABLE(HasLightImpl,     RenderLightImpl,     PickLightImpl,     nullptr, true)
-REGISTER_RENDERABLE(HasEllipseImpl,   RenderEllipseImpl,   PickEllipseImpl,   nullptr, false)
-REGISTER_RENDERABLE(HasLineImpl,      RenderLineImpl,      nullptr,           nullptr, false)
-REGISTER_RENDERABLE(HasPolygonImpl,   RenderPolygonImpl,   PickPolygonImpl,   nullptr, false)
+REGISTER_RENDERABLE(HasTileImpl,      RenderTileImpl,      nullptr,           nullptr,             false)
+REGISTER_RENDERABLE(HasRectangleImpl, RenderRectangleImpl, PickRectangleImpl, BoundsRectangleImpl, false)
+REGISTER_RENDERABLE(HasCircleImpl,    RenderCircleImpl,    PickCircleImpl,    BoundsCircleImpl,    false)
+REGISTER_RENDERABLE(HasSpriteImpl,    RenderSpriteImpl,    PickSpriteImpl,    BoundsSpriteImpl,    false)
+REGISTER_RENDERABLE(HasTextImpl,      RenderTextImpl,      PickTextImpl,      nullptr,             false)
+REGISTER_RENDERABLE(HasLightImpl,     RenderLightImpl,     PickLightImpl,     nullptr,             true)
+REGISTER_RENDERABLE(HasEllipseImpl,   RenderEllipseImpl,   PickEllipseImpl,   nullptr,             false)
+REGISTER_RENDERABLE(HasLineImpl,      RenderLineImpl,      nullptr,           nullptr,             false)
+REGISTER_RENDERABLE(HasPolygonImpl,   RenderPolygonImpl,   PickPolygonImpl,   nullptr,             false)
 
 namespace {
 bool RegisterDrawCommandRenderables() {

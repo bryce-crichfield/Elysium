@@ -54,11 +54,9 @@ void ViewportEditor::Draw() {
             Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight}
         };
 
-        HandleEditorCameraInput(sceneService, editorService);
-        HandleGizmoOrPick(sceneService, editorService, view);
-
-        // Tell SceneService where the game viewport is on screen
-        // rlImGuiImageRenderTextureFit centers the image maintaining aspect ratio
+        // Where the framebuffer image landed on screen — rlImGuiImageRenderTextureFit centers
+        // it maintaining aspect ratio. Needed by input handling and overlay drawing below, and
+        // to tell SceneService where the game viewport is on screen.
         float fbW = (float)sceneService.GetFramebuffer().texture.width;
         float fbH = (float)sceneService.GetFramebuffer().texture.height;
         float fbAspect = fbW / fbH;
@@ -74,8 +72,13 @@ void ViewportEditor::Draw() {
         }
         float drawX = pos.x + (avail.x - drawW) * 0.5f;
         float drawY = pos.y + (avail.y - drawH) * 0.5f;
+        Rectangle imageScreenRect{drawX, drawY, drawW, drawH};
 
-        sceneService.SetViewportRect(Rectangle{drawX, drawY, drawW, drawH});
+        HandleEditorCameraInput(sceneService, editorService);
+        HandleGizmoOrPick(sceneService, editorService, view);
+        DrawViewportOverlays(sceneService, editorService, view, imageScreenRect);
+
+        sceneService.SetViewportRect(imageScreenRect);
     }
     ImGui::End();
     ImGui::PopStyleVar();
@@ -181,7 +184,7 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
             Vector2 fbPos = sceneService.ScreenToFramebuffer(GetMousePosition());
             Vector2 fbDelta = { fbPos.x - lastGizmoFbPos_.x, fbPos.y - lastGizmoFbPos_.y };
             lastGizmoFbPos_ = fbPos;
-            ApplyGizmoDrag(world, gizmoEntity_, view.zoom, fbDelta);
+            ApplyGizmoDrag(world, gizmoEntity_, view.zoom, fbDelta, gizmoIsWorldSpace_);
         } else {
             isDraggingGizmo_ = false;
         }
@@ -189,18 +192,24 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
     }
 
     // Start a drag if this press landed on the single selected entity's move handle.
-    auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     const auto& selected = editorService.GetSelectedEntities();
-    if (selected.size() == 1 && world && renderSystem &&
+    if (selected.size() == 1 && world &&
         world->HasComponent<TransformComponent>(selected[0]) &&
         ImGui::IsItemHovered() && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         const auto& t = world->GetComponent<TransformComponent>(selected[0]);
-        Vector2 handleFbPos = renderSystem->WorldToFramebuffer({ t.worldX, t.worldY }, view);
+        auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
+        // An entity on a Screen2D layer already IS a framebuffer position — projecting it
+        // through the camera view (as World2D entities need) would double-transform it.
+        bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(selected[0]).isWorldSpace : true;
+        Vector2 handleFbPos = isWorldSpace
+            ? Systems::RenderProjector::WorldToFramebuffer({ t.worldX, t.worldY }, view)
+            : Vector2{ t.worldX, t.worldY };
         Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(GetMousePosition());
-        if (Vector2Distance(mouseFbPos, handleFbPos) <= Systems::RenderSystem::kMoveHandleRadius) {
+        if (Vector2Distance(mouseFbPos, handleFbPos) <= kMoveHandleRadius) {
             isDraggingGizmo_ = true;
             gizmoEntity_ = selected[0];
             lastGizmoFbPos_ = mouseFbPos;
+            gizmoIsWorldSpace_ = isWorldSpace;
             return;
         }
     }
@@ -231,9 +240,95 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     }
 }
 
-void ViewportEditor::ApplyGizmoDrag(World* world, Entity entity, float zoom, Vector2 fbDelta) {
+Vector2 ViewportEditor::FramebufferToScreen(Vector2 fbPos, Rectangle imageScreenRect) const {
+    const auto& config = services_.Get<IApplicationService>().GetConfig();
+    return {
+        imageScreenRect.x + (fbPos.x / (float)config.framebufferWidth)  * imageScreenRect.width,
+        imageScreenRect.y + (fbPos.y / (float)config.framebufferHeight) * imageScreenRect.height
+    };
+}
+
+void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorService& editorService,
+                                           const CameraView& view, Rectangle imageScreenRect) {
+    auto* world = editorService.GetWorld();
+    if (!world) return;
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->PushClipRect(ImVec2(imageScreenRect.x, imageScreenRect.y),
+                            ImVec2(imageScreenRect.x + imageScreenRect.width, imageScreenRect.y + imageScreenRect.height),
+                            true);
+
+    // isWorldSpace true: pos is a world coordinate, needs the camera view projection.
+    // isWorldSpace false: pos is already a framebuffer position (a Screen2D-layer entity) —
+    // projecting it through the camera view again would double-transform it.
+    auto project = [&](Vector2 pos, bool isWorldSpace) {
+        Vector2 fbPos = isWorldSpace ? Systems::RenderProjector::WorldToFramebuffer(pos, view) : pos;
+        return FramebufferToScreen(fbPos, imageScreenRect);
+    };
+
+    // Origin axes — always a world-space concept.
+    constexpr float kAxisExtent = 1'000'000.0f;
+    Vector2 xStart = project({-kAxisExtent, 0.0f}, true);
+    Vector2 xEnd   = project({ kAxisExtent, 0.0f}, true);
+    Vector2 yStart = project({0.0f, -kAxisExtent}, true);
+    Vector2 yEnd   = project({0.0f,  kAxisExtent}, true);
+    drawList->AddLine(ImVec2(xStart.x, xStart.y), ImVec2(xEnd.x, xEnd.y), IM_COL32(255, 0, 0, 255), 1.5f);
+    drawList->AddLine(ImVec2(yStart.x, yStart.y), ImVec2(yEnd.x, yEnd.y), IM_COL32(0, 255, 0, 255), 1.5f);
+
+    // Each real CameraComponent's viewport bounds, since the editor doesn't render through them
+    // directly — always a world-space concept too.
+    const ImU32 cameraGizmoColor = IM_COL32(255, 60, 60, 255);
+    world->Query<CameraComponent>([&](Entity entity, auto& camera) {
+        if (!world->HasComponent<TransformComponent>(entity)) return;
+        const auto& t = world->GetComponent<TransformComponent>(entity);
+        float zoom = camera.zoom != 0.0f ? camera.zoom : 1.0f;
+        float halfW = (camera.viewport.width  * 0.5f) / zoom;
+        float halfH = (camera.viewport.height * 0.5f) / zoom;
+        Vector2 tl = project({t.worldX - halfW, t.worldY - halfH}, true);
+        Vector2 br = project({t.worldX + halfW, t.worldY + halfH}, true);
+        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), cameraGizmoColor, 0.0f, 0, 2.0f);
+    });
+
+    // Selection highlight, sized via the entity's RenderableType::Bounds where it has one
+    // (falls back to a fixed box for renderable-less/currently-culled selected entities).
+    auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
+    const auto& selected = editorService.GetSelectedEntities();
+    constexpr float kDefaultHalfSize = 16.0f;
+    for (Entity entity : selected) {
+        Systems::EntityRenderInfo info = renderSystem ? renderSystem->GetEntityRenderInfo(entity) : Systems::EntityRenderInfo{};
+        std::optional<Rectangle> bounds = info.bounds;
+        if (!bounds && world->HasComponent<TransformComponent>(entity)) {
+            const auto& t = world->GetComponent<TransformComponent>(entity);
+            bounds = Rectangle{ t.worldX - kDefaultHalfSize, t.worldY - kDefaultHalfSize,
+                                 kDefaultHalfSize * 2.0f, kDefaultHalfSize * 2.0f };
+        }
+        if (!bounds) continue;
+        Vector2 tl = project({ bounds->x, bounds->y }, info.isWorldSpace);
+        Vector2 br = project({ bounds->x + bounds->width, bounds->y + bounds->height }, info.isWorldSpace);
+        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), IM_COL32(255, 200, 0, 255), 0.0f, 0, 2.0f);
+    }
+
+    // Move handle: constant on-screen size regardless of zoom, matches kMoveHandleRadius's hit-test.
+    if (selected.size() == 1 && world->HasComponent<TransformComponent>(selected[0])) {
+        const auto& t = world->GetComponent<TransformComponent>(selected[0]);
+        bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(selected[0]).isWorldSpace : true;
+        Vector2 handlePos = project({t.worldX, t.worldY}, isWorldSpace);
+        ImVec2 center(handlePos.x, handlePos.y);
+        drawList->AddCircleFilled(center, kMoveHandleRadius, IM_COL32(0, 220, 255, 255));
+        drawList->AddCircle(center, kMoveHandleRadius, IM_COL32(15, 15, 15, 255));
+        float crossHalf = kMoveHandleRadius * 0.5f;
+        drawList->AddLine(ImVec2(center.x - crossHalf, center.y), ImVec2(center.x + crossHalf, center.y), IM_COL32_WHITE, 1.5f);
+        drawList->AddLine(ImVec2(center.x, center.y - crossHalf), ImVec2(center.x, center.y + crossHalf), IM_COL32_WHITE, 1.5f);
+    }
+
+    drawList->PopClipRect();
+}
+
+void ViewportEditor::ApplyGizmoDrag(World* world, Entity entity, float zoom, Vector2 fbDelta, bool isWorldSpace) {
     zoom = zoom != 0.0f ? zoom : 1.0f;
-    Vector2 worldDelta = { fbDelta.x / zoom, fbDelta.y / zoom };
+    // A Screen2D entity's position is already a framebuffer pixel — a 1px mouse move should
+    // be a 1-unit local move, not scaled by the camera's zoom (which never touches it at render time).
+    Vector2 worldDelta = isWorldSpace ? Vector2{ fbDelta.x / zoom, fbDelta.y / zoom } : fbDelta;
 
     // Matches TransformSystem::ComposeRecursive's local->world composition, inverted:
     // world = parentWorld.pos + rotate(local * parentWorld.scale, parentWorld.rotation).
