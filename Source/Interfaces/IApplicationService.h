@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Application.h"
+#include "Interfaces/IService.h"
 
 namespace Elysium::Services {
 
@@ -8,9 +9,8 @@ namespace Elysium::Services {
 // one exception to "everything is a real service": there is exactly one
 // Application, so this just forwards to it. Exists so Systems/Components/
 // Editors never need a raw Application* alongside their ServiceLocator.
-class IApplicationService {
+class IApplicationService : public IService {
    public:
-    virtual ~IApplicationService() = default;
 
     virtual const ApplicationConfig& GetConfig() const = 0;
     virtual AppMode GetMode() const = 0;

@@ -30,8 +30,7 @@ namespace Elysium::Services {
 // instead of introducing a new one.
 static ServiceLocator* s_services = nullptr;
 
-ScriptService::ScriptService(ServiceLocator& registry) : Service(registry) {
-    name_ = "ScriptService";
+ScriptService::ScriptService(ServiceLocator& registry) {
     s_services = &registry;
 }
 

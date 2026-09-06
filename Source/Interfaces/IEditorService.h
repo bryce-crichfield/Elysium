@@ -5,6 +5,7 @@
 #include <vector>
 #include "Core/Entity.h"
 #include "raylib.h"
+#include "Interfaces/IService.h"
 
 namespace Elysium {
 class World;
@@ -29,10 +30,8 @@ struct EditorCamera {
     bool initialized = false;
 };
 
-class IEditorService {
+class IEditorService : public IService {
    public:
-    virtual ~IEditorService() = default;
-
     virtual Elysium::World* GetWorld() const = 0;
 
     virtual const std::vector<ComponentPlaceholder>& GetComponentPlaceholders() const = 0;

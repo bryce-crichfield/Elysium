@@ -3,15 +3,12 @@
 #include <functional>
 #include <utility>
 #include "Core/Future.h"
+#include "Interfaces/IService.h"
 
 namespace Elysium::Services {
 
-// Submit<T> can't be virtual (it's a template), so the interface exposes a
-// type-erased primitive and keeps Submit<T> inline here, calling down to it.
-class ITaskService {
+class ITaskService : public IService {
    public:
-    virtual ~ITaskService() = default;
-
     virtual void SubmitRaw(std::function<void()> task, std::function<bool()> pollCompleted) = 0;
     virtual bool IsIdle() const = 0;
 

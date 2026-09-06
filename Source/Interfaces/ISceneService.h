@@ -6,6 +6,7 @@
 #include "Core/Message.h"
 #include "Core/Scene.h"
 #include "raylib.h"
+#include "Interfaces/IService.h"
 
 namespace Elysium::Services {
 
@@ -20,9 +21,8 @@ struct SceneRegistration {
     bool xmlLoaded = false;
 };
 
-class ISceneService {
+class ISceneService : public IService {
    public:
-    virtual ~ISceneService() = default;
 
     virtual void OnMessage(const Elysium::Message& message) = 0;
 

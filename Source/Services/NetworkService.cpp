@@ -28,9 +28,7 @@
 
 namespace Elysium::Services {
 
-NetworkService::NetworkService(ServiceLocator& registry) : Service(registry) {
-    name_ = "NetworkService";
-}
+NetworkService::NetworkService(ServiceLocator& registry) : registry_(registry) {}
 
 NetworkService::~NetworkService() {
     Shutdown();

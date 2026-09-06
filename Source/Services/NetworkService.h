@@ -5,7 +5,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include "Service.h"
+#include "Core/ServiceLocator.h"
 
 #include "Interfaces/INetworkService.h"
 #include "Network/Network.h"
@@ -20,7 +20,7 @@ namespace Elysium::Services {
 
 class MessageService;
 
-class NetworkService : public Service, public INetworkService {
+class NetworkService : public INetworkService {
 public:
     NetworkService(ServiceLocator& registry);
     ~NetworkService() override;
@@ -52,6 +52,7 @@ private:
     bool StartServer(uint16_t port, size_t maxClients);
     bool StartClient(const std::string& address, uint16_t port);
 
+    ServiceLocator& registry_;
     NetworkConfig config_;
 
     std::thread networkThread_;

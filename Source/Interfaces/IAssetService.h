@@ -10,14 +10,14 @@
 #include "Core/Future.h"
 #include "Core/Asset.h"
 #include "Core/Path.h"
+#include "Interfaces/IService.h"
 
 namespace Elysium::Services {
 
 // Owns every loaded IAsset. Callers get a non-owning pointer (IAsset*, or a payload
 // pointer via Get<T>/GetData<T>) valid until the next Reload/Unload/Shutdown of that path.
-class IAssetService {
+class IAssetService : public IService {
    public:
-    virtual ~IAssetService() = default;
 
     template <typename Payload>
     Future<IAsset*> LoadAsset(Path path) {

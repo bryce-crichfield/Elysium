@@ -3,10 +3,8 @@
 
 namespace Elysium::Services {
 
-ApplicationService::ApplicationService(ServiceLocator& registry, Application& app)
-    : Service(registry), app_(app) {
-    name_ = "ApplicationService";
-}
+ApplicationService::ApplicationService(ServiceLocator&, Application& app)
+    : app_(app) {}
 
 const ApplicationConfig& ApplicationService::GetConfig() const {
     return app_.GetConfig();

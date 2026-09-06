@@ -1,7 +1,7 @@
 #pragma once
 
+#include "Core/ServiceLocator.h"
 #include "Interfaces/IApplicationService.h"
-#include "Service.h"
 
 namespace Elysium {
 class Application;
@@ -9,9 +9,7 @@ class Application;
 
 namespace Elysium::Services {
 
-// Thin forwarding wrapper around the one real Application instance — see
-// IApplicationService for why this exists instead of a raw Application*.
-class ApplicationService : public Elysium::Service, public IApplicationService {
+class ApplicationService : public IApplicationService {
    public:
     ApplicationService(ServiceLocator& registry, Application& app);
 

@@ -4,15 +4,12 @@
 #include <memory>
 #include <typeindex>
 #include "Core/Message.h"
+#include "Interfaces/IService.h"
 
 namespace Elysium::Services {
 
-// Post<T>/Subscribe<T> can't be virtual (templates), so the interface exposes
-// type-erased primitives and keeps the templated convenience API inline here,
-// calling straight down to them — callers keep the same ergonomic API.
-class IMessageService {
+class IMessageService : public IService {
    public:
-    virtual ~IMessageService() = default;
 
     virtual void PostRaw(std::unique_ptr<Elysium::Message> message) = 0;
     virtual void SubscribeRaw(std::type_index type, void* owner,

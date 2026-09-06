@@ -2,15 +2,15 @@
 
 #include <cstdint>
 #include "Network/Network.h"
+#include "Interfaces/IService.h"
 
 struct _ENetPeer;
 typedef struct _ENetPeer ENetPeer;
 
 namespace Elysium::Services {
 
-class INetworkService {
+class INetworkService : public IService {
    public:
-    virtual ~INetworkService() = default;
 
     virtual bool Start(NetworkConfig config) = 0;
     virtual bool Stop() = 0;

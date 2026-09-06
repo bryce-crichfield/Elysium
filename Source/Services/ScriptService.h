@@ -1,7 +1,7 @@
 #pragma once
 
+#include "Core/ServiceLocator.h"
 #include "Interfaces/IScriptService.h"
-#include "Service.h"
 #include <string>
 #include <unordered_map>
 #include "Core/Entity.h"
@@ -11,7 +11,7 @@
 
 namespace Elysium::Services {
 
-class ScriptService : public Elysium::Service, public IScriptService {
+class ScriptService : public IScriptService {
 public:
     ScriptService(ServiceLocator& registry);
     ~ScriptService() override;

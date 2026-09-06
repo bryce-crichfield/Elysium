@@ -7,9 +7,7 @@
 
 namespace Elysium::Services {
 
-InvokeService::InvokeService(ServiceLocator& registry) : Service(registry) {
-    name_ = "InvokeService";
-}
+InvokeService::InvokeService(ServiceLocator& registry) : registry_(registry) {}
 
 void InvokeService::Initialize() {
     auto& messageService = registry_.Get<IMessageService>();

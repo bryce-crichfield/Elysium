@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 #include "Core/Entity.h"
+#include "Core/ServiceLocator.h"
 #include "Interfaces/IEditorService.h"
-#include "Service.h"
 
 namespace Elysium {
 class World;
@@ -13,7 +13,7 @@ class World;
 
 namespace Elysium::Services {
 
-class EditorService : public Elysium::Service, public IEditorService {
+class EditorService : public IEditorService {
    public:
     EditorService(ServiceLocator& registry);
     ~EditorService() = default;
@@ -38,6 +38,8 @@ class EditorService : public Elysium::Service, public IEditorService {
     EditorCamera& GetEditorCamera() override { return editorCamera_; }
 
    private:
+    ServiceLocator& registry_;
+
     std::vector<ComponentPlaceholder> componentPlaceholders;
     std::vector<Entity> selectedEntities_;
     EditorCamera editorCamera_;

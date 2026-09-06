@@ -8,8 +8,8 @@
 #include "Core/Serial.h"
 #include "Core/Scene.h"
 #include "Interfaces/ISceneService.h"
+#include "Core/ServiceLocator.h"
 #include "Services/InvokeService.h"
-#include "Service.h"
 #include "raylib.h"
 
 namespace Elysium::Services {
@@ -58,7 +58,7 @@ struct InvokeMethod<SceneChange> {
     static constexpr InvokeMethodId Id = 0x01;
 };
 
-class SceneService : public Elysium::Service, public ISceneService {
+class SceneService : public ISceneService {
 public:
     SceneService(ServiceLocator& registry);
     ~SceneService() = default;
@@ -105,6 +105,8 @@ public:
     Vector2 ScreenToFramebuffer(Vector2 screenPos) const override;
 
 private:
+    ServiceLocator& registry_;
+
     void ProcessInput();
     Scene* CreateOrGetScene(const std::string& name);
     void EnterScene(Scene* scene, const std::string& name);

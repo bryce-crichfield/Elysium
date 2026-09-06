@@ -4,12 +4,12 @@
 #include <typeindex>
 #include <unordered_map>
 #include "Core/Message.h"
+#include "Core/ServiceLocator.h"
 #include "Interfaces/IMessageService.h"
-#include "Service.h"
 
 namespace Elysium::Services {
 
-class MessageService : public Service, public IMessageService {
+class MessageService : public IMessageService {
    public:
     MessageService(ServiceLocator& registry);
     ~MessageService() = default;
@@ -33,6 +33,7 @@ class MessageService : public Service, public IMessageService {
         std::function<void(const Message&)> handler;
     };
 
+    ServiceLocator& registry_;
     MessageQueue queue_;
     std::unordered_map<std::type_index, std::vector<HandlerEntry>> handlers_;
     std::mutex handlersMutex_;  // Protects handlers_ map

@@ -10,9 +10,7 @@
 
 namespace Elysium::Services {
 
-AssetService::AssetService(ServiceLocator& registry) : Service(registry) {
-    name_ = "AssetService";
-}
+AssetService::AssetService(ServiceLocator& registry) : registry_(registry) {}
 
 void AssetService::Initialize() {
     assetsByPath_.clear();

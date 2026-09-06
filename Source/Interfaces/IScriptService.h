@@ -7,6 +7,7 @@
 #include "Core/Event.h"
 #include "Core/Entity.h"
 #include "Core/Script.h"
+#include "Interfaces/IService.h"
 
 namespace Elysium {
 class World;
@@ -14,9 +15,8 @@ class World;
 
 namespace Elysium::Services {
 
-class IScriptService {
+class IScriptService : public IService {
    public:
-    virtual ~IScriptService() = default;
 
     virtual Elysium::ScriptResult ExecuteString(const std::string& scriptString) = 0;
 

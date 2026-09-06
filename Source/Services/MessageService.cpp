@@ -5,7 +5,7 @@
 
 namespace Elysium::Services {
 
-MessageService::MessageService(ServiceLocator& registry) : Service(registry) {
+MessageService::MessageService(ServiceLocator& registry) : registry_(registry) {
 }
 
 // Service interface

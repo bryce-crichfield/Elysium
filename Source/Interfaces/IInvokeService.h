@@ -6,6 +6,7 @@
 #include "Core/Future.h"
 #include "Core/Serial.h"
 #include "Network/Network.h"
+#include "Interfaces/IService.h"
 
 namespace Elysium::Services {
 
@@ -17,13 +18,11 @@ struct InvokeMethod;
 // keeps the whole templated public API inline here, calling down to them —
 // callers keep exactly the same ergonomic API the concrete InvokeService used
 // to offer directly.
-class IInvokeService {
+class IInvokeService : public IService {
    public:
     using RawHandler = std::function<SerializableObject(NetworkPeer, const SerializableObject&)>;
     using DeserializeRequestFunc = std::function<SerializableObject(SerialBuffer&)>;
     using ResolveResponseFunc = std::function<void(SerialBuffer&)>;
-
-    virtual ~IInvokeService() = default;
 
     virtual void RegisterRaw(InvokeMethodId methodId, RawHandler invoke,
                               DeserializeRequestFunc deserializeRequest) = 0;

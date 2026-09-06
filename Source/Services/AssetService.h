@@ -10,8 +10,8 @@
 #include "Core/Future.h"
 #include "Core/Asset.h"
 #include "Core/Path.h"
+#include "Core/ServiceLocator.h"
 #include "Interfaces/IAssetService.h"
-#include "Service.h"
 
 namespace Elysium {
 class TaskService;
@@ -19,7 +19,7 @@ class TaskService;
 
 namespace Elysium::Services {
 
-class AssetService : public Elysium::Service, public IAssetService {
+class AssetService : public IAssetService {
    public:
     AssetService(ServiceLocator& registry);
 
@@ -39,6 +39,8 @@ class AssetService : public Elysium::Service, public IAssetService {
     const std::unordered_map<Path, std::unique_ptr<IAsset>>& GetAllAssets() const override { return assetsByPath_; }
 
    private:
+    ServiceLocator& registry_;  // reaches TaskService for async loads
+
     // Performs I/O to load raw asset data — thread-safe, does NOT touch assetsByPath_.
     // Returns an owning pointer on success, or nullptr if IAsset::Load() failed.
     static IAsset* LoadAssetData(const std::function<std::unique_ptr<IAsset>(Path)>& factory, Path path);

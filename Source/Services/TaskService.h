@@ -9,16 +9,14 @@
 #include <vector>
 
 #include "Core/Future.h"
+#include "Core/ServiceLocator.h"
 #include "Interfaces/ITaskService.h"
-#include "Service.h"
 
 namespace Elysium {
 
-class TaskService : public Service, public Services::ITaskService {
+class TaskService : public Services::ITaskService {
    public:
-    TaskService(ServiceLocator& registry) : Service(registry) {
-        name_ = "TaskService";
-    }
+    explicit TaskService(ServiceLocator&) {}
 
     ~TaskService() override {
         Shutdown();

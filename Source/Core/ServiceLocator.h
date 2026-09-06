@@ -7,20 +7,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Interfaces/IService.h"
+
 namespace Elysium {
 
-class Service;
-
-// Owns every concrete Service, but can only be looked up by interface type —
-// a concrete type is never a valid key for Get<T>(), so "ALL HAIL THE SERVICE
-// LOCATOR" enforces abstraction-only access by construction, not convention.
-// Lives in Core/ (not Services/) so Core, Systems, and Components can depend
-// on the locator mechanism itself without depending on any concrete service.
 class ServiceLocator {
    public:
-    // Registers `service` for lifecycle ownership under TConcrete, and binds
-    // it for lookup under every TInterfaces... Get<TInterface>() only ever
-    // resolves entries registered this way.
     template <typename TConcrete, typename... TInterfaces>
     TConcrete& Register(std::unique_ptr<TConcrete> service) {
         TConcrete* ptr = service.get();
@@ -44,8 +36,8 @@ class ServiceLocator {
         return interfaces_.count(std::type_index(typeid(TInterface))) > 0;
     }
 
-    std::vector<Service*> GetAllServices() {
-        std::vector<Service*> result;
+    std::vector<Services::IService*> GetAllServices() {
+        std::vector<Services::IService*> result;
         result.reserve(owned_.size());
         for (auto& [typeIndex, service] : owned_) {
             result.push_back(service.get());
@@ -59,7 +51,7 @@ class ServiceLocator {
         interfaces_[std::type_index(typeid(TInterface))] = static_cast<TInterface*>(ptr);
     }
 
-    std::unordered_map<std::type_index, std::unique_ptr<Service>> owned_;
+    std::unordered_map<std::type_index, std::unique_ptr<Services::IService>> owned_;
     std::unordered_map<std::type_index, void*> interfaces_;
 };
 

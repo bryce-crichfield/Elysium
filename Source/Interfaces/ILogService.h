@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "Interfaces/IService.h"
+
 // Undefine Windows ERROR macro to avoid conflict with LogLevel::Error
 #ifdef ERROR
 #undef ERROR
@@ -30,9 +32,8 @@ struct LogEntry {
 // Query/persist log history for the editor (LogEditor). The LOG_* macros
 // (Core/Log.h) are the write side and don't go through this interface —
 // they're a dependency-free facade so Core/ never needs ILogService.
-class ILogService {
+class ILogService : public IService {
    public:
-    virtual ~ILogService() = default;
 
     virtual void LogMessage(int logLevel, const std::string& message) = 0;
     virtual void LogMessage(LogLevel level, const std::string& topic, const std::string& message) = 0;

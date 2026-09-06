@@ -31,9 +31,7 @@ static void FreeScene(SceneRegistration& data) {
 // Constructor
 // =============================================================================
 
-SceneService::SceneService(ServiceLocator& registry) : Service(registry) {
-    name_ = "SceneService";
-}
+SceneService::SceneService(ServiceLocator& registry) : registry_(registry) {}
 
 void SceneService::Initialize() {
     Profile;

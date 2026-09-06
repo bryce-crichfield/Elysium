@@ -9,9 +9,8 @@
 
 namespace Elysium::Services {
 
-LogService::LogService(ServiceLocator& registry)
-    : Service(registry), initialized_(false), shouldStop_(false) {
-    name_ = "LogService";
+LogService::LogService(ServiceLocator&)
+    : initialized_(false), shouldStop_(false) {
     logBuffer_.reserve(MAX_LOG_BUFFER_SIZE);
 }
 

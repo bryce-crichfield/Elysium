@@ -9,8 +9,8 @@
 #include "Core/Future.h"
 #include "Core/Serial.h"
 #include "Interfaces/IInvokeService.h"
+#include "Core/ServiceLocator.h"
 #include "Network/Network.h"
-#include "Services/Service.h"
 
 namespace Elysium::Services {
 
@@ -34,7 +34,7 @@ struct PendingInvoke {
     IInvokeService::ResolveResponseFunc deserializeAndResolve;
 };
 
-class InvokeService : public Elysium::Service, public IInvokeService {
+class InvokeService : public IInvokeService {
 public:
     InvokeService(ServiceLocator& registry);
     ~InvokeService() = default;
@@ -55,6 +55,7 @@ private:
     void SendPacket(NetworkPeer peer, const SerialBuffer& buffer);
     void SendInvokeResponse(NetworkPeer peer, uint32_t invokeId, InvokeMethodId methodId, const SerializableObject& response);
 
+    ServiceLocator& registry_;
     uint32_t nextInvokeId_ = 1;
     uint32_t currentTick_ = 0;
     std::unordered_map<InvokeMethodId, InvokeHandler> invokeHandlers_;
