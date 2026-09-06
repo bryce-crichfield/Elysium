@@ -2,7 +2,7 @@
 #include "Core/Component.h"
 #include "Core/Event.h"
 #include "Components/LayerComponent.h"
-#include "Core/SceneLayer.h"
+#include "Core/Scene.h"
 #include "raylib.h"
 
 namespace Elysium {

@@ -32,15 +32,16 @@ void ScriptEditor::Draw() {
 
         if (ImGui::BeginCombo("Select Script", selectedAssetName.c_str())) {
             for (const auto& [name, asset] : allAssets) {
-                if (asset.GetType() == AssetType::SCRIPT) {
+                if (assetService.GetData<Script>(asset.get())) {
                     std::string nameStr = name.GetRelativePath();
                     bool isSelected = (selectedAssetName == nameStr);
                     if (ImGui::Selectable(nameStr.c_str(), isSelected)) {
                         selectedAssetName = nameStr;
                         // Load script content
-                        Script script = assetService.GetScript(name);
-                        textEditor_.SetText(script.source);
-                        statusMessage = "Loaded script: " + nameStr;
+                        if (auto* script = assetService.Get<Script>(name)) {
+                            textEditor_.SetText(script->source);
+                            statusMessage = "Loaded script: " + nameStr;
+                        }
                     }
                     if (isSelected) {
                         ImGui::SetItemDefaultFocus();
@@ -52,17 +53,21 @@ void ScriptEditor::Draw() {
         
         if (ImGui::Button("Save")) {
             if (!selectedAssetName.empty()) {
-                Asset* asset = assetService.GetAsset(Path(selectedAssetName));
+                IAsset* asset = assetService.GetAsset(Path(selectedAssetName));
                 if (asset) {
                     std::string fullPath = asset->GetPath().GetFullPath();
                     auto scriptSource = textEditor_.GetText();
                     if (SaveFileText(fullPath.c_str(), scriptSource.c_str())) {
+                        // Capture the path before reloading — ReloadAsset destroys the
+                        // existing instance `asset` points to.
+                        Path scriptPath = asset->GetPath();
+
                         // Reload in AssetService
-                        assetService.ReloadAsset(asset->GetType(), asset->GetPath());
+                        assetService.ReloadAsset(asset);
 
                         // Reload in ScriptService (using relative path as identifier)
                         auto& scriptService = services_.Get<Services::IScriptService>();
-                        scriptService.ReloadScript(asset->GetPath());
+                        scriptService.ReloadScript(scriptPath);
                         
                         statusMessage = "Saved and Reloaded " + selectedAssetName;
                     } else {

@@ -1,13 +1,17 @@
 #pragma once
 
-#include <string>
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
-#include "Asset.h"
 #include "Core/Future.h"
+#include "Core/Asset.h"
+#include "Core/Path.h"
 #include "Interfaces/IAssetService.h"
 #include "Service.h"
-#include "raylib.h"
 
 namespace Elysium {
 class TaskService;
@@ -24,39 +28,47 @@ class AssetService : public Elysium::Service, public IAssetService {
     void Shutdown() override;
     void Update(float deltaTime) override;
 
-    // Async asset loading — I/O runs on background thread,
-    // cache insertion happens on main thread via Future continuations
-    Future<Asset> LoadAsset(AssetType type, Path path) override;
-    Future<Asset> ReloadAsset(AssetType type, Path path) override;
+    Future<IAsset*> ReloadAsset(IAsset* asset) override;
 
-    void FinalizeAssets() override;  // Convert raw data to GPU resources on main thread
+    void FinalizeAssets() override;  // Convert raw data to GPU/audio resources on main thread
     bool IsAssetLoaded(Path path) const override;
 
-    // Get assets by name
-    Asset* GetAsset(Path path) override;
-    Texture2D GetTexture(Path path) override;
-    Sound GetSound(Path path) override;
-    Music GetMusic(Path path) override;
-    Font GetFont(Path path) override;
-    Model GetModel(Path path) override;
-    Shader GetShader(Path path) override;
-    Sprite GetSprite(Path path) override;
-    Script GetScript(Path path) override;
-    Tile   GetTile(Path path) override;
+    IAsset* GetAsset(Path path) override;
 
     // Asset enumeration
-    const std::unordered_map<Path, Asset>& GetAllAssets() const override { return assetsByPath_; }
+    const std::unordered_map<Path, std::unique_ptr<IAsset>>& GetAllAssets() const override { return assetsByPath_; }
 
    private:
-    // Performs I/O to load raw asset data — thread-safe, does NOT touch assetsByPath_
-    static Asset LoadAssetData(AssetType type, Path path);
+    // Performs I/O to load raw asset data — thread-safe, does NOT touch assetsByPath_.
+    // Returns an owning pointer on success, or nullptr if IAsset::Load() failed.
+    static IAsset* LoadAssetData(const std::function<std::unique_ptr<IAsset>(Path)>& factory, Path path);
 
-    // Asset storage by path (only written from main thread)
-    std::unordered_map<Path, Asset> assetsByPath_;
+    // Main-thread continuation for a completed background load. Takes ownership of `raw`.
+    void FinishLoad(Path path, IAsset* raw);
 
-    // Track pending futures so we know when to finalize
-    std::vector<Future<Asset>> pendingFutures_;
+    // Resolves every caller-facing future still waiting on `path` with `result`.
+    void NotifyWaiters(const Path& path, IAsset* result);
+
+    // Asset storage by path (only written from main thread). Holds fully-loaded assets
+    // plus assets whose data is loaded but still awaiting main-thread finalization.
+    std::unordered_map<Path, std::unique_ptr<IAsset>> assetsByPath_;
+
+    // Paths with a background load in flight — used to dedupe concurrent requests
+    // without parking a half-constructed placeholder in assetsByPath_.
+    std::unordered_set<Path> inFlightPaths_;
+
+    // Caller-facing futures handed out by LoadAssetRaw. Polled every Update() so their
+    // Then() continuations fire on the main thread; dropped once resolved.
+    std::vector<std::pair<Path, Future<IAsset*>>> waiters_;
+
+    // Background loads whose FinishLoad continuation has not run yet. Finalization is
+    // deferred until this hits zero so a batch of loads finalizes together.
+    std::uint32_t outstandingLoads_ = 0;
     bool needsFinalization_ = false;
+protected:
+    // Async asset loading — I/O runs on background thread,
+    // cache insertion happens on main thread via Future continuations
+    Future<IAsset*> LoadAssetRaw(Path path, std::function<std::unique_ptr<IAsset>(Path)> factory) override;
 };
 
 }  // namespace Elysium::Services

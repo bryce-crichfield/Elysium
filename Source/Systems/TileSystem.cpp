@@ -1,7 +1,7 @@
 #include "Systems/TileSystem.h"
 #include "Components/TileComponent.h"
-#include "Core/Asset.h"
 #include "Core/Path.h"
+#include "Core/Tile.h"
 #include "Core/SystemRegistry.h"
 #include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
@@ -25,7 +25,7 @@ void TileSystem::Update(float deltaTime) {
         if (seen.count(tile.tileName)) return;
         seen.insert(tile.tileName);
         LOG_DEBUGF("TileSystem", "Loading tile asset: %s", tile.tileName.c_str());
-        assets.LoadAsset(AssetType::TILE, Path(tile.tileName));
+        assets.LoadAsset<Tile>(Path(tile.tileName));
     });
 
     LOG_INFOF("TileSystem", "Initialized — queued %d unique tile asset(s)", (int)seen.size());

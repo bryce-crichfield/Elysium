@@ -1,5 +1,6 @@
 #include "Components/ScriptComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
 #include "Interfaces/IScriptService.h"
@@ -21,7 +22,7 @@ namespace Elysium {
 
         auto loadScript = [&](const char* name) {
             c.AddScript(name);
-            assetService.LoadAsset(AssetType::SCRIPT, Path(name));
+            assetService.LoadAsset<Script>(Path(name));
         };
 
         // Backward compat: single scriptName attribute
@@ -53,7 +54,7 @@ namespace Elysium {
         std::vector<std::string> scriptPaths;
         scriptPaths.push_back("<None>");
         for (const auto& [name, asset] : allAssets) {
-            if (asset.GetType() == AssetType::SCRIPT && asset.IsLoaded()) {
+            if (assetService.GetData<Script>(asset.get()) && asset->IsLoaded()) {
                 scriptPaths.push_back(name.GetRelativePath());
             }
         }

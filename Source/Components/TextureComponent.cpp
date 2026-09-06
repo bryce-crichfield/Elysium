@@ -1,5 +1,6 @@
 #include "Components/TextureComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Core/Graphics.h"
 #include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
 #include "imgui.h"
@@ -33,7 +34,7 @@ namespace Elysium {
         c.textureName = el->Attribute("texture") ? el->Attribute("texture") : "";
         if (!c.textureName.empty()) {
             auto& assetService = services.Get<Services::IAssetService>();
-            assetService.LoadAsset(AssetType::TEXTURE, Path(c.textureName));
+            assetService.LoadAsset<Texture>(Path(c.textureName));
         }
         c.sourceRect.x = el->FloatAttribute("sourceX", 0.0f);
         c.sourceRect.y = el->FloatAttribute("sourceY", 0.0f);
@@ -42,7 +43,8 @@ namespace Elysium {
         c.originX = el->FloatAttribute("originX", 0.5f);
         c.originY = el->FloatAttribute("originY", 0.5f);
         std::string tintHex = el->Attribute("tint") ? el->Attribute("tint") : "";
-        c.tint = ParseHexColor(tintHex, WHITE);
+        // ::-qualified to avoid raylib's WHITE macro colliding with Elysium::Colors.
+        c.tint = ParseHexColor(tintHex, ::WHITE);
         c.filterMode = ParseFilterMode(el->Attribute("filter"));
     }
 
@@ -96,7 +98,7 @@ namespace Elysium {
         ut["textureName"] = &TextureComponent::textureName;
         ut["tint"] = sol::property(
             [](TextureComponent& t) { return t.tint; },
-            [](TextureComponent& t, Color v) { t.tint = v; });
+            [](TextureComponent& t, ::Color v) { t.tint = v; });
         ut["originX"] = &TextureComponent::originX;
         ut["originY"] = &TextureComponent::originY;
     }

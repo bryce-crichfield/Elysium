@@ -1,6 +1,6 @@
 #include "Components/TileComponent.h"
 #include "Core/ComponentRegistry.h"
-#include "Core/Asset.h"
+#include "Core/Tile.h"
 #include "Core/Xml.h"
 #include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
@@ -30,7 +30,7 @@ namespace Elysium {
         if (tileName) {
             c.tileName = tileName;
             auto& assetService = services.Get<Services::IAssetService>();
-            assetService.LoadAsset(AssetType::TILE, Path(tileName));
+            assetService.LoadAsset<Tile>(Path(tileName));
         }
         if (variantName) {
             c.variantName = variantName;
@@ -60,7 +60,7 @@ namespace Elysium {
         std::vector<std::string> tileAssetNames;
         tileAssetNames.push_back("<None>");
         for (const auto& [name, asset] : allAssets) {
-            if (asset.GetType() == AssetType::TILE && asset.IsLoaded()) {
+            if (assetService.GetData<Tile>(asset.get()) && asset->IsLoaded()) {
                 tileAssetNames.push_back(name.GetRelativePath());
             }
         }
@@ -92,7 +92,9 @@ namespace Elysium {
         Label("Variant: ");
         Tile tile;
         if (!c.tileName.empty()) {
-            tile = assetService.GetTile(Path(c.tileName));
+            if (auto* tileData = assetService.Get<Tile>(Path(c.tileName))) {
+                tile = *tileData;
+            }
         }
 
         if (!tile.IsEmpty() && !tile.variants.empty()) {

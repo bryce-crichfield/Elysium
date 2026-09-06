@@ -21,7 +21,8 @@ public:
     void Update(float deltaTime) override;
 
     // Core execution
-    sol::protected_function_result ExecuteString(const std::string& scriptString) override;
+    Elysium::ScriptResult ExecuteString(const std::string& scriptString) override;
+    std::vector<Entity> FilterEntities(const std::string& filterFunctionBody) override;
 
     bool InitializeEntity(Entity entity, Path scriptPath) override;
     bool UpdateEntity(Entity entity, Path scriptPath, float deltaTime) override;
@@ -36,7 +37,7 @@ public:
 
     void InspectEntityScript(Entity entity, Path scriptPath) override;
 
-    sol::state& GetLua() override { return lua; }
+    sol::state& GetLua() { return lua; }
 
     void SetActiveWorld(Elysium::World* w) override;
 

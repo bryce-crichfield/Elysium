@@ -3,6 +3,7 @@
 #include "Core/Log.h"
 #include "Core/ServiceLocator.h"
 #include "Entity.h"
+#include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
 #include "Scene.h"
 #include "System.h"
@@ -264,7 +265,7 @@ bool LoadScene(Scene& scene, const std::string& path) {
         if (path) {
             scene.SetSceneScript(path);
             auto& assetService = scene.GetServices().Get<Services::IAssetService>();
-            assetService.LoadAsset(AssetType::SCRIPT, Path(path));
+            assetService.LoadAsset<Script>(Path(path));
         }
     });
 

@@ -10,7 +10,6 @@
 #include "Event.h"
 #include "Message.h"
 #include "Core/Xml.h"
-#include "Core/SceneLayer.h"
 namespace Elysium {
 
 // Constants
@@ -18,6 +17,38 @@ constexpr float TILE_WIDTH = 32.0f;
 constexpr float TILE_HEIGHT = 32.0f;
 
 class ServiceLocator;
+
+enum class SceneLayerSpace {
+    World2D,
+    Screen2D,
+};
+
+enum class SceneLayerBlend {
+    Normal,
+    Additive,
+    Multiply,
+};
+
+struct SceneLayer {
+    std::string name;
+    int zIndex = 0;                 // Render order among layers — lower draws first (see RenderSorter)
+    bool isVisible = true;
+    bool isComposited = false;      // If composited, the layer will render to a render target instead of immediately to the framebuffer
+    float opacity = 1.0f;
+
+    SceneLayerSpace space = SceneLayerSpace::World2D;
+    SceneLayerBlend layerBlend = SceneLayerBlend::Normal;      // how objects in this layer are blended when rendered with respect to each other
+    SceneLayerBlend compositeBlend = SceneLayerBlend::Normal;  // how this layer is blended when composited onto the framebuffer
+
+    // Qualified ::Color for the same ODR reason as ApplicationConfig::backgroundColor:
+    // Core/Graphics.h's Elysium::Color would otherwise shadow raylib's here in TUs
+    // (e.g. RenderSystem.cpp) that include it before Scene.h, changing this struct's size.
+    ::Color ambient{0, 0, 0, 0};
+
+    static constexpr const char* XmlTag() { return "SceneLayer"; }
+
+    static void LoadXml(SceneLayer& layer, tinyxml2::XMLElement* el);
+};
 
 struct SceneConfiguration {
     std::string name;

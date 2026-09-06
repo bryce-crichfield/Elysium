@@ -5,6 +5,8 @@
 #include "Core/Entity.h"
 #include "Components/SpriteComponent.h"
 #include "Components/TextureComponent.h"
+#include "Core/Graphics.h"
+#include "Core/Sprite.h"
 
 #include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
@@ -20,7 +22,9 @@ SpriteSystem::SpriteSystem(Context context) : System(context) {
 // frame-advances instead of being stomped back to the asset defaults every time.
 static void ResolveTexture(Elysium::World* world, Elysium::Services::IAssetService& assets,
                             Entity entity, const SpriteComponent& spriteComp) {
-    Sprite sprite = assets.GetSprite(Path(spriteComp.spriteName));
+    auto* spriteData = assets.Get<Sprite>(Path(spriteComp.spriteName));
+    if (!spriteData) return;
+    const Sprite& sprite = *spriteData;
     if (sprite.name.empty()) return;
 
     auto sheetIt = sprite.sheets.find(spriteComp.sheetName);
@@ -36,7 +40,9 @@ static void ResolveTexture(Elysium::World* world, Elysium::Services::IAssetServi
     size_t linearIndex = sequence.indices[frameIdx];
 
     std::string texturePath = "Sprites/" + sheet.path;
-    Texture2D texture = assets.GetTexture(Path(texturePath));
+    auto* textureData = assets.Get<Texture>(Path(texturePath));
+    if (!textureData) return;
+    const Texture& texture = *textureData;
     if (texture.id == 0) return;
 
     float frameWidth  = (float)texture.width  / (float)sheet.cols;
@@ -66,8 +72,9 @@ void SpriteSystem::Update(float deltaTime) {
         if (spriteComp.frameElapsed >= spriteComp.frameDuration) {
             spriteComp.frameElapsed -= spriteComp.frameDuration;
 
-            auto sprite = assets.GetSprite(Path(spriteComp.spriteName));
-            if (sprite.name.empty()) return;
+            auto* spriteData = assets.Get<Sprite>(Path(spriteComp.spriteName));
+            if (!spriteData || spriteData->name.empty()) return;
+            const Sprite& sprite = *spriteData;
 
             auto sheetIt = sprite.sheets.find(spriteComp.sheetName);
             if (sheetIt == sprite.sheets.end()) return;

@@ -2,6 +2,7 @@
 #define SOL_ALL_SAFETIES_ON 1
 #include "Services/ScriptService.h"
 #include "Core/Common.h"
+#include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
 #include "Interfaces/ISceneService.h"
 #include "Services/LogService.h"
@@ -52,16 +53,57 @@ void ScriptService::Shutdown() {
 void ScriptService::Update(float deltaTime) {
 }
 
-sol::protected_function_result ScriptService::ExecuteString(const std::string& scriptString) {
+Elysium::ScriptResult ScriptService::ExecuteString(const std::string& scriptString) {
     ProfileN("ScriptService ExecuteString");
     auto result = lua.safe_script(scriptString, sol::script_pass_on_error);
     if (!result.valid()) {
         sol::error err = result;
         LOG_ERRORF("ScriptService", "Lua Error: %s", err.what());
-        return result;
+        return Elysium::ScriptResult{false, err.what()};
     }
 
-    return result;
+    return Elysium::ScriptResult{true, {}};
+}
+
+std::vector<Entity> ScriptService::FilterEntities(const std::string& filterFunctionBody) {
+    ProfileN("ScriptService FilterEntities");
+
+    // Wraps the user's `function filter(e) -> bool` to collect matching entities.
+    const char* driverTemplate = R"(
+        %s
+
+        local entities = GetEntities()
+        local result = {}
+        for i, e in ipairs(entities) do
+            if filter(e) then
+                table.insert(result, e)
+            end
+        end
+
+        return result
+    )";
+
+    char finalScript[2048];
+    snprintf(finalScript, sizeof(finalScript), driverTemplate, filterFunctionBody.c_str());
+
+    std::vector<Entity> matches;
+
+    auto result = lua.safe_script(finalScript, sol::script_pass_on_error);
+    if (!result.valid()) {
+        sol::error err = result;
+        LOG_ERRORF("ScriptService", "Lua Error in filter script: %s", err.what());
+        return matches;
+    }
+
+    sol::table entityTable = result;
+    for (auto& kv : entityTable) {
+        sol::object val = kv.second;
+        if (val.is<Entity>()) {
+            matches.push_back(val.as<Entity>());
+        }
+    }
+
+    return matches;
 }
 
 void ScriptService::InitLuaContext() {
@@ -514,19 +556,18 @@ sol::table ScriptService::GetOrLoadScript(Path path) {
     }
 
     auto& assetService = s_services->Get<IAssetService>();
-    auto asset = assetService.GetAsset(path);
-    if (!asset) {
+    auto* script = assetService.Get<Script>(path);
+    if (!script) {
         LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: Asset not found", path.c_str());
         return sol::nil;
     }
 
-    auto script= asset->GetScript();
-    if (script.source.empty()) {
+    if (script->source.empty()) {
         LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: Script is empty", path.c_str());
         return sol::nil;
     }
 
-    auto result = lua.load(script.source);
+    auto result = lua.load(script->source);
     if (!result.valid()) {
         sol::error err = result;
         LOG_ERRORF("ScriptService", "Failed to load script: %s. Error: %s", path.c_str(), err.what());

@@ -1,5 +1,10 @@
 #include "AssetEditor.h"
 #include "Core/Application.h"
+#include "Core/Audio.h"
+#include "Core/Graphics.h"
+#include "Core/Asset.h"
+#include "Core/Script.h"
+#include "Core/Sprite.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
 #include "Interfaces/ITaskService.h"
@@ -107,11 +112,11 @@ void AssetEditor::RenderTreeRecursive(const fs::path& currentPath) {
         } else {
             // Optimization: AssetService has pathToName_, use that if you can
             // otherwise we'll stick to the scan for now.
-            const Asset* activeAsset = nullptr;
+            IAsset* activeAsset = nullptr;
             for (const auto& [assetName, asset] : assetService.GetAllAssets()) {
                 // Compare relative paths (GetPath returns full path, use GetRelativePath instead)
-                if (asset.GetPath().GetRelativePath() == file.relativePath) {
-                    activeAsset = &asset;
+                if (asset->GetPath().GetRelativePath() == file.relativePath) {
+                    activeAsset = asset.get();
                     break;
                 }
             }
@@ -133,17 +138,16 @@ void AssetEditor::RenderTreeRecursive(const fs::path& currentPath) {
             if (ImGui::BeginPopupContextItem("AssetCtx")) {
                 if (!isLoaded) {
                     if (ImGui::MenuItem("Load into Elysium")) {
-                        AssetType type = AssetType::TEXTURE;
                         std::string ext = file.path.extension().string();
-                        if (ext == ".wav") type = AssetType::SOUND;
-                        else if (ext == ".xml") type = AssetType::SPRITE;
-                        else if (ext == ".lua") type = AssetType::SCRIPT;
-
-                        assetService.LoadAsset(type, Path(file.relativePath));
+                        Path loadPath(file.relativePath);
+                        if (ext == ".wav")       assetService.LoadAsset<Sound>(loadPath);
+                        else if (ext == ".xml")  assetService.LoadAsset<Sprite>(loadPath);
+                        else if (ext == ".lua")  assetService.LoadAsset<Script>(loadPath);
+                        else                     assetService.LoadAsset<Texture>(loadPath);
                     }
                 } else {
                     if (ImGui::MenuItem("Reload Asset")) {
-                        assetService.ReloadAsset(activeAsset->GetType(), activeAsset->GetPath());
+                        assetService.ReloadAsset(activeAsset);
                     }
                     if (ImGui::MenuItem("Unload Asset")) {
                         assetService.GetAsset(activeAsset->GetPath())->Unload();

@@ -1,5 +1,6 @@
 #include "Components/SpriteComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Core/Sprite.h"
 #include "Core/Xml.h"
 #include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
@@ -29,7 +30,7 @@ namespace Elysium {
 
             // Load the sprite if not already loaded
             auto& assetService = services.Get<Elysium::Services::IAssetService>();
-            assetService.LoadAsset(AssetType::SPRITE, Path(spriteName));
+            assetService.LoadAsset<Sprite>(Path(spriteName));
         }
         if (sheetName) {
             c.sheetName = sheetName;
@@ -60,7 +61,7 @@ namespace Elysium {
         spriteAssetNames.push_back("<None>");
 
         for (const auto& [name, asset] : allAssets) {
-            if (asset.GetType() == AssetType::SPRITE && asset.IsLoaded()) {
+            if (assetService.GetData<Sprite>(asset.get()) && asset->IsLoaded()) {
                 spriteAssetNames.push_back(name.GetRelativePath());
             }
         }
@@ -94,7 +95,9 @@ namespace Elysium {
         // Get sprite for sheet/sequence pickers
         Sprite sprite;
         if (!c.spriteName.empty()) {
-            sprite = assetService.GetSprite(Path(c.spriteName));
+            if (auto* spriteData = assetService.Get<Sprite>(Path(c.spriteName))) {
+                sprite = *spriteData;
+            }
         }
 
         // Sheet picker

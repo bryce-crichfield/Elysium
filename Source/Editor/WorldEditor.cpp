@@ -91,48 +91,8 @@ void WorldEditor::DrawEntityToolbar(IEditorService& service) {
             ImGuiInputTextFlags_AllowTabInput);
 
         if (ImGui::Button("Save", ImVec2(-1, 0))) {
-            // 1. 'template' is a reserved keyword in C++. Changed to 'scriptTemplate'.
-            // 2. Used R"(...)" for a raw string literal to handle multiple lines.
-            const char* scriptTemplate = R"(
-                %s
-
-                local entities = GetEntities()
-                local result = {}
-                for i, e in ipairs(entities) do
-                    if filter(e) then
-                        table.insert(result, e)
-                    end
-                end
-
-                return result
-            )";
-
-            // 3. Format the template with the user's buffer (luaBuffer)
-            char finalScript[2048]; 
-            snprintf(finalScript, sizeof(finalScript), scriptTemplate, luaBuffer);
-
             auto& scripts = services_.Get<IScriptService>();
-            // 4. Execute the formatted string, not just the raw buffer
-            auto result = scripts.ExecuteString(finalScript);
-            filteredEntities_.clear();
-            if (result.valid()) {
-                sol::table entityTable = result;
-
-                // print the ids of the matching entities
-                for (auto& kv : entityTable) {
-                    sol::object key = kv.first;
-                    sol::object val = kv.second;
-
-                    if (val.is<Entity>()) {
-                        Entity e = val.as<Entity>();
-                        filteredEntities_.push_back(e);
-                    }
-                }
-            } else {
-                // Handle Lua error
-                sol::error err = result;
-                LOG_ERRORF("WorldEditor", "Lua Error in filter script: %s", err.what());
-            }
+            filteredEntities_ = scripts.FilterEntities(luaBuffer);
         }
         
         if (ImGui::IsItemHovered()) {

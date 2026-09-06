@@ -80,7 +80,9 @@ bool Application::Initialize(const std::string& configPath) {
     LOG_INFO("Application", "Elysium Engine initializing");
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+
     InitWindow(config_.windowWidth, config_.windowHeight, config_.windowTitle.c_str());
+    MaximizeWindow();
     SetExitKey(0);  // Disable raylib's default ESC-to-quit; handled by scene scripts
 
     InitAudioDevice();

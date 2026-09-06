@@ -1,100 +1,98 @@
 #pragma once
 
-#include <string>
-#include <variant>
-#include "Core/Event.h"
+#include <functional>
+#include <memory>
+#include <typeindex>
+#include <typeinfo>
+#include <unordered_map>
+#include "Core/Asset.h"
 #include "Core/Path.h"
-#include "Core/Script.h"
-#include "Sprite.h"
-#include "Tile.h"
-#include "raylib.h"
+
 
 namespace Elysium {
 
-enum class AssetType {
-    TEXTURE,
-    SOUND,
-    MUSIC,
-    FONT,
-    MODEL,
-    SHADER,
-    SPRITE,
-    SCRIPT,
-    TILE
-};
-
-class Asset {
+// Base type for everything IAssetService loads. Owned exclusively by AssetService;
+// callers only ever see a raw observing pointer (see IAssetService::Get<T>).
+class IAsset {
    public:
-    Asset() = default;
-    Asset(AssetType type, Path path);
-    ~Asset() = default;
+    explicit IAsset(Path path) : path_(std::move(path)) {}
+    virtual ~IAsset() = default;
 
-    AssetType GetType() const { return type_; }
-    Path GetPath() const { return path_; }
+    IAsset(const IAsset&) = delete;
+    IAsset& operator=(const IAsset&) = delete;
+
+    const Path& GetPath() const { return path_; }
     bool IsLoaded() const { return loaded_; }
-    bool HasImageData() const { return hasImageData_; }
-    bool HasWaveData() const { return hasWaveData_; }
 
-    Texture2D GetTexture() const;
-    Sound GetSound() const;
-    Music GetMusic() const;
-    Font GetFont() const;
-    Model GetModel() const;
-    Shader GetShader() const;
-    Image GetImageData() const { return imageData_; }
-    Wave GetWaveData() const { return waveData_; }
-    Sprite GetSprite() const;
-    Script GetScript() const;
-    Tile   GetTile() const;
+    // Runs on a background thread, on an instance not yet visible to anything else.
+    virtual bool Load() = 0;
 
-    void SetTexture(const Texture2D& texture);
-    void SetSound(const Sound& sound);
-    void SetMusic(const Music& music);
-    void SetFont(const Font& font);
-    void SetModel(const Model& model);
-    void SetShader(const Shader& shader);
-    void SetImageData(const Image& image);
-    void SetWaveData(const Wave& wave);
-    void SetSprite(const Sprite& sprite);
-    void SetScript(const Script& script);
-    void SetTile(const Tile& tile);
+    // Runs on the main thread after a successful Load(), for assets needing a
+    // GPU/audio-device upload step (Texture, Sound). Default: nothing to do.
+    virtual bool Finalize() { return true; }
+    virtual bool NeedsFinalize() const { return false; }
 
-    void Unload();
+    virtual void Unload() = 0;
+
+    // Builds a fresh instance of this asset's concrete type. Provided by AssetBase<T>.
+    virtual std::function<std::unique_ptr<IAsset>(Path)> GetFactory() const = 0;
+
+   protected:
+    void SetLoaded(bool loaded) { loaded_ = loaded; }
 
    private:
-    AssetType type_;
     Path path_;
     bool loaded_ = false;
-    bool hasImageData_ = false;
-    bool hasWaveData_ = false;
-
-    std::variant<Texture2D, Sound, Music, Font, Model, Shader, Sprite, Script, Tile> data_;
-    Image imageData_{};
-    Wave waveData_{};
 };
 
-enum class AssetEventType {
-    LOADED,
-    UNLOADED,
-    RELOADED
+// F-Bound helper. Derive as `class MyAsset : public AssetBase<MyAsset>` to get
+// GetFactory() (and constructor forwarding) for free.
+template <typename Derived>
+class AssetBase : public IAsset {
+   public:
+    using IAsset::IAsset;
+
+    std::function<std::unique_ptr<IAsset>(Path)> GetFactory() const override {
+        return [](Path p) -> std::unique_ptr<IAsset> {
+            return std::make_unique<Derived>(std::move(p));
+        };
+    }
 };
 
-class AssetEvent : public Event {
-public:
-    AssetEvent(Path path, AssetEventType type) : path_(path), type_(type) {}
+// Maps a payload type (Texture, Script, Sprite, ...) to the IAsset subclass that
+// loads/stores it, so LoadAsset<Payload>/Get<Payload> never needs to name it.
+class AssetRegistry {
+   public:
+    using Factory = std::function<std::unique_ptr<IAsset>(Path)>;
+    using DataAccessor = std::function<void*(IAsset*)>;
 
-    Path GetPath() const { return path_; }
-    AssetEventType GetType() const { return type_; }
+    struct Entry {
+        Factory factory;
+        DataAccessor getData;
+    };
 
-private:
-    Path path_;
-    AssetEventType type_;
+    static void Register(std::type_index payloadType, Entry entry);
+    static const Entry* Find(std::type_index payloadType);
+
+   private:
+    static std::unordered_map<std::type_index, Entry>& Table();
 };
 
-class IAssetEventListener : public IEventListener {
-public:
-    virtual ~IAssetEventListener() = default;
-    virtual void OnAssetEvent(const AssetEvent& event) = 0;
+template <typename AssetPayload, typename AssetType>
+struct AssetTypeRegistrar {
+    AssetTypeRegistrar() {
+        AssetRegistry::Register(
+            std::type_index(typeid(AssetPayload)),
+            AssetRegistry::Entry{
+                [](Path p) -> std::unique_ptr<IAsset> { return std::make_unique<AssetType>(std::move(p)); },
+                [](IAsset* asset) -> void* {
+                    auto* assetType = dynamic_cast<AssetType*>(asset);
+                    return assetType ? static_cast<void*>(&assetType->GetData()) : nullptr;
+                }});
+    }
 };
 
 }  // namespace Elysium
+
+#define REGISTER_ASSET_TYPE(AssetPayload, AssetType) \
+    static ::Elysium::AssetTypeRegistrar<AssetPayload, AssetType> _assetTypeRegistrar_##AssetType {}

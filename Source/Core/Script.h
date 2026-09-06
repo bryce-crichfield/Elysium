@@ -1,12 +1,18 @@
 #pragma once
 
 #include <sol/forward.hpp>
+#include <string>
 #include "Core/Path.h"
 
 namespace Elysium {
     struct Script {
         std::string source;
         Path path;
+    };
+
+    struct ScriptResult {
+        bool success = false;
+        std::string error;
     };
 
     // Concept for components that can be bound to Lua
@@ -21,4 +27,4 @@ namespace Elysium {
         { T::SetFromLua(c, v) } -> std::same_as<void>;
     };
 
-    }
+}

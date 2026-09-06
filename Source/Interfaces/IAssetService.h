@@ -1,38 +1,59 @@
 #pragma once
 
+#include <cassert>
+#include <functional>
+#include <memory>
+#include <type_traits>
+#include <typeindex>
 #include <unordered_map>
 #include "Core/Asset.h"
 #include "Core/Future.h"
+#include "Core/Asset.h"
 #include "Core/Path.h"
-#include "Core/Script.h"
-#include "Core/Sprite.h"
-#include "Core/Tile.h"
-#include "raylib.h"
 
 namespace Elysium::Services {
 
+// Owns every loaded IAsset. Callers get a non-owning pointer (IAsset*, or a payload
+// pointer via Get<T>/GetData<T>) valid until the next Reload/Unload/Shutdown of that path.
 class IAssetService {
    public:
     virtual ~IAssetService() = default;
 
-    virtual Future<Asset> LoadAsset(AssetType type, Path path) = 0;
-    virtual Future<Asset> ReloadAsset(AssetType type, Path path) = 0;
+    template <typename Payload>
+    Future<IAsset*> LoadAsset(Path path) {
+        const auto* entry = AssetRegistry::Find(std::type_index(typeid(Payload)));
+        assert(entry && "No REGISTER_ASSET_TYPE(Payload, Concrete) registered for this payload type");
+        if (!entry) return {};
+        return LoadAssetRaw(std::move(path), entry->factory);
+    }
+
+    virtual Future<IAsset*> ReloadAsset(IAsset* asset) = 0;
 
     virtual void FinalizeAssets() = 0;
     virtual bool IsAssetLoaded(Path path) const = 0;
 
-    virtual Asset* GetAsset(Path path) = 0;
-    virtual Texture2D GetTexture(Path path) = 0;
-    virtual Sound GetSound(Path path) = 0;
-    virtual Music GetMusic(Path path) = 0;
-    virtual Font GetFont(Path path) = 0;
-    virtual Model GetModel(Path path) = 0;
-    virtual Shader GetShader(Path path) = 0;
-    virtual Sprite GetSprite(Path path) = 0;
-    virtual Script GetScript(Path path) = 0;
-    virtual Tile GetTile(Path path) = 0;
+    virtual IAsset* GetAsset(Path path) = 0;
 
-    virtual const std::unordered_map<Path, Asset>& GetAllAssets() const = 0;
+    // Returns nullptr if `asset` is null or isn't actually backing a Payload.
+    template <typename Payload>
+    Payload* GetData(IAsset* asset) {
+        if (!asset) return nullptr;
+        const auto* entry = AssetRegistry::Find(std::type_index(typeid(Payload)));
+        assert(entry && "No REGISTER_ASSET_TYPE(Payload, Concrete) registered for this payload type");
+        if (!entry) return nullptr;
+        return static_cast<Payload*>(entry->getData(asset));
+    }
+
+    // Typed lookup, e.g. Get<Texture>(path). Returns nullptr if the asset isn't loaded.
+    template <typename Payload>
+    Payload* Get(Path path) {
+        return GetData<Payload>(GetAsset(std::move(path)));
+    }
+
+    virtual const std::unordered_map<Path, std::unique_ptr<IAsset>>& GetAllAssets() const = 0;
+protected:
+    // Template can't be virtual, so LoadAsset<T> forwards here with T's registered factory.
+    virtual Future<IAsset*> LoadAssetRaw(Path path, std::function<std::unique_ptr<IAsset>(Path)> factory) = 0;
 };
 
 }  // namespace Elysium::Services

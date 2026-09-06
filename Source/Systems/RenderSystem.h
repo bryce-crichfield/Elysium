@@ -2,7 +2,7 @@
 
 #include "Core/System.h"
 #include "Components/CameraComponent.h"
-#include "Core/SceneLayer.h"
+#include "Core/Scene.h"
 #include "Core/Renderable.h"
 #include "raylib.h"
 #include <span>

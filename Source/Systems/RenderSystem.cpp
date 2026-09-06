@@ -19,6 +19,7 @@
 #include "Core/Common.h"
 #include "Core/Entity.h"
 #include "Core/Geometry.h"
+#include "Core/Graphics.h"
 #include "Core/Path.h"
 #include "Core/RenderContext.h"
 #include "Core/Scene.h"
@@ -43,6 +44,17 @@ static RenderableTypeId g_rectCmdTypeId    = 0;
 static RenderableTypeId g_ellipseCmdTypeId = 0;
 static RenderableTypeId g_textCmdTypeId    = 0;
 static RenderableTypeId g_polygonCmdTypeId = 0;
+
+// Converts back to raylib's type for the DrawTexturePro/raylib calls below.
+static Texture2D ToRaylibTexture(const Elysium::Texture& tex) {
+    Texture2D texture{};
+    texture.id = tex.id;
+    texture.width = tex.width;
+    texture.height = tex.height;
+    texture.mipmaps = tex.mipmaps;
+    texture.format = tex.format;
+    return texture;
+}
 
 template <typename T>
 static RenderableTypeId DrawCmdTypeId() {
@@ -75,7 +87,9 @@ static void RenderTileImpl(RenderContext& ctx, const RenderRecord& rec) {
     const auto& comp = ctx.GetWorld().GetComponent<TileComponent>(rec.entity);
     auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
 
-    Tile tile = assets.GetTile(Path(comp.tileName));
+    auto* tileData = assets.Get<Tile>(Path(comp.tileName));
+    if (!tileData) return;
+    const Tile& tile = *tileData;
     if (tile.IsEmpty()) return;
 
     auto varIt = tile.variants.find(comp.variantName);
@@ -85,7 +99,9 @@ static void RenderTileImpl(RenderContext& ctx, const RenderRecord& rec) {
     }
     const TileVariant& variant = varIt->second;
 
-    Texture2D texture = assets.GetTexture(Path("Tiles/" + tile.sheet.path));
+    auto* textureData = assets.Get<Texture>(Path("Tiles/" + tile.sheet.path));
+    if (!textureData) return;
+    Texture2D texture = ToRaylibTexture(*textureData);
     if (texture.id == 0) return;
 
     float frameWidth  = (float)texture.width  / (float)tile.sheet.cols;
@@ -130,13 +146,15 @@ static void RenderRectangleImpl(RenderContext& ctx, const RenderRecord& rec) {
 
     if (!component.textureName.empty()) {
         auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
-        Texture2D texture = assets.GetTexture(Path(component.textureName));
-        if (texture.id != 0) {
+        auto* textureData = assets.Get<Texture>(Path(component.textureName));
+        if (textureData) {
+            Texture2D texture = ToRaylibTexture(*textureData);
             Rectangle sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
             Rectangle destRect   = { topLeftX, topLeftY, component.width, component.height };
-            ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
+            // ::-qualified to avoid raylib's WHITE macro colliding with Elysium::Colors.
+            ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, ::WHITE);
         } else {
-            assets.LoadAsset(AssetType::TEXTURE, Path(component.textureName));
+            assets.LoadAsset<Texture>(Path(component.textureName));
         }
     }
 }
@@ -292,7 +310,9 @@ static void RenderSpriteImpl(RenderContext& ctx, const RenderRecord& rec) {
     if (tex.textureName.empty()) return;
 
     auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
-    Texture2D texture = assets.GetTexture(Path(tex.textureName));
+    auto* textureData = assets.Get<Texture>(Path(tex.textureName));
+    if (!textureData) return;
+    Texture2D texture = ToRaylibTexture(*textureData);
     if (texture.id == 0) return;
 
     float scaleX = 1.0f, scaleY = 1.0f, rotation = 0.0f;
@@ -383,9 +403,9 @@ static void RenderLightImpl(RenderContext& ctx, const RenderRecord& rec) {
         float curve = powf(1.0f - t, power);
         float ringRadius = component.radius * curve;
 
-        Color ringColor = component.color;
+        ::Color ringColor = component.color;
         ringColor.a = (unsigned char)(component.color.a / numRings);
-        Color ringEdge  = { ringColor.r, ringColor.g, ringColor.b, 0 };
+        ::Color ringEdge  = { ringColor.r, ringColor.g, ringColor.b, 0 };
 
         if (ctx.IsIsometric()) {
             ctx.DrawEllipseGradient(rec.x, rec.y, ringRadius, ringRadius * 0.5f, ringColor, ringEdge);
@@ -744,7 +764,7 @@ void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& vi
     PushBlend(ctx, layer.compositeBlend);
     Rectangle src = {0, 0, (float)w, -(float)h};
     Rectangle dst = {view.viewport.x, view.viewport.y, (float)w, (float)h};
-    Color compositeTint = WHITE;
+    ::Color compositeTint = ::WHITE;
     compositeTint.a = (unsigned char)(255.0f * std::clamp(layer.opacity, 0.0f, 1.0f));
     ctx.DrawTexturePro(compositionBuffer.texture, src, dst, {0, 0}, 0.0f, compositeTint);
 
@@ -817,8 +837,8 @@ void RenderSystem::FindCameras() {
     });
 
     if (_cameraEntities.empty()) {
-        ClearBackground(BLACK);
-        DrawText("No active camera found", 10, 10, 20, RED);
+        ClearBackground(::BLACK);
+        DrawText("No active camera found", 10, 10, 20, ::RED);
         return;
     }
 

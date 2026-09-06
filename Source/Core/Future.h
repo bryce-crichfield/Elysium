@@ -53,6 +53,14 @@ public:
         state_->resolved = true;
     }
 
+    // True when this is the last handle to the shared state and no continuation is
+    // pending — i.e. a fire-and-forget caller discarded the result. Lets a producer
+    // that parks futures in a list stop tracking ones nobody will ever read.
+    bool Abandoned() const {
+        std::lock_guard<std::mutex> lock(state_->mutex);
+        return state_.use_count() <= 1 && state_->continuations.empty();
+    }
+
     // Called from main thread — fires pending continuations if resolved
     // Returns true if the future is resolved
     bool Poll() {
