@@ -31,14 +31,14 @@ namespace Elysium {
         std::string borderHex = el->Attribute("border") ? el->Attribute("border") : "";
         std::string textureName = el->Attribute("texture") ? el->Attribute("texture") : "";
         c.textureName = textureName;
-        c.background = ParseHexColor(backgroundHex, BLANK);
-        c.border = ParseHexColor(borderHex, BLANK);
+        c.background = ParseHexColor(backgroundHex, Colors::Blank);
+        c.border = ParseHexColor(borderHex, Colors::Blank);
     }
 
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), BLANK);
-        return WHITE;
+        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), Colors::Blank);
+        return Colors::White;
     }
 
     void RectangleComponent::Inspect(RectangleComponent& c, Entity e, ServiceLocator& services) {

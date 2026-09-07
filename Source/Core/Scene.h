@@ -40,10 +40,7 @@ struct SceneLayer {
     SceneLayerBlend layerBlend = SceneLayerBlend::Normal;      // how objects in this layer are blended when rendered with respect to each other
     SceneLayerBlend compositeBlend = SceneLayerBlend::Normal;  // how this layer is blended when composited onto the framebuffer
 
-    // Qualified ::Color for the same ODR reason as ApplicationConfig::backgroundColor:
-    // Core/Graphics.h's Elysium::Color would otherwise shadow raylib's here in TUs
-    // (e.g. RenderSystem.cpp) that include it before Scene.h, changing this struct's size.
-    ::Color ambient{0, 0, 0, 0};
+    Color ambient{0, 0, 0, 0};
 
     static constexpr const char* XmlTag() { return "SceneLayer"; }
 

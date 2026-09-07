@@ -1,10 +1,9 @@
 #pragma once
 
 #include <vector>
-#include "raylib.h"
+#include "Core/MathTypes.h"
 
 namespace Elysium {
-
 // Returns true if the polygon is wound clockwise in raylib's screen-space (Y-down) coordinates.
 bool IsClockwise(const std::vector<Vector2>& points);
 

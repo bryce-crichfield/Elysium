@@ -21,12 +21,12 @@ namespace Elysium {
         c.content = el->Attribute("text") ? el->Attribute("text") : "";
         c.fontSize = el->IntAttribute("fontSize", 12);
         std::string colorHex = el->Attribute("color") ? el->Attribute("color") : "";
-        c.color = ParseHexColor(colorHex, WHITE);
+        c.color = ParseHexColor(colorHex, Colors::White);
     }
 
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        return WHITE;
+        return Colors::White;
     }
 
     void TextComponent::Inspect(TextComponent& c, Entity e, ServiceLocator& services) {

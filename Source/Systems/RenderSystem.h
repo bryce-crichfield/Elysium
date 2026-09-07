@@ -4,7 +4,7 @@
 #include "Components/CameraComponent.h"
 #include "Core/Scene.h"
 #include "Core/Renderable.h"
-#include "raylib.h"
+#include "Core/Graphics.h"
 #include <span>
 #include <unordered_map>
 #include <unordered_set>
@@ -90,9 +90,9 @@ private:
                            const SceneLayer& layer, std::span<const RenderRecord> records);
     static void RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records);
     static void PushBlend(RenderContext& ctx, SceneLayerBlend blend);
-    RenderTexture2D& EnsureCompositeBuffer(int width, int height);
+    const Framebuffer& EnsureCompositeBuffer(int width, int height);
 
-    RenderTexture2D compositeBuffer_ = {0};
+    Framebuffer compositeBuffer_;
     int compositeWidth_ = 0;
     int compositeHeight_ = 0;
 };

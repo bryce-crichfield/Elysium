@@ -12,8 +12,10 @@
 #include "Services/MessageService.h"
 #include "Services/ScriptService.h"
 #include "Core/System.h"
+#include "Core/Framebuffer.h"
 #include "imgui.h"
 #include "raylib.h"
+#include "Core/RaylibConvert.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;
@@ -52,7 +54,7 @@ void SceneService::Initialize() {
         }
     }
 
-    framebuffer_ = LoadRenderTexture(config.framebufferWidth, config.framebufferHeight);
+    framebuffer_ = CreateFramebuffer(config.framebufferWidth, config.framebufferHeight);
     CalculateLetterboxing();
 
     auto& invokeService = registry_.Get<IInvokeService>();
@@ -360,8 +362,8 @@ void SceneService::Render() {
     auto screenRect = Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
 
     // Render all scenes to framebuffer (bottom-to-top)
-    BeginTextureMode(framebuffer_);
-    ClearBackground(config.backgroundColor);
+    ::BeginTextureMode(ToRaylib(framebuffer_));
+    ClearBackground(ToRaylib(config.backgroundColor));
 
     for (Scene* scene : sceneStack_) {
         if (scene) {
@@ -369,15 +371,18 @@ void SceneService::Render() {
         }
     }
 
-    EndTextureMode();
+    ::EndTextureMode();
 
-    // In editor mode, the ImGui "Game" panel blits the framebuffer
-    if (app.GetMode() == AppMode::Editor) {
-        return;
-    }
+    // In editor mode the ImGui "Game" panel blits the framebuffer (ViewportEditor);
+    // in play mode Application drives Present() after all services have rendered.
+}
 
-    // Draw framebuffer to screen with letterboxing
-
+// Blits framebuffer_ to the currently-bound target, letterboxed into `target`.
+void SceneService::Present(Rectangle target) {
+    ::Rectangle src{0, 0, (float)framebuffer_.width, -(float)framebuffer_.height};
+    ::DrawTexturePro(ToRaylibColorTexture(framebuffer_), src, ToRaylib(target),
+                     ::Vector2{0, 0}, 0.0f, ToRaylib(Colors::White));
+    viewportRect_ = target;
 }
 
 // =============================================================================
@@ -409,8 +414,8 @@ void SceneService::ProcessInput() {
         return;
     }*/
 
-    Vector2 mousePos = GetMousePosition();
-    bool isInside = CheckCollisionPointRec(mousePos, viewportRect_);
+    Vector2 mousePos = FromRaylib(GetMousePosition());
+    bool isInside = viewportRect_.Contains(mousePos);
 
     static bool wasInside = false;
     if (isInside && !wasInside) {
@@ -511,7 +516,7 @@ void SceneService::ProcessInput() {
 
 void SceneService::Shutdown() {
     Profile;
-    UnloadRenderTexture(framebuffer_);
+    DestroyFramebuffer(framebuffer_);
 
     // Free any scenes still on the stack
     while (!sceneStack_.empty()) {

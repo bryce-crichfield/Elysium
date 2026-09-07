@@ -3,7 +3,6 @@
 #include "Core/Entity.h"
 #include "Core/Scene.h"
 #include "Core/Component.h"
-#include "raymath.h"
 #include <cfloat>
 #include <algorithm>
 #include <cmath>
@@ -119,7 +118,7 @@ std::vector<Entity> SpatialSystem::GetNearbyEntities(Vector2 position, float rad
                     // Refine distance check
                     if (world->HasComponent<TransformComponent>(e)) {
                         auto& transform = world->GetComponent<TransformComponent>(e);
-                        if (Vector2Distance(position, {transform.worldX, transform.worldY}) <= radius) {
+                        if ((position - Vector2{transform.worldX, transform.worldY}).Length() <= radius) {
                             result.push_back(e);
                         }
                     }

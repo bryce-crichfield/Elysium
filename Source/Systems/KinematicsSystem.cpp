@@ -3,7 +3,6 @@
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
-#include "raymath.h"
 #include "Components/KinematicsComponent.h"
 #include "Components/TransformComponent.h"
 
@@ -24,14 +23,14 @@ void KinematicsSystem::Update(float deltaTime) {
             // Simple damping: v = v * (1 - friction * dt)
             // Or linear drag: v = v - friction * v * dt
             if (kin.friction > 0) {
-                float speed = Vector2Length(kin.velocity);
+                float speed = kin.velocity.Length();
                 if (speed > 0) {
                     float drop = speed * kin.friction * deltaTime;
                     float newSpeed = speed - drop;
                     if (newSpeed < 0) newSpeed = 0;
                     
                     if (speed > 0.0001f) {
-                         kin.velocity = Vector2Scale(kin.velocity, newSpeed / speed);
+                         kin.velocity = kin.velocity * (newSpeed / speed);
                     } else {
                         kin.velocity = {0,0};
                     }
@@ -40,16 +39,16 @@ void KinematicsSystem::Update(float deltaTime) {
             
             // 3. Clamp to MaxSpeed
             if (kin.maxSpeed > 0) {
-                float speed = Vector2Length(kin.velocity);
+                float speed = kin.velocity.Length();
                 if (speed > kin.maxSpeed) {
-                    kin.velocity = Vector2Scale(kin.velocity, kin.maxSpeed / speed);
+                    kin.velocity = kin.velocity * (kin.maxSpeed / speed);
                 }
             }
 
             // 4. Integrate Velocity into Position
             // p = p + v * dt
             // Only update if moving noticeably
-            if (Vector2LengthSqr(kin.velocity) > 0.001f) {
+            if (Dot(kin.velocity, kin.velocity) > 0.001f) {
                 transform.localX += kin.velocity.x * deltaTime;
                 transform.localY += kin.velocity.y * deltaTime;
             }

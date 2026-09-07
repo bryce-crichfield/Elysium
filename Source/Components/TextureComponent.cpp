@@ -43,8 +43,7 @@ namespace Elysium {
         c.originX = el->FloatAttribute("originX", 0.5f);
         c.originY = el->FloatAttribute("originY", 0.5f);
         std::string tintHex = el->Attribute("tint") ? el->Attribute("tint") : "";
-        // ::-qualified to avoid raylib's WHITE macro colliding with Elysium::Colors.
-        c.tint = ParseHexColor(tintHex, ::WHITE);
+        c.tint = ParseHexColor(tintHex, Colors::White);
         c.filterMode = ParseFilterMode(el->Attribute("filter"));
     }
 
@@ -98,7 +97,7 @@ namespace Elysium {
         ut["textureName"] = &TextureComponent::textureName;
         ut["tint"] = sol::property(
             [](TextureComponent& t) { return t.tint; },
-            [](TextureComponent& t, ::Color v) { t.tint = v; });
+            [](TextureComponent& t, Color v) { t.tint = v; });
         ut["originX"] = &TextureComponent::originX;
         ut["originY"] = &TextureComponent::originY;
     }

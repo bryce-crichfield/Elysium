@@ -19,6 +19,7 @@
 #include "Core/Common.h"
 #include "Interfaces/IInvokeService.h"
 #include "Interfaces/IMessageService.h"
+#include "Interfaces/IApplicationService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
 #include "Services/NetworkService.h"
@@ -110,8 +111,10 @@ bool NetworkService::StartServer(uint16_t port, size_t maxClients) {
         std::function<PingResponse(NetworkPeer, const PingRequest&)>(
         [this](NetworkPeer peer, const PingRequest& req) -> PingResponse {
             LOG_INFOF("ServerNet", "Ping from peer=%zu clientTick=%u", peer, req.clientTick);
+
+            auto& app = registry_.Get<IApplicationService>();
             PingResponse resp;
-            resp.serverTick = static_cast<uint32_t>(GetTime() * 1000);
+            resp.serverTick = static_cast<uint32_t>(app.GetTime() * 1000);
             resp.echoClientTick = req.clientTick;
             return resp;
         }));

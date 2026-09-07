@@ -25,13 +25,13 @@ namespace Elysium {
         c.y2 = el->FloatAttribute("y2", 0.0f);
         c.thickness = el->FloatAttribute("thickness", 1.0f);
         std::string colorHex = el->Attribute("color") ? el->Attribute("color") : "";
-        c.color = ParseHexColor(colorHex, WHITE);
+        c.color = ParseHexColor(colorHex, Colors::White);
     }
 
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), WHITE);
-        return WHITE;
+        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), Colors::White);
+        return Colors::White;
     }
 
     void LineComponent::Inspect(LineComponent& c, Entity e, ServiceLocator& services) {

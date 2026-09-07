@@ -1,6 +1,6 @@
 #pragma once
 #include "Core/Component.h"
-#include "raylib.h"
+#include "Core/Graphics.h"
 
 namespace Elysium {
     struct LineComponent {
@@ -9,7 +9,7 @@ namespace Elysium {
         float thickness;
 
         LineComponent(float x1 = 0.0f, float y1 = 0.0f, float x2 = 50.0f, float y2 = 0.0f,
-                      Color color = WHITE, float thickness = 1.0f);
+                      Color color = Colors::White, float thickness = 1.0f);
 
         static constexpr const char* Name() { return "Line"; }
         static constexpr const char* XmlTag() { return "LineComponent"; }

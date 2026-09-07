@@ -21,6 +21,7 @@
 #include "Core/Geometry.h"
 #include "Core/Graphics.h"
 #include "Core/Path.h"
+#include "Core/Framebuffer.h"
 #include "Core/RenderContext.h"
 #include "Core/Scene.h"
 #include "Core/ServiceLocator.h"
@@ -30,8 +31,8 @@
 #include "Interfaces/IAssetService.h"
 #include "Interfaces/IEditorService.h"
 #include "Interfaces/ISceneService.h"
+#include "Core/RaylibConvert.h"
 #include "raylib.h"
-#include "raymath.h"
 #include "rlgl.h"
 
 namespace Elysium::Systems {
@@ -151,8 +152,7 @@ static void RenderRectangleImpl(RenderContext& ctx, const RenderRecord& rec) {
             Texture2D texture = ToRaylibTexture(*textureData);
             Rectangle sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
             Rectangle destRect   = { topLeftX, topLeftY, component.width, component.height };
-            // ::-qualified to avoid raylib's WHITE macro colliding with Elysium::Colors.
-            ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, ::WHITE);
+            ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, Colors::White);
         } else {
             assets.LoadAsset<Texture>(Path(component.textureName));
         }
@@ -184,7 +184,7 @@ static void RenderCircleImpl(RenderContext& ctx, const RenderRecord& rec) {
 
 static bool PickCircleImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
     const auto& component = world.GetComponent<CircleComponent>(rec.entity);
-    return Vector2Distance(testPos, {rec.x, rec.y}) <= component.radius;
+    return (testPos - Vector2{rec.x, rec.y}).Length() <= component.radius;
 }
 
 static std::optional<Rectangle> BoundsCircleImpl(const World& world, const RenderRecord& rec) {
@@ -403,9 +403,9 @@ static void RenderLightImpl(RenderContext& ctx, const RenderRecord& rec) {
         float curve = powf(1.0f - t, power);
         float ringRadius = component.radius * curve;
 
-        ::Color ringColor = component.color;
+        Color ringColor = component.color;
         ringColor.a = (unsigned char)(component.color.a / numRings);
-        ::Color ringEdge  = { ringColor.r, ringColor.g, ringColor.b, 0 };
+        Color ringEdge  = { ringColor.r, ringColor.g, ringColor.b, 0 };
 
         if (ctx.IsIsometric()) {
             ctx.DrawEllipseGradient(rec.x, rec.y, ringRadius, ringRadius * 0.5f, ringColor, ringEdge);
@@ -417,7 +417,7 @@ static void RenderLightImpl(RenderContext& ctx, const RenderRecord& rec) {
 
 static bool PickLightImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
     const auto& component = world.GetComponent<LightComponent>(rec.entity);
-    return Vector2Distance(testPos, {rec.x, rec.y}) <= component.radius;
+    return (testPos - Vector2{rec.x, rec.y}).Length() <= component.radius;
 }
 
 // Script draw-command renderable types: value-backed (Has == nullptr), Render casts
@@ -453,20 +453,20 @@ static void RenderDrawPolygonCmd(RenderContext& ctx, const RenderRecord& rec) {
 Matrix RenderProjector::CalculateTransform(const CameraView& view, const SceneLayer& layer) {
     switch (layer.space) {
         case SceneLayerSpace::Screen2D:
-            return MatrixIdentity();
+            return Matrix::Identity();
         case SceneLayerSpace::World2D: {
             Vector2 viewportCenter = {
                 view.viewport.width  * 0.5f,
                 view.viewport.height * 0.5f
             };
-            Matrix centerTranslation = MatrixTranslate(viewportCenter.x, viewportCenter.y, 0);
-            Matrix scale             = MatrixScale(view.zoom, view.zoom, 1.0f);
-            Matrix cameraTranslation = MatrixTranslate(-view.position.x, -view.position.y, 0);
-            // MatrixMultiply(A, B) applies A first — must match the WorldToFramebuffer math below.
-            return MatrixMultiply(MatrixMultiply(cameraTranslation, scale), centerTranslation);
+            Matrix centerTranslation = Matrix::Translation({viewportCenter.x, viewportCenter.y, 0.0f});
+            Matrix scale             = Matrix::Scale({view.zoom, view.zoom, 1.0f});
+            Matrix cameraTranslation = Matrix::Translation({-view.position.x, -view.position.y, 0.0f});
+            // Row-vector convention: v * (A * B * C) applies A first — must match WorldToFramebuffer below.
+            return cameraTranslation * scale * centerTranslation;
         }
     }
-    return MatrixIdentity();
+    return Matrix::Identity();
 }
 
 Vector2 RenderProjector::WorldToFramebuffer(Vector2 worldPos, const CameraView& view) {
@@ -667,17 +667,15 @@ void RenderSorter::Build(World& world, Scene& scene, const std::vector<DrawComma
 }
 
 RenderCompositor::~RenderCompositor() {
-    if (compositeBuffer_.id != 0) {
-        UnloadRenderTexture(compositeBuffer_);
-    }
+    DestroyFramebuffer(compositeBuffer_);
 }
 
-RenderTexture2D& RenderCompositor::EnsureCompositeBuffer(int width, int height) {
+const Framebuffer& RenderCompositor::EnsureCompositeBuffer(int width, int height) {
     if (compositeBuffer_.id == 0 || compositeWidth_ != width || compositeHeight_ != height) {
         if (compositeBuffer_.id != 0) {
-            UnloadRenderTexture(compositeBuffer_);
+            DestroyFramebuffer(compositeBuffer_);
         }
-        compositeBuffer_ = LoadRenderTexture(width, height);
+        compositeBuffer_ = CreateFramebuffer(width, height);
         compositeWidth_ = width;
         compositeHeight_ = height;
     }
@@ -686,9 +684,9 @@ RenderTexture2D& RenderCompositor::EnsureCompositeBuffer(int width, int height) 
 
 void RenderCompositor::PushBlend(RenderContext& ctx, SceneLayerBlend blend) {
     switch (blend) {
-        case SceneLayerBlend::Additive: ctx.PushBlendMode(BLEND_ADDITIVE);   break;
-        case SceneLayerBlend::Multiply: ctx.PushBlendMode(BLEND_MULTIPLIED); break;
-        default:                        ctx.PushBlendMode(BLEND_ALPHA);     break;
+        case SceneLayerBlend::Additive: ctx.PushBlendMode(BlendMode::Additive);       break;
+        case SceneLayerBlend::Multiply: ctx.PushBlendMode(BlendMode::Multiplicative); break;
+        default:                        ctx.PushBlendMode(BlendMode::Alpha);          break;
     }
 }
 
@@ -739,12 +737,12 @@ void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& vi
 
     int w = (int)view.viewport.width;
     int h = (int)view.viewport.height;
-    RenderTexture2D& compositionBuffer = EnsureCompositeBuffer(w, h);
+    const Framebuffer& compositionBuffer = EnsureCompositeBuffer(w, h);
 
     ctx.PopScissorMode();
 
-    ctx.BeginTextureMode(compositionBuffer);
-    ClearBackground(layer.ambient);
+    ctx.BeginRenderTarget(compositionBuffer);
+    ClearBackground(ToRaylib(layer.ambient));
 
     PushBlend(ctx, layer.layerBlend);
     ctx.PushMatrix();
@@ -755,18 +753,17 @@ void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& vi
     ctx.PopMatrix();
     ctx.PopBlendMode();
 
-    ctx.EndTextureMode();
+    ctx.EndRenderTarget();
 
     // Restore SceneService's framebuffer
     auto& sceneService = ctx.GetServices().Get<Services::ISceneService>();
-    ctx.BeginTextureMode(sceneService.GetFramebuffer());
+    ctx.BeginRenderTarget(sceneService.GetFramebuffer());
 
     PushBlend(ctx, layer.compositeBlend);
-    Rectangle src = {0, 0, (float)w, -(float)h};
     Rectangle dst = {view.viewport.x, view.viewport.y, (float)w, (float)h};
-    ::Color compositeTint = ::WHITE;
+    Color compositeTint = Colors::White;
     compositeTint.a = (unsigned char)(255.0f * std::clamp(layer.opacity, 0.0f, 1.0f));
-    ctx.DrawTexturePro(compositionBuffer.texture, src, dst, {0, 0}, 0.0f, compositeTint);
+    ctx.DrawFramebuffer(compositionBuffer, dst, compositeTint);
 
     ctx.PopBlendMode();
 

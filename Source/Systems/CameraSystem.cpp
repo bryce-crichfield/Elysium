@@ -1,5 +1,6 @@
 #include "Systems/CameraSystem.h"
 #include "Core/SystemRegistry.h"
+#include "raylib.h"  // KEY_*, MOUSE_BUTTON_* — input enum abstraction still pending
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/ISceneService.h"
 #include "Services/LogService.h"
@@ -7,7 +8,6 @@
 #include "Components/TransformComponent.h"
 #include "Components/CameraComponent.h"
 #include "Components/FollowComponent.h"
-#include "raymath.h"
 
 namespace Elysium::Systems {
 
@@ -103,8 +103,8 @@ void CameraSystem::Update(float deltaTime) {
         if (keyD_) { panDir.x += 1.0f; shouldPan = true; }
     }
 
-    if (Vector2Length(panDir) > 0.0f) {
-        panDir = Vector2Normalize(panDir);
+    if (panDir.Length() > 0.0f) {
+        panDir = panDir.Normalized();
     }
 
     // Middle Mouse Drag Panning

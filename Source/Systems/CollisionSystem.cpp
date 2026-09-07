@@ -4,7 +4,6 @@
 #include "Core/Scene.h"
 #include "Components/TransformComponent.h"
 #include "Components/ColliderComponent.h"
-#include "raylib.h"
 
 namespace Elysium::Systems {
 
@@ -49,7 +48,7 @@ void CollisionSystem::Update(float deltaTime) {
                 world->GetComponent<TransformComponent>(b.entity).worldX,
                 world->GetComponent<TransformComponent>(b.entity).worldY);
 
-            if (CheckCollisionRecs(aRect, bRect)) {
+            if (aRect.Intersects(bRect)) {
                 collisions_.insert(CollisionPair(a.entity, b.entity));
             }
         }

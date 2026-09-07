@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include "Core/Entity.h"
-#include "raylib.h"
+#include "Core/MathTypes.h"
 #include "Interfaces/IService.h"
 
 namespace Elysium {

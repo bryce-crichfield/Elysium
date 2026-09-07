@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/Component.h"
-#include "raylib.h"
+#include "Core/Graphics.h"
+#include "Core/MathTypes.h"
 
 namespace Elysium {
     enum class TextureFilterMode { Point, Bilinear };
@@ -14,7 +15,7 @@ namespace Elysium {
     struct TextureComponent {
         std::string textureName;
         Rectangle sourceRect = {0, 0, 0, 0};
-        Color tint = WHITE;
+        Color tint = Colors::White;
         float originX = 0.5f;
         float originY = 0.5f;
         TextureFilterMode filterMode = TextureFilterMode::Point;

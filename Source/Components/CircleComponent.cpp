@@ -21,13 +21,13 @@ namespace Elysium {
         std::string fillHex = el->Attribute("fill") ? el->Attribute("fill") : "";
         std::string borderHex = el->Attribute("border") ? el->Attribute("border") : "";
 
-        c.background = ParseHexColor(fillHex, BLANK);
-        c.border = ParseHexColor(borderHex, BLANK);
+        c.background = ParseHexColor(fillHex, Colors::Blank);
+        c.border = ParseHexColor(borderHex, Colors::Blank);
     }
     
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        return WHITE;
+        return Colors::White;
     }
 
     void CircleComponent::Inspect(CircleComponent& c, Entity e, ServiceLocator& services) {

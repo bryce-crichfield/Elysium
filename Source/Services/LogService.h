@@ -13,7 +13,6 @@
 #include "Core/Log.h"  // LOG_* macros — re-exported here so existing includers don't need to change
 #include "Core/ServiceLocator.h"
 #include "Interfaces/ILogService.h"
-#include "raylib.h"
 
 namespace Elysium::Services {
 

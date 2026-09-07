@@ -1,6 +1,6 @@
 #pragma once
 #include "Core/Component.h"
-#include "raylib.h"
+#include "Core/Graphics.h"
 #include <string>
 
 namespace Elysium {

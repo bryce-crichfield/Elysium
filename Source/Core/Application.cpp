@@ -20,6 +20,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "rlImGui.h"
+#include "Core/RaylibConvert.h"
 
 namespace Elysium {
 
@@ -240,7 +241,7 @@ void Application::Draw() {
 
     // Begin frame
     BeginDrawing();
-    ClearBackground(BLACK);
+    ClearBackground(ToRaylib(Colors::Black));
 
     // Services render their content (SceneService draws scenes to framebuffer)
     for (auto& service : serviceLocator_.GetAllServices()) {
@@ -290,13 +291,7 @@ void Application::Draw() {
         // Game viewport panel is drawn by ViewportEditor, part of the generic editors loop below.
     } else {
         auto& sceneService = serviceLocator_.Get<Services::ISceneService>();
-        auto& texture = sceneService.GetFramebuffer().texture;
-        auto letterboxRect = sceneService.GetLetterboxRect();
-        DrawTexturePro(
-            texture,
-            Rectangle{0, 0, (float)texture.width, -(float)texture.height},
-            letterboxRect, Vector2{0, 0}, 0.0f, WHITE);
-        sceneService.SetViewportRect(letterboxRect);
+        sceneService.Present(sceneService.GetLetterboxRect());
     }
 
     for (auto& editor : editors_) {

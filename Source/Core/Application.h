@@ -7,7 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "raylib.h"
+#include "Core/Graphics.h"
 
 namespace Elysium {
 
@@ -20,10 +20,7 @@ struct ApplicationConfig {
     bool fullscreen = false;
     bool vsync = true;
     int targetFPS = 60;
-    // Qualified: Core/Graphics.h defines an Elysium::Color (4 floats) that otherwise
-    // shadows raylib's ::Color here in TUs that include it first, giving this struct
-    // two incompatible layouts across the codebase (ODR) — see the framebuffer fields.
-    ::Color backgroundColor{0, 0, 0, 255};
+    Color backgroundColor{0, 0, 0, 255};
 
     int framebufferWidth = 640;
     int framebufferHeight = 480;

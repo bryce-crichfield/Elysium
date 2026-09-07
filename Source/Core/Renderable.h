@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <optional>
 #include <vector>
-#include "raylib.h"
+#include "Core/Graphics.h"
+#include "Core/MathTypes.h"
 #include "Core/Entity.h"
 
 namespace Elysium {

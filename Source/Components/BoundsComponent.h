@@ -3,7 +3,8 @@
 #include "Core/Event.h"
 #include "Components/LayerComponent.h"
 #include "Core/Scene.h"
-#include "raylib.h"
+#include "Core/Graphics.h"
+#include "Core/MathTypes.h"
 
 namespace Elysium {
     struct BoundsComponent {
@@ -13,7 +14,7 @@ namespace Elysium {
         Color debugColor;  // Color to draw debug bounds
 
         BoundsComponent()
-            : bounds({0, 0, 0, 0}), isDragging(false), debugColor(RED) {}
+            : bounds({0, 0, 0, 0}), isDragging(false), debugColor(Colors::Red) {}
 
         BoundsComponent(Rectangle rect, Color color)
             : bounds(rect), isDragging(false), debugColor(color) {}

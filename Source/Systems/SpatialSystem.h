@@ -2,7 +2,7 @@
 
 #include "Core/System.h"
 #include "Core/Component.h"
-#include "raylib.h"
+#include "Core/MathTypes.h"
 #include <vector>
 #include <unordered_set>
 

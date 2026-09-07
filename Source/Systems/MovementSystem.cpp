@@ -4,7 +4,6 @@
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
-#include "raymath.h"
 #include <algorithm>
 #include "Components/MovementComponent.h"
 #include "Components/TransformComponent.h"
@@ -88,7 +87,7 @@ void MovementSystem::Update(float deltaTime) {
             // every frame — add stuckCheckAccumMs to MovementComponent.
             mv.stuckCheckAccumMs += static_cast<int>(deltaTime * 1000);
             if (mv.stuckCheckAccumMs >= STUCK_CHECK_INTERVAL_MS) {
-                float traveled = Vector2Distance(currentPos, mv.lastPosition);
+                float traveled = (currentPos - mv.lastPosition).Length();
                 if (traveled < STUCK_DIST_THRESHOLD) {
                     // Stuck — enter waiting state with random jitter.
                     // Jitter is critical: without it, two mutually blocking units
@@ -125,7 +124,7 @@ void MovementSystem::Update(float deltaTime) {
             // Pop waypoints we've reached.
             while (mv.currentWaypointIndex < (int)mv.waypoints.size()) {
                 Vector2 wp = mv.waypoints[mv.currentWaypointIndex];
-                float dist = Vector2Distance(currentPos, wp);
+                float dist = (currentPos - wp).Length();
                 if (dist < WAYPOINT_ARRIVE_DIST) {
                     mv.currentWaypointIndex++;
                 } else {
@@ -147,9 +146,8 @@ void MovementSystem::Update(float deltaTime) {
 
             // Steer toward current waypoint.
             Vector2 wp = mv.waypoints[mv.currentWaypointIndex];
-            Vector2 dir = Vector2Subtract(wp, currentPos);
-            dir = Vector2Normalize(dir);
-            kin.velocity = Vector2Scale(dir, kin.maxSpeed);
+            Vector2 dir = (wp - currentPos).Normalized();
+            kin.velocity = dir * kin.maxSpeed;
         }
     );
 

@@ -16,7 +16,7 @@
 #include "Systems/RenderSystem.h"
 #include "imgui.h"
 #include "rlImGui.h"
-#include "raymath.h"
+#include "Core/RaylibConvert.h"
 
 namespace Elysium {
 
@@ -41,25 +41,11 @@ void ViewportEditor::Draw() {
         ImVec2 pos = ImGui::GetCursorScreenPos();
         ImVec2 avail = ImGui::GetContentRegionAvail();
 
-        rlImGuiImageRenderTextureFit(&sceneService.GetFramebuffer(), true);
-
-        // Snapshot the view that produced the currently-displayed framebuffer image
-        // (i.e. before this frame's pan/zoom input is applied) so picking and gizmo
-        // hit-testing line up with what's actually on screen right now.
-        auto& editorCam = editorService.GetEditorCamera();
-        const auto& config = services_.Get<IApplicationService>().GetConfig();
-        CameraView view{
-            editorCam.position,
-            editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
-            Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight}
-        };
-
-        // Where the framebuffer image landed on screen — rlImGuiImageRenderTextureFit centers
-        // it maintaining aspect ratio. Needed by input handling and overlay drawing below, and
-        // to tell SceneService where the game viewport is on screen.
-        float fbW = (float)sceneService.GetFramebuffer().texture.width;
-        float fbH = (float)sceneService.GetFramebuffer().texture.height;
-        float fbAspect = fbW / fbH;
+        // Fit the framebuffer into the content region, centered, preserving aspect. Needed
+        // by input handling and overlay drawing below, and to tell SceneService where the
+        // game viewport landed on screen.
+        const Framebuffer& fb = sceneService.GetFramebuffer();
+        float fbAspect = (float)fb.width / (float)fb.height;
         float regionAspect = avail.x / avail.y;
 
         float drawW, drawH;
@@ -73,6 +59,21 @@ void ViewportEditor::Draw() {
         float drawX = pos.x + (avail.x - drawW) * 0.5f;
         float drawY = pos.y + (avail.y - drawH) * 0.5f;
         Rectangle imageScreenRect{drawX, drawY, drawW, drawH};
+
+        // Draw the framebuffer image, V-flipped (framebuffer textures use GL bottom-up origin).
+        ImGui::SetCursorScreenPos(ImVec2(drawX, drawY));
+        ImGui::Image((ImTextureID)fb.textureId, ImVec2(drawW, drawH), ImVec2(0, 1), ImVec2(1, 0));
+
+        // Snapshot the view that produced the currently-displayed framebuffer image
+        // (i.e. before this frame's pan/zoom input is applied) so picking and gizmo
+        // hit-testing line up with what's actually on screen right now.
+        auto& editorCam = editorService.GetEditorCamera();
+        const auto& config = services_.Get<IApplicationService>().GetConfig();
+        CameraView view{
+            editorCam.position,
+            editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
+            Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight}
+        };
 
         HandleEditorCameraInput(sceneService, editorService);
         HandleGizmoOrPick(sceneService, editorService, view);
@@ -141,7 +142,7 @@ void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEdito
     }
 
     if (isPanningCamera_) {
-        Vector2 delta = GetMouseDelta();
+        Vector2 delta = FromRaylib(GetMouseDelta());
         float zoom = cam.zoom != 0.0f ? cam.zoom : 1.0f;
         cam.position.x -= delta.x / zoom;
         cam.position.y -= delta.y / zoom;
@@ -155,7 +156,7 @@ void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEdito
             // re-solve the camera position so that same world point stays under the cursor.
             const auto& config = services_.Get<IApplicationService>().GetConfig();
             Vector2 viewportCenter = { config.framebufferWidth * 0.5f, config.framebufferHeight * 0.5f };
-            Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(GetMousePosition());
+            Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(FromRaylib(GetMousePosition()));
 
             float oldZoom = cam.zoom != 0.0f ? cam.zoom : 1.0f;
             Vector2 worldUnderMouse = {
@@ -181,7 +182,7 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
     if (isDraggingGizmo_) {
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && world &&
             world->HasComponent<TransformComponent>(gizmoEntity_)) {
-            Vector2 fbPos = sceneService.ScreenToFramebuffer(GetMousePosition());
+            Vector2 fbPos = sceneService.ScreenToFramebuffer(FromRaylib(GetMousePosition()));
             Vector2 fbDelta = { fbPos.x - lastGizmoFbPos_.x, fbPos.y - lastGizmoFbPos_.y };
             lastGizmoFbPos_ = fbPos;
             ApplyGizmoDrag(world, gizmoEntity_, view.zoom, fbDelta, gizmoIsWorldSpace_);
@@ -204,8 +205,8 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
         Vector2 handleFbPos = isWorldSpace
             ? Systems::RenderProjector::WorldToFramebuffer({ t.worldX, t.worldY }, view)
             : Vector2{ t.worldX, t.worldY };
-        Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(GetMousePosition());
-        if (Vector2Distance(mouseFbPos, handleFbPos) <= kMoveHandleRadius) {
+        Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(FromRaylib(GetMousePosition()));
+        if ((mouseFbPos - handleFbPos).Length() <= kMoveHandleRadius) {
             isDraggingGizmo_ = true;
             gizmoEntity_ = selected[0];
             lastGizmoFbPos_ = mouseFbPos;
@@ -225,10 +226,10 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     if (!renderSystem)
         return;
 
-    Vector2 fbPos = sceneService.ScreenToFramebuffer(GetMousePosition());
+    Vector2 fbPos = sceneService.ScreenToFramebuffer(FromRaylib(GetMousePosition()));
     auto hits = renderSystem->Pick(fbPos, view);
 
-    bool samePos = !hits.empty() && Vector2Distance(fbPos, lastClickFbPos_) < 4.0f;
+    bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < 4.0f;
     size_t index = samePos ? (lastClickIndex_ + 1) % hits.size() : 0;
     lastClickFbPos_ = fbPos;
     lastClickIndex_ = index;

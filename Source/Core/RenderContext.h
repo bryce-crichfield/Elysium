@@ -1,7 +1,9 @@
 #pragma once
 
 #include <vector>
-#include "raylib.h"
+#include "raylib.h"  // Texture2D on DrawTexturePro — removed in the texture pass
+#include "Core/Graphics.h"
+#include "Core/MathTypes.h"
 
 namespace Elysium {
 
@@ -55,10 +57,12 @@ public:
     void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
     // Draws raylib DrawTriangle for each consecutive triple of vertices (3 per triangle).
     void DrawTriangleList(const std::vector<Vector2>& triangleVerts, Color color);
+    // Blits a framebuffer's color texture into dest (V-flipped for GL origin).
+    void DrawFramebuffer(const Framebuffer& fb, Rectangle dest, Color tint);
 
-    // Raw State
-    void BeginTextureMode(RenderTexture2D& target);
-    void EndTextureMode();
+    // Render target
+    void BeginRenderTarget(const Framebuffer& target);
+    void EndRenderTarget();
 
 private:
     ServiceLocator& services_;

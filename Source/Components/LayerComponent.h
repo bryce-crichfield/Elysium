@@ -2,7 +2,6 @@
 #include "Core/Component.h"
 #include <string>
 #include <vector>
-#include "raylib.h"
 
 namespace Elysium {
     struct LayerComponent {

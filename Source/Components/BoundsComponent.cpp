@@ -9,7 +9,7 @@ namespace Elysium {
 
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        return WHITE;
+        return Colors::White;
     }
 
     void BoundsComponent::Inspect(BoundsComponent& c, Entity e, ServiceLocator& services) {

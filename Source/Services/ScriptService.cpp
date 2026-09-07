@@ -12,6 +12,7 @@
 #include "Core/Component.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Path.h"
+#include "raylib.h"  // IsKeyDown/GetMousePosition/KEY_*/DrawText — input+draw abstraction still pending
 #include "imgui.h"
 #include <memory>
 #include <limits>

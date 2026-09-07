@@ -9,7 +9,6 @@
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
-#include "raylib.h"
 #include "Core/Event.h"
 
 // Entity-Component-System (ECS) Storage Layout:

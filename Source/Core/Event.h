@@ -1,7 +1,7 @@
 #pragma once
 
 #include <typeinfo>
-#include "raylib.h"
+#include "Core/MathTypes.h"
 
 namespace Elysium {
 

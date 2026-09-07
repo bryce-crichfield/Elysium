@@ -10,7 +10,6 @@
 #include "Interfaces/ISceneService.h"
 #include "Core/ServiceLocator.h"
 #include "Services/InvokeService.h"
-#include "raylib.h"
 
 namespace Elysium::Services {
 
@@ -89,7 +88,8 @@ public:
     const Rectangle& GetLetterboxRect() const override { return letterboxRect_; }
     float GetScaleX() const override { return scaleX_; }
     float GetScaleY() const override { return scaleY_; }
-    RenderTexture2D& GetFramebuffer() override { return framebuffer_; }
+    const Framebuffer& GetFramebuffer() const override { return framebuffer_; }
+    void Present(Rectangle target) override;
 
     // The viewport rect is where on the window the framebuffer is actually drawn.
     // Application or editor sets this so input coordinates can be translated correctly.
@@ -127,7 +127,7 @@ private:
     std::vector<Scene*> sceneStack_;
 
     // Rendering
-    RenderTexture2D framebuffer_;
+    Framebuffer framebuffer_;
     Rectangle letterboxRect_;
     float scaleX_ = 1.0f;
     float scaleY_ = 1.0f;

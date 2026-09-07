@@ -5,7 +5,8 @@
 #include <vector>
 #include "Core/Message.h"
 #include "Core/Scene.h"
-#include "raylib.h"
+#include "Core/Graphics.h"
+#include "Core/MathTypes.h"
 #include "Interfaces/IService.h"
 
 namespace Elysium::Services {
@@ -43,7 +44,14 @@ class ISceneService : public IService {
     virtual const Rectangle& GetLetterboxRect() const = 0;
     virtual float GetScaleX() const = 0;
     virtual float GetScaleY() const = 0;
-    virtual RenderTexture2D& GetFramebuffer() = 0;
+
+    // The offscreen target scenes are rendered into. A plain GL-shaped handle —
+    // callers bind it via RenderContext or sample fb.textureId directly.
+    virtual const Framebuffer& GetFramebuffer() const = 0;
+
+    // Blits the framebuffer to the current render target, letterboxed into `target`
+    // (window pixels), and records `target` as the viewport rect for input mapping.
+    virtual void Present(Rectangle target) = 0;
 
     virtual void SetViewportRect(Rectangle rect) = 0;
     virtual const Rectangle& GetViewportRect() const = 0;

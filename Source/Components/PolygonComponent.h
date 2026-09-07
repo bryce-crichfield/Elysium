@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/Component.h"
-#include "raylib.h"
+#include "Core/Graphics.h"
+#include "Core/MathTypes.h"
 #include <vector>
 
 namespace Elysium {

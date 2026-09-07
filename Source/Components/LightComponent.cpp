@@ -19,7 +19,7 @@ namespace Elysium {
         // Support hex color format: color="#RRGGBBAA" or color="#RRGGBB"
         const char* colorAttr = el->Attribute("color");
         if (colorAttr) {
-            c.color = ParseHexColor(colorAttr, WHITE);
+            c.color = ParseHexColor(colorAttr, Colors::White);
         } else {
             // Fallback to individual r/g/b/a attributes
             int r = el->IntAttribute("r", 255);
@@ -32,7 +32,7 @@ namespace Elysium {
 
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        return WHITE;
+        return Colors::White;
     }
 
     void LightComponent::Inspect(LightComponent& c, Entity e, ServiceLocator& services) {

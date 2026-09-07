@@ -50,14 +50,14 @@ namespace Elysium {
         c.points = ParsePoints(pointsStr);
         std::string fillHex = el->Attribute("fill") ? el->Attribute("fill") : "";
         std::string borderHex = el->Attribute("border") ? el->Attribute("border") : "";
-        c.fill = ParseHexColor(fillHex, BLANK);
-        c.border = ParseHexColor(borderHex, BLANK);
+        c.fill = ParseHexColor(fillHex, Colors::Blank);
+        c.border = ParseHexColor(borderHex, Colors::Blank);
     }
 
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), BLANK);
-        return WHITE;
+        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), Colors::Blank);
+        return Colors::White;
     }
 
     void PolygonComponent::Inspect(PolygonComponent& c, Entity e, ServiceLocator& services) {

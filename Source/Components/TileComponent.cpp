@@ -37,7 +37,7 @@ namespace Elysium {
         }
         c.isIsometric = el->BoolAttribute("isIsometric", false);
         std::string tintHex = el->Attribute("tint") ? el->Attribute("tint") : "";
-        c.tint = ParseHexColor(tintHex, WHITE);
+        c.tint = ParseHexColor(tintHex, Colors::White);
 
         if (!tileName) {
             LOG_WARNING("Scene", "TileComponent missing tileName attribute");
@@ -146,8 +146,8 @@ namespace Elysium {
 
     static Color TileObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
-        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), WHITE);
-        return WHITE;
+        if (obj.is<std::string>()) return ParseHexColor(obj.as<std::string>(), Colors::White);
+        return Colors::White;
     }
 
     void TileComponent::BindLua(sol::usertype<TileComponent>& ut) {

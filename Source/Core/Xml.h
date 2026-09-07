@@ -12,7 +12,7 @@
 #include <variant>
 #include <vector>
 #include "Core/System.h"
-#include "raylib.h"
+#include "Core/Graphics.h"
 
 using namespace tinyxml2;
 
@@ -36,7 +36,7 @@ concept XmlSavable = requires(const T& c, XMLBuilder& builder) {
 
 std::string ColorToHex(Color color);
 
-Color ParseHexColor(const std::string& hex, Color defaultColor = BLANK);
+Color ParseHexColor(const std::string& hex, Color defaultColor = Colors::Blank);
 
 // Processes XML '<Include src="path" />' tags by loading and merging referenced files into main document
 bool ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath);
