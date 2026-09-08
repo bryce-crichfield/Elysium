@@ -4,9 +4,9 @@
 #include "imgui.h"
 
 namespace Elysium {
-    RectangleComponent::RectangleComponent(float width, float height, Color background, Color border, const std::string& textureName,
+    RectangleComponent::RectangleComponent(float width, float height, Color background, Color border,
                                             float strokeWidth, float cornerRadius)
-        : width(width), height(height), background(background), border(border), textureName(textureName),
+        : width(width), height(height), background(background), border(border),
           strokeWidth(strokeWidth), cornerRadius(cornerRadius) {}
 
     void RectangleComponent::SaveXml(const RectangleComponent& c, XMLBuilder& builder) {
@@ -19,7 +19,6 @@ namespace Elysium {
         std::string borderHex = ColorToHex(c.border);
         if (!bgHex.empty()) b.SetAttribute("background", bgHex.c_str());
         if (!borderHex.empty()) b.SetAttribute("border", borderHex.c_str());
-        if (!c.textureName.empty()) b.SetAttribute("texture", c.textureName.c_str());
     }
 
     void RectangleComponent::LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
@@ -29,8 +28,6 @@ namespace Elysium {
         c.cornerRadius = el->FloatAttribute("cornerRadius", 0.0f);
         std::string backgroundHex = el->Attribute("background") ? el->Attribute("background") : "";
         std::string borderHex = el->Attribute("border") ? el->Attribute("border") : "";
-        std::string textureName = el->Attribute("texture") ? el->Attribute("texture") : "";
-        c.textureName = textureName;
         c.background = ParseHexColor(backgroundHex, Colors::Blank);
         c.border = ParseHexColor(borderHex, Colors::Blank);
     }
@@ -73,13 +70,6 @@ namespace Elysium {
         ImGui::DragFloat("##StrokeWidth", &c.strokeWidth, 0.1f, 0.0f, 50.0f);
         Label("Corner Radius: ");
         ImGui::DragFloat("##CornerRadius", &c.cornerRadius, 0.01f, 0.0f, 1.0f);
-
-        Label("Texture: ");
-        char buffer[256];
-        std::strncpy(buffer, c.textureName.c_str(), sizeof(buffer));
-        if (ImGui::InputText("##Texture", buffer, sizeof(buffer))) {
-            c.textureName = buffer;
-        }
     }
 
     void RectangleComponent::BindLua(sol::usertype<RectangleComponent>& ut) {
@@ -91,7 +81,6 @@ namespace Elysium {
         ut["border"] = sol::property(
             [](RectangleComponent& r) { return r.border; },
             [](RectangleComponent& r, sol::object v) { r.border = ObjectToColor(v); });
-        ut["textureName"] = &RectangleComponent::textureName;
         ut["strokeWidth"] = &RectangleComponent::strokeWidth;
         ut["cornerRadius"] = &RectangleComponent::cornerRadius;
     }
@@ -105,7 +94,6 @@ namespace Elysium {
             c.cornerRadius = t.get_or("cornerRadius", c.cornerRadius);
             if (t["background"].valid()) c.background = ObjectToColor(t["background"]);
             if (t["border"].valid()) c.border = ObjectToColor(t["border"]);
-            if (t["textureName"].valid()) c.textureName = t["textureName"];
         }
     }
 

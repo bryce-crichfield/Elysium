@@ -144,19 +144,6 @@ static void RenderRectangleImpl(RenderContext& ctx, const RenderRecord& rec) {
             ctx.DrawRectangleLinesEx(rect, component.strokeWidth, component.border);
         }
     }
-
-    if (!component.textureName.empty()) {
-        auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
-        auto* textureData = assets.Get<Texture>(Path(component.textureName));
-        if (textureData) {
-            Texture2D texture = ToRaylibTexture(*textureData);
-            Rectangle sourceRect = { 0, 0, (float)texture.width, (float)texture.height };
-            Rectangle destRect   = { topLeftX, topLeftY, component.width, component.height };
-            ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, Colors::White);
-        } else {
-            assets.LoadAsset<Texture>(Path(component.textureName));
-        }
-    }
 }
 
 static bool PickRectangleImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
@@ -315,6 +302,13 @@ static void RenderSpriteImpl(RenderContext& ctx, const RenderRecord& rec) {
     Texture2D texture = ToRaylibTexture(*textureData);
     if (texture.id == 0) return;
 
+    // A hand-placed TextureComponent with no SpriteSystem/XML to resolve sourceRect
+    // defaults to the whole image.
+    Rectangle source = tex.sourceRect;
+    if (source.width <= 0.0f || source.height <= 0.0f) {
+        source = {0.0f, 0.0f, (float)texture.width, (float)texture.height};
+    }
+
     float scaleX = 1.0f, scaleY = 1.0f, rotation = 0.0f;
     if (world.HasComponent<TransformComponent>(rec.entity)) {
         const auto& transform = world.GetComponent<TransformComponent>(rec.entity);
@@ -323,15 +317,15 @@ static void RenderSpriteImpl(RenderContext& ctx, const RenderRecord& rec) {
         rotation = transform.worldRotation;
     }
 
-    float scaledWidth  = tex.sourceRect.width  * scaleX;
-    float scaledHeight = tex.sourceRect.height * scaleY;
+    float scaledWidth  = source.width  * scaleX;
+    float scaledHeight = source.height * scaleY;
 
     // DrawTexturePro ignores destRect's sign, so negative scale (mirroring) is expressed via
     // a negated source-rect width instead, plus a 180deg rotation for vertical-only flips.
     bool flipHorizontal = scaledWidth  < 0.0f;
     bool flipVertical   = scaledHeight < 0.0f;
 
-    Rectangle sourceRect = tex.sourceRect;
+    Rectangle sourceRect = source;
     if (flipHorizontal != flipVertical) sourceRect.width = -sourceRect.width;
     float drawRotation = rotation + (flipVertical ? 180.0f : 0.0f);
 

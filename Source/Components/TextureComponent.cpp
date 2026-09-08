@@ -5,6 +5,8 @@
 #include "Services/AssetService.h"
 #include "imgui.h"
 #include <cstring>
+#include <string>
+#include <vector>
 
 namespace Elysium {
     static TextureFilterMode ParseFilterMode(const char* s) {
@@ -55,16 +57,58 @@ namespace Elysium {
             ImGui::SetNextItemWidth(-1);
         };
 
+        auto& assetService = services.Get<Services::IAssetService>();
+
+        // Fills sourceRect with the whole image when it hasn't been set (a hand-placed
+        // TextureComponent with no SpriteSystem/XML to resolve it would otherwise draw
+        // at zero size). No-op once width/height are non-zero.
+        auto ResolveSourceRect = [&](const std::string& name) {
+            if (name.empty() || (c.sourceRect.width > 0.0f && c.sourceRect.height > 0.0f)) return;
+            if (auto* texture = assetService.Get<Texture>(Path(name))) {
+                c.sourceRect = {0.0f, 0.0f, (float)texture->width, (float)texture->height};
+            }
+        };
+
         Label("Texture: ");
+        std::vector<std::string> textureNames;
+        textureNames.push_back("<None>");
+        for (const auto& [path, asset] : assetService.GetAllAssets()) {
+            if (asset->IsLoaded() && assetService.GetData<Texture>(asset.get())) {
+                textureNames.push_back(path.GetRelativePath());
+            }
+        }
+
+        std::string currentTexture = c.textureName.empty() ? "<None>" : c.textureName;
         std::string textureId = "##TextureName_" + std::to_string(e);
-        char buffer[256];
-        std::strncpy(buffer, c.textureName.c_str(), sizeof(buffer));
-        ImGui::InputText(textureId.c_str(), buffer, sizeof(buffer));
+        if (ImGui::BeginCombo(textureId.c_str(), currentTexture.c_str())) {
+            for (size_t i = 0; i < textureNames.size(); ++i) {
+                bool isSelected = (textureNames[i] == currentTexture);
+                std::string selectableId = textureNames[i] + "##" + std::to_string(i);
+                if (ImGui::Selectable(selectableId.c_str(), isSelected)) {
+                    c.textureName = (i == 0) ? "" : textureNames[i];
+                    c.sourceRect = {0, 0, 0, 0};
+                    ResolveSourceRect(c.textureName);
+                }
+                if (isSelected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ResolveSourceRect(c.textureName);  // self-heal if the asset finished loading after assignment
 
         Label("Source Rect: ");
         float rect[4] = {c.sourceRect.x, c.sourceRect.y, c.sourceRect.width, c.sourceRect.height};
         std::string rectId = "##TextureSourceRect_" + std::to_string(e);
-        ImGui::DragFloat4(rectId.c_str(), rect, 1.0f);
+        if (ImGui::DragFloat4(rectId.c_str(), rect, 1.0f)) {
+            c.sourceRect = {rect[0], rect[1], rect[2], rect[3]};
+        }
+
+        ImGui::Dummy(ImVec2(0.0f, 0.0f));
+        ImGui::SameLine(140.0f);
+        std::string resetId = "Reset to full image##SrcRectReset_" + std::to_string(e);
+        if (ImGui::SmallButton(resetId.c_str())) {
+            c.sourceRect = {0, 0, 0, 0};
+            ResolveSourceRect(c.textureName);
+        }
 
         ImGui::Spacing();
         ImGui::TextDisabled("Per-instance");
