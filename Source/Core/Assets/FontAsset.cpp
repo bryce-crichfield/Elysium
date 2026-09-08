@@ -1,8 +1,15 @@
 #include "Core/Assets/FontAsset.h"
 #include "Core/Asset.h"
 #include "Services/LogService.h"
+#include "raylib.h"
 
 namespace Elysium {
+
+struct FontAsset::Native {
+    ::Font font{};
+};
+
+FontAsset::~FontAsset() = default;
 
 bool FontAsset::Load() {
     ::Font font = ::LoadFont(GetPath().c_str());
@@ -11,7 +18,8 @@ bool FontAsset::Load() {
         return false;
     }
 
-    nativeFont_ = font;
+    native_ = std::make_unique<Native>();
+    native_->font = font;
     font_ = Font{font.texture.id, font.baseSize, font.glyphCount};
     SetLoaded(true);
     LOG_INFO("FontAsset", "Font loaded successfully");
@@ -19,10 +27,11 @@ bool FontAsset::Load() {
 }
 
 void FontAsset::Unload() {
-    if (IsLoaded()) {
-        ::UnloadFont(nativeFont_);
+    if (IsLoaded() && native_) {
+        ::UnloadFont(native_->font);
         SetLoaded(false);
     }
+    native_.reset();
 }
 
 REGISTER_ASSET_TYPE(Font, FontAsset);

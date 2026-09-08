@@ -3,7 +3,6 @@
 #include "Core/Editor.h"
 #include "Core/Entity.h"
 #include "Systems/RenderSystem.h"
-#include "raylib.h"
 
 namespace Elysium {
 class World;

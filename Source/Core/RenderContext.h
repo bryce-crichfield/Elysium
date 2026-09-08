@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include "raylib.h"  // Texture2D on DrawTexturePro — removed in the texture pass
 #include "Core/Graphics.h"
 #include "Core/MathTypes.h"
 
@@ -54,7 +53,7 @@ public:
     void DrawEllipse(float centerX, float centerY, float radiusH, float radiusV, Color color);
     void DrawEllipseLines(float centerX, float centerY, float radiusH, float radiusV, Color color);
     void DrawText(const char* text, float x, float y, int fontSize, Color color);
-    void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
+    void DrawTexturePro(const Texture& texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
     // Draws raylib DrawTriangle for each consecutive triple of vertices (3 per triangle).
     void DrawTriangleList(const std::vector<Vector2>& triangleVerts, Color color);
     // Blits a framebuffer's color texture into dest (V-flipped for GL origin).

@@ -16,6 +16,7 @@
 #include "Systems/RenderSystem.h"
 #include "imgui.h"
 #include "rlImGui.h"
+#include "raylib.h"  // KEY_*/MOUSE_*/GetMouse* — editor input, enum abstraction still pending
 #include "Core/RaylibConvert.h"
 
 namespace Elysium {

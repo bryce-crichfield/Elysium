@@ -1,8 +1,15 @@
 #include "Core/Assets/ShaderAsset.h"
 #include "Core/Asset.h"
 #include "Services/LogService.h"
+#include "raylib.h"
 
 namespace Elysium {
+
+struct ShaderAsset::Native {
+    ::Shader shader{};
+};
+
+ShaderAsset::~ShaderAsset() = default;
 
 bool ShaderAsset::Load() {
     ::Shader shader = ::LoadShader(nullptr, GetPath().c_str());
@@ -11,7 +18,8 @@ bool ShaderAsset::Load() {
         return false;
     }
 
-    nativeShader_ = shader;
+    native_ = std::make_unique<Native>();
+    native_->shader = shader;
     shader_ = Shader{shader.id};
     SetLoaded(true);
     LOG_DEBUGF("ShaderAsset", "Shader loaded: ID %d", shader.id);
@@ -19,10 +27,11 @@ bool ShaderAsset::Load() {
 }
 
 void ShaderAsset::Unload() {
-    if (IsLoaded()) {
-        ::UnloadShader(nativeShader_);
+    if (IsLoaded() && native_) {
+        ::UnloadShader(native_->shader);
         SetLoaded(false);
     }
+    native_.reset();
 }
 
 REGISTER_ASSET_TYPE(Shader, ShaderAsset);

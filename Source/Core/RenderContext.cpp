@@ -151,8 +151,8 @@ void RenderContext::DrawText(const char* text, float x, float y, int fontSize, C
     ::DrawText(text, (int)x, (int)y, fontSize, ToRaylib(color));
 }
 
-void RenderContext::DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint) {
-    ::DrawTexturePro(texture, ToRaylib(source), ToRaylib(dest), ToRaylib(origin), rotation, ToRaylib(tint));
+void RenderContext::DrawTexturePro(const Texture& texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint) {
+    ::DrawTexturePro(ToRaylib(texture), ToRaylib(source), ToRaylib(dest), ToRaylib(origin), rotation, ToRaylib(tint));
 }
 
 void RenderContext::DrawTriangleList(const std::vector<Vector2>& triangleVerts, Color color) {

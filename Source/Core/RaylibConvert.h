@@ -48,6 +48,23 @@ inline Matrix FromRaylib(const ::Matrix& m) {
 inline ::Color ToRaylib(Color c) { return {c.r, c.g, c.b, c.a}; }
 inline Color FromRaylib(::Color c) { return {c.r, c.g, c.b, c.a}; }
 
+// --- texture ---------------------------------------------------------------
+// Same fields, distinct types. The mirror never owns anything raylib does; it's
+// a value copy of the GPU handle + dimensions.
+
+inline ::Texture2D ToRaylib(const Texture& t) {
+    ::Texture2D r{};
+    r.id = t.id;
+    r.width = t.width;
+    r.height = t.height;
+    r.mipmaps = t.mipmaps;
+    r.format = t.format;
+    return r;
+}
+inline Texture FromRaylib(const ::Texture2D& t) {
+    return Texture{t.id, t.width, t.height, t.mipmaps, t.format};
+}
+
 // --- framebuffer ------------------------------------------------------------
 // The mirror stores GL object names; rebuild just enough of raylib's aggregate
 // for BeginTextureMode / the color-texture blit.

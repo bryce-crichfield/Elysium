@@ -1,8 +1,15 @@
 #include "Core/Assets/ModelAsset.h"
 #include "Core/Asset.h"
 #include "Services/LogService.h"
+#include "raylib.h"
 
 namespace Elysium {
+
+struct ModelAsset::Native {
+    ::Model model{};
+};
+
+ModelAsset::~ModelAsset() = default;
 
 bool ModelAsset::Load() {
     ::Model model = ::LoadModel(GetPath().c_str());
@@ -11,7 +18,8 @@ bool ModelAsset::Load() {
         return false;
     }
 
-    nativeModel_ = model;
+    native_ = std::make_unique<Native>();
+    native_->model = model;
     model_ = Model{model.meshCount, model.materialCount};
     SetLoaded(true);
     LOG_DEBUGF("ModelAsset", "Model loaded: %d meshes", model.meshCount);
@@ -19,10 +27,11 @@ bool ModelAsset::Load() {
 }
 
 void ModelAsset::Unload() {
-    if (IsLoaded()) {
-        ::UnloadModel(nativeModel_);
+    if (IsLoaded() && native_) {
+        ::UnloadModel(native_->model);
         SetLoaded(false);
     }
+    native_.reset();
 }
 
 REGISTER_ASSET_TYPE(Model, ModelAsset);

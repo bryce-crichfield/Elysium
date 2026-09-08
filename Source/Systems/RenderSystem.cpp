@@ -46,16 +46,6 @@ static RenderableTypeId g_ellipseCmdTypeId = 0;
 static RenderableTypeId g_textCmdTypeId    = 0;
 static RenderableTypeId g_polygonCmdTypeId = 0;
 
-// Converts back to raylib's type for the DrawTexturePro/raylib calls below.
-static Texture2D ToRaylibTexture(const Elysium::Texture& tex) {
-    Texture2D texture{};
-    texture.id = tex.id;
-    texture.width = tex.width;
-    texture.height = tex.height;
-    texture.mipmaps = tex.mipmaps;
-    texture.format = tex.format;
-    return texture;
-}
 
 template <typename T>
 static RenderableTypeId DrawCmdTypeId() {
@@ -102,7 +92,7 @@ static void RenderTileImpl(RenderContext& ctx, const RenderRecord& rec) {
 
     auto* textureData = assets.Get<Texture>(Path("Tiles/" + tile.sheet.path));
     if (!textureData) return;
-    Texture2D texture = ToRaylibTexture(*textureData);
+    const Texture& texture = *textureData;
     if (texture.id == 0) return;
 
     float frameWidth  = (float)texture.width  / (float)tile.sheet.cols;
@@ -299,7 +289,7 @@ static void RenderSpriteImpl(RenderContext& ctx, const RenderRecord& rec) {
     auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
     auto* textureData = assets.Get<Texture>(Path(tex.textureName));
     if (!textureData) return;
-    Texture2D texture = ToRaylibTexture(*textureData);
+    const Texture& texture = *textureData;
     if (texture.id == 0) return;
 
     // A hand-placed TextureComponent with no SpriteSystem/XML to resolve sourceRect
@@ -335,7 +325,7 @@ static void RenderSpriteImpl(RenderContext& ctx, const RenderRecord& rec) {
     Vector2 origin = { absWidth * tex.originX, absHeight * tex.originY };
     Rectangle destRect = { rec.x, rec.y, absWidth, absHeight };
 
-    SetTextureFilter(texture, tex.filterMode == TextureFilterMode::Bilinear ? TEXTURE_FILTER_BILINEAR : TEXTURE_FILTER_POINT);
+    SetTextureFilter(ToRaylib(texture), tex.filterMode == TextureFilterMode::Bilinear ? TEXTURE_FILTER_BILINEAR : TEXTURE_FILTER_POINT);
     ctx.DrawTexturePro(texture, sourceRect, destRect, origin, drawRotation, tex.tint);
 }
 

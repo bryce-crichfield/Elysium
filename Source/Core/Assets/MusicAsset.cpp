@@ -1,8 +1,15 @@
 #include "Core/Assets/MusicAsset.h"
 #include "Core/Asset.h"
 #include "Services/LogService.h"
+#include "raylib.h"
 
 namespace Elysium {
+
+struct MusicAsset::Native {
+    ::Music music{};
+};
+
+MusicAsset::~MusicAsset() = default;
 
 bool MusicAsset::Load() {
     ::Music music = ::LoadMusicStream(GetPath().c_str());
@@ -11,7 +18,8 @@ bool MusicAsset::Load() {
         return false;
     }
 
-    nativeMusic_ = music;
+    native_ = std::make_unique<Native>();
+    native_->music = music;
     music_ = Music{music.frameCount, music.looping};
     SetLoaded(true);
     LOG_DEBUGF("MusicAsset", "Music loaded: %d frames", music.frameCount);
@@ -19,10 +27,11 @@ bool MusicAsset::Load() {
 }
 
 void MusicAsset::Unload() {
-    if (IsLoaded()) {
-        ::UnloadMusicStream(nativeMusic_);
+    if (IsLoaded() && native_) {
+        ::UnloadMusicStream(native_->music);
         SetLoaded(false);
     }
+    native_.reset();
 }
 
 REGISTER_ASSET_TYPE(Music, MusicAsset);

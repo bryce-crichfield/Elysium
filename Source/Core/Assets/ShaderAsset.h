@@ -1,14 +1,15 @@
 #pragma once
 
+#include <memory>
 #include "Core/Graphics.h"
 #include "Core/Asset.h"
-#include "raylib.h"
 
 namespace Elysium {
 
 class ShaderAsset : public AssetBase<ShaderAsset> {
    public:
     using AssetBase::AssetBase;
+    ~ShaderAsset() override;
 
     bool Load() override;
     void Unload() override;
@@ -16,8 +17,9 @@ class ShaderAsset : public AssetBase<ShaderAsset> {
     Shader& GetData() { return shader_; }
 
    private:
+    struct Native;  // holds the raylib Shader handle for Unload()
+    std::unique_ptr<Native> native_;
     Shader shader_{};
-    ::Shader nativeShader_{};
 };
 
 }  // namespace Elysium
