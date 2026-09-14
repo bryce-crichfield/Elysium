@@ -7,7 +7,6 @@
 #include "Components/LightComponent.h"
 #include "Components/ColliderComponent.h"
 #include "Components/ParentComponent.h"
-#include "raymath.h"
 
 namespace Elysium::Systems {
 

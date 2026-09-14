@@ -1,6 +1,6 @@
 #include "Core/Project.h"
 #include "Core/Xml.h"
-#include "raylib.h"
+#include "Core/Log.h"
 #include <filesystem>
 
 namespace Elysium {
@@ -11,13 +11,13 @@ bool ProjectConfig::FromXML(const std::string& projectXmlPath, ProjectConfig& ou
     // Loaded via the raw filesystem path, not Path/ASSETS_PATH — this file is
     // what determines the asset root, so it can't depend on one existing yet.
     if (!LoadXml(projectXmlPath, doc)) {
-        TraceLog(LOG_ERROR, "Failed to load project file: %s", projectXmlPath.c_str());
+        LOG_ERRORF("Project", "Failed to load project file: %s", projectXmlPath.c_str());
         return false;
     }
 
     tinyxml2::XMLElement* root = doc.FirstChildElement("Project");
     if (!root) {
-        TraceLog(LOG_ERROR, "Invalid project file format. Missing root tag <Project>.");
+        LOG_ERROR("Project", "Invalid project file format. Missing root tag <Project>.");
         return false;
     }
 
@@ -27,7 +27,7 @@ bool ProjectConfig::FromXML(const std::string& projectXmlPath, ProjectConfig& ou
         out.entryScene = entryScene->GetText() ? entryScene->GetText() : "";
     }
     if (out.entryScene.empty()) {
-        TraceLog(LOG_ERROR, "Project file missing <EntryScene>: %s", projectXmlPath.c_str());
+        LOG_ERRORF("Project", "Project file missing <EntryScene>: %s", projectXmlPath.c_str());
         return false;
     }
 
@@ -38,7 +38,7 @@ bool ProjectConfig::FromXML(const std::string& projectXmlPath, ProjectConfig& ou
     std::filesystem::path dir = std::filesystem::path(projectXmlPath).parent_path();
     out.rootDir = dir.empty() ? "./" : dir.generic_string() + "/";
 
-    TraceLog(LOG_INFO, "Loaded project '%s' from: %s", out.name.c_str(), projectXmlPath.c_str());
+    LOG_INFOF("Project", "Loaded project '%s' from: %s", out.name.c_str(), projectXmlPath.c_str());
 
     return true;
 }

@@ -7,6 +7,7 @@
 #include "Core/Scene.h"
 #include "Core/Graphics.h"
 #include "Core/MathTypes.h"
+#include "Core/Framebuffer.h"
 #include "Interfaces/IService.h"
 
 namespace Elysium::Services {
@@ -45,8 +46,8 @@ class ISceneService : public IService {
     virtual float GetScaleX() const = 0;
     virtual float GetScaleY() const = 0;
 
-    // The offscreen target scenes are rendered into. A plain GL-shaped handle —
-    // callers bind it via RenderContext or sample fb.textureId directly.
+    // The offscreen target scenes are rendered into. Callers bind it via RenderContext
+    // or sample fb.TextureId() directly (e.g. ImGui::Image).
     virtual const Framebuffer& GetFramebuffer() const = 0;
 
     // Blits the framebuffer to the current render target, letterboxed into `target`

@@ -59,7 +59,7 @@ private:
 
     void InitLuaContext();
     void BindEntityAPI();
-    void BindRaylibConstants();
+    void BindInputConstants();
     void BindComponents();
 
     // Loads the script if not already loaded, returns the table

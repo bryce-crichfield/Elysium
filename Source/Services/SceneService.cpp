@@ -13,6 +13,7 @@
 #include "Services/ScriptService.h"
 #include "Core/System.h"
 #include "Core/Framebuffer.h"
+#include "Core/Input.h"
 #include "imgui.h"
 #include "raylib.h"
 #include "Core/RaylibConvert.h"
@@ -54,7 +55,7 @@ void SceneService::Initialize() {
         }
     }
 
-    framebuffer_ = CreateFramebuffer(config.framebufferWidth, config.framebufferHeight);
+    framebuffer_ = Framebuffer(config.framebufferWidth, config.framebufferHeight);
     CalculateLetterboxing();
 
     auto& invokeService = registry_.Get<IInvokeService>();
@@ -322,8 +323,8 @@ void SceneService::CalculateLetterboxing() {
     auto& app = registry_.Get<IApplicationService>();
     const auto& config = app.GetConfig();
 
-    int windowWidth = GetScreenWidth();
-    int windowHeight = GetScreenHeight();
+    int windowWidth = app.GetWindowWidth();
+    int windowHeight = app.GetWindowHeight();
 
     float screenAspect = (float)windowWidth / windowHeight;
     float framebufferAspect = (float)config.framebufferWidth / config.framebufferHeight;
@@ -379,7 +380,7 @@ void SceneService::Render() {
 
 // Blits framebuffer_ to the currently-bound target, letterboxed into `target`.
 void SceneService::Present(Rectangle target) {
-    ::Rectangle src{0, 0, (float)framebuffer_.width, -(float)framebuffer_.height};
+    ::Rectangle src{0, 0, (float)framebuffer_.Width(), -(float)framebuffer_.Height()};
     ::DrawTexturePro(ToRaylibColorTexture(framebuffer_), src, ToRaylib(target),
                      ::Vector2{0, 0}, 0.0f, ToRaylib(Colors::White));
     viewportRect_ = target;
@@ -414,7 +415,7 @@ void SceneService::ProcessInput() {
         return;
     }*/
 
-    Vector2 mousePos = FromRaylib(GetMousePosition());
+    Vector2 mousePos = Input::GetMousePosition();
     bool isInside = viewportRect_.Contains(mousePos);
 
     static bool wasInside = false;
@@ -439,7 +440,8 @@ void SceneService::ProcessInput() {
 
         // Mouse button events
         for (int button = 0; button < 3; button++) {
-            if (IsMouseButtonPressed(button)) {
+            MouseButton mouseButton = static_cast<MouseButton>(button);
+            if (Input::IsMouseButtonPressed(mouseButton)) {
                 MouseButtonPressedEvent event(button, fbPos);
                 // Dispatch top-down through stack
                 for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
@@ -447,7 +449,7 @@ void SceneService::ProcessInput() {
                     if (event.handled)
                         break;
                 }
-            } else if (IsMouseButtonReleased(button)) {
+            } else if (Input::IsMouseButtonReleased(mouseButton)) {
                 MouseButtonReleasedEvent event(button, fbPos);
                 for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                     (*it)->OnEvent(event);
@@ -458,7 +460,7 @@ void SceneService::ProcessInput() {
         }
 
         // Mouse wheel
-        float wheelMove = GetMouseWheelMove();
+        float wheelMove = Input::GetMouseWheelMove();
         if (wheelMove != 0.0f) {
             MouseWheelEvent event(wheelMove, fbPos);
             for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
@@ -488,23 +490,24 @@ void SceneService::ProcessInput() {
     }
 
     // Keyboard events
-    const int keysToCheck[] = {
-        KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN, KEY_EIGHT, KEY_NINE, KEY_ZERO,
-        KEY_SPACE, KEY_ENTER, KEY_ESCAPE,
-        KEY_W, KEY_A, KEY_S, KEY_D, KEY_I,
-        KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
-        KEY_LEFT_SHIFT, KEY_LEFT_CONTROL, KEY_LEFT_ALT};
+    const Key keysToCheck[] = {
+        Key::One, Key::Two, Key::Three, Key::Four, Key::Five, Key::Six, Key::Seven, Key::Eight, Key::Nine, Key::Zero,
+        Key::Space, Key::Enter, Key::Escape,
+        Key::W, Key::A, Key::S, Key::D, Key::I,
+        Key::Up, Key::Down, Key::Left, Key::Right,
+        Key::LeftShift, Key::LeftControl, Key::LeftAlt};
 
-    for (int key : keysToCheck) {
-        if (IsKeyPressed(key)) {
-            KeyPressedEvent event(key);
+    for (Key key : keysToCheck) {
+        int keyCode = static_cast<int>(key);
+        if (Input::IsKeyPressed(key)) {
+            KeyPressedEvent event(keyCode);
             for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                 (*it)->OnEvent(event);
                 if (event.handled)
                     break;
             }
-        } else if (IsKeyReleased(key)) {
-            KeyReleasedEvent event(key);
+        } else if (Input::IsKeyReleased(key)) {
+            KeyReleasedEvent event(keyCode);
             for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {
                 (*it)->OnEvent(event);
                 if (event.handled)
@@ -516,7 +519,7 @@ void SceneService::ProcessInput() {
 
 void SceneService::Shutdown() {
     Profile;
-    DestroyFramebuffer(framebuffer_);
+    framebuffer_ = Framebuffer();
 
     // Free any scenes still on the stack
     while (!sceneStack_.empty()) {

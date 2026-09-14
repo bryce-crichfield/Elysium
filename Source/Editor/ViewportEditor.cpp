@@ -15,9 +15,8 @@
 #include "Services/SceneService.h"
 #include "Systems/RenderSystem.h"
 #include "imgui.h"
-#include "rlImGui.h"
-#include "raylib.h"  // KEY_*/MOUSE_*/GetMouse* — editor input, enum abstraction still pending
-#include "Core/RaylibConvert.h"
+#include "Core/Input.h"
+#include "Core/MathTypes.h"
 
 namespace Elysium {
 
@@ -46,7 +45,7 @@ void ViewportEditor::Draw() {
         // by input handling and overlay drawing below, and to tell SceneService where the
         // game viewport landed on screen.
         const Framebuffer& fb = sceneService.GetFramebuffer();
-        float fbAspect = (float)fb.width / (float)fb.height;
+        float fbAspect = (float)fb.Width() / (float)fb.Height();
         float regionAspect = avail.x / avail.y;
 
         float drawW, drawH;
@@ -63,7 +62,7 @@ void ViewportEditor::Draw() {
 
         // Draw the framebuffer image, V-flipped (framebuffer textures use GL bottom-up origin).
         ImGui::SetCursorScreenPos(ImVec2(drawX, drawY));
-        ImGui::Image((ImTextureID)fb.textureId, ImVec2(drawW, drawH), ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Image((ImTextureID)fb.TextureId(), ImVec2(drawW, drawH), ImVec2(0, 1), ImVec2(1, 0));
 
         // Snapshot the view that produced the currently-displayed framebuffer image
         // (i.e. before this frame's pan/zoom input is applied) so picking and gizmo
@@ -135,29 +134,29 @@ void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEdito
     auto& cam = editorService.GetEditorCamera();
     bool hovered = ImGui::IsItemHovered();
 
-    if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+    if (hovered && Input::IsMouseButtonPressed(MouseButton::Middle)) {
         isPanningCamera_ = true;
     }
-    if (!IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+    if (!Input::IsMouseButtonDown(MouseButton::Middle)) {
         isPanningCamera_ = false;
     }
 
     if (isPanningCamera_) {
-        Vector2 delta = FromRaylib(GetMouseDelta());
+        Vector2 delta = Input::GetMouseDelta();
         float zoom = cam.zoom != 0.0f ? cam.zoom : 1.0f;
         cam.position.x -= delta.x / zoom;
         cam.position.y -= delta.y / zoom;
     }
 
     if (hovered) {
-        float wheel = GetMouseWheelMove();
+        float wheel = Input::GetMouseWheelMove();
         if (wheel != 0.0f) {
             // Same viewport-center/zoom math as RenderSystem::CalculateTransform's World2D
             // branch — find the world point under the cursor before changing zoom, then
             // re-solve the camera position so that same world point stays under the cursor.
             const auto& config = services_.Get<IApplicationService>().GetConfig();
             Vector2 viewportCenter = { config.framebufferWidth * 0.5f, config.framebufferHeight * 0.5f };
-            Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(FromRaylib(GetMousePosition()));
+            Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
 
             float oldZoom = cam.zoom != 0.0f ? cam.zoom : 1.0f;
             Vector2 worldUnderMouse = {
@@ -181,9 +180,9 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
     // Continue or end an in-progress drag. Either way, swallow this frame's click —
     // it belongs to the drag, not to re-picking.
     if (isDraggingGizmo_) {
-        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && world &&
+        if (Input::IsMouseButtonDown(MouseButton::Left) && world &&
             world->HasComponent<TransformComponent>(gizmoEntity_)) {
-            Vector2 fbPos = sceneService.ScreenToFramebuffer(FromRaylib(GetMousePosition()));
+            Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
             Vector2 fbDelta = { fbPos.x - lastGizmoFbPos_.x, fbPos.y - lastGizmoFbPos_.y };
             lastGizmoFbPos_ = fbPos;
             ApplyGizmoDrag(world, gizmoEntity_, view.zoom, fbDelta, gizmoIsWorldSpace_);
@@ -197,7 +196,7 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
     const auto& selected = editorService.GetSelectedEntities();
     if (selected.size() == 1 && world &&
         world->HasComponent<TransformComponent>(selected[0]) &&
-        ImGui::IsItemHovered() && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        ImGui::IsItemHovered() && Input::IsMouseButtonPressed(MouseButton::Left)) {
         const auto& t = world->GetComponent<TransformComponent>(selected[0]);
         auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
         // An entity on a Screen2D layer already IS a framebuffer position — projecting it
@@ -206,7 +205,7 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
         Vector2 handleFbPos = isWorldSpace
             ? Systems::RenderProjector::WorldToFramebuffer({ t.worldX, t.worldY }, view)
             : Vector2{ t.worldX, t.worldY };
-        Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(FromRaylib(GetMousePosition()));
+        Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
         if ((mouseFbPos - handleFbPos).Length() <= kMoveHandleRadius) {
             isDraggingGizmo_ = true;
             gizmoEntity_ = selected[0];
@@ -227,7 +226,7 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     if (!renderSystem)
         return;
 
-    Vector2 fbPos = sceneService.ScreenToFramebuffer(FromRaylib(GetMousePosition()));
+    Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
     auto hits = renderSystem->Pick(fbPos, view);
 
     bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < 4.0f;
@@ -339,7 +338,7 @@ void ViewportEditor::ApplyGizmoDrag(World* world, Entity entity, float zoom, Vec
         Entity parent = world->GetComponent<ParentComponent>(entity).parent;
         if (parent != INVALID_ENTITY && world->HasComponent<TransformComponent>(parent)) {
             const auto& parentT = world->GetComponent<TransformComponent>(parent);
-            float rad = -parentT.worldRotation * DEG2RAD;
+            float rad = -parentT.worldRotation * DegToRad;
             float cs = cosf(rad), sn = sinf(rad);
             Vector2 rotated = {
                 worldDelta.x * cs - worldDelta.y * sn,

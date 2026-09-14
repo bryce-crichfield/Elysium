@@ -8,7 +8,7 @@
 #include "Services/AssetService.h"
 #include "Core/Path.h"
 #include "imgui.h"
-#include "raylib.h"
+#include <fstream>
 
 namespace Elysium {
 
@@ -57,7 +57,11 @@ void ScriptEditor::Draw() {
                 if (asset) {
                     std::string fullPath = asset->GetPath().GetFullPath();
                     auto scriptSource = textEditor_.GetText();
-                    if (SaveFileText(fullPath.c_str(), scriptSource.c_str())) {
+                    std::ofstream file(fullPath, std::ios::binary | std::ios::trunc);
+                    file << scriptSource;
+                    bool saved = file.good();
+                    file.close();
+                    if (saved) {
                         // Capture the path before reloading — ReloadAsset destroys the
                         // existing instance `asset` points to.
                         Path scriptPath = asset->GetPath();

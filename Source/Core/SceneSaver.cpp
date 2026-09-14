@@ -18,7 +18,6 @@
 #include "Components/TransformComponent.h"
 #include "Components/RectangleComponent.h"
 #include "Components/TileComponent.h"
-#include "raylib.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;

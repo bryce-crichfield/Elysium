@@ -1,21 +1,46 @@
 #include "Services/LogService.h"
 #include <algorithm>
+#include <cstdarg>
 #include <cstdio>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include "Core/Common.h"
 #include "imgui.h"
+#include "raylib.h"
 
 namespace Elysium::Services {
+
+namespace {
+
+// raylib's TraceLog callback has no user-data slot, so it needs a static
+// pointer back to the one LogService instance. Hooked in the constructor
+// (not Initialize()) so it's live before ApplicationConfig::FromXML runs.
+LogService* g_logServiceInstance = nullptr;
+
+void TraceLogCallback(int logLevel, const char* text, va_list args) {
+    if (!g_logServiceInstance) return;
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), text, args);
+    g_logServiceInstance->LogMessage(logLevel, std::string(buffer));
+}
+
+}  // namespace
 
 LogService::LogService(ServiceLocator&)
     : initialized_(false), shouldStop_(false) {
     logBuffer_.reserve(MAX_LOG_BUFFER_SIZE);
+
+    g_logServiceInstance = this;
+    SetTraceLogCallback(TraceLogCallback);
+    SetTraceLogLevel(LOG_DEBUG);
 }
 
 LogService::~LogService() {
     Shutdown();
+    if (g_logServiceInstance == this) {
+        g_logServiceInstance = nullptr;
+    }
 }
 
 void LogService::Initialize() {

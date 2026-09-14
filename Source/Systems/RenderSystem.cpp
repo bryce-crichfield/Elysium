@@ -33,7 +33,6 @@
 #include "Interfaces/ISceneService.h"
 #include "Core/RaylibConvert.h"
 #include "raylib.h"
-#include "rlgl.h"
 
 namespace Elysium::Systems {
 
@@ -650,19 +649,8 @@ void RenderSorter::Build(World& world, Scene& scene, const std::vector<DrawComma
     SortQueue();
 }
 
-RenderCompositor::~RenderCompositor() {
-    DestroyFramebuffer(compositeBuffer_);
-}
-
 const Framebuffer& RenderCompositor::EnsureCompositeBuffer(int width, int height) {
-    if (compositeBuffer_.id == 0 || compositeWidth_ != width || compositeHeight_ != height) {
-        if (compositeBuffer_.id != 0) {
-            DestroyFramebuffer(compositeBuffer_);
-        }
-        compositeBuffer_ = CreateFramebuffer(width, height);
-        compositeWidth_ = width;
-        compositeHeight_ = height;
-    }
+    compositeBuffer_.Resize(width, height);
     return compositeBuffer_;
 }
 

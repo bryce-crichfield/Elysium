@@ -23,6 +23,8 @@ class ApplicationService : public IApplicationService {
     float GetTime() const override;
     void RequestFontReload() override;
     bool ShouldClose() const override;
+    int GetWindowWidth() const override;
+    int GetWindowHeight() const override;
 
    private:
     Application& app_;

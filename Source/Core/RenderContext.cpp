@@ -164,7 +164,7 @@ void RenderContext::DrawTriangleList(const std::vector<Vector2>& triangleVerts, 
 }
 
 void RenderContext::DrawFramebuffer(const Framebuffer& fb, Rectangle dest, Color tint) {
-    ::Rectangle src{0, 0, (float)fb.width, -(float)fb.height};
+    ::Rectangle src{0, 0, (float)fb.Width(), -(float)fb.Height()};
     ::DrawTexturePro(ToRaylibColorTexture(fb), src, ToRaylib(dest), ::Vector2{0, 0}, 0.0f, ToRaylib(tint));
 }
 

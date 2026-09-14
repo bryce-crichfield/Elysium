@@ -30,4 +30,12 @@ bool ApplicationService::ShouldClose() const {
     return app_.ShouldClose();
 }
 
+int ApplicationService::GetWindowWidth() const {
+    return app_.GetWindowWidth();
+}
+
+int ApplicationService::GetWindowHeight() const {
+    return app_.GetWindowHeight();
+}
+
 }  // namespace Elysium::Services

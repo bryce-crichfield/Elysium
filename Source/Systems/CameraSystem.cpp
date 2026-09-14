@@ -1,6 +1,6 @@
 #include "Systems/CameraSystem.h"
 #include "Core/SystemRegistry.h"
-#include "raylib.h"  // KEY_*, MOUSE_BUTTON_* — input enum abstraction still pending
+#include "Core/Input.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/ISceneService.h"
 #include "Services/LogService.h"
@@ -21,13 +21,13 @@ void CameraSystem::OnEvent(Event& event) {
 }
 
 void CameraSystem::OnMouseButtonPressed(MouseButtonPressedEvent& event) {
-    if (event.GetButton() == MOUSE_BUTTON_MIDDLE) {
+    if (event.GetButton() == static_cast<int>(MouseButton::Middle)) {
         isDragging_ = true;
     }
 }
 
 void CameraSystem::OnMouseButtonReleased(MouseButtonReleasedEvent& event) {
-    if (event.GetButton() == MOUSE_BUTTON_MIDDLE) {
+    if (event.GetButton() == static_cast<int>(MouseButton::Middle)) {
         isDragging_ = false;
     }
 }
@@ -48,20 +48,22 @@ void CameraSystem::OnMouseExit(MouseExitEvent& event) {
 }
 
 void CameraSystem::OnKeyPressed(KeyPressedEvent& event) {
-    switch (event.GetKey()) {
-        case KEY_W: keyW_ = true; break;
-        case KEY_A: keyA_ = true; break;
-        case KEY_S: keyS_ = true; break;
-        case KEY_D: keyD_ = true; break;
+    switch (static_cast<Key>(event.GetKey())) {
+        case Key::W: keyW_ = true; break;
+        case Key::A: keyA_ = true; break;
+        case Key::S: keyS_ = true; break;
+        case Key::D: keyD_ = true; break;
+        default: break;
     }
 }
 
 void CameraSystem::OnKeyReleased(KeyReleasedEvent& event) {
-    switch (event.GetKey()) {
-        case KEY_W: keyW_ = false; break;
-        case KEY_A: keyA_ = false; break;
-        case KEY_S: keyS_ = false; break;
-        case KEY_D: keyD_ = false; break;
+    switch (static_cast<Key>(event.GetKey())) {
+        case Key::W: keyW_ = false; break;
+        case Key::A: keyA_ = false; break;
+        case Key::S: keyS_ = false; break;
+        case Key::D: keyD_ = false; break;
+        default: break;
     }
 }
 

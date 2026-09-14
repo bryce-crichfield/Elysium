@@ -12,7 +12,7 @@
 #include "Core/Component.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Path.h"
-#include "raylib.h"  // IsKeyDown/GetMousePosition/KEY_*/DrawText — input+draw abstraction still pending
+#include "Core/Input.h"
 #include "imgui.h"
 #include <memory>
 #include <limits>
@@ -42,7 +42,7 @@ void ScriptService::Initialize() {
     InitLuaContext();
     BindComponents();
     BindEntityAPI();
-    BindRaylibConstants();
+    BindInputConstants();
     LOG_INFO("ScriptService", "Lua VM Initialized with sol2 and component usertypes");
 }
 
@@ -278,12 +278,12 @@ void ScriptService::BindEntityAPI() {
     });
 
     // Input Polling
-    lua.set_function("IsKeyDown", [](int key) { return IsKeyDown(key); });
-    lua.set_function("IsKeyPressed", [](int key) { return IsKeyPressed(key); });
-    lua.set_function("IsMouseButtonDown", [](int button) { return IsMouseButtonDown(button); });
-    lua.set_function("IsMouseButtonPressed", [](int button) { return IsMouseButtonPressed(button); });
-    lua.set_function("GetMousePosition", [this]() { 
-        Vector2 m = this->_mousePosition; // Cached by SceneService from raylib input
+    lua.set_function("IsKeyDown", [](int key) { return Input::IsKeyDown(static_cast<Key>(key)); });
+    lua.set_function("IsKeyPressed", [](int key) { return Input::IsKeyPressed(static_cast<Key>(key)); });
+    lua.set_function("IsMouseButtonDown", [](int button) { return Input::IsMouseButtonDown(static_cast<MouseButton>(button)); });
+    lua.set_function("IsMouseButtonPressed", [](int button) { return Input::IsMouseButtonPressed(static_cast<MouseButton>(button)); });
+    lua.set_function("GetMousePosition", [this]() {
+        Vector2 m = this->_mousePosition; // Cached by SceneService from Input polling each frame
         return m;
         // return ScreenToWorld(m);
     });
@@ -517,34 +517,35 @@ void ScriptService::BindEntityAPI() {
     });
 }
 
-void ScriptService::BindRaylibConstants() {
-    // Keyboard Keys
-    lua["KEY_SPACE"] = 32;
-    lua["KEY_ENTER"] = 257;
-    lua["KEY_TAB"] = 258;
-    lua["KEY_ESCAPE"] = 256;
-    lua["KEY_BACKSPACE"] = 259;
-    lua["KEY_LEFT"] = 263;
-    lua["KEY_RIGHT"] = 262;
-    lua["KEY_UP"] = 265;
-    lua["KEY_DOWN"] = 264;
-    
+void ScriptService::BindInputConstants() {
+    // Keyboard Keys — pulled from Elysium::Key so this table can never drift from
+    // what Input::IsKeyDown/IsKeyPressed above actually accept.
+    lua["KEY_SPACE"] = static_cast<int>(Key::Space);
+    lua["KEY_ENTER"] = static_cast<int>(Key::Enter);
+    lua["KEY_TAB"] = static_cast<int>(Key::Tab);
+    lua["KEY_ESCAPE"] = static_cast<int>(Key::Escape);
+    lua["KEY_BACKSPACE"] = static_cast<int>(Key::Backspace);
+    lua["KEY_LEFT"] = static_cast<int>(Key::Left);
+    lua["KEY_RIGHT"] = static_cast<int>(Key::Right);
+    lua["KEY_UP"] = static_cast<int>(Key::Up);
+    lua["KEY_DOWN"] = static_cast<int>(Key::Down);
+
     for (int i = 0; i < 26; ++i) {
         char name[8];
         snprintf(name, sizeof(name), "KEY_%c", 'A' + i);
-        lua[name] = 65 + i;
+        lua[name] = static_cast<int>(Key::A) + i;
     }
 
     for (int i = 0; i < 10; ++i) {
         char name[8];
         snprintf(name, sizeof(name), "KEY_%d", i);
-        lua[name] = 48 + i;
+        lua[name] = static_cast<int>(Key::Zero) + i;
     }
 
     // Mouse Buttons
-    lua["MOUSE_LEFT"] = 0;
-    lua["MOUSE_RIGHT"] = 1;
-    lua["MOUSE_MIDDLE"] = 2;
+    lua["MOUSE_LEFT"] = static_cast<int>(MouseButton::Left);
+    lua["MOUSE_RIGHT"] = static_cast<int>(MouseButton::Right);
+    lua["MOUSE_MIDDLE"] = static_cast<int>(MouseButton::Middle);
 }
 
 sol::table ScriptService::GetOrLoadScript(Path path) {

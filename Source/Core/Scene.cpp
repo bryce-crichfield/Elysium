@@ -14,7 +14,6 @@
 #include "Systems/SpriteSystem.h"
 #include "Core/Xml.h"
 #include "Core/Path.h"
-#include "raylib.h"
 #include "tinyxml2.h"
 
 namespace Elysium {

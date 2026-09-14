@@ -12,7 +12,6 @@
 #include "Core/SystemRegistry.h"
 #include "Core/Components.h"
 #include "Systems/SpatialSystem.h"
-#include "raylib.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;

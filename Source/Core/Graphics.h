@@ -31,14 +31,6 @@ namespace Elysium {
         Subtractive
     };
 
-    struct Framebuffer {
-        unsigned int id = 0;
-        unsigned int textureId = 0;
-        unsigned int depthBufferId = 0;
-        int width = 0;
-        int height = 0;
-    };
-
     struct Texture {
         unsigned int id = 0;
         int width = 0;

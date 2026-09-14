@@ -1,11 +1,10 @@
-// Prevent Windows headers from declaring symbols that conflict with raylib
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#define NOGDI   // Prevents Rectangle declaration in wingdi.h
-#define NOUSER  // Prevents CloseWindow, ShowCursor in winuser.h
+#define NOGDI
+#define NOUSER
 #endif
 
 #include <enet/enet.h>
@@ -15,7 +14,6 @@
 #undef NOUSER
 #endif
 
-// Now include raylib via Application.h
 #include "Core/Common.h"
 #include "Interfaces/IInvokeService.h"
 #include "Interfaces/IMessageService.h"

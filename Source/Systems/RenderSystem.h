@@ -5,6 +5,7 @@
 #include "Core/Scene.h"
 #include "Core/Renderable.h"
 #include "Core/Graphics.h"
+#include "Core/Framebuffer.h"
 #include <span>
 #include <unordered_map>
 #include <unordered_set>
@@ -78,8 +79,6 @@ private:
 // framebuffer, or composited through an offscreen buffer (blend modes, opacity, ambient).
 class RenderCompositor {
 public:
-    ~RenderCompositor();
-
     void RenderLayer(RenderContext& ctx, const CameraView& view,
                       const SceneLayer& layer, std::span<const RenderRecord> records);
 
@@ -93,8 +92,6 @@ private:
     const Framebuffer& EnsureCompositeBuffer(int width, int height);
 
     Framebuffer compositeBuffer_;
-    int compositeWidth_ = 0;
-    int compositeHeight_ = 0;
 };
 
 class RenderSystem : public System {

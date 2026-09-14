@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 #include "Core/Graphics.h"
+#include "Core/Window.h"
 
 namespace Elysium {
 
@@ -83,6 +84,9 @@ class Application {
     // Get time in seconds since application start
     float GetTime() const { return startTime_; }
 
+    int GetWindowWidth() const { return window_.GetWidth(); }
+    int GetWindowHeight() const { return window_.GetHeight(); }
+
    private:
     void Update(float deltaTime);
     void Draw();
@@ -92,6 +96,7 @@ class Application {
     void ProcessInput();
 
     ApplicationConfig config_;
+    Window window_;
 
     ServiceLocator serviceLocator_;
     std::vector<std::unique_ptr<Editor>> editors_;

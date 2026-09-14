@@ -1,7 +1,5 @@
 #include "Application.h"
 #include <chrono>
-#include <cstdarg>
-#include <cstdio>
 #include <thread>
 #include "Common.h"
 #include "Core/Path.h"
@@ -20,18 +18,78 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "rlImGui.h"
-#include "Core/RaylibConvert.h"
+#include "Core/Input.h"
+#include "tinyxml2.h"
+
+using namespace tinyxml2;
 
 namespace Elysium {
 
-static Application* g_appInstance = nullptr;
+bool ApplicationConfig::FromXML(const std::string& configPath, ApplicationConfig& out) {
+    ApplicationConfig& config = out;
+    XMLDocument doc;
 
-void CustomTraceLogCallback(int logLevel, const char* text, va_list args) {
-    if (g_appInstance) {
-        char buffer[1024];
-        vsnprintf(buffer, sizeof(buffer), text, args);
-        g_appInstance->GetServiceLocator().Get<Services::ILogService>().LogMessage(logLevel, std::string(buffer));
+    if (doc.LoadFile(Path(configPath).c_str()) != XML_SUCCESS) {
+        LOG_ERRORF("Application", "Failed to load config file: %s. Using defaults.", configPath.c_str());
+        return false;
     }
+
+    XMLElement* root = doc.FirstChildElement("GameConfig");
+    if (!root) {
+        LOG_ERROR("Application", "Invalid config file format. Using defaults.");
+        return false;
+    }
+
+    if (XMLElement* window = root->FirstChildElement("Window")) {
+        if (XMLElement* width = window->FirstChildElement("Width"))
+            config.windowWidth = width->IntText(1280);
+        if (XMLElement* height = window->FirstChildElement("Height"))
+            config.windowHeight = height->IntText(720);
+        if (XMLElement* title = window->FirstChildElement("Title"))
+            config.windowTitle = title->GetText() ? title->GetText() : "Elysium";
+        if (XMLElement* fullscreen = window->FirstChildElement("Fullscreen"))
+            config.fullscreen = fullscreen->BoolText(false);
+        if (XMLElement* vsync = window->FirstChildElement("VSync"))
+            config.vsync = vsync->BoolText(true);
+        if (XMLElement* fps = window->FirstChildElement("TargetFPS"))
+            config.targetFPS = fps->IntText(60);
+        if (XMLElement* backgroundColor = window->FirstChildElement("BackgroundColor")) {
+            config.backgroundColor = Colors::Black;
+            if (XMLElement* r = backgroundColor->FirstChildElement("r"))
+                config.backgroundColor.r = r->IntText(255);
+            if (XMLElement* g = backgroundColor->FirstChildElement("g"))
+                config.backgroundColor.g = g->IntText(255);
+            if (XMLElement* b = backgroundColor->FirstChildElement("b"))
+                config.backgroundColor.b = b->IntText(255);
+
+            LOG_INFOF("Application", "Color: %d, %d, %d", config.backgroundColor.r, config.backgroundColor.g,
+                      config.backgroundColor.b);
+        }
+        if (XMLElement* framebuffer = window->FirstChildElement("Framebuffer")) {
+            if (XMLElement* width = framebuffer->FirstChildElement("Width"))
+                config.framebufferWidth = width->IntText(640);
+            if (XMLElement* height = framebuffer->FirstChildElement("Height"))
+                config.framebufferHeight = height->IntText(480);
+        }
+    }
+
+    if (XMLElement* debug = root->FirstChildElement("Debug")) {
+        if (XMLElement* showDemo = debug->FirstChildElement("ShowDemoWindow"))
+            config.showDemoWindow = showDemo->BoolText(true);
+        if (XMLElement* showMetrics = debug->FirstChildElement("ShowMetrics"))
+            config.showMetrics = showMetrics->BoolText(false);
+        if (XMLElement* logLevel = debug->FirstChildElement("LogLevel"))
+            config.logLevel = logLevel->GetText() ? logLevel->GetText() : "INFO";
+    }
+
+    if (XMLElement* editor = root->FirstChildElement("Editor")) {
+        if (XMLElement* fontName = editor->FirstChildElement("FontName"))
+            config.editorFontName = fontName->GetText() ? fontName->GetText() : "Hermit-Regular.otf";
+    }
+
+    LOG_INFOF("Application", "Loaded game config from: %s", configPath.c_str());
+
+    return true;
 }
 
 bool Application::Initialize(const std::string& configPath) {
@@ -69,10 +127,6 @@ bool Application::Initialize(const std::string& configPath) {
     RegisterEditor<ScriptEditor>();
     RegisterEditor<ViewportEditor>();
 
-    g_appInstance = this;
-    SetTraceLogCallback(CustomTraceLogCallback);
-    SetTraceLogLevel(LOG_DEBUG);
-
     if (!ApplicationConfig::FromXML(configPath, config_)) {
         LOG_ERROR("Application", "Failed to load ApplicationConfig.xml");
         return false;
@@ -80,13 +134,10 @@ bool Application::Initialize(const std::string& configPath) {
 
     LOG_INFO("Application", "Elysium Engine initializing");
 
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    window_ = Window(config_.windowWidth, config_.windowHeight, config_.windowTitle);
+    window_.Maximize();
 
-    InitWindow(config_.windowWidth, config_.windowHeight, config_.windowTitle.c_str());
-    MaximizeWindow();
-    SetExitKey(0);  // Disable raylib's default ESC-to-quit; handled by scene scripts
-
-    InitAudioDevice();
+    // Audio device init deferred until the real audio backend (miniaudio) lands.
 
     rlImGuiSetup(true);
     // SetTargetFPS(config_.targetFPS);
@@ -114,18 +165,18 @@ bool Application::Initialize(const std::string& configPath) {
 void Application::Run() {
     Profile;
     if (!initialized_) {
-        TraceLog(LOG_ERROR, "Application not initialized!");
+        LOG_ERROR("Application", "Application not initialized!");
         return;
     }
 
-    while (!WindowShouldClose() && !shouldClose_) {
+    while (!window_.ShouldClose() && !shouldClose_) {
 #ifdef TRACY_ENABLE
         FrameMark;
 #endif
 
         ProfileN("Frame");
 
-        float deltaTime = GetFrameTime();
+        float deltaTime = window_.GetDeltaTime();
 
         ProcessInput();
         ProcessEvents();
@@ -141,21 +192,18 @@ void Application::Shutdown() {
         return;
     }
 
-    g_appInstance = nullptr;
-
     for (auto service : serviceLocator_.GetAllServices()) {
         service->Shutdown();
     }
 
     rlImGuiShutdown();
-    CloseAudioDevice();
-    CloseWindow();
+    window_ = Window();
 
     initialized_ = false;
 }
 
 bool Application::ShouldClose() const {
-    return shouldClose_ || WindowShouldClose();
+    return shouldClose_ || window_.ShouldClose();
 }
 
 void Application::Update(float deltaTime) {
@@ -240,8 +288,7 @@ void Application::Draw() {
     }   
 
     // Begin frame
-    BeginDrawing();
-    ClearBackground(ToRaylib(Colors::Black));
+    window_.BeginFrame(Colors::Black);
 
     // Services render their content (SceneService draws scenes to framebuffer)
     for (auto& service : serviceLocator_.GetAllServices()) {
@@ -302,7 +349,7 @@ void Application::Draw() {
 
     rlImGuiEnd();
 
-    EndDrawing();
+    window_.EndFrame();
 }
 
 void Application::ProcessEvents() {
@@ -336,11 +383,11 @@ void Application::SetMode(AppMode mode) {
 void Application::ProcessInput() {
     Profile;
 
-    if (IsKeyPressed(KEY_F1)) {
+    if (Input::IsKeyPressed(Key::F1)) {
         SetMode(AppMode::Editor);
     }
 
-    if (IsKeyPressed(KEY_F2)) {
+    if (Input::IsKeyPressed(Key::F2)) {
         SetMode(AppMode::Play);
     }
 }

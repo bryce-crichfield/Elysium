@@ -1,0 +1,61 @@
+#pragma once
+
+#include "Core/MathTypes.h"
+
+// Keyboard/mouse key-code space + polling surface. Key/MouseButton values match
+// GLFW's numbering (which raylib itself reuses), so the backend swap to GLFW needs
+// no translation table — only Input.cpp's implementation changes. Event.h's
+// KeyPressedEvent/MouseButtonPressedEvent etc. carry these same values as plain int,
+// so scripts and systems only ever see Elysium::Key / Elysium::MouseButton.
+
+namespace Elysium {
+
+enum class Key {
+    Unknown = -1,
+
+    Space = 32,
+    Apostrophe = 39,
+    Comma = 44, Minus = 45, Period = 46, Slash = 47,
+    Zero = 48, One, Two, Three, Four, Five, Six, Seven, Eight, Nine,
+    Semicolon = 59,
+    Equal = 61,
+    A = 65, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    LeftBracket = 91, Backslash = 92, RightBracket = 93, GraveAccent = 96,
+
+    Escape = 256, Enter = 257, Tab = 258, Backspace = 259, Insert = 260, Delete = 261,
+    Right = 262, Left = 263, Down = 264, Up = 265,
+    PageUp = 266, PageDown = 267, Home = 268, End = 269,
+    CapsLock = 280, ScrollLock = 281, NumLock = 282, PrintScreen = 283, Pause = 284,
+
+    F1 = 290, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+
+    LeftShift = 340, LeftControl = 341, LeftAlt = 342, LeftSuper = 343,
+    RightShift = 344, RightControl = 345, RightAlt = 346, RightSuper = 347,
+    Menu = 348,
+};
+
+enum class MouseButton {
+    Left = 0,
+    Right = 1,
+    Middle = 2,
+};
+
+// Backend polling surface — raylib today, GLFW later. Implemented in Input.cpp so
+// raylib.h stays out of every header.
+namespace Input {
+
+bool IsKeyDown(Key key);
+bool IsKeyPressed(Key key);
+bool IsKeyReleased(Key key);
+
+bool IsMouseButtonDown(MouseButton button);
+bool IsMouseButtonPressed(MouseButton button);
+bool IsMouseButtonReleased(MouseButton button);
+
+Vector2 GetMousePosition();
+Vector2 GetMouseDelta();
+float GetMouseWheelMove();
+
+}  // namespace Input
+
+}  // namespace Elysium

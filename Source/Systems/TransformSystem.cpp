@@ -2,7 +2,8 @@
 #include "Core/SystemRegistry.h"
 #include "Components/TransformComponent.h"
 #include "Components/ParentComponent.h"
-#include "raymath.h"
+#include "Core/MathTypes.h"
+#include <cmath>
 #include <vector>
 #include <unordered_set>
 
@@ -66,7 +67,7 @@ void TransformSystem::ComposeRecursive(Entity entity, const TransformComponent* 
         t.worldScaleY = t.localScaleY;
         t.worldRotation = t.localRotation;
     } else {
-        float rad = parentWorld->worldRotation * DEG2RAD;
+        float rad = parentWorld->worldRotation * DegToRad;
         float scaledX = t.localX * parentWorld->worldScaleX;
         float scaledY = t.localY * parentWorld->worldScaleY;
         float cs = cosf(rad);

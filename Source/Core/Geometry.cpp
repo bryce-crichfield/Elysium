@@ -70,10 +70,6 @@ std::vector<Vector2> TriangulatePolygon(const std::vector<Vector2>& points) {
             }
 
             if (isEar) {
-                // Emitted in reverse (prev, next, curr) — raylib's default rlgl state culls
-                // counter-clockwise-per-this-Cross-formula triangles as back-facing in its
-                // Y-down screen space, so the renderable winding is the opposite of the one
-                // this function's internal ear-finding logic normalizes to.
                 triangles.push_back(prev);
                 triangles.push_back(next);
                 triangles.push_back(curr);

@@ -9,6 +9,7 @@
 #include "raylib.h"
 #include "Core/Graphics.h"
 #include "Core/MathTypes.h"
+#include "Core/Framebuffer.h"
 
 namespace Elysium {
 
@@ -71,9 +72,9 @@ inline Texture FromRaylib(const ::Texture2D& t) {
 
 inline ::Texture2D ToRaylibColorTexture(const Framebuffer& fb) {
     ::Texture2D t{};
-    t.id = fb.textureId;
-    t.width = fb.width;
-    t.height = fb.height;
+    t.id = fb.TextureId();
+    t.width = fb.Width();
+    t.height = fb.Height();
     t.mipmaps = 1;
     t.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
     return t;
@@ -81,11 +82,11 @@ inline ::Texture2D ToRaylibColorTexture(const Framebuffer& fb) {
 
 inline ::RenderTexture2D ToRaylib(const Framebuffer& fb) {
     ::RenderTexture2D rt{};
-    rt.id = fb.id;
+    rt.id = fb.Id();
     rt.texture = ToRaylibColorTexture(fb);
-    rt.depth.id = fb.depthBufferId;
-    rt.depth.width = fb.width;
-    rt.depth.height = fb.height;
+    rt.depth.id = fb.DepthBufferId();
+    rt.depth.width = fb.Width();
+    rt.depth.height = fb.Height();
     rt.depth.mipmaps = 1;
     return rt;
 }

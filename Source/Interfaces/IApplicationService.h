@@ -18,6 +18,8 @@ class IApplicationService : public IService {
     virtual float GetTime() const = 0;
     virtual void RequestFontReload() = 0;
     virtual bool ShouldClose() const = 0;
+    virtual int GetWindowWidth() const = 0;
+    virtual int GetWindowHeight() const = 0;
 };
 
 }  // namespace Elysium::Services

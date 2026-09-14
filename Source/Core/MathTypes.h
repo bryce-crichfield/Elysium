@@ -2,6 +2,8 @@
 
 namespace Elysium {
 
+    constexpr float DegToRad = 3.14159265358979323846f / 180.0f;
+
     struct Vector2 {
         float x, y;
 
