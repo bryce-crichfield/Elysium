@@ -71,7 +71,7 @@ void ScenesEditor::DrawAvailable(ISceneService& scenes) {
         const bool loaded = scenes.IsInStack(registration->scene);
         const std::string tooltip = registration->xmlPath + (registration->xmlPath.empty() ? "" : "\n") + "Double-click to push";
         if (ListRow(name->c_str(), selectedSceneName_ == *name, loaded ? ICON_FA_CIRCLE_CHECK : ICON_FA_FILE,
-                    loaded ? Palette::Success : Palette::TextMuted, name->c_str(), nullptr, tooltip.c_str())) {
+                    loaded ? Palette().Success : Palette().TextMuted, name->c_str(), nullptr, tooltip.c_str())) {
             selectedSceneName_ = *name;
             if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) scenes.Push(*name);
         }
@@ -93,7 +93,7 @@ void ScenesEditor::DrawStack(ISceneService& scenes, IEditorService& editor) {
         const std::string name = scenes.GetSceneName(stack[i]);
         ImGui::PushID(i);
         if (ListRow(name.c_str(), stack[i] == inspected, isTop ? ICON_FA_LAYER_GROUP : ICON_FA_BARS_STAGGERED,
-                    isTop ? Palette::Accent : Palette::TextMuted, name.c_str(), isTop ? "top" : nullptr,
+                    isTop ? Palette().Accent : Palette().TextMuted, name.c_str(), isTop ? "top" : nullptr,
                     "Inspect in the Scene panel")) {
             editor.SetInspectedScene(stack[i]);
         }

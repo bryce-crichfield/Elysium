@@ -146,8 +146,8 @@ bool Application::Initialize(const std::string& configPath) {
     // Audio device init deferred until the real audio backend (miniaudio) lands.
 
     rlImGuiSetup(true);
-    Editor::Theme::Apply();
-    Editor::Theme::LoadFonts();
+    EditorStyle::LoadTheme("Dark");
+    EditorStyle::LoadFonts();
     // SetTargetFPS(config_.targetFPS);
 
     // Must be set before the first ImGui::NewFrame() (rlImGuiBegin() below), or ImGui
@@ -264,6 +264,17 @@ void Application::DrawMenuBar()
                 if (editor->IsDocked()) continue;
                 if (ImGui::MenuItem(editor->GetName().c_str())) editor->SetVisible(true);
             }
+            ImGui::Separator();
+            if (ImGui::BeginMenu("Theme")) {
+                // Re-read on selection, so edits to the file show up without a restart.
+                for (const std::string& name : EditorStyle::AvailableThemes()) {
+                    if (ImGui::MenuItem(name.c_str(), nullptr, name == EditorStyle::CurrentTheme().name) &&
+                        EditorStyle::LoadTheme(name)) {
+                        RequestFontReload();
+                    }
+                }
+                ImGui::EndMenu();
+            }
             ImGui::EndMenu();
         }
 
@@ -288,7 +299,7 @@ void Application::Draw() {
         ImGui::GetIO().Fonts->Clear();
         rlImGuiBeginInitImGui();
         rlImGuiEndInitImGui();
-        Editor::Theme::LoadFonts();
+        EditorStyle::LoadFonts();
         for (auto& editor : editors_) {
             editor->Initialize(config_);
         }

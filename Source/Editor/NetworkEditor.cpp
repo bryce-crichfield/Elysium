@@ -20,7 +20,7 @@ void NetworkEditor::Draw() {
     if (!ImGui::IsPopupOpen(Title)) ImGui::OpenPopup(Title);
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(Theme::DialogWidth, 0.0f), ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2(Theme().DialogWidth, 0.0f), ImGuiCond_Appearing);
     if (ImGui::BeginPopupModal(Title, nullptr, ImGuiWindowFlags_NoSavedSettings)) {
         DrawStatus(service);
         if (service.IsRunning()) {
@@ -47,7 +47,7 @@ void NetworkEditor::DrawStatus(INetworkService& service) {
     else if (service.GetMode() == NetworkMode::Client) modeStr = "Client";
 
     ImGui::AlignTextToFramePadding();
-    ColoredText(service.IsRunning() ? Palette::Success : Palette::TextDisabled, ICON_FA_CIRCLE);
+    ColoredText(service.IsRunning() ? Palette().Success : Palette().TextDisabled, ICON_FA_CIRCLE);
     ImGui::SameLine();
     ImGui::TextUnformatted(modeStr);
     ImGui::SameLine();

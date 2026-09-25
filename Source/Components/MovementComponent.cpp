@@ -82,7 +82,7 @@ namespace Elysium {
 
             // highlight the active waypoint
             bool isCurrent = (static_cast<int>(i) == c.currentWaypointIndex);
-            if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette::Success);
+            if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette().Success);
             const std::string label = "[" + std::to_string(i) + "]" + (isCurrent ? "  " ICON_FA_ARROW_LEFT : "");
             PropertyLabel(label.c_str());
             ImGui::DragFloat2("##wp", &c.waypoints[i].x, 1.0f);

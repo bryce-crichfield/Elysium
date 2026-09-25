@@ -62,7 +62,7 @@ void InspectorEditor::DrawHeader(IEditorService& service, Entity entity) {
 
     const std::string id = "#" + std::to_string(entity);
     ImGui::AlignTextToFramePadding();
-    ColoredText(Palette::Accent, ICON_FA_CUBE);
+    ColoredText(Palette().Accent, ICON_FA_CUBE);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-(ImGui::CalcTextSize(id.c_str()).x + ImGui::GetStyle().ItemSpacing.x + ExpandCollapseWidth()));
     if (ImGui::InputTextWithHint("##EntityName", "Unnamed entity", nameBuffer_, sizeof(nameBuffer_))) {
@@ -91,7 +91,7 @@ void InspectorEditor::DrawComponent(IEditorService& service, Entity entity, cons
     if (IconButton(ICON_FA_ELLIPSIS_VERTICAL, "Component actions")) ImGui::OpenPopup("ComponentActions");
     if (ImGui::BeginPopup("ComponentActions")) {
         if (ImGui::MenuItem(ICON_FA_ROTATE_LEFT "  Reset")) placeholder.resetComponentFunc(entity, world);
-        ImGui::PushStyleColor(ImGuiCol_Text, Palette::Error);
+        ImGui::PushStyleColor(ImGuiCol_Text, Palette().Error);
         if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Remove")) componentToRemove_ = placeholder.name;
         ImGui::PopStyleColor();
         ImGui::EndPopup();

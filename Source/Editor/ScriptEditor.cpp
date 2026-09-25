@@ -33,7 +33,7 @@ void ScriptEditor::Draw() {
         DrawToolbar();
 
         if (!statusMessage_.empty()) {
-            ColoredText(statusIsError_ ? Palette::Error : Palette::TextMuted, statusMessage_.c_str());
+            ColoredText(statusIsError_ ? Palette().Error : Palette().TextMuted, statusMessage_.c_str());
         }
 
         // With no script picked the buffer is a scratchpad for Run.

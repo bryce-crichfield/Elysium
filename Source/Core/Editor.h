@@ -12,6 +12,11 @@ namespace Elysium {
 
 struct ApplicationConfig;
 
+namespace EditorStyle {
+struct Palette;
+struct Theme;
+}  // namespace EditorStyle
+
 // Where a component's section sits in the Inspector, top to bottom: what the entity is,
 // where it is, what it looks like, how it behaves. Ties sort by name. A component opts in
 // with `static constexpr InspectorOrder Order = ...;`; without one it sorts last.
@@ -43,10 +48,10 @@ concept Inspectable = requires(T& c, Entity e, ServiceLocator& services) {
 
 class Editor {
    public:
-    // Editor look, defined in Editor/Palette.h and Editor/Theme.h. Shared widgets that
-    // use them are in Editor/Widgets.h.
-    struct Palette;
-    struct Theme;
+    // The active editor look, loaded from a theme file (Editor/Theme.h). Include
+    // Editor/Theme.h to use the result; shared widgets that use them are in Editor/Widgets.h.
+    static const EditorStyle::Palette& Palette();
+    static const EditorStyle::Theme& Theme();
 
     Editor(ServiceLocator& services, const std::string& name) : services_(services), name_(name) {}
     virtual ~Editor() = default;

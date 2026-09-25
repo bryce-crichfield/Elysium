@@ -85,7 +85,7 @@ void HierarchyEditor::DrawToolbar(IEditorService& service) {
         showHierarchyView_ = !showHierarchyView_;
     }
     ImGui::SameLine();
-    if (luaFilterActive_) ImGui::PushStyleColor(ImGuiCol_Text, Palette::Accent);
+    if (luaFilterActive_) ImGui::PushStyleColor(ImGuiCol_Text, Palette().Accent);
     if (IconButton(ICON_FA_FILTER, "Lua filter")) showLuaFilter_ = !showLuaFilter_;
     if (luaFilterActive_) ImGui::PopStyleColor();
 
@@ -128,7 +128,7 @@ void HierarchyEditor::DrawEntityList(IEditorService& service) {
 
     if (!ImGui::BeginTable("Entities", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_PadOuterX)) return;
     ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, Theme::IdColumnWidth);
+    ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, Theme().IdColumnWidth);
 
     for (Entity entity : world->GetLivingEntities()) {
         if (!PassesFilters(*world, entity)) continue;
@@ -169,7 +169,7 @@ void HierarchyEditor::DrawEntityContextMenu(IEditorService& service, Entity enti
         world->RemoveChild(parent, entity);
     }
     ImGui::Separator();
-    ImGui::PushStyleColor(ImGuiCol_Text, Palette::Error);
+    ImGui::PushStyleColor(ImGuiCol_Text, Palette().Error);
     if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete")) {
         const bool wasSelected = service.IsSelected(entity);
         world->DestroyEntity(entity);
@@ -187,7 +187,7 @@ void HierarchyEditor::DrawInsertionZone(IEditorService& service, Entity parent, 
     ImGui::PushID((int)parent);
     ImGui::PushID(beforeSibling == INVALID_ENTITY ? -1 : (int)beforeSibling);
 
-    const float zoneH = Theme::DropZoneHeight;
+    const float zoneH = Theme().DropZoneHeight;
     ImVec2 origin = ImGui::GetCursorScreenPos();
     float zoneW = ImGui::GetContentRegionAvail().x;
 
@@ -198,7 +198,7 @@ void HierarchyEditor::DrawInsertionZone(IEditorService& service, Entity parent, 
         ImGui::GetWindowDrawList()->AddLine(
             ImVec2(origin.x, origin.y + zoneH * 0.5f),
             ImVec2(origin.x + zoneW, origin.y + zoneH * 0.5f),
-            Palette::ToU32(Palette::Accent), Theme::DropLineWidth);
+            Palette().ToU32(Palette().Accent), Theme().DropLineWidth);
 
         const Entity dragged = AcceptEntityDrop(ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
         // Dropping onto itself or into its own subtree would create a cycle.

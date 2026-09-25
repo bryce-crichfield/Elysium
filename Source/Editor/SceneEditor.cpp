@@ -16,7 +16,7 @@ namespace {
 void VisibilityToggle(bool& visible, const char* tooltip) {
     const char* icon = visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH;
     AlignRight(ButtonWidth(icon));
-    ImGui::PushStyleColor(ImGuiCol_Text, visible ? Editor::Palette::Text : Editor::Palette::TextDisabled);
+    ImGui::PushStyleColor(ImGuiCol_Text, visible ? Editor::Palette().Text : Editor::Palette().TextDisabled);
     // Stable ID: the icon flips with the state.
     if (IconButton((std::string(icon) + "##visible").c_str(), tooltip)) visible = !visible;
     ImGui::PopStyleColor();
@@ -55,7 +55,7 @@ void SceneEditor::DrawProperties(ISceneService& service, Scene& scene) {
 
     // Header, matching the Inspector's.
     ImGui::AlignTextToFramePadding();
-    ColoredText(Palette::Accent, ICON_FA_LAYER_GROUP);
+    ColoredText(Palette().Accent, ICON_FA_LAYER_GROUP);
     ImGui::SameLine();
     ImGui::TextUnformatted(name.c_str());
 
@@ -142,7 +142,7 @@ void SceneEditor::DrawLayers(Scene& scene) {
         std::sort(layers.begin(), layers.end(), [](const SceneLayer& a, const SceneLayer& b) { return a.zIndex < b.zIndex; });
     }
     if (!zIndexError_.empty()) {
-        ColoredText(Palette::Error, (ICON_FA_CIRCLE_XMARK "  " + zIndexError_).c_str());
+        ColoredText(Palette().Error, (ICON_FA_CIRCLE_XMARK "  " + zIndexError_).c_str());
     }
 }
 

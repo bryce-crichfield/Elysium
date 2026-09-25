@@ -155,7 +155,7 @@ void AssetEditor::DrawFile(const DiskFile& file, const LoadedAssets& loaded, con
     auto found = loaded.find(file.relativePath);
     IAsset* activeAsset = found != loaded.end() ? found->second : nullptr;
 
-    ImGui::PushStyleColor(ImGuiCol_Text, activeAsset ? Palette::Text : Palette::TextMuted);
+    ImGui::PushStyleColor(ImGuiCol_Text, activeAsset ? Palette().Text : Palette().TextMuted);
     const std::string text = std::string(FileIcon(file.path)) + "  " + label;
     if (ImGui::Selectable(text.c_str(), selectedFile_ == file.relativePath, ImGuiSelectableFlags_SpanAllColumns)) {
         selectedFile_ = file.relativePath;

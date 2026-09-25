@@ -39,7 +39,7 @@ void LogEditor::Draw() {
 }
 
 void LogEditor::DrawToolbar(ILogService& service) {
-    SearchField("##LogSearch", searchBuffer_, sizeof(searchBuffer_), Theme::SearchWidth);
+    SearchField("##LogSearch", searchBuffer_, sizeof(searchBuffer_), Theme().SearchWidth);
 
     DrawLevelToggles();
 
@@ -63,8 +63,8 @@ void LogEditor::DrawToolbar(ILogService& service) {
 void LogEditor::DrawLevelToggles() {
     for (const auto& info : kLevels) {
         bool& enabled = levelFilters_[info.level];
-        ImGui::PushStyleColor(ImGuiCol_Text, enabled ? LevelColor(info.level) : Palette::TextDisabled);
-        ImGui::PushStyleColor(ImGuiCol_Button, enabled ? Palette::Surface0 : Palette::WithAlpha(Palette::Surface0, 0.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, enabled ? LevelColor(info.level) : Palette().TextDisabled);
+        ImGui::PushStyleColor(ImGuiCol_Button, enabled ? Palette().Surface0 : Palette().WithAlpha(Palette().Surface0, 0.0f));
         ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
         if (ImGui::Button(info.name)) enabled = !enabled;
         ImGui::PopStyleColor(2);
@@ -78,7 +78,7 @@ void LogEditor::DrawTopicFilter(ILogService& service) {
     for (const auto& topic : topics) topicFilters_.try_emplace(topic, true);
 
     const bool anyHidden = std::any_of(topicFilters_.begin(), topicFilters_.end(), [](const auto& p) { return !p.second; });
-    if (anyHidden) ImGui::PushStyleColor(ImGuiCol_Text, Palette::Accent);
+    if (anyHidden) ImGui::PushStyleColor(ImGuiCol_Text, Palette().Accent);
     if (ImGui::Button(ICON_FA_FILTER "  Topics")) ImGui::OpenPopup("TopicFilter");
     if (anyHidden) ImGui::PopStyleColor();
 
@@ -209,10 +209,10 @@ bool LogEditor::ShouldDisplayEntry(const LogEntry& entry) const {
 
 ImVec4 LogEditor::LevelColor(LogLevel level) {
     switch (level) {
-        case LogLevel::DEBUG:   return Palette::Debug;
-        case LogLevel::WARNING: return Palette::Warning;
-        case LogLevel::Error:   return Palette::Error;
-        default:                return Palette::Text;
+        case LogLevel::DEBUG:   return Palette().Debug;
+        case LogLevel::WARNING: return Palette().Warning;
+        case LogLevel::Error:   return Palette().Error;
+        default:                return Palette().Text;
     }
 }
 

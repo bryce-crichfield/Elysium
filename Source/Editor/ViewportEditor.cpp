@@ -39,8 +39,8 @@ void ViewportEditor::Draw() {
         const float bandTop = ImGui::GetCursorScreenPos().y - style.WindowPadding.y;
         const float bandBottom = ImGui::GetCursorScreenPos().y + ImGui::GetFrameHeight() + style.WindowPadding.y;
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        drawList->AddRectFilled(ImVec2(windowLeft, bandTop), ImVec2(windowRight, bandBottom), Palette::ToU32(Palette::Mantle));
-        drawList->AddLine(ImVec2(windowLeft, bandBottom), ImVec2(windowRight, bandBottom), Palette::ToU32(Palette::Border));
+        drawList->AddRectFilled(ImVec2(windowLeft, bandTop), ImVec2(windowRight, bandBottom), Palette().ToU32(Palette().Mantle));
+        drawList->AddLine(ImVec2(windowLeft, bandBottom), ImVec2(windowRight, bandBottom), Palette().ToU32(Palette().Border));
 
         DrawToolbar(sceneService, editorService);
         ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, bandBottom + style.ItemSpacing.y));
@@ -110,14 +110,14 @@ void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& ed
     ItemTooltip(isPlaying ? "Pause simulation" : "Play simulation");
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
-    ColoredText(isPlaying ? Palette::Success : Palette::TextMuted, isPlaying ? "Simulating" : "Paused");
+    ColoredText(isPlaying ? Palette().Success : Palette().TextMuted, isPlaying ? "Simulating" : "Paused");
 
     // Right side: editor camera readout and a reset back to the scene's camera.
     auto& camera = editor.GetEditorCamera();
     char readout[64];
     snprintf(readout, sizeof(readout), "%.0f, %.0f   %.0f%%", camera.position.x, camera.position.y, camera.zoom * 100.0f);
     AlignRight(ImGui::CalcTextSize(readout).x + ButtonWidth(ICON_FA_CROSSHAIRS) + ImGui::GetStyle().ItemSpacing.x);
-    ColoredText(Palette::TextMuted, readout);
+    ColoredText(Palette().TextMuted, readout);
     ImGui::SameLine();
     if (IconButton(ICON_FA_CROSSHAIRS, "Reset view to the scene camera")) camera.initialized = false;
 }
@@ -224,7 +224,7 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
             ? Systems::RenderProjector::WorldToFramebuffer({ t.worldX, t.worldY }, view)
             : Systems::RenderProjector::ScreenToFramebuffer({ t.worldX, t.worldY }, view);
         Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
-        if ((mouseFbPos - handleFbPos).Length() <= Theme::MoveHandleRadius) {
+        if ((mouseFbPos - handleFbPos).Length() <= Theme().MoveHandleRadius) {
             isDraggingGizmo_ = true;
             gizmoEntity_ = selected[0];
             lastGizmoFbPos_ = mouseFbPos;
@@ -247,7 +247,7 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
     auto hits = renderSystem->Pick(fbPos, view);
 
-    bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < Theme::ClickCycleDistance;
+    bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < Theme().ClickCycleDistance;
     size_t index = samePos ? (lastClickIndex_ + 1) % hits.size() : 0;
     lastClickFbPos_ = fbPos;
     lastClickIndex_ = index;
@@ -292,12 +292,12 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
     Vector2 xEnd   = project({ kAxisExtent, 0.0f}, true);
     Vector2 yStart = project({0.0f, -kAxisExtent}, true);
     Vector2 yEnd   = project({0.0f,  kAxisExtent}, true);
-    drawList->AddLine(ImVec2(xStart.x, xStart.y), ImVec2(xEnd.x, xEnd.y), Palette::ToU32(Palette::AxisX), Theme::AxisWidth);
-    drawList->AddLine(ImVec2(yStart.x, yStart.y), ImVec2(yEnd.x, yEnd.y), Palette::ToU32(Palette::AxisY), Theme::AxisWidth);
+    drawList->AddLine(ImVec2(xStart.x, xStart.y), ImVec2(xEnd.x, xEnd.y), Palette().ToU32(Palette().AxisX), Theme().AxisWidth);
+    drawList->AddLine(ImVec2(yStart.x, yStart.y), ImVec2(yEnd.x, yEnd.y), Palette().ToU32(Palette().AxisY), Theme().AxisWidth);
 
     // Each real CameraComponent's viewport bounds, since the editor doesn't render through them
     // directly — always a world-space concept too.
-    const ImU32 cameraGizmoColor = Palette::ToU32(Palette::CameraBounds);
+    const ImU32 cameraGizmoColor = Palette().ToU32(Palette().CameraBounds);
     world->Query<CameraComponent>([&](Entity entity, auto& camera) {
         if (!world->HasComponent<TransformComponent>(entity)) return;
         const auto& t = world->GetComponent<TransformComponent>(entity);
@@ -306,26 +306,26 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
         float halfH = (camera.viewport.height * 0.5f) / zoom;
         Vector2 tl = project({t.worldX - halfW, t.worldY - halfH}, true);
         Vector2 br = project({t.worldX + halfW, t.worldY + halfH}, true);
-        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), cameraGizmoColor, 0.0f, 0, Theme::OverlayLineWidth);
+        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), cameraGizmoColor, 0.0f, 0, Theme().OverlayLineWidth);
     });
 
     // Selection highlight, sized via the entity's RenderableType::Bounds where it has one
     // (falls back to a fixed box for renderable-less/currently-culled selected entities).
     auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     const auto& selected = editorService.GetSelectedEntities();
-    const ImU32 selectionColor = Palette::ToU32(Palette::Selection);
+    const ImU32 selectionColor = Palette().ToU32(Palette().Selection);
     for (Entity entity : selected) {
         Systems::EntityRenderInfo info = renderSystem ? renderSystem->GetEntityRenderInfo(entity) : Systems::EntityRenderInfo{};
         std::optional<Rectangle> bounds = info.bounds;
         if (!bounds && world->HasComponent<TransformComponent>(entity)) {
             const auto& t = world->GetComponent<TransformComponent>(entity);
-            bounds = Rectangle{ t.worldX - Theme::SelectionFallback, t.worldY - Theme::SelectionFallback,
-                                 Theme::SelectionFallback * 2.0f, Theme::SelectionFallback * 2.0f };
+            bounds = Rectangle{ t.worldX - Theme().SelectionFallback, t.worldY - Theme().SelectionFallback,
+                                 Theme().SelectionFallback * 2.0f, Theme().SelectionFallback * 2.0f };
         }
         if (!bounds) continue;
         Vector2 tl = project({ bounds->x, bounds->y }, info.isWorldSpace);
         Vector2 br = project({ bounds->x + bounds->width, bounds->y + bounds->height }, info.isWorldSpace);
-        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), selectionColor, 0.0f, 0, Theme::OverlayLineWidth);
+        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), selectionColor, 0.0f, 0, Theme().OverlayLineWidth);
     }
 
     // Move handle: constant on-screen size regardless of zoom, matches the MoveHandleRadius hit-test.
@@ -334,13 +334,13 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
         bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(selected[0]).isWorldSpace : true;
         Vector2 handlePos = project({t.worldX, t.worldY}, isWorldSpace);
         ImVec2 center(handlePos.x, handlePos.y);
-        const float radius = Theme::MoveHandleRadius;
-        const ImU32 glyph = Palette::ToU32(Palette::HandleGlyph);
-        drawList->AddCircleFilled(center, radius, Palette::ToU32(Palette::HandleFill));
-        drawList->AddCircle(center, radius, Palette::ToU32(Palette::HandleOutline));
+        const float radius = Theme().MoveHandleRadius;
+        const ImU32 glyph = Palette().ToU32(Palette().HandleGlyph);
+        drawList->AddCircleFilled(center, radius, Palette().ToU32(Palette().HandleFill));
+        drawList->AddCircle(center, radius, Palette().ToU32(Palette().HandleOutline));
         float crossHalf = radius * 0.5f;
-        drawList->AddLine(ImVec2(center.x - crossHalf, center.y), ImVec2(center.x + crossHalf, center.y), glyph, Theme::AxisWidth);
-        drawList->AddLine(ImVec2(center.x, center.y - crossHalf), ImVec2(center.x, center.y + crossHalf), glyph, Theme::AxisWidth);
+        drawList->AddLine(ImVec2(center.x - crossHalf, center.y), ImVec2(center.x + crossHalf, center.y), glyph, Theme().AxisWidth);
+        drawList->AddLine(ImVec2(center.x, center.y - crossHalf), ImVec2(center.x, center.y + crossHalf), glyph, Theme().AxisWidth);
     }
 
     drawList->PopClipRect();

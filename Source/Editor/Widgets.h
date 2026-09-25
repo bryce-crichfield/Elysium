@@ -12,7 +12,7 @@
 #include "extras/IconsFontAwesome6.h"
 
 #include "Core/Value.h"
-#include "Editor/Palette.h"
+#include "Core/Editor.h"
 #include "Editor/Theme.h"
 
 // Building blocks shared by every editor panel and component inspector, so they all lay
@@ -23,10 +23,10 @@ namespace Elysium {
 // fill the rest of the row. Muted labels mark a value still at its default.
 inline void PropertyLabel(const char* label, bool muted = false) {
     ImGui::AlignTextToFramePadding();
-    ImGui::PushStyleColor(ImGuiCol_Text, muted ? Editor::Palette::TextMuted : Editor::Palette::Text);
+    ImGui::PushStyleColor(ImGuiCol_Text, muted ? Editor::Palette().TextMuted : Editor::Palette().Text);
     ImGui::TextUnformatted(label);
     ImGui::PopStyleColor();
-    ImGui::SameLine(Editor::Theme::LabelColumnWidth);
+    ImGui::SameLine(Editor::Theme().LabelColumnWidth);
     ImGui::SetNextItemWidth(-FLT_MIN);
 }
 
@@ -38,13 +38,13 @@ inline void ReadOnlyRow(const char* label, const char* value) {
 
 // A labelled group heading inside a panel or inspector.
 inline void SectionHeader(const char* label) {
-    ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette::TextMuted);
+    ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette().TextMuted);
     ImGui::SeparatorText(label);
     ImGui::PopStyleColor();
 }
 
 inline void MutedText(const char* text) {
-    ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette::TextMuted);
+    ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette().TextMuted);
     ImGui::TextWrapped("%s", text);
     ImGui::PopStyleColor();
 }
@@ -72,7 +72,7 @@ inline void ItemTooltip(const char* text) {
 // A frameless button showing only an icon, with a hover tooltip. Frame height, so it
 // lines up with the inputs beside it.
 inline bool IconButton(const char* icon, const char* tooltip = nullptr) {
-    ImGui::PushStyleColor(ImGuiCol_Button, Editor::Palette::WithAlpha(Editor::Palette::Surface0, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, Editor::Palette().WithAlpha(Editor::Palette().Surface0, 0.0f));
     const bool pressed = ImGui::Button(icon);
     ImGui::PopStyleColor();
     ItemTooltip(tooltip);
@@ -81,10 +81,10 @@ inline bool IconButton(const char* icon, const char* tooltip = nullptr) {
 
 // A button with the accent fill, for the one primary action in a toolbar.
 inline bool PrimaryButton(const char* label, const ImVec2& size = ImVec2(0, 0)) {
-    ImGui::PushStyleColor(ImGuiCol_Button, Editor::Palette::Accent);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Editor::Palette::AccentHover);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, Editor::Palette::AccentActive);
-    ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette::Crust);
+    ImGui::PushStyleColor(ImGuiCol_Button, Editor::Palette().Accent);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Editor::Palette().AccentHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, Editor::Palette().AccentActive);
+    ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette().TextOnAccent);
     const bool pressed = ImGui::Button(label, size);
     ImGui::PopStyleColor(4);
     return pressed;
@@ -155,14 +155,14 @@ inline void ApplyOpenRequest(const std::optional<bool>& request) {
 // A collapsible section header, dimmed while `active` is off. AllowOverlap lets buttons
 // sit on its right edge. Wrap the body, when open, in Begin/EndSectionBody.
 inline bool CollapsingSection(const char* label, bool active = true, ImGuiTreeNodeFlags flags = 0) {
-    ImGui::PushStyleColor(ImGuiCol_Text, active ? Editor::Palette::Text : Editor::Palette::TextMuted);
+    ImGui::PushStyleColor(ImGuiCol_Text, active ? Editor::Palette().Text : Editor::Palette().TextMuted);
     const bool open = ImGui::CollapsingHeader(label, flags | ImGuiTreeNodeFlags_AllowOverlap);
     ImGui::PopStyleColor();
     return open;
 }
-inline void BeginSectionBody() { ImGui::Indent(Editor::Theme::ItemInnerSpacing.x); }
+inline void BeginSectionBody() { ImGui::Indent(Editor::Theme().ItemInnerSpacing.x); }
 inline void EndSectionBody() {
-    ImGui::Unindent(Editor::Theme::ItemInnerSpacing.x);
+    ImGui::Unindent(Editor::Theme().ItemInnerSpacing.x);
     ImGui::Spacing();
 }
 
