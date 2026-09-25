@@ -53,6 +53,18 @@ namespace Elysium {
     Vector3 Cross(const Vector3& a, const Vector3& b);
 
 
+    // Plain aggregate — no operators yet. Exists mainly so Value/Shader can carry a vec4
+    // uniform (an RGBA colour in 0..1 float space, a rect, a quaternion).
+    struct Vector4 {
+        float x = 0.0f, y = 0.0f, z = 0.0f, w = 0.0f;
+
+        bool operator==(const Vector4& rhs) const {
+            return x == rhs.x && y == rhs.y && z == rhs.z && w == rhs.w;
+        }
+        bool operator!=(const Vector4& rhs) const { return !(*this == rhs); }
+    };
+
+
     struct Matrix {
         float data[16];
 

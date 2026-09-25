@@ -6,10 +6,8 @@
 namespace Elysium {
     struct CircleComponent {
         float radius;
-        Color background;
-        Color border;
 
-        CircleComponent(float r = 10.0f, Color background = {}, Color border = {});
+        CircleComponent(float r = 10.0f);
 
         static constexpr const char* Name() { return "Circle"; }
         static constexpr const char* XmlTag() { return "CircleComponent"; }

@@ -357,7 +357,10 @@ void SceneEditor::DrawSystemsTab(ISceneService& service) {
             ImGui::Text("%zu", i);
 
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%s", systems[i]->GetName().c_str());
+            const std::string& name = systems[i]->GetName();
+            if (ImGui::Selectable((name + "##system" + std::to_string(i)).c_str(), name == selectedSystem_)) {
+                selectedSystem_ = name;
+            }
 
             ImGui::TableSetColumnIndex(2);
             bool isEnabled = systems[i]->IsEnabled();
@@ -376,6 +379,69 @@ void SceneEditor::DrawSystemsTab(ISceneService& service) {
     }
 
     ImGui::Text("Total Systems: %zu", systems.size());
+
+    auto selected = std::find_if(systems.begin(), systems.end(),
+                                 [&](const auto& system) { return system->GetName() == selectedSystem_; });
+    if (selected == systems.end()) return;
+    DrawSystemParameters(**selected);
+}
+
+// Edits apply live. Scene > Save writes whichever differ from the default back onto the
+// <System> tag.
+void SceneEditor::DrawSystemParameters(System& system) {
+    ImGui::SeparatorText((system.GetName() + " Parameters").c_str());
+
+    const SystemParameters defaults = system.GetDefaultParameters();
+    if (defaults.empty()) {
+        ImGui::TextDisabled("No parameters");
+        return;
+    }
+
+    // Copied: SetParameter below may rewrite the map being iterated.
+    const SystemParameters parameters = system.GetParameters();
+    for (const auto& [name, current] : parameters) {
+        ImGui::PushID(name.c_str());
+        auto defaultIt = defaults.find(name);
+        const bool isDefault = defaultIt != defaults.end() && defaultIt->second.ToString() == current.ToString();
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(isDefault ? ImVec4(0.6f, 0.6f, 0.6f, 1) : ImVec4(1, 1, 1, 1), "%s", name.c_str());
+        ImGui::SameLine(160.0f);
+        ImGui::SetNextItemWidth(-56);
+
+        Value value = current;
+        bool changed = false;
+        if (value.Is<bool>()) {
+            bool v = value.As<bool>();
+            if (ImGui::Checkbox("##value", &v)) { value = Value(v); changed = true; }
+        } else if (value.Is<int>()) {
+            int v = value.As<int>();
+            if (ImGui::DragInt("##value", &v)) { value = Value(v); changed = true; }
+        } else if (value.Is<float>()) {
+            float v = value.As<float>();
+            if (ImGui::DragFloat("##value", &v, 0.05f)) { value = Value(v); changed = true; }
+        } else if (value.Is<Vector2>()) {
+            Vector2 v = value.As<Vector2>();
+            float f[2] = {v.x, v.y};
+            if (ImGui::DragFloat2("##value", f, 0.05f)) { value = Value(Vector2{f[0], f[1]}); changed = true; }
+        } else if (value.Is<Vector3>()) {
+            Vector3 v = value.As<Vector3>();
+            float f[3] = {v.x, v.y, v.z};
+            if (ImGui::DragFloat3("##value", f, 0.05f)) { value = Value(Vector3{f[0], f[1], f[2]}); changed = true; }
+        } else if (value.Is<Vector4>()) {
+            Vector4 v = value.As<Vector4>();
+            float f[4] = {v.x, v.y, v.z, v.w};
+            if (ImGui::DragFloat4("##value", f, 0.05f)) { value = Value(Vector4{f[0], f[1], f[2], f[3]}); changed = true; }
+        }
+        if (changed) system.SetParameter(name, value);
+
+        ImGui::SameLine();
+        ImGui::BeginDisabled(isDefault || defaultIt == defaults.end());
+        if (ImGui::SmallButton("Reset")) system.SetParameter(name, defaultIt->second);
+        ImGui::EndDisabled();
+
+        ImGui::PopID();
+    }
 }
 
 }  // namespace Elysium

@@ -210,6 +210,20 @@ void LoadSystems(XMLElement* root, Scene& scene) {
 
             auto system = SystemRegistry::Instance().Create(systemName, context);
             if (system) {
+                // Every other attribute is a parameter, parsed as its declared type.
+                const SystemParameters defaults = system->GetDefaultParameters();
+                SystemParameters values;
+                for (const XMLAttribute* attr = xmlSystem->FirstAttribute(); attr; attr = attr->Next()) {
+                    std::string name = attr->Name();
+                    if (name == "type") continue;
+                    auto it = defaults.find(name);
+                    if (it == defaults.end()) {
+                        LOG_WARNINGF("Scene", "%s has no parameter '%s'", systemName.c_str(), name.c_str());
+                        continue;
+                    }
+                    values[name] = Value::FromString(it->second.TypeName(), attr->Value());
+                }
+                system->Initialize(values);
                 scene.AddSystem(std::move(system));
             }
         });

@@ -5,10 +5,8 @@
 namespace Elysium {
     struct EllipseComponent {
         float radiusH, radiusV;
-        Color background;
-        Color border;
 
-        EllipseComponent(float radiusH = 50.0f, float radiusV = 50.0f, Color background = {}, Color border = {});
+        EllipseComponent(float radiusH = 50.0f, float radiusV = 50.0f);
 
         static constexpr const char* Name() { return "Ellipse"; }
         static constexpr const char* XmlTag() { return "EllipseComponent"; }

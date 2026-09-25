@@ -42,7 +42,12 @@
             <NameComponent name="Uno" />
             <TransformComponent x="100" y="100" />
             <LayerComponent layer="entity" />
-            <TextureComponent texture="/Textures/Tiles/tile.png" sourceRect="0,0,32,32" />
+            <RectangleComponent width="32" height="32" />
+            <MaterialComponent>
+                <Layer material="Texture" texture="/Textures/Tiles/tile.png">
+                    <Uniform name="uSourceRect" type="vec4" value="0 0 32 32" />
+                </Layer>
+            </MaterialComponent>
         </Entity>
     </Entities>
 </Scene>

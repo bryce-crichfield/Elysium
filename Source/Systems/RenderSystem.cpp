@@ -2,29 +2,35 @@
 #include <algorithm>
 #include <cmath>
 #include <type_traits>
+#include <unordered_set>
 #include "Components/CameraComponent.h"
 #include "Components/CircleComponent.h"
 #include "Components/EllipseComponent.h"
 #include "Components/LayerComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/LineComponent.h"
+#include "Components/MaterialComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/PolygonComponent.h"
 #include "Components/RectangleComponent.h"
+#include "Components/ShaderComponent.h"
 #include "Components/SpriteComponent.h"
 #include "Components/TextComponent.h"
-#include "Components/TextureComponent.h"
 #include "Components/TileComponent.h"
 #include "Components/TransformComponent.h"
+#include "Core/Assets/ShaderAsset.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
 #include "Core/Geometry.h"
 #include "Core/Graphics.h"
+#include "Core/Log.h"
 #include "Core/Path.h"
 #include "Core/Framebuffer.h"
 #include "Core/RenderContext.h"
 #include "Core/Scene.h"
 #include "Core/ServiceLocator.h"
+#include "Core/Shader.h"
+#include "Core/Value.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Tile.h"
 #include "Interfaces/IApplicationService.h"
@@ -66,12 +72,40 @@ static bool HasTileImpl(const World& world, Entity entity) {
 }
 static bool HasRectangleImpl(const World& world, Entity entity) { return world.HasComponent<RectangleComponent>(entity); }
 static bool HasCircleImpl(const World& world, Entity entity)    { return world.HasComponent<CircleComponent>(entity); }
-static bool HasSpriteImpl(const World& world, Entity entity)    { return world.HasComponent<TextureComponent>(entity); }
 static bool HasTextImpl(const World& world, Entity entity)      { return world.HasComponent<TextComponent>(entity); }
 static bool HasLightImpl(const World& world, Entity entity)     { return world.HasComponent<LightComponent>(entity); }
 static bool HasEllipseImpl(const World& world, Entity entity)   { return world.HasComponent<EllipseComponent>(entity); }
 static bool HasLineImpl(const World& world, Entity entity)      { return world.HasComponent<LineComponent>(entity); }
 static bool HasPolygonImpl(const World& world, Entity entity)   { return world.HasComponent<PolygonComponent>(entity); }
+
+// A bare ShaderComponent is its own renderable: it emits one record with the component's
+// authored box as bounds and draws nothing itself, so RenderShadedEntity blits an empty
+// (transparent) buffer through the shader and the shader generates every pixel. Only
+// claims entities no other renderable does, otherwise the authored box would widen the
+// union of the real shape's bounds.
+static bool HasShaderImpl(const World& world, Entity entity) {
+    if (!world.HasComponent<ShaderComponent>(entity)) return false;
+    for (const RenderableType& type : RenderableRegistry::Instance().All()) {
+        if (!type.Has || type.Has == &HasShaderImpl) continue;
+        if (type.Has(world, entity)) return false;
+    }
+    return true;
+}
+
+static void RenderShaderImpl(RenderContext&, const RenderRecord&) {}
+
+static std::optional<Rectangle> BoundsShaderImpl(const World& world, const RenderRecord& rec) {
+    const auto& component = world.GetComponent<ShaderComponent>(rec.entity);
+    float left = rec.isWorldSpace ? rec.x - component.width  * 0.5f : rec.x;
+    float top  = rec.isWorldSpace ? rec.y - component.height * 0.5f : rec.y;
+    return Rectangle{ left, top, component.width, component.height };
+}
+
+static bool PickShaderImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
+    Rectangle b = *BoundsShaderImpl(world, rec);
+    return testPos.x >= b.x && testPos.x <= b.x + b.width &&
+           testPos.y >= b.y && testPos.y <= b.y + b.height;
+}
 
 static void RenderTileImpl(RenderContext& ctx, const RenderRecord& rec) {
     const auto& comp = ctx.GetWorld().GetComponent<TileComponent>(rec.entity);
@@ -113,105 +147,101 @@ static void RenderTileImpl(RenderContext& ctx, const RenderRecord& rec) {
     ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, comp.tint);
 }
 
-static void RenderRectangleImpl(RenderContext& ctx, const RenderRecord& rec) {
-    const auto& component = ctx.GetWorld().GetComponent<RectangleComponent>(rec.entity);
+// The entity's world scale and rotation, applied about its position (rec.x, rec.y). Shapes
+// describe themselves untransformed ("local": authored size, placed at the position);
+// ToDraw maps a local point to where it's drawn, ToLocal maps a pick back. Negative scale
+// mirrors about the position.
+struct ShapeTransform {
+    Vector2 pivot{};
+    float scaleX = 1.0f, scaleY = 1.0f;
+    float cs = 1.0f, sn = 0.0f;
 
-    float topLeftX = rec.isWorldSpace ? rec.x - component.width  * 0.5f : rec.x;
-    float topLeftY = rec.isWorldSpace ? rec.y - component.height * 0.5f : rec.y;
+    bool IsIdentity() const { return scaleX == 1.0f && scaleY == 1.0f && sn == 0.0f && cs == 1.0f; }
 
-    Rectangle rect = { topLeftX, topLeftY, component.width, component.height };
-    const int roundedSegments = 8;
-
-    if (component.cornerRadius > 0.0f) {
-        ctx.DrawRectangleRounded(rect, component.cornerRadius, roundedSegments, component.background);
-        if (component.border.a > 0) {
-            ctx.DrawRectangleRoundedLinesEx(rect, component.cornerRadius, roundedSegments, component.strokeWidth, component.border);
+    Vector2 ToDraw(Vector2 p) const {
+        float dx = (p.x - pivot.x) * scaleX, dy = (p.y - pivot.y) * scaleY;
+        return { pivot.x + dx * cs - dy * sn, pivot.y + dx * sn + dy * cs };
+    }
+    Vector2 ToLocal(Vector2 p) const {
+        float dx = p.x - pivot.x, dy = p.y - pivot.y;
+        float rx = dx * cs + dy * sn, ry = -dx * sn + dy * cs;
+        return { pivot.x + (scaleX != 0.0f ? rx / scaleX : 0.0f), pivot.y + (scaleY != 0.0f ? ry / scaleY : 0.0f) };
+    }
+    // Axis-aligned box around a transformed local box.
+    Rectangle ToDraw(Rectangle r) const {
+        if (IsIdentity()) return r;
+        Vector2 c[4] = { ToDraw({r.x, r.y}), ToDraw({r.x + r.width, r.y}),
+                         ToDraw({r.x, r.y + r.height}), ToDraw({r.x + r.width, r.y + r.height}) };
+        Vector2 lo = c[0], hi = c[0];
+        for (const Vector2& p : c) {
+            lo = { std::min(lo.x, p.x), std::min(lo.y, p.y) };
+            hi = { std::max(hi.x, p.x), std::max(hi.y, p.y) };
         }
-    } else {
-        ctx.DrawRectangle(topLeftX, topLeftY, component.width, component.height, component.background);
-        if (component.border.a > 0) {
-            ctx.DrawRectangleLinesEx(rect, component.strokeWidth, component.border);
+        return { lo.x, lo.y, hi.x - lo.x, hi.y - lo.y };
+    }
+};
+
+static ShapeTransform GetShapeTransform(const World& world, const RenderRecord& rec) {
+    ShapeTransform xf;
+    xf.pivot = { rec.x, rec.y };
+    if (world.HasComponent<TransformComponent>(rec.entity)) {
+        const auto& transform = world.GetComponent<TransformComponent>(rec.entity);
+        xf.scaleX = transform.worldScaleX;
+        xf.scaleY = transform.worldScaleY;
+        if (transform.worldRotation != 0.0f) {
+            float rad = transform.worldRotation * DegToRad;
+            xf.cs = cosf(rad);
+            xf.sn = sinf(rad);
         }
     }
+    return xf;
 }
 
-static bool PickRectangleImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
-    const auto& component = world.GetComponent<RectangleComponent>(rec.entity);
-    float left = rec.isWorldSpace ? rec.x - component.width  * 0.5f : rec.x;
-    float top  = rec.isWorldSpace ? rec.y - component.height * 0.5f : rec.y;
-    return testPos.x >= left && testPos.x <= left + component.width &&
-           testPos.y >= top  && testPos.y <= top + component.height;
+// World-space rectangles hang off the entity's position by their origin; screen-space
+// ones (UI) are positioned by their top-left.
+static std::pair<float, float> RectangleTopLeft(const RectangleComponent& component, const RenderRecord& rec) {
+    if (!rec.isWorldSpace) return { rec.x, rec.y };
+    return { rec.x - component.width * component.originX, rec.y - component.height * component.originY };
 }
 
-static std::optional<Rectangle> BoundsRectangleImpl(const World& world, const RenderRecord& rec) {
+static Rectangle LocalBoundsRectangle(const World& world, const RenderRecord& rec) {
     const auto& component = world.GetComponent<RectangleComponent>(rec.entity);
-    float left = rec.isWorldSpace ? rec.x - component.width  * 0.5f : rec.x;
-    float top  = rec.isWorldSpace ? rec.y - component.height * 0.5f : rec.y;
+    auto [left, top] = RectangleTopLeft(component, rec);
     return Rectangle{ left, top, component.width, component.height };
 }
 
-static void RenderCircleImpl(RenderContext& ctx, const RenderRecord& rec) {
-    const auto& component = ctx.GetWorld().GetComponent<CircleComponent>(rec.entity);
-    ctx.DrawCircle(rec.x, rec.y, component.radius, component.background);
-    if (component.border.a > 0) {
-        ctx.DrawCircleLines(rec.x, rec.y, component.radius, component.border);
-    }
+static bool PickRectangleImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
+    Vector2 p = GetShapeTransform(world, rec).ToLocal(testPos);
+    Rectangle b = LocalBoundsRectangle(world, rec);
+    return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
 }
 
-static bool PickCircleImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
-    const auto& component = world.GetComponent<CircleComponent>(rec.entity);
-    return (testPos - Vector2{rec.x, rec.y}).Length() <= component.radius;
+static std::optional<Rectangle> BoundsRectangleImpl(const World& world, const RenderRecord& rec) {
+    return GetShapeTransform(world, rec).ToDraw(LocalBoundsRectangle(world, rec));
 }
 
-static std::optional<Rectangle> BoundsCircleImpl(const World& world, const RenderRecord& rec) {
+static Rectangle LocalBoundsCircle(const World& world, const RenderRecord& rec) {
     const auto& component = world.GetComponent<CircleComponent>(rec.entity);
     return Rectangle{ rec.x - component.radius, rec.y - component.radius, component.radius * 2.0f, component.radius * 2.0f };
 }
 
-static void RenderEllipseImpl(RenderContext& ctx, const RenderRecord& rec) {
-    const auto& component = ctx.GetWorld().GetComponent<EllipseComponent>(rec.entity);
-    ctx.DrawEllipse(rec.x, rec.y, component.radiusH, component.radiusV, component.background);
-    if (component.border.a > 0) {
-        ctx.DrawEllipseLines(rec.x, rec.y, component.radiusH, component.radiusV, component.border);
-    }
+static bool PickCircleImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
+    const auto& component = world.GetComponent<CircleComponent>(rec.entity);
+    Vector2 p = GetShapeTransform(world, rec).ToLocal(testPos);
+    return (p - Vector2{rec.x, rec.y}).Length() <= component.radius;
+}
+
+static std::optional<Rectangle> BoundsCircleImpl(const World& world, const RenderRecord& rec) {
+    return GetShapeTransform(world, rec).ToDraw(LocalBoundsCircle(world, rec));
 }
 
 static bool PickEllipseImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
     const auto& component = world.GetComponent<EllipseComponent>(rec.entity);
     if (component.radiusH <= 0.0f || component.radiusV <= 0.0f) return false;
-    float dx = (testPos.x - rec.x) / component.radiusH;
-    float dy = (testPos.y - rec.y) / component.radiusV;
+    Vector2 p = GetShapeTransform(world, rec).ToLocal(testPos);
+    float dx = (p.x - rec.x) / component.radiusH;
+    float dy = (p.y - rec.y) / component.radiusV;
     return (dx * dx + dy * dy) <= 1.0f;
-}
-
-static void RenderLineImpl(RenderContext& ctx, const RenderRecord& rec) {
-    const auto& component = ctx.GetWorld().GetComponent<LineComponent>(rec.entity);
-    ctx.DrawLineEx(rec.x + component.x1, rec.y + component.y1,
-                   rec.x + component.x2, rec.y + component.y2,
-                   component.thickness, component.color);
-}
-
-static void RenderPolygonImpl(RenderContext& ctx, const RenderRecord& rec) {
-    const auto& component = ctx.GetWorld().GetComponent<PolygonComponent>(rec.entity);
-    if (component.points.size() < 3) return;
-
-    std::vector<Vector2> worldPoints;
-    worldPoints.reserve(component.points.size());
-    for (const auto& p : component.points) {
-        worldPoints.push_back({ rec.x + p.x, rec.y + p.y });
-    }
-
-    if (component.fill.a > 0) {
-        std::vector<Vector2> triangles = TriangulatePolygon(worldPoints);
-        ctx.DrawTriangleList(triangles, component.fill);
-    }
-    if (component.border.a > 0) {
-        for (size_t i = 0; i < worldPoints.size(); i++) {
-            const Vector2& a = worldPoints[i];
-            const Vector2& b = worldPoints[(i + 1) % worldPoints.size()];
-            ctx.DrawLine(a.x, a.y, b.x, b.y, component.border);
-        }
-    }
 }
 
 static bool PickPolygonImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
@@ -223,7 +253,7 @@ static bool PickPolygonImpl(const World& world, const RenderRecord& rec, Vector2
     for (const auto& p : component.points) {
         worldPoints.push_back({ rec.x + p.x, rec.y + p.y });
     }
-    return PointInPolygon(testPos, worldPoints);
+    return PointInPolygon(GetShapeTransform(world, rec).ToLocal(testPos), worldPoints);
 }
 
 static void RenderTextImpl(RenderContext& ctx, const RenderRecord& rec) {
@@ -277,103 +307,6 @@ static bool PickTextImpl(const World& world, const RenderRecord& rec, Vector2 te
 
     return testPos.x >= left && testPos.x <= left + textWidth &&
            testPos.y >= top  && testPos.y <= top + scaledFontSize;
-}
-
-static void RenderSpriteImpl(RenderContext& ctx, const RenderRecord& rec) {
-    const World& world = ctx.GetWorld();
-    if (!world.HasComponent<TextureComponent>(rec.entity)) return;
-    const auto& tex = world.GetComponent<TextureComponent>(rec.entity);
-    if (tex.textureName.empty()) return;
-
-    auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
-    auto* textureData = assets.Get<Texture>(Path(tex.textureName));
-    if (!textureData) return;
-    const Texture& texture = *textureData;
-    if (texture.id == 0) return;
-
-    // A hand-placed TextureComponent with no SpriteSystem/XML to resolve sourceRect
-    // defaults to the whole image.
-    Rectangle source = tex.sourceRect;
-    if (source.width <= 0.0f || source.height <= 0.0f) {
-        source = {0.0f, 0.0f, (float)texture.width, (float)texture.height};
-    }
-
-    float scaleX = 1.0f, scaleY = 1.0f, rotation = 0.0f;
-    if (world.HasComponent<TransformComponent>(rec.entity)) {
-        const auto& transform = world.GetComponent<TransformComponent>(rec.entity);
-        scaleX = transform.worldScaleX;
-        scaleY = transform.worldScaleY;
-        rotation = transform.worldRotation;
-    }
-
-    float scaledWidth  = source.width  * scaleX;
-    float scaledHeight = source.height * scaleY;
-
-    // DrawTexturePro ignores destRect's sign, so negative scale (mirroring) is expressed via
-    // a negated source-rect width instead, plus a 180deg rotation for vertical-only flips.
-    bool flipHorizontal = scaledWidth  < 0.0f;
-    bool flipVertical   = scaledHeight < 0.0f;
-
-    Rectangle sourceRect = source;
-    if (flipHorizontal != flipVertical) sourceRect.width = -sourceRect.width;
-    float drawRotation = rotation + (flipVertical ? 180.0f : 0.0f);
-
-    float absWidth  = std::fabs(scaledWidth);
-    float absHeight = std::fabs(scaledHeight);
-
-    Vector2 origin = { absWidth * tex.originX, absHeight * tex.originY };
-    Rectangle destRect = { rec.x, rec.y, absWidth, absHeight };
-
-    SetTextureFilter(ToRaylib(texture), tex.filterMode == TextureFilterMode::Bilinear ? TEXTURE_FILTER_BILINEAR : TEXTURE_FILTER_POINT);
-    ctx.DrawTexturePro(texture, sourceRect, destRect, origin, drawRotation, tex.tint);
-}
-
-static bool PickSpriteImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
-    if (!world.HasComponent<TextureComponent>(rec.entity)) return false;
-    const auto& tex = world.GetComponent<TextureComponent>(rec.entity);
-
-    float scaleX = 1.0f, scaleY = 1.0f, rotation = 0.0f;
-    if (world.HasComponent<TransformComponent>(rec.entity)) {
-        const auto& transform = world.GetComponent<TransformComponent>(rec.entity);
-        scaleX = transform.worldScaleX;
-        scaleY = transform.worldScaleY;
-        rotation = transform.worldRotation;
-    }
-
-    float scaledWidth  = tex.sourceRect.width  * scaleX;
-    float scaledHeight = tex.sourceRect.height * scaleY;
-
-    bool flipVertical = scaledHeight < 0.0f;
-    float drawRotation = rotation + (flipVertical ? 180.0f : 0.0f);
-
-    float absWidth  = std::fabs(scaledWidth);
-    float absHeight = std::fabs(scaledHeight);
-    Vector2 origin = { absWidth * tex.originX, absHeight * tex.originY };
-
-    // Undo DrawTexturePro's rotation to land back in the sprite's local space before testing.
-    float rad = -drawRotation * DEG2RAD;
-    float dx = testPos.x - rec.x;
-    float dy = testPos.y - rec.y;
-    float localX = dx * cosf(rad) - dy * sinf(rad) + origin.x;
-    float localY = dx * sinf(rad) + dy * cosf(rad) + origin.y;
-
-    return localX >= 0.0f && localX <= absWidth && localY >= 0.0f && localY <= absHeight;
-}
-
-static std::optional<Rectangle> BoundsSpriteImpl(const World& world, const RenderRecord& rec) {
-    if (!world.HasComponent<TextureComponent>(rec.entity)) return std::nullopt;
-    const auto& tex = world.GetComponent<TextureComponent>(rec.entity);
-
-    float scaleX = 1.0f, scaleY = 1.0f;
-    if (world.HasComponent<TransformComponent>(rec.entity)) {
-        const auto& transform = world.GetComponent<TransformComponent>(rec.entity);
-        scaleX = transform.worldScaleX;
-        scaleY = transform.worldScaleY;
-    }
-
-    float absWidth  = std::fabs(tex.sourceRect.width  * scaleX);
-    float absHeight = std::fabs(tex.sourceRect.height * scaleY);
-    return Rectangle{ rec.x - absWidth * tex.originX, rec.y - absHeight * tex.originY, absWidth, absHeight };
 }
 
 static void RenderLightImpl(RenderContext& ctx, const RenderRecord& rec) {
@@ -435,8 +368,14 @@ static void RenderDrawPolygonCmd(RenderContext& ctx, const RenderRecord& rec) {
 
 Matrix RenderProjector::CalculateTransform(const CameraView& view, const SceneLayer& layer) {
     switch (layer.space) {
-        case SceneLayerSpace::Screen2D:
-            return Matrix::Identity();
+        case SceneLayerSpace::Screen2D: {
+            if (!view.screenInWorld) return Matrix::Identity();
+            SceneLayer worldLayer = layer;
+            worldLayer.space = SceneLayerSpace::World2D;
+            Matrix screenToWorld = Matrix::Scale({view.screenScale, view.screenScale, 1.0f}) *
+                                   Matrix::Translation({view.screenOrigin.x, view.screenOrigin.y, 0.0f});
+            return screenToWorld * CalculateTransform(view, worldLayer);
+        }
         case SceneLayerSpace::World2D: {
             Vector2 viewportCenter = {
                 view.viewport.width  * 0.5f,
@@ -468,6 +407,19 @@ Vector2 RenderProjector::FramebufferToWorld(Vector2 fbPos, const CameraView& vie
         (fbPos.x - viewportCenter.x) / zoom + view.position.x,
         (fbPos.y - viewportCenter.y) / zoom + view.position.y
     };
+}
+
+Vector2 RenderProjector::ScreenToFramebuffer(Vector2 screenPos, const CameraView& view) {
+    if (!view.screenInWorld) return screenPos;
+    return WorldToFramebuffer({ view.screenOrigin.x + screenPos.x * view.screenScale,
+                                view.screenOrigin.y + screenPos.y * view.screenScale }, view);
+}
+
+Vector2 RenderProjector::FramebufferToScreen(Vector2 fbPos, const CameraView& view) {
+    if (!view.screenInWorld) return fbPos;
+    Vector2 world = FramebufferToWorld(fbPos, view);
+    float scale = view.screenScale != 0.0f ? view.screenScale : 1.0f;
+    return { (world.x - view.screenOrigin.x) / scale, (world.y - view.screenOrigin.y) / scale };
 }
 
 void RenderSorter::ComputeHiddenEntities(World& world) {
@@ -526,10 +478,6 @@ void RenderSorter::CollectEntities(World& world, const CameraView& view) {
         }
         if (matchedCount == 0) return;
 
-        if (!skipCull && (pos.x < worldLeft || pos.x > worldRight ||
-                           pos.y < worldTop  || pos.y > worldBottom))
-            return;
-
         uint8_t layerIndex   = defaultLayerIndex_;
         uint8_t isWorldSpace = (layers_[defaultLayerIndex_].space == SceneLayerSpace::World2D) ? 1 : 0;
         bool isVisible = true;
@@ -546,6 +494,13 @@ void RenderSorter::CollectEntities(World& world, const CameraView& view) {
         }
         if (!isVisible) return;
         if (hiddenEntities_.contains(entity)) return;
+
+        // Only world-space positions can be tested against the camera's view: a Screen2D
+        // entity's position is in framebuffer pixels, which has nothing to do with where
+        // the camera (the editor's free camera especially) happens to be looking.
+        if (isWorldSpace && !skipCull &&
+            (pos.x < worldLeft || pos.x > worldRight || pos.y < worldTop || pos.y > worldBottom))
+            return;
 
         // Cached by TransformSystem alongside worldX/Y; clamp to the key's uint8_t width.
         uint8_t hierarchyDepth = (uint8_t)std::min<uint32_t>(transform.worldDepth, 255u);
@@ -609,12 +564,17 @@ void RenderSorter::CollectDrawCommands(const std::vector<DrawCommand>& drawComma
 
 void RenderSorter::SortQueue() {
     ProfileN("Sort Renderables");
-    std::sort(queue_.begin(), queue_.end(), [](const RenderRecord& a, const RenderRecord& b) {
+    // Every key but the layer is per-entity, so an entity's records stay contiguous
+    // whichever keys are switched off (RenderRecords relies on it).
+    const SortOptions options = sortOptions_;
+    std::sort(queue_.begin(), queue_.end(), [options](const RenderRecord& a, const RenderRecord& b) {
         if (a.layerIndex != b.layerIndex) return a.layerIndex < b.layerIndex;
-        if (a.hierarchyDepth != b.hierarchyDepth) return a.hierarchyDepth < b.hierarchyDepth;
-        if (a.childIndex != b.childIndex) return a.childIndex < b.childIndex;
+        if (options.hierarchySort) {
+            if (a.hierarchyDepth != b.hierarchyDepth) return a.hierarchyDepth < b.hierarchyDepth;
+            if (a.childIndex != b.childIndex) return a.childIndex < b.childIndex;
+        }
         // Y-sort only for World2D layers; ties (and Screen2D layers) fall back to collection order.
-        if (a.isWorldSpace && a.y != b.y) return a.y < b.y;
+        if (options.ySort && a.isWorldSpace && a.y != b.y) return a.y < b.y;
         return a.collectionOrder < b.collectionOrder;
     });
 }
@@ -662,13 +622,292 @@ void RenderCompositor::PushBlend(RenderContext& ctx, SceneLayerBlend blend) {
     }
 }
 
-void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records) {
+const Framebuffer& RenderCompositor::EnsureEntityBuffer(Entity entity, int width, int height) {
+    shadedThisFrame_.insert(entity);
+    Framebuffer& buffer = entityBuffers_[entity];
+    buffer.Resize(width, height);
+    return buffer;
+}
+
+void RenderCompositor::PruneEntityBuffers() {
+    for (auto it = entityBuffers_.begin(); it != entityBuffers_.end();) {
+        if (shadedThisFrame_.count(it->first)) {
+            ++it;
+        } else {
+            it = entityBuffers_.erase(it);
+        }
+    }
+    shadedThisFrame_.clear();
+}
+
+void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records,
+                                     const Matrix& layerTransform, const Framebuffer& enclosingTarget) {
     ProfileN("Render Records");
     auto& registry = RenderableRegistry::Instance();
+    const World& world = ctx.GetWorld();
+
+    size_t index = 0;
+    while (index < records.size()) {
+        const Entity entity = records[index].entity;
+
+        // Every record an entity produced is contiguous here: the sort keys ahead of
+        // collectionOrder (layer, hierarchyDepth, childIndex, y) are all per-entity, so
+        // two entities' records can never interleave.
+        size_t end = index + 1;
+        if (entity != INVALID_ENTITY) {
+            while (end < records.size() && records[end].entity == entity) ++end;
+        }
+
+        std::span<const RenderRecord> group = records.subspan(index, end - index);
+        index = end;
+
+        const bool hasMaterial = entity != INVALID_ENTITY && world.HasComponent<MaterialComponent>(entity) &&
+                                 world.GetComponent<MaterialComponent>(entity).enabled;
+        const bool hasShader = entity != INVALID_ENTITY && world.HasComponent<ShaderComponent>(entity) &&
+                               world.GetComponent<ShaderComponent>(entity).enabled;
+
+        // A ShaderComponent filters the entity after it's drawn: RenderShadedEntity draws
+        // it (materials included) into an offscreen buffer and blits that through the shader.
+        if (hasShader) {
+            RenderShadedEntity(ctx, entity, group, layerTransform, enclosingTarget);
+            continue;
+        }
+        if (hasMaterial) {
+            RenderMaterialEntity(ctx, entity, group);
+            continue;
+        }
+
+        for (const auto& rec : group) {
+            const RenderableType& type = registry.Get(rec.typeId);
+            if (type.Render) type.Render(ctx, rec);
+        }
+    }
+}
+
+// Every declared non-built-in uniform at its default unless overridden. Set
+// unconditionally rather than diffed: a Shader is shared by every entity/layer using it,
+// so the previous draw's values are still resident.
+static void ApplyUniformOverrides(Shader& shader, const std::unordered_map<std::string, Value>& overrides) {
+    for (const ShaderUniform& uniform : shader.GetUniforms()) {
+        if (uniform.isBuiltIn) continue;
+        auto overrideIt = overrides.find(uniform.name);
+        const bool useOverride = overrideIt != overrides.end() &&
+                                 ValueTypeName(overrideIt->second) == uniform.typeName;
+        shader.SetAttribute(uniform.name, useOverride ? overrideIt->second : uniform.defaultValue);
+    }
+}
+
+static Vector4 ToVec4(Color color) {
+    return Vector4{ color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
+}
+
+// Composed shaders are requested lazily on first use. Remembered so a load in flight
+// (or one that failed — a missing chunk) isn't re-requested every frame.
+static Shader* GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material) {
+    Path path = ComposedShaderPath(geometry, material);
+    if (Shader* shader = assets.Get<Shader>(path)) return shader->IsValid() ? shader : nullptr;
+
+    static std::unordered_set<std::string> requested;
+    if (requested.insert(path.GetRelativePath()).second) assets.LoadAsset<Shader>(path);
+    return nullptr;
+}
+
+void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records) {
+    ProfileN("Render Material Entity");
+
+    auto& registry = RenderableRegistry::Instance();
+    const World& world = ctx.GetWorld();
+    auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
+    const MaterialComponent& material = world.GetComponent<MaterialComponent>(entity);
+    const float padding = std::max(0.0f, material.padding);
+    const float time = (float)::GetTime();
+
+    struct Pass {
+        Shader* shader;
+        const MaterialLayer* layer;
+    };
+    std::vector<Pass> passes;
+
     for (const auto& rec : records) {
         const RenderableType& type = registry.Get(rec.typeId);
-        if (type.Render) type.Render(ctx, rec);
+
+        SdfGeometry geometry;
+        if (!type.Geometry || !type.Geometry(world, rec, geometry) || !geometry.geometry) {
+            if (type.Render) type.Render(ctx, rec);  // Text on a button, a Sprite, ...
+            continue;
+        }
+
+        // Resolve every layer's shader up front. Any still loading -> skip the shape this
+        // frame rather than draw a partial stack (e.g. a stroke with no fill).
+        passes.clear();
+        bool ready = true;
+        for (const MaterialLayer& layer : material.layers) {
+            if (!layer.enabled) continue;
+            Shader* shader = GetComposedShader(assets, geometry.geometry, layer.material);
+            if (!shader) { ready = false; continue; }
+            passes.push_back({shader, &layer});
+        }
+        if (!ready || passes.empty()) continue;
+
+        const Rectangle& box = geometry.box;
+        Rectangle quad = { box.x - padding, box.y - padding, box.width + padding * 2.0f, box.height + padding * 2.0f };
+
+        // The shaders work in quad-local space, so transforming the quad's corners scales,
+        // rotates and mirrors the shape and every effect around it together. Coverage
+        // is fwidth-based, so edges stay one pixel wide at any scale.
+        const ShapeTransform xf = GetShapeTransform(world, rec);
+        const Vector2 corners[4] = {
+            xf.ToDraw(Vector2{quad.x, quad.y}),
+            xf.ToDraw(Vector2{quad.x, quad.y + quad.height}),
+            xf.ToDraw(Vector2{quad.x + quad.width, quad.y + quad.height}),
+            xf.ToDraw(Vector2{quad.x + quad.width, quad.y}),
+        };
+
+        for (const Pass& pass : passes) {
+            Shader& shader = *pass.shader;
+            shader.SetAttribute("e_Time", Value{time});
+            shader.SetAttribute("e_Size", Value{Vector2{box.width, box.height}});
+            shader.SetAttribute("e_QuadSize", Value{Vector2{quad.width, quad.height}});
+            shader.SetAttribute("e_CornerRadius", Value{geometry.cornerRadius});
+            shader.SetAttribute("e_PointA", Value{geometry.pointA});
+            shader.SetAttribute("e_PointB", Value{geometry.pointB});
+            shader.SetAttribute("e_Thickness", Value{geometry.thickness});
+            if (!geometry.points.empty()) {
+                shader.SetAttribute("e_PointCount", Value{(int)geometry.points.size()});
+                shader.SetFloatArray("e_Points", &geometry.points[0].x, (int)geometry.points.size(), 2);
+            }
+            ApplyUniformOverrides(shader, pass.layer->overrides);
+
+            const Texture* texture = pass.layer->texturePath.empty()
+                                         ? nullptr
+                                         : assets.Get<Texture>(Path(pass.layer->texturePath));
+            if (texture && texture->id == 0) texture = nullptr;
+            if (texture) shader.SetAttribute("e_TextureSize", Value{Vector2{(float)texture->width, (float)texture->height}});
+
+            ctx.PushShader(shader);
+            ctx.DrawShaderQuad(corners, texture, Colors::White);
+            ctx.PopShader();
+        }
     }
+}
+
+void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
+                                          std::span<const RenderRecord> records, const Matrix& layerTransform,
+                                          const Framebuffer& enclosingTarget) {
+    ProfileN("Render Shaded Entity");
+
+    auto& registry = RenderableRegistry::Instance();
+    const World& world = ctx.GetWorld();
+    const ShaderComponent& shaderComponent = world.GetComponent<ShaderComponent>(entity);
+
+    // Used for every bail-out below: a shader still loading, a bad size, or a dead
+    // framebuffer must degrade to the plain unshaded draw, never to a missing entity.
+    auto RenderUnshaded = [&] {
+        if (world.HasComponent<MaterialComponent>(entity) && world.GetComponent<MaterialComponent>(entity).enabled) {
+            RenderMaterialEntity(ctx, entity, records);
+            return;
+        }
+        for (const auto& rec : records) {
+            const RenderableType& type = registry.Get(rec.typeId);
+            if (type.Render) type.Render(ctx, rec);
+        }
+    };
+
+    if (records.empty()) return;
+
+    auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
+    Shader* shader = shaderComponent.shaderPath.empty()
+                         ? nullptr
+                         : assets.Get<Shader>(Path(shaderComponent.shaderPath));
+    if (!shader || !shader->IsValid()) {
+        RenderUnshaded();
+        return;
+    }
+
+    // Union of whatever bounds the entity's renderables report; components without a
+    // Bounds callback (Text, Line, ...) fall back to the component's authored box.
+    std::optional<Rectangle> bounds;
+    for (const auto& rec : records) {
+        const RenderableType& type = registry.Get(rec.typeId);
+        if (!type.Bounds) continue;
+        std::optional<Rectangle> recordBounds = type.Bounds(world, rec);
+        if (!recordBounds) continue;
+        if (!bounds) {
+            bounds = *recordBounds;
+            continue;
+        }
+        float left   = std::min(bounds->x, recordBounds->x);
+        float top    = std::min(bounds->y, recordBounds->y);
+        float right  = std::max(bounds->x + bounds->width,  recordBounds->x + recordBounds->width);
+        float bottom = std::max(bounds->y + bounds->height, recordBounds->y + recordBounds->height);
+        bounds = Rectangle{left, top, right - left, bottom - top};
+    }
+    if (!bounds) {
+        bounds = Rectangle{records[0].x - shaderComponent.width * 0.5f,
+                           records[0].y - shaderComponent.height * 0.5f,
+                           shaderComponent.width, shaderComponent.height};
+    }
+
+    const float padding = std::max(0.0f, shaderComponent.padding);
+    Rectangle region = {bounds->x - padding, bounds->y - padding,
+                        bounds->width + padding * 2.0f, bounds->height + padding * 2.0f};
+
+    // 1 world unit : 1 texel. Resolution-independent enough for a 2D effect, and it keeps
+    // the offscreen size stable as the camera zooms.
+    constexpr int kMaxEntityBufferSize = 4096;
+    int bufferWidth  = (int)std::ceil(region.width);
+    int bufferHeight = (int)std::ceil(region.height);
+    if (bufferWidth <= 0 || bufferHeight <= 0 ||
+        bufferWidth > kMaxEntityBufferSize || bufferHeight > kMaxEntityBufferSize) {
+        RenderUnshaded();
+        return;
+    }
+
+    const Framebuffer& buffer = EnsureEntityBuffer(entity, bufferWidth, bufferHeight);
+    if (!buffer.IsValid()) {
+        RenderUnshaded();
+        return;
+    }
+
+    // Switching render targets resets rlgl's modelview and clips to the target, so the
+    // layer transform and the viewport scissor are torn down around the detour and rebuilt
+    // afterwards — the same dance RenderComposited does for a whole layer.
+    ctx.PopMatrix();
+    // The clip is in window coordinates and would cut into the offscreen buffer, but who
+    // pushed it depends on the path in (RenderComposited already popped it), so save and
+    // restore exactly what was there rather than assuming.
+    const bool hadScissor = ctx.HasScissor();
+    Rectangle savedScissor{};
+    if (hadScissor) {
+        savedScissor = ctx.CurrentScissor();
+        ctx.PopScissorMode();
+    }
+
+    ctx.BeginRenderTarget(buffer);
+    ctx.ClearTarget(Colors::Transparent);
+    ctx.PushMatrix();
+    ctx.Translate(-region.x, -region.y, 0.0f);  // entity world space -> buffer texel space
+    RenderUnshaded();
+    ctx.PopMatrix();
+    ctx.EndRenderTarget();
+    ctx.BeginRenderTarget(enclosingTarget);  // EndTextureMode drops to the backbuffer
+
+    if (hadScissor) {
+        ctx.PushScissorMode((int)savedScissor.x, (int)savedScissor.y,
+                            (int)savedScissor.width, (int)savedScissor.height);
+    }
+    ctx.PushMatrix();
+    ctx.MultiplyMatrix(layerTransform);
+
+    // Engine-fed uniforms first, then every declared uniform at its default or override.
+    shader->SetAttribute("e_Time", Value{(float)::GetTime()});
+    shader->SetAttribute("e_Resolution", Value{Vector2{(float)bufferWidth, (float)bufferHeight}});
+    shader->SetAttribute("e_TexelSize", Value{Vector2{1.0f / bufferWidth, 1.0f / bufferHeight}});
+    ApplyUniformOverrides(*shader, shaderComponent.overrides);
+
+    ctx.PushShader(*shader);
+    ctx.DrawFramebuffer(buffer, region, Colors::White);
+    ctx.PopShader();
 }
 
 void RenderCompositor::RenderLayer(RenderContext& ctx, const CameraView& view,
@@ -695,7 +934,8 @@ void RenderCompositor::RenderImmediate(RenderContext& ctx, const CameraView& vie
     ctx.PushMatrix();
     ctx.MultiplyMatrix(viewProjectionTransform);
 
-    RenderRecords(ctx, records);
+    auto& sceneService = ctx.GetServices().Get<Services::ISceneService>();
+    RenderRecords(ctx, records, viewProjectionTransform, sceneService.GetFramebuffer());
 
     ctx.PopMatrix();
     ctx.PopBlendMode();
@@ -720,7 +960,7 @@ void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& vi
     ctx.PushMatrix();
     ctx.MultiplyMatrix(layerTransform);
 
-    RenderRecords(ctx, records);
+    RenderRecords(ctx, records, layerTransform, compositionBuffer);
 
     ctx.PopMatrix();
     ctx.PopBlendMode();
@@ -755,6 +995,20 @@ RenderSystem::RenderSystem(Context context) : System(context) {
 RenderSystem::~RenderSystem() {
 }
 
+SystemParameters RenderSystem::DefaultParameters() const {
+    return {
+        {"hierarchySort", Value{true}},
+        {"ySort", Value{true}},
+    };
+}
+
+void RenderSystem::OnParametersChanged() {
+    _sorter.SetSortOptions({
+        .hierarchySort = GetParameter("hierarchySort", true),
+        .ySort = GetParameter("ySort", true),
+    });
+}
+
 void RenderSystem::IssueDrawCommand(DrawCommand cmd) {
     _drawCommands.push_back(std::move(cmd));
 }
@@ -785,6 +1039,7 @@ void RenderSystem::Draw() {
             Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight}
         };
 
+        PlaceScreenInWorld(view);
         RenderView(ctx, view);
     } else {
         for (auto& cameraEntity : _cameraEntities) {
@@ -794,7 +1049,30 @@ void RenderSystem::Draw() {
         }
     }
 
+    _compositor.PruneEntityBuffers();
     _drawCommands.clear();
+}
+
+void RenderSystem::PlaceScreenInWorld(CameraView& view) {
+    view.screenInWorld = true;
+    view.screenScale = 1.0f;
+    view.screenOrigin = { -view.viewport.width * 0.5f, -view.viewport.height * 0.5f };
+
+    Entity camera = INVALID_ENTITY;
+    world->Query<CameraComponent>([&](Entity entity, auto&) {
+        if (camera == INVALID_ENTITY) camera = entity;
+    });
+    // Lowest renderOrder, the same camera play mode draws first.
+    world->Query<CameraComponent>([&](Entity entity, auto& component) {
+        if (component.renderOrder < world->GetComponent<CameraComponent>(camera).renderOrder) camera = entity;
+    });
+    if (camera == INVALID_ENTITY) return;
+
+    CameraView game = MakeCameraView(camera);
+    // Screen pixels are framebuffer pixels; the game camera shows world position
+    // FramebufferToWorld(p) at pixel p, so that is where the screen goes.
+    view.screenScale = 1.0f / game.zoom;
+    view.screenOrigin = RenderProjector::FramebufferToWorld({0.0f, 0.0f}, game);
 }
 
 void RenderSystem::FindCameras() {
@@ -876,6 +1154,7 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, Entity cameraEntity) {
 std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
     std::vector<Entity> hits;
     Vector2 worldPos = RenderProjector::FramebufferToWorld(fbPos, view);
+    Vector2 screenPos = RenderProjector::FramebufferToScreen(fbPos, view);
 
     const auto& queue = _sorter.GetQueue();
     auto& registry = RenderableRegistry::Instance();
@@ -886,7 +1165,7 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
         const RenderableType& type = registry.Get(rec.typeId);
         if (!type.Pick) continue;
 
-        Vector2 testPos = rec.isWorldSpace ? worldPos : fbPos;
+        Vector2 testPos = rec.isWorldSpace ? worldPos : screenPos;
         if (type.Pick(*world, rec, testPos)) {
             // Records for the same entity are adjacent in the sort — dedup via last-pushed.
             if (hits.empty() || hits.back() != rec.entity) hits.push_back(rec.entity);
@@ -916,16 +1195,78 @@ EntityRenderInfo RenderSystem::GetEntityRenderInfo(Entity entity) {
     return info;
 }
 
+// Analytic descriptions for the SDF material path (MaterialComponent). Each mirrors the
+// placement its Render function uses, so swapping a shape onto materials doesn't move it.
+
+static bool GeometryRectangleImpl(const World& world, const RenderRecord& rec, SdfGeometry& out) {
+    const auto& component = world.GetComponent<RectangleComponent>(rec.entity);
+    out.box = LocalBoundsRectangle(world, rec);
+    // cornerRadius is raylib "roundness": a 0..1 fraction of half the shorter side.
+    out.cornerRadius = component.cornerRadius * std::min(component.width, component.height) * 0.5f;
+    out.geometry = out.cornerRadius > 0.0f ? "RoundedRect" : "Rect";
+    return true;
+}
+
+static bool GeometryCircleImpl(const World& world, const RenderRecord& rec, SdfGeometry& out) {
+    const auto& component = world.GetComponent<CircleComponent>(rec.entity);
+    out.geometry = "Circle";
+    out.box = LocalBoundsCircle(world, rec);
+    return true;
+}
+
+static bool GeometryEllipseImpl(const World& world, const RenderRecord& rec, SdfGeometry& out) {
+    const auto& component = world.GetComponent<EllipseComponent>(rec.entity);
+    out.geometry = "Ellipse";
+    out.box = Rectangle{ rec.x - component.radiusH, rec.y - component.radiusV,
+                         component.radiusH * 2.0f, component.radiusV * 2.0f };
+    return true;
+}
+
+static bool GeometryLineImpl(const World& world, const RenderRecord& rec, SdfGeometry& out) {
+    const auto& component = world.GetComponent<LineComponent>(rec.entity);
+    float left   = std::min(component.x1, component.x2) - component.thickness * 0.5f;
+    float top    = std::min(component.y1, component.y2) - component.thickness * 0.5f;
+    float right  = std::max(component.x1, component.x2) + component.thickness * 0.5f;
+    float bottom = std::max(component.y1, component.y2) + component.thickness * 0.5f;
+    Vector2 center = { (left + right) * 0.5f, (top + bottom) * 0.5f };
+
+    out.geometry = "Segment";
+    out.box = Rectangle{ rec.x + left, rec.y + top, right - left, bottom - top };
+    out.pointA = { component.x1 - center.x, component.y1 - center.y };
+    out.pointB = { component.x2 - center.x, component.y2 - center.y };
+    out.thickness = component.thickness;
+    return true;
+}
+
+static bool GeometryPolygonImpl(const World& world, const RenderRecord& rec, SdfGeometry& out) {
+    const auto& component = world.GetComponent<PolygonComponent>(rec.entity);
+    const size_t count = component.points.size();
+    if (count < 3 || count > (size_t)kMaxSdfPolygonPoints) return false;  // not drawable
+
+    Vector2 lo = component.points[0], hi = component.points[0];
+    for (const Vector2& point : component.points) {
+        lo = { std::min(lo.x, point.x), std::min(lo.y, point.y) };
+        hi = { std::max(hi.x, point.x), std::max(hi.y, point.y) };
+    }
+    Vector2 center = { (lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f };
+
+    out.geometry = "Polygon";
+    out.box = Rectangle{ rec.x + lo.x, rec.y + lo.y, hi.x - lo.x, hi.y - lo.y };
+    out.points.reserve(count);
+    for (const Vector2& point : component.points) out.points.push_back({ point.x - center.x, point.y - center.y });
+    return true;
+}
+
 // Grouped here rather than in each component's .cpp — avoids a Components->Systems include.
-REGISTER_RENDERABLE(HasTileImpl,      RenderTileImpl,      nullptr,           nullptr,             false)
-REGISTER_RENDERABLE(HasRectangleImpl, RenderRectangleImpl, PickRectangleImpl, BoundsRectangleImpl, false)
-REGISTER_RENDERABLE(HasCircleImpl,    RenderCircleImpl,    PickCircleImpl,    BoundsCircleImpl,    false)
-REGISTER_RENDERABLE(HasSpriteImpl,    RenderSpriteImpl,    PickSpriteImpl,    BoundsSpriteImpl,    false)
-REGISTER_RENDERABLE(HasTextImpl,      RenderTextImpl,      PickTextImpl,      nullptr,             false)
-REGISTER_RENDERABLE(HasLightImpl,     RenderLightImpl,     PickLightImpl,     nullptr,             true)
-REGISTER_RENDERABLE(HasEllipseImpl,   RenderEllipseImpl,   PickEllipseImpl,   nullptr,             false)
-REGISTER_RENDERABLE(HasLineImpl,      RenderLineImpl,      nullptr,           nullptr,             false)
-REGISTER_RENDERABLE(HasPolygonImpl,   RenderPolygonImpl,   PickPolygonImpl,   nullptr,             false)
+REGISTER_RENDERABLE(HasTileImpl,      RenderTileImpl,      nullptr,           nullptr,             false, nullptr)
+REGISTER_RENDERABLE(HasRectangleImpl, nullptr,             PickRectangleImpl, BoundsRectangleImpl, false, GeometryRectangleImpl)
+REGISTER_RENDERABLE(HasCircleImpl,    nullptr,             PickCircleImpl,    BoundsCircleImpl,    false, GeometryCircleImpl)
+REGISTER_RENDERABLE(HasTextImpl,      RenderTextImpl,      PickTextImpl,      nullptr,             false, nullptr)
+REGISTER_RENDERABLE(HasLightImpl,     RenderLightImpl,     PickLightImpl,     nullptr,             true,  nullptr)
+REGISTER_RENDERABLE(HasEllipseImpl,   nullptr,             PickEllipseImpl,   nullptr,             false, GeometryEllipseImpl)
+REGISTER_RENDERABLE(HasLineImpl,      nullptr,             nullptr,           nullptr,             false, GeometryLineImpl)
+REGISTER_RENDERABLE(HasPolygonImpl,   nullptr,             PickPolygonImpl,   nullptr,             false, GeometryPolygonImpl)
+REGISTER_RENDERABLE(HasShaderImpl,    RenderShaderImpl,    PickShaderImpl,    BoundsShaderImpl,    false, nullptr)
 
 namespace {
 bool RegisterDrawCommandRenderables() {

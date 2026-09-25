@@ -4,6 +4,7 @@
 #include "Core/Graphics.h"
 #include "Core/Asset.h"
 #include "Core/Script.h"
+#include "Core/Shader.h"
 #include "Core/Sprite.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
@@ -143,6 +144,10 @@ void AssetEditor::RenderTreeRecursive(const fs::path& currentPath) {
                         if (ext == ".wav")       assetService.LoadAsset<Sound>(loadPath);
                         else if (ext == ".xml")  assetService.LoadAsset<Sprite>(loadPath);
                         else if (ext == ".lua")  assetService.LoadAsset<Script>(loadPath);
+                        // .fs only: ShaderAsset treats its path as the fragment shader and
+                        // picks up the sibling .vs itself, if there is one.
+                        else if (ext == ".fs" || ext == ".glsl")
+                                                 assetService.LoadAsset<Shader>(loadPath);
                         else                     assetService.LoadAsset<Texture>(loadPath);
                     }
                 } else {

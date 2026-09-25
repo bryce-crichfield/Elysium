@@ -7,10 +7,8 @@
 namespace Elysium {
     struct PolygonComponent {
         std::vector<Vector2> points;  // local-space, relative to entity position
-        Color fill;
-        Color border;
 
-        PolygonComponent(std::vector<Vector2> points = {}, Color fill = {}, Color border = {});
+        PolygonComponent(std::vector<Vector2> points = {});
 
         static constexpr const char* Name() { return "Polygon"; }
         static constexpr const char* XmlTag() { return "PolygonComponent"; }

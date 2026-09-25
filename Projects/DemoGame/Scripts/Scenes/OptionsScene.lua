@@ -64,9 +64,10 @@ function OptionsScene:OnEvent(event)
             local over = hitTest(btn.entity, event.x, event.y)
             if over ~= btn.hovered then
                 btn.hovered = over
-                local rect = GetComponent(btn.entity, "Rectangle")
-                if rect and btn.action then   -- only interactive buttons highlight
-                    rect.background = over and COLOR_HOVER or COLOR_DEFAULT
+                local mat  = GetComponent(btn.entity, "Material")
+                local fill = mat and mat:Layer("Flat")
+                if fill and btn.action then   -- only interactive buttons highlight
+                    fill:Set("uColor", over and COLOR_HOVER or COLOR_DEFAULT)
                 end
             end
         end

@@ -50,8 +50,7 @@ namespace Elysium {
         int materialCount = 0;
     };
 
-    struct Shader {
-        unsigned int id = 0;
-    };
+    // Shader is not a POD handle like the above — it owns a compiled program plus its
+    // reflected uniform list. See Core/Shader.h.
 
 }

@@ -1,5 +1,6 @@
 #include "Core/RenderContext.h"
 #include "Core/RaylibConvert.h"
+#include "Core/Shader.h"
 #include "rlgl.h"
 #include <cmath>
 
@@ -174,6 +175,50 @@ void RenderContext::BeginRenderTarget(const Framebuffer& target) {
 
 void RenderContext::EndRenderTarget() {
     ::EndTextureMode();
+}
+
+void RenderContext::DrawShaderQuad(Rectangle dest, const Texture* texture, Color tint) {
+    float left = dest.x, top = dest.y;
+    float right = dest.x + dest.width, bottom = dest.y + dest.height;
+    const Vector2 corners[4] = { {left, top}, {left, bottom}, {right, bottom}, {right, top} };
+    DrawShaderQuad(corners, texture, tint);
+}
+
+void RenderContext::DrawShaderQuad(const Vector2 (&corners)[4], const Texture* texture, Color tint) {
+    unsigned int textureId = (texture && texture->id != 0) ? texture->id : rlGetTextureIdDefault();
+
+    rlSetTexture(textureId);
+    rlBegin(RL_QUADS);
+    rlColor4ub(tint.r, tint.g, tint.b, tint.a);
+    rlNormal3f(0.0f, 0.0f, 1.0f);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex2f(corners[0].x, corners[0].y);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex2f(corners[1].x, corners[1].y);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex2f(corners[2].x, corners[2].y);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex2f(corners[3].x, corners[3].y);
+    rlEnd();
+    rlSetTexture(0);
+}
+
+void RenderContext::ClearTarget(Color color) {
+    ::ClearBackground(ToRaylib(color));
+}
+
+void RenderContext::PushShader(const Shader& shader) {
+    _shaderStack.push_back(&shader);
+    if (const void* handle = shader.NativeHandle()) {
+        ::BeginShaderMode(*static_cast<const ::Shader*>(handle));
+    }
+}
+
+void RenderContext::PopShader() {
+    if (!_shaderStack.empty()) _shaderStack.pop_back();
+    if (!_shaderStack.empty()) {
+        if (const void* handle = _shaderStack.back()->NativeHandle()) {
+            ::BeginShaderMode(*static_cast<const ::Shader*>(handle));
+            return;
+        }
+    }
+    ::EndShaderMode();
 }
 
 } // namespace Elysium

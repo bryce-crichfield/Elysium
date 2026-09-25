@@ -52,7 +52,15 @@
         <Entity>
             <NameComponent name="PlayButton" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="200" height="50" background="#2266AA" border="#44AAFF" layerName="ui" />
+            <RectangleComponent width="200" height="50" layerName="ui" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.133 0.4 0.667 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.267 0.667 1 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Play Game" fontSize="24" color="#FFFFFF" layerName="ui" />
             <UiComponent />
             <ParentComponent target="ButtonPanel" />
@@ -62,7 +70,15 @@
         <Entity>
             <NameComponent name="OptionsButton" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="200" height="50" background="#226644" border="#44AA66" layerName="ui" />
+            <RectangleComponent width="200" height="50" layerName="ui" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.133 0.4 0.267 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.267 0.667 0.4 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Options" fontSize="24" color="#FFFFFF" layerName="ui" />
             <UiComponent />
             <ParentComponent target="ButtonPanel" />
@@ -72,7 +88,15 @@
         <Entity>
             <NameComponent name="QuitButton" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="200" height="50" background="#662222" border="#AA4444" layerName="ui" />
+            <RectangleComponent width="200" height="50" layerName="ui" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.4 0.133 0.133 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.667 0.267 0.267 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Quit" fontSize="24" color="#FFFFFF" layerName="ui" />
             <UiComponent />
             <ParentComponent target="ButtonPanel" />

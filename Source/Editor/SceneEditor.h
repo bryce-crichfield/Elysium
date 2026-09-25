@@ -20,6 +20,7 @@ private:
     void DrawScenesTab(Services::ISceneService& service);
     void DrawSceneTab(Services::ISceneService& service);
     void DrawSystemsTab(Services::ISceneService& service);
+    void DrawSystemParameters(System& system);
 
     // Returns the editor-selected scene if it is still in the stack, otherwise the top scene.
     Scene* GetEditorScene(Services::ISceneService& service);
@@ -27,6 +28,7 @@ private:
     // Panel state
     float leftPanelWidth_ = 300.0f;
     int selectedSceneIndex_ = -1;
+    std::string selectedSystem_;  // by name: survives the scene being reloaded
     std::string zIndexError_;
 
     // The scene the editor is inspecting (independent of the active/top scene).

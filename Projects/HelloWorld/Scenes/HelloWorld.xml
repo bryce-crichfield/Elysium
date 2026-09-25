@@ -10,9 +10,214 @@
 
     <!-- TODO: Utilize width and height from SceneConfiguration -->
     <SceneConfiguration width="800" height="600">
+        <SceneLayer name="backdrop"   z="-10" space="Screen" layerBlend="Normal"  compositeBlend="Normal"   isComposited="false" />
         <SceneLayer name="background" z="-2" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
         <SceneLayer name="default"    z="-1" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
         <SceneLayer name="entity"     z="2"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
         <SceneLayer name="ui"         z="10" space="Screen" layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
     </SceneConfiguration>
+    <Entities>
+        <Entity>
+            <NameComponent name="CAMERA" />
+            <TransformComponent />
+            <CameraComponent zoom="1" />
+        </Entity>
+        <!-- ShaderComponent POC: the rectangle is drawn into an offscreen buffer padded by
+             48 units on every side, then blitted back through FireBorder.fs, which reads the
+             rectangle's silhouette out of texture0's alpha and burns a rim around it.
+             Every <Uniform> below is an optional per-instance override of the default the
+             shader source declares; delete one and the .fs file's value is used. -->
+        <Entity>
+            <NameComponent name="FireFrame" />
+            <TransformComponent x="540" y="-300" />
+            <LayerComponent layer="entity" />
+            <RectangleComponent width="200" height="100" cornerRadius="0.06" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.102 0.078 0.125 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="1 0.549 0.165 1" />
+                    <Uniform name="uWidth" type="float" value="3" />
+                </Layer>
+            </MaterialComponent>
+            <ShaderComponent shader="Assets/Shaders/FireBorder.fs" padding="48">
+                <Uniform name="uGlowRadius" type="float" value="26" />
+                <Uniform name="uIntensity" type="float" value="1.6" />
+            </ShaderComponent>
+        </Entity>
+        <!-- MaterialComponent POC: analytic SDF layers drawn in order over the shape's own
+             geometry (Glow first so it sits behind). Shapes are pure geometry; every color
+             lives on a layer. -->
+        <Entity>
+            <NameComponent name="SdfPanel" />
+            <TransformComponent x="-540" y="-300" />
+            <LayerComponent layer="entity" />
+            <RectangleComponent width="200" height="100" cornerRadius="0.3" />
+            <MaterialComponent padding="32">
+                <Layer material="Glow">
+                    <Uniform name="uColor" type="vec4" value="0.5 0.83 1 1" />
+                    <Uniform name="uRadius" type="float" value="10" />
+                    <Uniform name="uPulse" type="float" value="0.3" />
+                </Layer>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.137 0.188 0.29 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.498 0.831 1 1" />
+                    <Uniform name="uWidth" type="float" value="3" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+        <!-- Screen-space SDF backdrop. Three opaque full-frame materials; enable exactly one
+             (they're layers, so the last enabled one wins). Sized for 1080p. -->
+        <Entity>
+            <NameComponent name="Backdrop" />
+            <TransformComponent x="600" y="0" />
+            <LayerComponent layer="backdrop" />
+            <RectangleComponent width="200" height="100" cornerRadius="0.04" />
+            <MaterialComponent>
+                <Layer material="Nebula" />
+                <Layer material="Synthwave" enabled="false" />
+                <Layer material="Aurora" enabled="false" />
+            </MaterialComponent>
+        </Entity>
+        <!-- SDF port of FireBorder, for side-by-side comparison with FireFrame. -->
+        <Entity>
+            <NameComponent name="SdfFireFrame" />
+            <TransformComponent x="180" y="-300" />
+            <LayerComponent layer="entity" />
+            <RectangleComponent width="200" height="100" cornerRadius="0.12" />
+            <MaterialComponent padding="64">
+                <Layer material="Fire" />
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.102 0.078 0.125 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="1 0.549 0.165 1" />
+                    <Uniform name="uWidth" type="float" value="3" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+        <!-- Electric discharge border over a dark fill; the arcs snap to new shapes at
+             random intervals (uJumpMin/uJumpMax/uJumpSkew). -->
+        <Entity>
+            <NameComponent name="SdfElectric" />
+            <TransformComponent x="-540" y="0" />
+            <LayerComponent layer="entity" />
+            <RectangleComponent width="200" height="100" cornerRadius="0.2" />
+            <MaterialComponent padding="25">
+                <Layer material="Electric">
+                    <Uniform name="uInteriorFade" type="float" value="5" />
+                    <Uniform name="uIntensity" type="float" value="1.5" />
+                    <Uniform name="uGlowWidth" type="float" value="4" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+        <!-- Dissolve: burns away and back (uAutoSpeed ping-pongs uProgress). -->
+        <Entity>
+            <NameComponent name="SdfDissolve" />
+            <TransformComponent x="-180" y="0" />
+            <LayerComponent layer="entity" />
+            <RectangleComponent width="200" height="100" cornerRadius="0.15" />
+            <MaterialComponent padding="2">
+                <Layer material="Dissolve">
+                    <Uniform name="uColor" type="vec4" value="0.227 0.357 0.659 1" />
+                    <Uniform name="uAutoSpeed" type="float" value="0.8" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+        <!-- Meter, radial with a hole: a cooldown ring. -->
+        <Entity>
+            <NameComponent name="SdfCooldownRing" />
+            <TransformComponent x="180" y="0" />
+            <LayerComponent layer="entity" />
+            <CircleComponent radius="55" />
+            <MaterialComponent padding="2">
+                <Layer material="Meter">
+                    <Uniform name="uMode" type="float" value="1" />
+                    <Uniform name="uHole" type="float" value="0.7" />
+                    <Uniform name="uAutoSpeed" type="float" value="0.25" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+        <!-- Meter, linear: a cast bar. -->
+        <Entity>
+            <NameComponent name="SdfCastBar" />
+            <TransformComponent x="540" y="0" />
+            <LayerComponent layer="entity" />
+            <RectangleComponent width="220" height="22" cornerRadius="1" />
+            <MaterialComponent padding="2">
+                <Layer material="Meter">
+                    <Uniform name="uAutoSpeed" type="float" value="0.4" />
+                    <Uniform name="uFillColor" type="vec4" value="1 0.75 0.25 1" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+        <!-- PulseRings: a threat telegraph around a marker. -->
+        <Entity>
+            <NameComponent name="SdfTelegraph" />
+            <TransformComponent x="-540" y="300" />
+            <LayerComponent layer="entity" />
+            <CircleComponent radius="26" />
+            <MaterialComponent padding="80">
+                <Layer material="PulseRings" />
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.549 0.118 0.118 1" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+          <Entity>
+            <NameComponent name="SdfOrb" />
+            <TransformComponent x="-180" y="-300" />
+            <LayerComponent layer="entity" />
+            <CircleComponent radius="70" />
+            <MaterialComponent padding="4">
+                <Layer material="Gradient">
+                    <Uniform name="uColorA" type="vec4" value="1 0.85 0.3 1" />
+                    <Uniform name="uColorB" type="vec4" value="0.85 0.2 0.35 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="1 1 1 1" />
+                    <Uniform name="uWidth" type="float" value="4" />
+                    <Uniform name="uAlign" type="float" value="1" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+              
+        <Entity>
+            <NameComponent name="SdfBeam" />
+            <TransformComponent x="-180" y="300" />
+            <LayerComponent layer="entity" />
+            <LineComponent x1="-130" y1="20" x2="130" y2="-20" thickness="8" />
+            <MaterialComponent padding="24">
+                <Layer material="Glow">
+                    <Uniform name="uColor" type="vec4" value="0.5 1 0.4 1" />
+                    <Uniform name="uRadius" type="float" value="6" />
+                </Layer>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.706 1 0.549 1" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+        <!-- Polygon geometry: exact SDF of a concave star, so the glow follows the notches. -->
+        <Entity>
+            <NameComponent name="SdfStar" />
+            <TransformComponent x="180" y="300" />
+            <LayerComponent layer="entity" />
+            <PolygonComponent points="0.0,-85.0 22.3,-30.7 80.8,-26.3 36.1,11.7 50.0,68.8 0.0,38.0 -50.0,68.8 -36.1,11.7 -80.8,-26.3 -22.3,-30.7" />
+            <MaterialComponent padding="40">
+                <Layer material="Glow">
+                    <Uniform name="uColor" type="vec4" value="1 0.8 0.3 1" />
+                    <Uniform name="uRadius" type="float" value="12" />
+                </Layer>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.231 0.165 0.063 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="1 0.827 0.416 1" />
+                </Layer>
+            </MaterialComponent>
+        </Entity>
+    </Entities>
 </Scene>

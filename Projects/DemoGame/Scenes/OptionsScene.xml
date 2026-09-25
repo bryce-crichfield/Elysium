@@ -26,7 +26,12 @@
             <LayerComponent name="overlay" />
             <NameComponent name="BACKDROP" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="640" height="480" background="#000000BB" />
+            <RectangleComponent width="640" height="480" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0 0 0 0.733" />
+                </Layer>
+            </MaterialComponent>
         </Entity>
 
         <!-- Modal panel: 260 wide, centred horizontally at x=190 -->
@@ -34,7 +39,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="OPTS_PANEL" />
             <TransformComponent x="190" y="80" />
-            <RectangleComponent width="260" height="320" background="#1C1C1EFF" border="#4A4A52FF" />
+            <RectangleComponent width="260" height="320" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.11 0.11 0.118 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.29 0.29 0.322 1" />
+                </Layer>
+            </MaterialComponent>
         </Entity>
 
         <!-- Title -->
@@ -65,7 +78,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="RESUME_BTN" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="228" height="36" background="#2A2A2EFF" border="#5A5A62FF" />
+            <RectangleComponent width="228" height="36" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.165 0.165 0.18 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.353 0.353 0.384 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Resume" fontSize="16" color="#E5E5EAFF" />
             <UiComponent />
             <ParentComponent target="OPTS_BUTTONS" />
@@ -75,7 +96,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="AUDIO_BTN" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="228" height="36" background="#2A2A2EFF" border="#3A3A42FF" />
+            <RectangleComponent width="228" height="36" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.165 0.165 0.18 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.227 0.227 0.259 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Audio Settings" fontSize="16" color="#8E8E93FF" />
             <UiComponent />
             <ParentComponent target="OPTS_BUTTONS" />
@@ -85,7 +114,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="VIDEO_BTN" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="228" height="36" background="#2A2A2EFF" border="#3A3A42FF" />
+            <RectangleComponent width="228" height="36" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.165 0.165 0.18 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.227 0.227 0.259 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Video Settings" fontSize="16" color="#8E8E93FF" />
             <UiComponent />
             <ParentComponent target="OPTS_BUTTONS" />
@@ -95,7 +132,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="CONTROLS_BTN" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="228" height="36" background="#2A2A2EFF" border="#3A3A42FF" />
+            <RectangleComponent width="228" height="36" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.165 0.165 0.18 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.227 0.227 0.259 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Controls" fontSize="16" color="#8E8E93FF" />
             <UiComponent />
             <ParentComponent target="OPTS_BUTTONS" />
@@ -105,7 +150,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="BACK_BTN" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="228" height="36" background="#2A1C1CFF" border="#6A3030FF" />
+            <RectangleComponent width="228" height="36" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.165 0.11 0.11 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.416 0.188 0.188 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Back to Main Menu" fontSize="16" color="#FF9580FF" />
             <UiComponent />
             <ParentComponent target="OPTS_BUTTONS" />

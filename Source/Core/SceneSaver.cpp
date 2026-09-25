@@ -200,8 +200,15 @@ void SaveSystems(XMLBuilder& builder, const Scene& scene) {
     for (const auto& system : systems) {
         const std::string& systemName = system->GetName();
         if (systemName.empty()) continue;  // Skip systems not created through the registry
-        systemsBuilder.AddElement("System")
-            .SetAttribute("type", systemName.c_str());
+        auto systemBuilder = systemsBuilder.AddElement("System");
+        systemBuilder.SetAttribute("type", systemName.c_str());
+        // Only parameters changed from their defaults, so scene files stay terse.
+        const SystemParameters defaults = system->GetDefaultParameters();
+        for (const auto& [name, value] : system->GetParameters()) {
+            auto it = defaults.find(name);
+            if (it != defaults.end() && it->second.ToString() == value.ToString()) continue;
+            systemBuilder.SetAttribute(name.c_str(), value.ToString().c_str());
+        }
     }
 }
 

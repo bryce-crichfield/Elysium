@@ -15,8 +15,10 @@ function MenuButton:Update(entity, dt)
     -- self.isHovering = screenMousePos.x >= pos.worldX and screenMousePos.x <= pos.worldX + rect.width
     --     and screenMousePos.y >= pos.worldY and screenMousePos.y <= pos.worldY + rect.height
 
-    -- grab the rectangle and cycle its color over time
-    local rect = GetComponent(entity, "Rectangle")
+    -- grab the border layer and cycle its color over time
+    local mat = GetComponent(entity, "Material")
+    local border = mat and mat:Layer("Stroke")
+    if not border then return end
     self.time = self.time + dt
     local r = math.floor((math.sin(self.time) + 1) / 2 * 255)
     local g = math.floor((math.sin(self.time + 2) + 1)
@@ -24,9 +26,9 @@ function MenuButton:Update(entity, dt)
     local b = math.floor((math.sin(self.time + 4) + 1) / 2 * 255)
 
     if self.isHovering then
-        rect.border = string.format("#%02x%02x%02xFF", r, g, b)
+        border:Set("uColor", string.format("#%02x%02x%02xFF", r, g, b))
     else
-        rect.border = "#202020FF"
+        border:Set("uColor", "#202020FF")
     end
 end
 

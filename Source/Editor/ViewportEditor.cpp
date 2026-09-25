@@ -74,6 +74,9 @@ void ViewportEditor::Draw() {
             editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
             Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight}
         };
+        if (auto* scene = sceneService.GetTopScene()) {
+            if (auto* renderSystem = scene->GetSystem<Systems::RenderSystem>()) renderSystem->PlaceScreenInWorld(view);
+        }
 
         HandleEditorCameraInput(sceneService, editorService);
         HandleGizmoOrPick(sceneService, editorService, view);
@@ -185,7 +188,10 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
             Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
             Vector2 fbDelta = { fbPos.x - lastGizmoFbPos_.x, fbPos.y - lastGizmoFbPos_.y };
             lastGizmoFbPos_ = fbPos;
-            ApplyGizmoDrag(world, gizmoEntity_, view.zoom, fbDelta, gizmoIsWorldSpace_);
+            // Screen2D entities move in screen pixels, which the editor draws screenScale
+            // world units apart.
+            float zoom = gizmoIsWorldSpace_ ? view.zoom : view.zoom * view.screenScale;
+            ApplyGizmoDrag(world, gizmoEntity_, zoom, fbDelta, true);
         } else {
             isDraggingGizmo_ = false;
         }
@@ -199,12 +205,12 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
         ImGui::IsItemHovered() && Input::IsMouseButtonPressed(MouseButton::Left)) {
         const auto& t = world->GetComponent<TransformComponent>(selected[0]);
         auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
-        // An entity on a Screen2D layer already IS a framebuffer position — projecting it
-        // through the camera view (as World2D entities need) would double-transform it.
+        // A Screen2D entity's position is a screen pixel, which the editor places in the
+        // world via the view's screen placement rather than the plain camera projection.
         bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(selected[0]).isWorldSpace : true;
         Vector2 handleFbPos = isWorldSpace
             ? Systems::RenderProjector::WorldToFramebuffer({ t.worldX, t.worldY }, view)
-            : Vector2{ t.worldX, t.worldY };
+            : Systems::RenderProjector::ScreenToFramebuffer({ t.worldX, t.worldY }, view);
         Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
         if ((mouseFbPos - handleFbPos).Length() <= kMoveHandleRadius) {
             isDraggingGizmo_ = true;
@@ -260,10 +266,11 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
                             true);
 
     // isWorldSpace true: pos is a world coordinate, needs the camera view projection.
-    // isWorldSpace false: pos is already a framebuffer position (a Screen2D-layer entity) —
-    // projecting it through the camera view again would double-transform it.
+    // isWorldSpace false: pos is a screen pixel (a Screen2D-layer entity), placed in the
+    // world where the game camera shows it (RenderSystem::PlaceScreenInWorld).
     auto project = [&](Vector2 pos, bool isWorldSpace) {
-        Vector2 fbPos = isWorldSpace ? Systems::RenderProjector::WorldToFramebuffer(pos, view) : pos;
+        Vector2 fbPos = isWorldSpace ? Systems::RenderProjector::WorldToFramebuffer(pos, view)
+                                     : Systems::RenderProjector::ScreenToFramebuffer(pos, view);
         return FramebufferToScreen(fbPos, imageScreenRect);
     };
 

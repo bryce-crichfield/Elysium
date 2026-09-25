@@ -9,6 +9,7 @@ namespace Elysium {
 
 class ServiceLocator;
 class World;
+class Shader;
 
 // The raylib draw-call surface (matrix/blend/scissor stacks) plus the ambient state
 // Renderable Render/Pick functions need: services, world, isIsometric.
@@ -37,6 +38,10 @@ public:
     // Scissor Stack
     void PushScissorMode(int x, int y, int width, int height);
     void PopScissorMode();
+    bool HasScissor() const { return !_scissorStack.empty(); }
+    // Only valid while HasScissor(). Lets a caller save/restore the active clip around a
+    // render-target detour without assuming who pushed it.
+    Rectangle CurrentScissor() const { return _scissorStack.back(); }
 
     // Drawing
     void DrawRectangle(float x, float y, float w, float h, Color color);
@@ -57,12 +62,27 @@ public:
     void DrawTexturePro(const Texture& texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
     // Draws raylib DrawTriangle for each consecutive triple of vertices (3 per triangle).
     void DrawTriangleList(const std::vector<Vector2>& triangleVerts, Color color);
+    // One quad over dest with texcoords 0..1 (top-left origin), meant to be drawn under a
+    // pushed shader that computes every pixel itself. `texture` is bound as texture0;
+    // null binds the backend's 1x1 white texture.
+    void DrawShaderQuad(Rectangle dest, const Texture* texture, Color tint);
+    // Same, with the corners given explicitly (top-left, bottom-left, bottom-right,
+    // top-right in texcoord terms) so the quad can be rotated, scaled or mirrored.
+    void DrawShaderQuad(const Vector2 (&corners)[4], const Texture* texture, Color tint);
     // Blits a framebuffer's color texture into dest (V-flipped for GL origin).
     void DrawFramebuffer(const Framebuffer& fb, Rectangle dest, Color tint);
 
     // Render target
     void BeginRenderTarget(const Framebuffer& target);
     void EndRenderTarget();
+
+    // Clears the whole active target. Only meaningful right after a BeginRenderTarget.
+    void ClearTarget(Color color);
+
+    // Shader Stack. While a shader is pushed, every subsequent draw goes through it.
+    // Pop restores the shader underneath, or the default one.
+    void PushShader(const Shader& shader);
+    void PopShader();
 
 private:
     ServiceLocator& services_;
@@ -71,6 +91,7 @@ private:
 
     std::vector<BlendMode> _blendStack;
     std::vector<Rectangle> _scissorStack;
+    std::vector<const Shader*> _shaderStack;
 };
 
 } // namespace Elysium

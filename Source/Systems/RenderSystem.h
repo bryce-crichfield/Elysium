@@ -22,6 +22,14 @@ struct CameraView {
     Vector2 position;
     float zoom;
     Rectangle viewport;
+
+    // Editor only: where Screen2D layers sit in the world, so they pan/zoom with the
+    // editor camera like everything else. Screen pixel p is drawn at world
+    // screenOrigin + p * screenScale. Unset (in play), Screen2D layers are drawn 1:1 in
+    // framebuffer pixels.
+    bool screenInWorld = false;
+    Vector2 screenOrigin{};
+    float screenScale = 1.0f;
 };
 
 // Deferred draw commands issued by Lua scripts
@@ -50,12 +58,22 @@ public:
     static Matrix CalculateTransform(const CameraView& view, const SceneLayer& layer);
     static Vector2 WorldToFramebuffer(Vector2 worldPos, const CameraView& view);
     static Vector2 FramebufferToWorld(Vector2 fbPos, const CameraView& view);
+    // A Screen2D position <-> framebuffer; the identity unless view.screenInWorld.
+    static Vector2 ScreenToFramebuffer(Vector2 screenPos, const CameraView& view);
+    static Vector2 FramebufferToScreen(Vector2 fbPos, const CameraView& view);
 };
 
 // Builds one frame's sorted RenderRecord queue for a single CameraView: culls + collects
 // ECS entities (via RenderableRegistry) and script-issued draw commands into one queue.
 class RenderSorter {
 public:
+    // Which keys order records within a layer; RenderSystem's parameters of the same names.
+    struct SortOptions {
+        bool hierarchySort = true;  // parents before children, siblings in child order
+        bool ySort = true;          // World2D layers: lower y first (things further down draw on top)
+    };
+    void SetSortOptions(const SortOptions& options) { sortOptions_ = options; }
+
     void Build(World& world, Scene& scene, const std::vector<DrawCommand>& drawCommands, const CameraView& view);
 
     const std::vector<SceneLayer>& GetLayers() const { return layers_; }
@@ -73,6 +91,7 @@ private:
     std::vector<RenderRecord> queue_;
     std::unordered_set<Entity> hiddenEntities_;
     uint32_t nextCollectionOrder_ = 0;
+    SortOptions sortOptions_;
 };
 
 // Renders one layer's slice of a RenderSorter's queue: immediate-mode straight to the
@@ -82,16 +101,45 @@ public:
     void RenderLayer(RenderContext& ctx, const CameraView& view,
                       const SceneLayer& layer, std::span<const RenderRecord> records);
 
+    // Drops the retained offscreen buffer of every entity that wasn't shaded this frame —
+    // destroyed entities, unloaded scenes, or just a ShaderComponent switched off. Called
+    // once per frame at the end of RenderSystem::Draw.
+    void PruneEntityBuffers();
+
 private:
     void RenderImmediate(RenderContext& ctx, const CameraView& view,
                           const SceneLayer& layer, std::span<const RenderRecord> records);
     void RenderComposited(RenderContext& ctx, const CameraView& view,
                            const SceneLayer& layer, std::span<const RenderRecord> records);
-    static void RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records);
+    // Walks the layer's records in order, grouping the contiguous run each entity produced
+    // so a ShaderComponent entity can be diverted through RenderShadedEntity as a unit.
+    // `enclosingTarget` is the framebuffer already bound by the caller. raylib's
+    // EndTextureMode unconditionally drops to the backbuffer, so a shaded entity's detour
+    // has to be told what to re-bind afterwards.
+    void RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records,
+                       const Matrix& layerTransform, const Framebuffer& enclosingTarget);
+
+    // Draws one entity's own records (through its materials, if it has any) into a private offscreen buffer sized to its bounds
+    // plus ShaderComponent::padding, then blits that buffer back into the layer through the
+    // entity's shader — so the shader sees exactly the entity's pixels in texture0, with
+    // room around them for glow/outline effects to bleed into.
+    void RenderShadedEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records,
+                            const Matrix& layerTransform, const Framebuffer& enclosingTarget);
+
+    // Analytic path: each record whose renderable reports SdfGeometry is drawn as one quad
+    // per enabled MaterialLayer (in order), through the shader composed from that
+    // geometry + the layer's material. Records without geometry render normally.
+    void RenderMaterialEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records);
+
     static void PushBlend(RenderContext& ctx, SceneLayerBlend blend);
     const Framebuffer& EnsureCompositeBuffer(int width, int height);
+    const Framebuffer& EnsureEntityBuffer(Entity entity, int width, int height);
 
     Framebuffer compositeBuffer_;
+    // One retained buffer per shaded entity, resized when its bounds change. Kept across
+    // frames because allocating a render texture per entity per frame is not viable.
+    std::unordered_map<Entity, Framebuffer> entityBuffers_;
+    std::unordered_set<Entity> shadedThisFrame_;
 };
 
 class RenderSystem : public System {
@@ -112,6 +160,15 @@ public:
     // drawing/hit-testing/drag math, since an entity's own layer determines whether its
     // position is world- or screen-space, not anything ViewportEditor can know on its own.
     EntityRenderInfo GetEntityRenderInfo(Entity entity);
+
+    // Fills the view's screen placement for the editor: the game screen is laid over the
+    // first camera's view rect (the red box the editor draws), or centered on the world
+    // origin at 1:1 when the scene has no camera.
+    void PlaceScreenInWorld(CameraView& view);
+
+protected:
+    SystemParameters DefaultParameters() const override;
+    void OnParametersChanged() override;
 
 private:
     void FindCameras();
