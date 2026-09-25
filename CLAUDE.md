@@ -1,0 +1,86 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+Elysium is a C++20 2D game engine (ECS core, raylib-backed rendering/audio/input, Lua scripting via sol2, XML-driven scenes/assets/prefabs, an ImGui in-engine editor, and an ENet-based client/server networking layer). It builds as a single executable (`Elysium`) that runs either as a game or, with `--Editor`, as the editor for a "Project" (a `Projects/<Name>/Project.xml` + `Assets`/`Scenes`/`Scripts` tree — see `Projects/DemoGame`, `Projects/HelloWorld`).
+
+## Build / run / test
+
+Windows dev environment uses MSYS2/MinGW + Ninja via CMake, driven through `elysium.ps1` (Linux/Mac: `elysium.sh`, same flags lowercase):
+
+```powershell
+.\elysium.ps1 --Setup                  # one-time: installs MSYS2 + toolchain, inits submodules
+.\elysium.ps1 --Clean --Build          # wipe Build/ and Binary/, then rebuild
+.\elysium.ps1 --Build                  # incremental build (cmake configure + ninja build)
+.\elysium.ps1 --Run --Project=Projects\DemoGame            # run the game
+.\elysium.ps1 --Run --Project=Projects\DemoGame --Editor   # run the in-engine editor
+```
+
+Operations run in the order Clean → Build → Run regardless of flag order. `--Build` always configures with `-DTRACY_ENABLE=OFF` (Tracy's worker threads currently corrupt the stack under this static-linked MinGW build — see the comment in `elysium.ps1`; don't flip it on without re-checking that) and links `-static -static-libgcc -static-libstdc++`.
+
+Build outputs: `Build/` (CMake/Ninja intermediates, incl. `compile_commands.json` for tooling), `Binary/` (the runtime dir — `Elysium.exe` plus a copied `Assets/` tree; always run from here, asset paths resolve relative to it).
+
+Source files are picked up by `file(GLOB_RECURSE Source/*.cpp)` in `CMakeLists.txt` — **new `.cpp` files under `Source/` need no CMake edit**, but you do need to re-run `--Build` (which re-configures) after adding one, since Ninja won't discover it from a stale `build.ninja`.
+
+### Tests
+
+`Tests/` holds Python-based integration tests for the networking protocol (ENet client against a running `Elysium.exe` server), run with `pytest` from repo root (`Tests/conftest.py` adds `Tools/elysium` to `sys.path` for the generated protocol bindings):
+
+```
+pytest Tests/Network/network_tests.py
+pytest Tests/Network/network_tests.py -k test_ping_round_trip
+```
+
+The server (`Elysium.exe`) must be running and listening (default port 7777 per the tests) for these to pass — they are not self-hosting.
+
+There is no C++ unit test suite; correctness is currently verified by running the engine/editor against `Projects/DemoGame` and by the network integration tests above.
+
+### Network protocol codegen
+
+`Source/Network/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python) are both generated from `Source/Interface/Invoke.xml` by `Tools/eidc/eidc.py` — **never hand-edit either generated file**; edit the IDL and regenerate:
+
+```
+python Tools/eidc/eidc.py Source/Interface/Invoke.xml
+```
+
+## Architecture
+
+### Service locator + interface split
+
+Almost every cross-cutting subsystem (`Services/*Service.cpp`) is registered into a single `Elysium::ServiceLocator` (`Source/Core/ServiceLocator.h`) against an abstract interface in `Source/Interfaces/I*Service.h`. Code depends on the interface (`Services::ISceneService`, `Services::IAssetService`, etc.) via `serviceLocator.Get<IFoo>()`, never on the concrete class. `Application` (`Source/Core/Application.h/.cpp`) owns the locator and drives `Initialize()`/`Update()`/`Shutdown()` across all registered services each frame.
+
+### ECS core
+
+- `World` (`Source/Core/World.h`) owns entities/components; components are plain structs registered via `ComponentRegistry::Instance().Register<T>()` (see the `REGISTER_COMPONENT` macro at the bottom of `Source/Core/ComponentRegistry.h`), one static registration call per component `.cpp`.
+- A component only needs to satisfy the concepts it wants to opt into (`Source/Core/Component.h`, `Xml.h`, `Editor.h`, `Script.h` define them): `XmlLoadable`/`XmlSavable` (load/save to scene XML), `Inspectable` (shows up in the editor's entity inspector), `Scriptable`/`LuaSettable` (exposed to Lua). `ComponentRegistry::Register<T>()` uses `if constexpr` against each concept, so adding a new component is additive — implement only the static methods (`LoadXml`, `SaveXml`, `Inspect`, `BindLua`, `SetFromLua`, `Name()`) you actually need.
+- `System` (`Source/Core/System.h`) is the per-frame update/draw unit, constructed with a `Context{ services, scene, world }`. Systems declare typed tunables via `DefaultParameters()`/`SystemParameters` (a `map<string, Value>`), settable from scene XML `<System type="..." key="value"/>` attributes and from the editor's Systems tab. Override `RunsWhenPaused()` for systems (like `TransformSystem`) that must keep running while the scene is paused for editor gizmo/drag interactions, without resuming gameplay simulation.
+- `SystemRegistry`/`ComponentRegistry` are both process-wide singletons populated by static initializers at startup (link-time registration) — a new component/system type doesn't need to be wired in anywhere else once it self-registers.
+
+### Scenes, XML, and assets
+
+- Scenes are XML, loaded/saved by `SceneLoader.cpp`/`SceneSaver.cpp` through the same `ComponentRegistry` XML loader/saver table used above.
+- `Xml.h`'s `XMLBuilder` is the standard way to emit XML in `SaveXml` implementations (fluent `AddElement`/`SetAttribute`/`Parent()`).
+- Assets (`Source/Core/Asset.h`, `Source/Core/Assets/*Asset.h/.cpp`) follow a payload/loader split: `AssetBase<Derived>` + `REGISTER_ASSET_TYPE(Payload, AssetType)` maps a payload type (e.g. `Texture`) to the `IAsset` subclass that loads it, so callers ask `IAssetService` for the payload type and never name the loader. `Load()` runs off the main thread; `Finalize()` (GPU/audio-device upload) runs on the main thread afterward for asset types that need it (`NeedsFinalize()`).
+- **Known limitation — prefabs**: the current `<Include src="..."/>` prefab mechanism does raw `$key` text substitution at load time and is load-only. `SceneSaver` has no concept of prefab origin, so saving a scene permanently flattens every prefab-spawned entity into plain `<Entity>` blocks — the include structure does not round-trip. A redesign (`PrefabInstance`/`Override` XML + a `PrefabInstanceComponent` + `AssetType::PREFAB`) is planned but not implemented — see `Plan.md` before touching prefab load/save code.
+
+### Rendering: the raylib mirror-type seam
+
+The long-term goal is to drop raylib for pure OpenGL + GLFW; do not fight this direction when touching rendering/input/audio code. The seam is a set of plain "mirror" structs/RAII wrappers in `Source/Core/`, all in `namespace Elysium`, that every engine/component/asset header is expected to speak instead of raylib types directly:
+
+- `Graphics.h` (`Color`, `Colors::`, `BlendMode`, `Texture`, `Font`, `Model`, `Shader`), `MathTypes.h` (`Vector2`/`Vector3`/`Matrix`/`Rectangle`), `Audio.h` (`Sound`, `Music`), `Framebuffer.h` (RAII GL framebuffer wrapper), `Window.h` (RAII window/graphics-context lifecycle), `Input.h` (`Key`/`MouseButton` enums numbered to match GLFW).
+- `RaylibConvert.h` (`ToRaylib()`/`FromRaylib()`) is the only bridge into raylib types and must only ever be `#include`d from a `.cpp`, never from a header.
+- **ODR hazard**: inside `namespace Elysium`, an unqualified `Color`/`Rectangle`/`Vector2`/`Texture` in a header resolves to the `Elysium::` mirror type if `Graphics.h`/`MathTypes.h` happens to be visible, or to raylib's global type otherwise — silently, per translation unit, with different struct layouts. This has caused real memory corruption (a bare `Color` field read at the wrong offset depending on include order). Always write `::Color` / `::Rectangle` for the raylib type in a header, or use `Elysium::Color` explicitly — never leave it bare.
+
+### Editor
+
+`Source/Editor/*Editor.cpp` panels (`WorldEditor`, `SceneEditor`, `AssetEditor`, `ScriptEditor`, `ViewportEditor`, `NetworkEditor`, `LogEditor`) each derive `Editor` (`Source/Core/Editor.h`) and implement `Draw()` (ImGui) plus optional `Initialize()`. `EditorService` (`Source/Services/EditorService.cpp`) is the editor's data-access seam into the live `World`/`Scene` — panels go through it rather than reaching into `SceneService` directly. Per-component editor UI is the `Inspectable` concept's static `Inspect()` method, dispatched generically through `ComponentRegistry`.
+
+### Scripting
+
+Lua via sol2 (`ScriptComponent`, `ScriptSystem`, `ScriptService`). `ComponentRegistry` auto-generates both static Lua bindings (`Scriptable::BindLua`) and dynamic string-keyed Add/Get/Set/Has/Remove accessors per component, so Lua scripts can address any registered component by name without each one hand-writing glue. `ScriptComponent::LoadXml` must call through `IAssetService::LoadAsset` (not read the file itself) — `ScriptSystem` gates script initialization on that call's return value, so bypassing it silently skips init.
+
+### Networking
+
+Client/server split over ENet (`Source/Network/Network.h/.cpp`, `Source/Services/NetworkService.cpp`). The RPC surface (procedure IDs, request/response structs, serialization) is defined once in `Source/Interface/Invoke.xml` and codegenerated into `Source/Network/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python, used by the `Tests/Network` integration tests) — see Codegen above.
