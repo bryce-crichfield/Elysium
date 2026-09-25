@@ -12,15 +12,14 @@ class World;
 class Shader;
 
 // The raylib draw-call surface (matrix/blend/scissor stacks) plus the ambient state
-// Renderable Render/Pick functions need: services, world, isIsometric.
+// Renderable Render/Pick functions need: services, world.
 class RenderContext {
 public:
-    RenderContext(ServiceLocator& services, const World& world, bool isIsometric = false);
+    RenderContext(ServiceLocator& services, const World& world);
     ~RenderContext();
 
     ServiceLocator& GetServices() const { return services_; }
     const World& GetWorld() const { return world_; }
-    bool IsIsometric() const { return isIsometric_; }
 
     // Matrix Stack
     void PushMatrix();
@@ -53,9 +52,6 @@ public:
     void DrawLineEx(float x1, float y1, float x2, float y2, float thick, Color color);
     void DrawCircle(float x, float y, float radius, Color color);
     void DrawCircleLines(float x, float y, float radius, Color color);
-    void DrawCircleGradient(float x, float y, float radius, Color color1, Color color2);
-    // color1 = inner (center), color2 = outer (edge)
-    void DrawEllipseGradient(float cx, float cy, float radiusH, float radiusV, Color inner, Color outer);
     void DrawEllipse(float centerX, float centerY, float radiusH, float radiusV, Color color);
     void DrawEllipseLines(float centerX, float centerY, float radiusH, float radiusV, Color color);
     void DrawText(const char* text, float x, float y, int fontSize, Color color);
@@ -87,7 +83,6 @@ public:
 private:
     ServiceLocator& services_;
     const World& world_;
-    bool isIsometric_;
 
     std::vector<BlendMode> _blendStack;
     std::vector<Rectangle> _scissorStack;

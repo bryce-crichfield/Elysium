@@ -206,7 +206,7 @@ void SaveSystems(XMLBuilder& builder, const Scene& scene) {
         const SystemParameters defaults = system->GetDefaultParameters();
         for (const auto& [name, value] : system->GetParameters()) {
             auto it = defaults.find(name);
-            if (it != defaults.end() && it->second.ToString() == value.ToString()) continue;
+            if (it != defaults.end() && it->second == value) continue;
             systemBuilder.SetAttribute(name.c_str(), value.ToString().c_str());
         }
     }

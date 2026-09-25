@@ -2,20 +2,34 @@
 #include "Components/ShaderComponent.h"
 #include "Core/Assets/ShaderAsset.h"
 #include "Core/ComponentRegistry.h"
+#include "Core/Editor.h"
 #include "Core/Graphics.h"
 #include "Core/Shader.h"
 #include "Core/Xml.h"
 #include "Interfaces/IAssetService.h"
-#include "Services/AssetService.h"
 #include "imgui.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <optional>
 
 namespace Elysium {
     namespace {
-        // Chunks in Assets/Shaders/Sdf/Material.
-        constexpr const char* kMaterials[] = {"Flat", "Gradient", "Texture", "Stroke", "Glow", "Fire", "Nebula", "Synthwave", "Aurora", "Electric", "Dissolve", "Meter", "PulseRings"};
+        // Every chunk in Assets/Shaders/Sdf/Material, by stem. Listed once: new chunks
+        // need a restart to show up in the inspector.
+        const std::vector<std::string>& AvailableMaterials() {
+            static const std::vector<std::string> materials = [] {
+                std::vector<std::string> names;
+                std::error_code error;
+                const std::string dir = Path("Shaders/Sdf/Material", PathRoot::Engine).GetFullPath();
+                for (const auto& entry : std::filesystem::directory_iterator(dir, error)) {
+                    if (entry.path().extension() == ".glsl") names.push_back(entry.path().stem().string());
+                }
+                std::sort(names.begin(), names.end());
+                return names;
+            }();
+            return materials;
+        }
 
         // Material uniforms don't depend on the geometry half of the composition, so the
         // inspector reflects them off the Rect variant regardless of the entity's shape.
@@ -31,12 +45,7 @@ namespace Elysium {
                 .SetAttribute("material", layer.material.c_str())
                 .SetAttribute("enabled", layer.enabled);
             if (!layer.texturePath.empty()) layerEl.SetAttribute("texture", layer.texturePath.c_str());
-            for (const auto& [name, value] : layer.overrides) {
-                layerEl.AddElement("Uniform")
-                    .SetAttribute("name", name.c_str())
-                    .SetAttribute("type", value.TypeName().c_str())
-                    .SetAttribute("value", value.ToString().c_str());
-            }
+            SaveUniformOverrides(layerEl, layer.overrides);
         }
     }
 
@@ -53,14 +62,7 @@ namespace Elysium {
             layer.enabled = layerEl->BoolAttribute("enabled", true);
             if (const char* texture = layerEl->Attribute("texture")) layer.texturePath = texture;
             if (!layer.texturePath.empty()) assetService.LoadAsset<Texture>(Path(layer.texturePath));
-
-            for (auto* child = layerEl->FirstChildElement("Uniform"); child; child = child->NextSiblingElement("Uniform")) {
-                const char* name = child->Attribute("name");
-                const char* type = child->Attribute("type");
-                const char* value = child->Attribute("value");
-                if (!name || !type || !value) continue;
-                layer.overrides[name] = Value::FromString(type, value);
-            }
+            LoadUniformOverrides(layerEl, layer.overrides);
             c.layers.push_back(std::move(layer));
         }
     }
@@ -84,7 +86,6 @@ namespace Elysium {
         ImGui::DragFloat(paddingId.c_str(), &c.padding, 1.0f, 0.0f, 512.0f);
 
         std::vector<std::string> texturePaths;
-        texturePaths.push_back("<None>");
         for (const auto& [path, asset] : assetService.GetAllAssets()) {
             if (asset->IsLoaded() && assetService.GetData<Texture>(asset.get())) {
                 texturePaths.push_back(path.GetRelativePath());
@@ -112,9 +113,9 @@ namespace Elysium {
 
                 Label("Material: ");
                 if (ImGui::BeginCombo("##LayerMaterial", layer.material.c_str())) {
-                    for (const char* material : kMaterials) {
+                    for (const std::string& material : AvailableMaterials()) {
                         bool isSelected = layer.material == material;
-                        if (ImGui::Selectable(material, isSelected) && !isSelected) {
+                        if (ImGui::Selectable(material.c_str(), isSelected) && !isSelected) {
                             layer.material = material;
                             layer.overrides.clear();
                         }
@@ -125,18 +126,7 @@ namespace Elysium {
 
                 if (layer.material == "Texture") {
                     Label("Texture: ");
-                    std::string current = layer.texturePath.empty() ? "<None>" : layer.texturePath;
-                    if (ImGui::BeginCombo("##LayerTexture", current.c_str())) {
-                        for (size_t t = 0; t < texturePaths.size(); ++t) {
-                            bool isSelected = texturePaths[t] == current;
-                            std::string selectableId = texturePaths[t] + "##" + std::to_string(t);
-                            if (ImGui::Selectable(selectableId.c_str(), isSelected)) {
-                                layer.texturePath = (t == 0) ? "" : texturePaths[t];
-                            }
-                            if (isSelected) ImGui::SetItemDefaultFocus();
-                        }
-                        ImGui::EndCombo();
-                    }
+                    InspectPathCombo("##LayerTexture", layer.texturePath, texturePaths);
                 }
 
                 Path shaderPath = ComposedShaderPath(kInspectGeometry, layer.material);

@@ -69,7 +69,7 @@ public:
         parameters_ = DefaultParameters();
         for (const auto& [name, value] : values) {
             auto it = parameters_.find(name);
-            if (it != parameters_.end() && it->second.TypeName() == value.TypeName()) it->second = value;
+            if (it != parameters_.end() && it->second.SameType(value)) it->second = value;
         }
         OnParametersChanged();
     }
@@ -79,7 +79,7 @@ public:
 
     void SetParameter(const std::string& name, const Value& value) {
         auto it = parameters_.find(name);
-        if (it == parameters_.end() || it->second.TypeName() != value.TypeName()) return;
+        if (it == parameters_.end() || !it->second.SameType(value)) return;
         it->second = value;
         OnParametersChanged();
     }

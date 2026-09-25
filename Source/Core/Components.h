@@ -6,7 +6,6 @@
 #include "Components/LayerComponent.h"
 #include "Components/RectangleComponent.h"
 #include "Components/CircleComponent.h"
-#include "Components/LightComponent.h"
 #include "Components/TextComponent.h"
 #include "Components/SpriteComponent.h"
 #include "Components/MovementComponent.h"

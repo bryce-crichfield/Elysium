@@ -16,7 +16,10 @@
         <FollowComponent followSpeed="0" />
         <TransformComponent />
         <LayerComponent name="shadow" />
-        <LightComponent color="#ffffffff" radius="500" intensity="0.0" />
+        <EllipseComponent radiusH="500" radiusV="250" />
+        <MaterialComponent>
+            <Layer material="Falloff" />
+        </MaterialComponent>
         <ColliderComponent width="600" height="300" />
     </Entity>
 </Entities>

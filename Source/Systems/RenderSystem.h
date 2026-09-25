@@ -14,6 +14,8 @@
 #include <variant>
 #include "Core/RenderContext.h"
 
+namespace Elysium::Services { class IAssetService; }
+
 namespace Elysium::Systems {
 
 // A camera's render-projection parameters, decoupled from any CameraComponent entity —
@@ -119,6 +121,10 @@ private:
     void RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records,
                        const Matrix& layerTransform, const Framebuffer& enclosingTarget);
 
+    // An entity's records: through its materials if it has an enabled MaterialComponent,
+    // otherwise each record's own Render.
+    void RenderEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records);
+
     // Draws one entity's own records (through its materials, if it has any) into a private offscreen buffer sized to its bounds
     // plus ShaderComponent::padding, then blits that buffer back into the layer through the
     // entity's shader — so the shader sees exactly the entity's pixels in texture0, with
@@ -131,6 +137,7 @@ private:
     // geometry + the layer's material. Records without geometry render normally.
     void RenderMaterialEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records);
 
+    Shader* GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material);
     static void PushBlend(RenderContext& ctx, SceneLayerBlend blend);
     const Framebuffer& EnsureCompositeBuffer(int width, int height);
     const Framebuffer& EnsureEntityBuffer(Entity entity, int width, int height);
@@ -140,6 +147,7 @@ private:
     // frames because allocating a render texture per entity per frame is not viable.
     std::unordered_map<Entity, Framebuffer> entityBuffers_;
     std::unordered_set<Entity> shadedThisFrame_;
+    std::unordered_set<std::string> requestedShaders_;
 };
 
 class RenderSystem : public System {
@@ -179,9 +187,6 @@ private:
     std::vector<DrawCommand> _drawCommands;
     RenderSorter _sorter;
     RenderCompositor _compositor;
-
-    bool _isIsometric = false;
-    bool _isIsometricCached = false;
 };
 
 }  // namespace Elysium::Systems

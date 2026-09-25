@@ -71,9 +71,11 @@ Path ComposedShaderPath(const std::string& geometry, const std::string& material
     return Path("Shaders/Sdf/" + geometry + "+" + material + ".sdf", PathRoot::Engine);
 }
 
+bool IsComposedShaderPath(const Path& path) { return EndsWith(path.GetRelativePath(), ".sdf"); }
+
 bool ShaderAsset::Load() {
     const std::string fragmentPath = GetPath().GetFullPath();
-    if (EndsWith(fragmentPath, ".sdf")) {
+    if (IsComposedShaderPath(GetPath())) {
         vertexSource_.clear();
         return ComposeSdfSource(fragmentPath, fragmentSource_);
     }
@@ -104,7 +106,7 @@ bool ShaderAsset::Finalize() {
     fragmentSource_.shrink_to_fit();
 
     LOG_DEBUGF("ShaderAsset", "Compiled shader '%s' (id %u) with %d uniform(s)", GetPath().c_str(),
-               shader_.Id(), (int)shader_.GetAttributes().size());
+               shader_.Id(), (int)shader_.GetUniforms().size());
     return true;
 }
 

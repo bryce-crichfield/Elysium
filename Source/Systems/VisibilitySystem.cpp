@@ -4,7 +4,6 @@
 #include "Components/TransformComponent.h"
 #include "Components/LayerComponent.h"
 #include "Components/TeamComponent.h"
-#include "Components/LightComponent.h"
 #include "Components/ColliderComponent.h"
 #include "Components/ParentComponent.h"
 
@@ -12,10 +11,10 @@ namespace Elysium::Systems {
 
 void VisibilitySystem::Update(float deltaTime) {
     // Collect friendly vision sources.
-    // A vision source is a light entity (LightComponent + ColliderComponent + ParentComponent)
-    // whose parent is a player unit (TeamComponent.team == 0).
-    // The ColliderComponent.width defines the vision diameter; we use width * 0.5 as the radius.
-    // This keeps the visual light radius (LightComponent.radius) independent from game logic.
+    // A vision source is a child entity (ColliderComponent + ParentComponent) of a player
+    // unit (TeamComponent.team == 0). The ColliderComponent.width defines the vision
+    // diameter; we use width * 0.5 as the radius. This keeps the visual cutout (an Ellipse
+    // with a Falloff material) independent from game logic.
     // Isometric ellipse: radiusX = collider.width * 0.5, radiusY = collider.height * 0.5.
     // A point (px, py) is inside if (dx/radiusX)^2 + (dy/radiusY)^2 <= 1.
     // Setting width:height = tileWidth:tileHeight (2:1) makes the ellipse appear
@@ -27,8 +26,8 @@ void VisibilitySystem::Update(float deltaTime) {
     };
     std::vector<VisionSource> sources;
 
-    world->Query<TransformComponent, LightComponent, ColliderComponent, ParentComponent>(
-        [&](Entity e, auto& transform, auto& light, auto& collider, auto& parentComp) {
+    world->Query<TransformComponent, ColliderComponent, ParentComponent>(
+        [&](Entity e, auto& transform, auto& collider, auto& parentComp) {
             if (parentComp.parent == INVALID_ENTITY) return;
             if (!world->HasComponent<TeamComponent>(parentComp.parent)) return;
             if (world->GetComponent<TeamComponent>(parentComp.parent).team != 0) return;

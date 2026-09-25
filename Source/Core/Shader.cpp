@@ -41,32 +41,17 @@ std::vector<ShaderUniform> ReflectUniforms(const std::string& fragmentSource) {
 
 }  // namespace
 
+// Owns the GPU program: releasing a Native releases it, so Shader's moves are the defaults.
 struct Shader::Native {
     ::Shader shader{};
     std::unordered_map<std::string, int> locations;
+    ~Native() { if (shader.id != 0) ::UnloadShader(shader); }
 };
 
 Shader::Shader() = default;
-
-Shader::~Shader() {
-    if (native_ && native_->shader.id != 0) {
-        ::UnloadShader(native_->shader);
-    }
-}
-
-Shader::Shader(Shader&& other) noexcept
-    : native_(std::move(other.native_)), uniforms_(std::move(other.uniforms_)) {}
-
-Shader& Shader::operator=(Shader&& other) noexcept {
-    if (this != &other) {
-        if (native_ && native_->shader.id != 0) {
-            ::UnloadShader(native_->shader);
-        }
-        native_ = std::move(other.native_);
-        uniforms_ = std::move(other.uniforms_);
-    }
-    return *this;
-}
+Shader::~Shader() = default;
+Shader::Shader(Shader&&) noexcept = default;
+Shader& Shader::operator=(Shader&&) noexcept = default;
 
 bool Shader::IsValid() const { return native_ && native_->shader.id != 0; }
 
@@ -101,7 +86,7 @@ Shader Shader::FromSource(const std::string& vertexSource, const std::string& fr
     return result;
 }
 
-void Shader::SetAttribute(const std::string& name, const Value& value) {
+void Shader::SetUniform(const std::string& name, const Value& value) {
     if (!native_) return;
     auto it = native_->locations.find(name);
     if (it == native_->locations.end()) return;

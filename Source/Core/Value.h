@@ -9,7 +9,7 @@ namespace Elysium {
 
 // A dynamically-typed scalar/vector, used wherever a value needs to cross a
 // string-typed boundary (XML attributes, Lua) on its way to a shader uniform —
-// see ShaderComponent's overrides map and Shader::SetAttribute. Colors are stored
+// see ShaderComponent's overrides map and Shader::SetUniform. Colors are stored
 // as a Vector4 in 0..1 float space, matching how a GLSL uniform receives them.
 class Value {
    public:
@@ -26,6 +26,9 @@ class Value {
         : data_(Vector4{c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f}) {}
 
     const Storage& Data() const { return data_; }
+
+    bool operator==(const Value& other) const { return data_ == other.data_; }
+    bool SameType(const Value& other) const { return data_.index() == other.data_.index(); }
 
     template <typename T>
     bool Is() const {
@@ -52,7 +55,5 @@ class Value {
    private:
     Storage data_;
 };
-
-inline std::string ValueTypeName(const Value& value) { return value.TypeName(); }
 
 }  // namespace Elysium

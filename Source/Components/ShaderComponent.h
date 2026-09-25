@@ -12,6 +12,11 @@ namespace Elysium {
     // Shared by ShaderComponent and MaterialComponent's layers.
     void InspectUniformOverrides(const Shader& shader, std::unordered_map<std::string, Value>& overrides);
 
+    // <Uniform name= type= value= /> children of `el`, as used by ShaderComponent and
+    // MaterialComponent's layers.
+    void LoadUniformOverrides(tinyxml2::XMLElement* el, std::unordered_map<std::string, Value>& overrides);
+    void SaveUniformOverrides(XMLBuilder& el, const std::unordered_map<std::string, Value>& overrides);
+
     // Diverts an entity's render records through a private offscreen buffer and a
     // compiled Shader asset (see RenderCompositor::RenderShadedEntity in
     // Systems/RenderSystem.cpp). shaderPath names a ShaderAsset (a .fs file, optionally

@@ -119,7 +119,6 @@ World::World() {
     // RegisterComponent<TransformComponent>(); // Handled by Registry
     RegisterComponent<MovementComponent>();
     RegisterComponent<LayerComponent>();
-    RegisterComponent<LightComponent>();
     RegisterComponent<RectangleComponent>();
     RegisterComponent<CircleComponent>();
     RegisterComponent<SpriteComponent>();

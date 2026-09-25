@@ -12,10 +12,11 @@ namespace Elysium {
 // LoadAsset<Shader>(ComposedShaderPath(...)) / Get<Shader>(...). No file exists at the
 // path — ShaderAsset::Load recognises the .sdf extension and assembles the source.
 Path ComposedShaderPath(const std::string& geometry, const std::string& material);
+bool IsComposedShaderPath(const Path& path);
 
 // Loads a GLSL fragment shader from disk. Two-phase on purpose: Load() runs on a worker
-// thread and only reads text (plus reflects the uniform list, which is pure string work),
-// while Finalize() runs on the main thread where a GL context exists and actually compiles.
+// thread and only reads text, while Finalize() runs on the main thread where a GL context
+// exists and compiles (reflecting the uniform list).
 //
 // The asset's Path points at the fragment shader. An optional vertex shader is taken from
 // the sibling file with the same stem and a .vs extension; without one raylib's default

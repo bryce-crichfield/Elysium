@@ -50,7 +50,7 @@ struct RenderableType {
     bool (*Pick)(const World&, const RenderRecord&, Vector2 testPos) = nullptr;
     std::optional<Rectangle> (*Bounds)(const World&, const RenderRecord&) = nullptr;
     bool skipFrustumCull = false;
-    // Null for shapes with no closed-form distance (sprites, text, polygons); those
+    // Null for renderables with no closed-form distance (text, tiles, lights); those
     // ignore MaterialComponent and keep drawing through Render.
     bool (*Geometry)(const World&, const RenderRecord&, SdfGeometry&) = nullptr;
 };

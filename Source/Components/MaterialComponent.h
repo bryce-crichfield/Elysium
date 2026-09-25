@@ -24,7 +24,7 @@ namespace Elysium {
     // Rectangle + a Texture layer (SpriteSystem maintains both for SpriteComponent). padding grows
     // every layer's quad past the shape so glow / outside strokes have room.
     //
-    // Shapes carry no style of their own — without a MaterialComponent they draw nothing.
+    // Shapes carry no style of their own â€” without a MaterialComponent they draw nothing.
     // A ShaderComponent on the same entity filters the result (see RenderShadedEntity).
     struct MaterialComponent {
         std::vector<MaterialLayer> layers;

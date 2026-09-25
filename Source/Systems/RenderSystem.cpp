@@ -7,7 +7,6 @@
 #include "Components/CircleComponent.h"
 #include "Components/EllipseComponent.h"
 #include "Components/LayerComponent.h"
-#include "Components/LightComponent.h"
 #include "Components/LineComponent.h"
 #include "Components/MaterialComponent.h"
 #include "Components/ParentComponent.h"
@@ -73,7 +72,6 @@ static bool HasTileImpl(const World& world, Entity entity) {
 static bool HasRectangleImpl(const World& world, Entity entity) { return world.HasComponent<RectangleComponent>(entity); }
 static bool HasCircleImpl(const World& world, Entity entity)    { return world.HasComponent<CircleComponent>(entity); }
 static bool HasTextImpl(const World& world, Entity entity)      { return world.HasComponent<TextComponent>(entity); }
-static bool HasLightImpl(const World& world, Entity entity)     { return world.HasComponent<LightComponent>(entity); }
 static bool HasEllipseImpl(const World& world, Entity entity)   { return world.HasComponent<EllipseComponent>(entity); }
 static bool HasLineImpl(const World& world, Entity entity)      { return world.HasComponent<LineComponent>(entity); }
 static bool HasPolygonImpl(const World& world, Entity entity)   { return world.HasComponent<PolygonComponent>(entity); }
@@ -147,6 +145,21 @@ static void RenderTileImpl(RenderContext& ctx, const RenderRecord& rec) {
     ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, comp.tint);
 }
 
+// Axis-aligned box around a set of points (at least one).
+static Rectangle BoundingBox(std::span<const Vector2> points) {
+    Vector2 lo = points[0], hi = points[0];
+    for (const Vector2& p : points) {
+        lo = { std::min(lo.x, p.x), std::min(lo.y, p.y) };
+        hi = { std::max(hi.x, p.x), std::max(hi.y, p.y) };
+    }
+    return { lo.x, lo.y, hi.x - lo.x, hi.y - lo.y };
+}
+
+static Rectangle Union(const Rectangle& a, const Rectangle& b) {
+    const Vector2 corners[4] = { {a.x, a.y}, {a.x + a.width, a.y + a.height}, {b.x, b.y}, {b.x + b.width, b.y + b.height} };
+    return BoundingBox(corners);
+}
+
 // The entity's world scale and rotation, applied about its position (rec.x, rec.y). Shapes
 // describe themselves untransformed ("local": authored size, placed at the position);
 // ToDraw maps a local point to where it's drawn, ToLocal maps a pick back. Negative scale
@@ -170,14 +183,9 @@ struct ShapeTransform {
     // Axis-aligned box around a transformed local box.
     Rectangle ToDraw(Rectangle r) const {
         if (IsIdentity()) return r;
-        Vector2 c[4] = { ToDraw({r.x, r.y}), ToDraw({r.x + r.width, r.y}),
-                         ToDraw({r.x, r.y + r.height}), ToDraw({r.x + r.width, r.y + r.height}) };
-        Vector2 lo = c[0], hi = c[0];
-        for (const Vector2& p : c) {
-            lo = { std::min(lo.x, p.x), std::min(lo.y, p.y) };
-            hi = { std::max(hi.x, p.x), std::max(hi.y, p.y) };
-        }
-        return { lo.x, lo.y, hi.x - lo.x, hi.y - lo.y };
+        const Vector2 c[4] = { ToDraw({r.x, r.y}), ToDraw({r.x + r.width, r.y}),
+                               ToDraw({r.x, r.y + r.height}), ToDraw({r.x + r.width, r.y + r.height}) };
+        return BoundingBox(c);
     }
 };
 
@@ -235,6 +243,15 @@ static std::optional<Rectangle> BoundsCircleImpl(const World& world, const Rende
     return GetShapeTransform(world, rec).ToDraw(LocalBoundsCircle(world, rec));
 }
 
+static Rectangle LocalBoundsEllipse(const World& world, const RenderRecord& rec) {
+    const auto& component = world.GetComponent<EllipseComponent>(rec.entity);
+    return Rectangle{ rec.x - component.radiusH, rec.y - component.radiusV, component.radiusH * 2.0f, component.radiusV * 2.0f };
+}
+
+static std::optional<Rectangle> BoundsEllipseImpl(const World& world, const RenderRecord& rec) {
+    return GetShapeTransform(world, rec).ToDraw(LocalBoundsEllipse(world, rec));
+}
+
 static bool PickEllipseImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
     const auto& component = world.GetComponent<EllipseComponent>(rec.entity);
     if (component.radiusH <= 0.0f || component.radiusV <= 0.0f) return false;
@@ -242,6 +259,31 @@ static bool PickEllipseImpl(const World& world, const RenderRecord& rec, Vector2
     float dx = (p.x - rec.x) / component.radiusH;
     float dy = (p.y - rec.y) / component.radiusV;
     return (dx * dx + dy * dy) <= 1.0f;
+}
+
+// The segment's box, grown by half its thickness on every side.
+static Rectangle LocalBoundsLine(const World& world, const RenderRecord& rec) {
+    const auto& component = world.GetComponent<LineComponent>(rec.entity);
+    const float half = component.thickness * 0.5f;
+    const Vector2 ends[2] = { {rec.x + component.x1, rec.y + component.y1}, {rec.x + component.x2, rec.y + component.y2} };
+    Rectangle box = BoundingBox(ends);
+    return { box.x - half, box.y - half, box.width + half * 2.0f, box.height + half * 2.0f };
+}
+
+static std::optional<Rectangle> BoundsLineImpl(const World& world, const RenderRecord& rec) {
+    return GetShapeTransform(world, rec).ToDraw(LocalBoundsLine(world, rec));
+}
+
+// Within half the thickness of the segment; hairlines get a couple of units of slack.
+static bool PickLineImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
+    const auto& component = world.GetComponent<LineComponent>(rec.entity);
+    const Vector2 p = GetShapeTransform(world, rec).ToLocal(testPos);
+    const Vector2 a = { rec.x + component.x1, rec.y + component.y1 };
+    const Vector2 ab = Vector2{ rec.x + component.x2, rec.y + component.y2 } - a;
+    const float lengthSq = ab.x * ab.x + ab.y * ab.y;
+    const float t = lengthSq > 0.0f ? std::clamp(((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / lengthSq, 0.0f, 1.0f) : 0.0f;
+    const Vector2 closest = { a.x + ab.x * t, a.y + ab.y * t };
+    return (p - closest).Length() <= std::max(component.thickness * 0.5f, 2.0f);
 }
 
 static bool PickPolygonImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
@@ -254,6 +296,15 @@ static bool PickPolygonImpl(const World& world, const RenderRecord& rec, Vector2
         worldPoints.push_back({ rec.x + p.x, rec.y + p.y });
     }
     return PointInPolygon(GetShapeTransform(world, rec).ToLocal(testPos), worldPoints);
+}
+
+static std::optional<Rectangle> BoundsPolygonImpl(const World& world, const RenderRecord& rec) {
+    const auto& component = world.GetComponent<PolygonComponent>(rec.entity);
+    if (component.points.empty()) return std::nullopt;
+    Rectangle local = BoundingBox(component.points);
+    local.x += rec.x;
+    local.y += rec.y;
+    return GetShapeTransform(world, rec).ToDraw(local);
 }
 
 static void RenderTextImpl(RenderContext& ctx, const RenderRecord& rec) {
@@ -307,33 +358,6 @@ static bool PickTextImpl(const World& world, const RenderRecord& rec, Vector2 te
 
     return testPos.x >= left && testPos.x <= left + textWidth &&
            testPos.y >= top  && testPos.y <= top + scaledFontSize;
-}
-
-static void RenderLightImpl(RenderContext& ctx, const RenderRecord& rec) {
-    const auto& component = ctx.GetWorld().GetComponent<LightComponent>(rec.entity);
-    const int numRings = 8;
-
-    for (int i = 0; i < numRings; i++) {
-        float t     = (float)i / numRings;
-        float power = 1.0f + component.intensity * 4.0f;
-        float curve = powf(1.0f - t, power);
-        float ringRadius = component.radius * curve;
-
-        Color ringColor = component.color;
-        ringColor.a = (unsigned char)(component.color.a / numRings);
-        Color ringEdge  = { ringColor.r, ringColor.g, ringColor.b, 0 };
-
-        if (ctx.IsIsometric()) {
-            ctx.DrawEllipseGradient(rec.x, rec.y, ringRadius, ringRadius * 0.5f, ringColor, ringEdge);
-        } else {
-            ctx.DrawCircleGradient(rec.x, rec.y, ringRadius, ringColor, ringEdge);
-        }
-    }
-}
-
-static bool PickLightImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
-    const auto& component = world.GetComponent<LightComponent>(rec.entity);
-    return (testPos - Vector2{rec.x, rec.y}).Length() <= component.radius;
 }
 
 // Script draw-command renderable types: value-backed (Has == nullptr), Render casts
@@ -640,10 +664,14 @@ void RenderCompositor::PruneEntityBuffers() {
     shadedThisFrame_.clear();
 }
 
+template <typename T>
+static bool IsEnabled(const World& world, Entity entity) {
+    return entity != INVALID_ENTITY && world.HasComponent<T>(entity) && world.GetComponent<T>(entity).enabled;
+}
+
 void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records,
                                      const Matrix& layerTransform, const Framebuffer& enclosingTarget) {
     ProfileN("Render Records");
-    auto& registry = RenderableRegistry::Instance();
     const World& world = ctx.GetWorld();
 
     size_t index = 0;
@@ -661,26 +689,25 @@ void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderR
         std::span<const RenderRecord> group = records.subspan(index, end - index);
         index = end;
 
-        const bool hasMaterial = entity != INVALID_ENTITY && world.HasComponent<MaterialComponent>(entity) &&
-                                 world.GetComponent<MaterialComponent>(entity).enabled;
-        const bool hasShader = entity != INVALID_ENTITY && world.HasComponent<ShaderComponent>(entity) &&
-                               world.GetComponent<ShaderComponent>(entity).enabled;
-
         // A ShaderComponent filters the entity after it's drawn: RenderShadedEntity draws
         // it (materials included) into an offscreen buffer and blits that through the shader.
-        if (hasShader) {
+        if (IsEnabled<ShaderComponent>(world, entity)) {
             RenderShadedEntity(ctx, entity, group, layerTransform, enclosingTarget);
-            continue;
+        } else {
+            RenderEntity(ctx, entity, group);
         }
-        if (hasMaterial) {
-            RenderMaterialEntity(ctx, entity, group);
-            continue;
-        }
+    }
+}
 
-        for (const auto& rec : group) {
-            const RenderableType& type = registry.Get(rec.typeId);
-            if (type.Render) type.Render(ctx, rec);
-        }
+void RenderCompositor::RenderEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records) {
+    if (IsEnabled<MaterialComponent>(ctx.GetWorld(), entity)) {
+        RenderMaterialEntity(ctx, entity, records);
+        return;
+    }
+    auto& registry = RenderableRegistry::Instance();
+    for (const auto& rec : records) {
+        const RenderableType& type = registry.Get(rec.typeId);
+        if (type.Render) type.Render(ctx, rec);
     }
 }
 
@@ -692,23 +719,17 @@ static void ApplyUniformOverrides(Shader& shader, const std::unordered_map<std::
         if (uniform.isBuiltIn) continue;
         auto overrideIt = overrides.find(uniform.name);
         const bool useOverride = overrideIt != overrides.end() &&
-                                 ValueTypeName(overrideIt->second) == uniform.typeName;
-        shader.SetAttribute(uniform.name, useOverride ? overrideIt->second : uniform.defaultValue);
+                                 overrideIt->second.SameType(uniform.defaultValue);
+        shader.SetUniform(uniform.name, useOverride ? overrideIt->second : uniform.defaultValue);
     }
-}
-
-static Vector4 ToVec4(Color color) {
-    return Vector4{ color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
 }
 
 // Composed shaders are requested lazily on first use. Remembered so a load in flight
 // (or one that failed — a missing chunk) isn't re-requested every frame.
-static Shader* GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material) {
+Shader* RenderCompositor::GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material) {
     Path path = ComposedShaderPath(geometry, material);
     if (Shader* shader = assets.Get<Shader>(path)) return shader->IsValid() ? shader : nullptr;
-
-    static std::unordered_set<std::string> requested;
-    if (requested.insert(path.GetRelativePath()).second) assets.LoadAsset<Shader>(path);
+    if (requestedShaders_.insert(path.GetRelativePath()).second) assets.LoadAsset<Shader>(path);
     return nullptr;
 }
 
@@ -765,15 +786,15 @@ void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, s
 
         for (const Pass& pass : passes) {
             Shader& shader = *pass.shader;
-            shader.SetAttribute("e_Time", Value{time});
-            shader.SetAttribute("e_Size", Value{Vector2{box.width, box.height}});
-            shader.SetAttribute("e_QuadSize", Value{Vector2{quad.width, quad.height}});
-            shader.SetAttribute("e_CornerRadius", Value{geometry.cornerRadius});
-            shader.SetAttribute("e_PointA", Value{geometry.pointA});
-            shader.SetAttribute("e_PointB", Value{geometry.pointB});
-            shader.SetAttribute("e_Thickness", Value{geometry.thickness});
+            shader.SetUniform("e_Time", Value{time});
+            shader.SetUniform("e_Size", Value{Vector2{box.width, box.height}});
+            shader.SetUniform("e_QuadSize", Value{Vector2{quad.width, quad.height}});
+            shader.SetUniform("e_CornerRadius", Value{geometry.cornerRadius});
+            shader.SetUniform("e_PointA", Value{geometry.pointA});
+            shader.SetUniform("e_PointB", Value{geometry.pointB});
+            shader.SetUniform("e_Thickness", Value{geometry.thickness});
             if (!geometry.points.empty()) {
-                shader.SetAttribute("e_PointCount", Value{(int)geometry.points.size()});
+                shader.SetUniform("e_PointCount", Value{(int)geometry.points.size()});
                 shader.SetFloatArray("e_Points", &geometry.points[0].x, (int)geometry.points.size(), 2);
             }
             ApplyUniformOverrides(shader, pass.layer->overrides);
@@ -782,7 +803,7 @@ void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, s
                                          ? nullptr
                                          : assets.Get<Texture>(Path(pass.layer->texturePath));
             if (texture && texture->id == 0) texture = nullptr;
-            if (texture) shader.SetAttribute("e_TextureSize", Value{Vector2{(float)texture->width, (float)texture->height}});
+            if (texture) shader.SetUniform("e_TextureSize", Value{Vector2{(float)texture->width, (float)texture->height}});
 
             ctx.PushShader(shader);
             ctx.DrawShaderQuad(corners, texture, Colors::White);
@@ -802,16 +823,7 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
 
     // Used for every bail-out below: a shader still loading, a bad size, or a dead
     // framebuffer must degrade to the plain unshaded draw, never to a missing entity.
-    auto RenderUnshaded = [&] {
-        if (world.HasComponent<MaterialComponent>(entity) && world.GetComponent<MaterialComponent>(entity).enabled) {
-            RenderMaterialEntity(ctx, entity, records);
-            return;
-        }
-        for (const auto& rec : records) {
-            const RenderableType& type = registry.Get(rec.typeId);
-            if (type.Render) type.Render(ctx, rec);
-        }
-    };
+    auto RenderUnshaded = [&] { RenderEntity(ctx, entity, records); };
 
     if (records.empty()) return;
 
@@ -832,15 +844,7 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
         if (!type.Bounds) continue;
         std::optional<Rectangle> recordBounds = type.Bounds(world, rec);
         if (!recordBounds) continue;
-        if (!bounds) {
-            bounds = *recordBounds;
-            continue;
-        }
-        float left   = std::min(bounds->x, recordBounds->x);
-        float top    = std::min(bounds->y, recordBounds->y);
-        float right  = std::max(bounds->x + bounds->width,  recordBounds->x + recordBounds->width);
-        float bottom = std::max(bounds->y + bounds->height, recordBounds->y + recordBounds->height);
-        bounds = Rectangle{left, top, right - left, bottom - top};
+        bounds = bounds ? Union(*bounds, *recordBounds) : *recordBounds;
     }
     if (!bounds) {
         bounds = Rectangle{records[0].x - shaderComponent.width * 0.5f,
@@ -900,9 +904,9 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
     ctx.MultiplyMatrix(layerTransform);
 
     // Engine-fed uniforms first, then every declared uniform at its default or override.
-    shader->SetAttribute("e_Time", Value{(float)::GetTime()});
-    shader->SetAttribute("e_Resolution", Value{Vector2{(float)bufferWidth, (float)bufferHeight}});
-    shader->SetAttribute("e_TexelSize", Value{Vector2{1.0f / bufferWidth, 1.0f / bufferHeight}});
+    shader->SetUniform("e_Time", Value{(float)::GetTime()});
+    shader->SetUniform("e_Resolution", Value{Vector2{(float)bufferWidth, (float)bufferHeight}});
+    shader->SetUniform("e_TexelSize", Value{Vector2{1.0f / bufferWidth, 1.0f / bufferHeight}});
     ApplyUniformOverrides(*shader, shaderComponent.overrides);
 
     ctx.PushShader(*shader);
@@ -954,7 +958,7 @@ void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& vi
     ctx.PopScissorMode();
 
     ctx.BeginRenderTarget(compositionBuffer);
-    ClearBackground(ToRaylib(layer.ambient));
+    ctx.ClearTarget(layer.ambient);
 
     PushBlend(ctx, layer.layerBlend);
     ctx.PushMatrix();
@@ -1016,16 +1020,8 @@ void RenderSystem::IssueDrawCommand(DrawCommand cmd) {
 void RenderSystem::Draw() {
     ProfileN("RenderSystem Draw");
 
-    // Cache isometric flag once — all tiles share the same isometric state.
-    if (!_isIsometricCached) {
-        _isIsometricCached = true;
-        world->Query<TileComponent>([&](Entity, const TileComponent& t) {
-            _isIsometric = t.isIsometric;
-        });
-    }
-
     FindCameras();
-    RenderContext ctx(*services, *world, _isIsometric);
+    RenderContext ctx(*services, *world);
 
     if (services->Get<Services::IApplicationService>().GetMode() == AppMode::Editor) {
         // Editor mode renders through the free editor camera, not any in-scene CameraComponent.
@@ -1058,13 +1054,11 @@ void RenderSystem::PlaceScreenInWorld(CameraView& view) {
     view.screenScale = 1.0f;
     view.screenOrigin = { -view.viewport.width * 0.5f, -view.viewport.height * 0.5f };
 
-    Entity camera = INVALID_ENTITY;
-    world->Query<CameraComponent>([&](Entity entity, auto&) {
-        if (camera == INVALID_ENTITY) camera = entity;
-    });
     // Lowest renderOrder, the same camera play mode draws first.
-    world->Query<CameraComponent>([&](Entity entity, auto& component) {
-        if (component.renderOrder < world->GetComponent<CameraComponent>(camera).renderOrder) camera = entity;
+    Entity camera = INVALID_ENTITY;
+    const CameraComponent* best = nullptr;
+    world->Query<CameraComponent>([&](Entity entity, const CameraComponent& component) {
+        if (!best || component.renderOrder < best->renderOrder) { camera = entity; best = &component; }
     });
     if (camera == INVALID_ENTITY) return;
 
@@ -1151,6 +1145,13 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, Entity cameraEntity) {
     return Pick(fbPos, MakeCameraView(cameraEntity));
 }
 
+// Pick and GetEntityRenderInfo read the queue built by the last Draw. Since then the
+// editor may have removed the component a record came from (or the whole entity), and its
+// Pick/Bounds would read a component that is no longer there.
+static bool IsStale(const World& world, const RenderRecord& rec, const RenderableType& type) {
+    return type.Has && !type.Has(world, rec.entity);
+}
+
 std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
     std::vector<Entity> hits;
     Vector2 worldPos = RenderProjector::FramebufferToWorld(fbPos, view);
@@ -1163,7 +1164,7 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
     for (auto it = queue.rbegin(); it != queue.rend(); ++it) {
         const RenderRecord& rec = *it;
         const RenderableType& type = registry.Get(rec.typeId);
-        if (!type.Pick) continue;
+        if (!type.Pick || IsStale(*world, rec, type)) continue;
 
         Vector2 testPos = rec.isWorldSpace ? worldPos : screenPos;
         if (type.Pick(*world, rec, testPos)) {
@@ -1180,7 +1181,7 @@ EntityRenderInfo RenderSystem::GetEntityRenderInfo(Entity entity) {
     auto& registry = RenderableRegistry::Instance();
     bool foundAny = false;
     for (const auto& rec : _sorter.GetQueue()) {
-        if (rec.entity != entity) continue;
+        if (rec.entity != entity || IsStale(*world, rec, registry.Get(rec.typeId))) continue;
         // isWorldSpace is per-entity (set once from its layer in CollectEntities), identical
         // across every record the entity produced — safe to take from the first match.
         if (!foundAny) {
@@ -1208,30 +1209,23 @@ static bool GeometryRectangleImpl(const World& world, const RenderRecord& rec, S
 }
 
 static bool GeometryCircleImpl(const World& world, const RenderRecord& rec, SdfGeometry& out) {
-    const auto& component = world.GetComponent<CircleComponent>(rec.entity);
     out.geometry = "Circle";
     out.box = LocalBoundsCircle(world, rec);
     return true;
 }
 
 static bool GeometryEllipseImpl(const World& world, const RenderRecord& rec, SdfGeometry& out) {
-    const auto& component = world.GetComponent<EllipseComponent>(rec.entity);
     out.geometry = "Ellipse";
-    out.box = Rectangle{ rec.x - component.radiusH, rec.y - component.radiusV,
-                         component.radiusH * 2.0f, component.radiusV * 2.0f };
+    out.box = LocalBoundsEllipse(world, rec);
     return true;
 }
 
 static bool GeometryLineImpl(const World& world, const RenderRecord& rec, SdfGeometry& out) {
     const auto& component = world.GetComponent<LineComponent>(rec.entity);
-    float left   = std::min(component.x1, component.x2) - component.thickness * 0.5f;
-    float top    = std::min(component.y1, component.y2) - component.thickness * 0.5f;
-    float right  = std::max(component.x1, component.x2) + component.thickness * 0.5f;
-    float bottom = std::max(component.y1, component.y2) + component.thickness * 0.5f;
-    Vector2 center = { (left + right) * 0.5f, (top + bottom) * 0.5f };
-
     out.geometry = "Segment";
-    out.box = Rectangle{ rec.x + left, rec.y + top, right - left, bottom - top };
+    out.box = LocalBoundsLine(world, rec);
+    // Relative to the box center, which is the segment's midpoint.
+    Vector2 center = { (component.x1 + component.x2) * 0.5f, (component.y1 + component.y2) * 0.5f };
     out.pointA = { component.x1 - center.x, component.y1 - center.y };
     out.pointB = { component.x2 - center.x, component.y2 - center.y };
     out.thickness = component.thickness;
@@ -1243,15 +1237,11 @@ static bool GeometryPolygonImpl(const World& world, const RenderRecord& rec, Sdf
     const size_t count = component.points.size();
     if (count < 3 || count > (size_t)kMaxSdfPolygonPoints) return false;  // not drawable
 
-    Vector2 lo = component.points[0], hi = component.points[0];
-    for (const Vector2& point : component.points) {
-        lo = { std::min(lo.x, point.x), std::min(lo.y, point.y) };
-        hi = { std::max(hi.x, point.x), std::max(hi.y, point.y) };
-    }
-    Vector2 center = { (lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f };
+    const Rectangle local = BoundingBox(component.points);
+    Vector2 center = { local.x + local.width * 0.5f, local.y + local.height * 0.5f };
 
     out.geometry = "Polygon";
-    out.box = Rectangle{ rec.x + lo.x, rec.y + lo.y, hi.x - lo.x, hi.y - lo.y };
+    out.box = Rectangle{ rec.x + local.x, rec.y + local.y, local.width, local.height };
     out.points.reserve(count);
     for (const Vector2& point : component.points) out.points.push_back({ point.x - center.x, point.y - center.y });
     return true;
@@ -1262,10 +1252,9 @@ REGISTER_RENDERABLE(HasTileImpl,      RenderTileImpl,      nullptr,           nu
 REGISTER_RENDERABLE(HasRectangleImpl, nullptr,             PickRectangleImpl, BoundsRectangleImpl, false, GeometryRectangleImpl)
 REGISTER_RENDERABLE(HasCircleImpl,    nullptr,             PickCircleImpl,    BoundsCircleImpl,    false, GeometryCircleImpl)
 REGISTER_RENDERABLE(HasTextImpl,      RenderTextImpl,      PickTextImpl,      nullptr,             false, nullptr)
-REGISTER_RENDERABLE(HasLightImpl,     RenderLightImpl,     PickLightImpl,     nullptr,             true,  nullptr)
-REGISTER_RENDERABLE(HasEllipseImpl,   nullptr,             PickEllipseImpl,   nullptr,             false, GeometryEllipseImpl)
-REGISTER_RENDERABLE(HasLineImpl,      nullptr,             nullptr,           nullptr,             false, GeometryLineImpl)
-REGISTER_RENDERABLE(HasPolygonImpl,   nullptr,             PickPolygonImpl,   nullptr,             false, GeometryPolygonImpl)
+REGISTER_RENDERABLE(HasEllipseImpl,   nullptr,             PickEllipseImpl,   BoundsEllipseImpl,   false, GeometryEllipseImpl)
+REGISTER_RENDERABLE(HasLineImpl,      nullptr,             PickLineImpl,      BoundsLineImpl,      false, GeometryLineImpl)
+REGISTER_RENDERABLE(HasPolygonImpl,   nullptr,             PickPolygonImpl,   BoundsPolygonImpl,   false, GeometryPolygonImpl)
 REGISTER_RENDERABLE(HasShaderImpl,    RenderShaderImpl,    PickShaderImpl,    BoundsShaderImpl,    false, nullptr)
 
 namespace {

@@ -29,8 +29,8 @@ class Shader {
 
     Shader(const Shader&) = delete;
     Shader& operator=(const Shader&) = delete;
-    Shader(Shader&& other) noexcept;
-    Shader& operator=(Shader&& other) noexcept;
+    Shader(Shader&&) noexcept;
+    Shader& operator=(Shader&&) noexcept;
 
     bool IsValid() const;
     unsigned int Id() const;
@@ -43,7 +43,7 @@ class Shader {
                               std::string* error = nullptr);
 
     // No-op on an invalid shader or an unknown/unreflected uniform name.
-    void SetAttribute(const std::string& name, const Value& value);
+    void SetUniform(const std::string& name, const Value& value);
 
     // Uploads `count` elements of a float/vecN uniform array (components = 1..4). Arrays
     // aren't reflected (no per-instance overrides), so the location is looked up on first
@@ -51,7 +51,6 @@ class Shader {
     void SetFloatArray(const std::string& name, const float* data, int count, int components);
 
     const std::vector<ShaderUniform>& GetUniforms() const { return uniforms_; }
-    const std::vector<ShaderUniform>& GetAttributes() const { return uniforms_; }
 
     // Opaque pointer to the backend handle (a raylib ::Shader*), for RenderContext's
     // BeginShaderMode/EndShaderMode. Null for an invalid shader.

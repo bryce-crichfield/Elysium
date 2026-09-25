@@ -37,17 +37,14 @@ std::string Value::ToString() const {
     if (Is<bool>()) return As<bool>() ? "true" : "false";
     if (Is<int>()) return std::to_string(As<int>());
     if (Is<float>()) return std::to_string(As<float>());
-    if (Is<Vector2>()) {
-        Vector2 v = As<Vector2>();
-        return std::to_string(v.x) + " " + std::to_string(v.y);
-    }
-    if (Is<Vector3>()) {
-        Vector3 v = As<Vector3>();
-        return std::to_string(v.x) + " " + std::to_string(v.y) + " " + std::to_string(v.z);
-    }
-    Vector4 v = As<Vector4>();
-    return std::to_string(v.x) + " " + std::to_string(v.y) + " " + std::to_string(v.z) + " " +
-           std::to_string(v.w);
+    // Vector types: x, y, z, w are laid out contiguously.
+    const float* f = Is<Vector2>() ? &std::get<Vector2>(data_).x
+                   : Is<Vector3>() ? &std::get<Vector3>(data_).x
+                                   : &std::get<Vector4>(data_).x;
+    const size_t count = Is<Vector2>() ? 2 : Is<Vector3>() ? 3 : 4;
+    std::string text;
+    for (size_t i = 0; i < count; ++i) text += (i ? " " : "") + std::to_string(f[i]);
+    return text;
 }
 
 Value Value::FromString(const std::string& typeName, const std::string& text) {
@@ -57,19 +54,12 @@ Value Value::FromString(const std::string& typeName, const std::string& text) {
     if (typeName == "int") {
         return Value(std::atoi(text.c_str()));
     }
-    if (typeName == "vec2") {
+    if (typeName == "vec2" || typeName == "vec3" || typeName == "vec4") {
         std::vector<float> c = ParseFloats(text);
-        return Value(Vector2{c.size() > 0 ? c[0] : 0.0f, c.size() > 1 ? c[1] : 0.0f});
-    }
-    if (typeName == "vec3") {
-        std::vector<float> c = ParseFloats(text);
-        return Value(Vector3{c.size() > 0 ? c[0] : 0.0f, c.size() > 1 ? c[1] : 0.0f,
-                              c.size() > 2 ? c[2] : 0.0f});
-    }
-    if (typeName == "vec4") {
-        std::vector<float> c = ParseFloats(text);
-        return Value(Vector4{c.size() > 0 ? c[0] : 0.0f, c.size() > 1 ? c[1] : 0.0f,
-                              c.size() > 2 ? c[2] : 0.0f, c.size() > 3 ? c[3] : 0.0f});
+        c.resize(4, 0.0f);  // missing components are zero
+        if (typeName == "vec2") return Value(Vector2{c[0], c[1]});
+        if (typeName == "vec3") return Value(Vector3{c[0], c[1], c[2]});
+        return Value(Vector4{c[0], c[1], c[2], c[3]});
     }
     // "float" and anything unrecognized.
     return Value(std::strtof(text.c_str(), nullptr));
