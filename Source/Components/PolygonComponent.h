@@ -11,6 +11,7 @@ namespace Elysium {
         PolygonComponent(std::vector<Vector2> points = {});
 
         static constexpr const char* Name() { return "Polygon"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "PolygonComponent"; }
 
         static void LoadXml(PolygonComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

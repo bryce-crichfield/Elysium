@@ -12,6 +12,7 @@ namespace Elysium {
         TextComponent(const std::string& text = "", int size = 20, Color c = {});
 
         static constexpr const char* Name() { return "Text"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "TextComponent"; }
 
         static void LoadXml(TextComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

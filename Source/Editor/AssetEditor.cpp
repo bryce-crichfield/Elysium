@@ -1,18 +1,15 @@
 #include "AssetEditor.h"
-#include "Core/Application.h"
 #include "Core/Audio.h"
 #include "Core/Graphics.h"
 #include "Core/Asset.h"
 #include "Core/Script.h"
 #include "Core/Shader.h"
 #include "Core/Sprite.h"
+#include "Editor/Widgets.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
 #include "Interfaces/ITaskService.h"
 #include "Core/Path.h"
-#include "Services/AssetService.h"
-#include "Services/TaskService.h"
-#include "imgui.h"
 #include <algorithm>
 #include <cctype>
 
@@ -21,7 +18,7 @@ namespace Elysium {
 namespace fs = std::filesystem;
 using namespace Services;
 
-AssetEditor::AssetEditor(ServiceLocator& services) : Editor(services, "Asset Browser") {}
+AssetEditor::AssetEditor(ServiceLocator& services) : Editor(services, Title) {}
 
 namespace {
 std::string ToLower(std::string s) {
@@ -52,11 +49,17 @@ DiskCache ScanDiskCache(fs::path rootPath) {
 
     return cache;
 }
+
+const char* FileIcon(const fs::path& path) {
+    const std::string ext = ToLower(path.extension().string());
+    if (ext == ".png" || ext == ".jpg") return ICON_FA_IMAGE;
+    if (ext == ".wav" || ext == ".ogg" || ext == ".mp3") return ICON_FA_MUSIC;
+    if (ext == ".lua" || ext == ".fs" || ext == ".vs" || ext == ".glsl") return ICON_FA_FILE_CODE;
+    return ICON_FA_FILE;
+}
 }  // namespace
 
-void AssetEditor::Draw() {
-    auto& assetService = services_.Get<IAssetService>();
-
+void AssetEditor::RefreshDiskCacheIfDue() {
     // Discovery & Polling — rooted at the current project's asset root, not the
     // engine's own Assets/ (which holds editor-only resources loaded via
     // PathRoot::Engine and shouldn't show up as browsable project content).
@@ -64,107 +67,121 @@ void AssetEditor::Draw() {
         const std::string& assetsRoot = Path::GetAssetsRoot();
         if (fs::exists(assetsRoot)) rootPath_ = fs::canonical(assetsRoot);
     }
-
     if (rootPath_.empty()) return;
 
     // Scan runs on TaskService's worker thread — a synchronous recursive scan here
     // can stall the whole app for a frame or more (e.g. on a OneDrive-synced folder),
     // which reads as periodic freezes during unrelated interactions like gizmo dragging.
-    if (!refreshInFlight_ && services_.Get<IApplicationService>().GetTime() - lastRefreshTime_ > refreshInterval_) {
-        refreshInFlight_ = true;
-        lastRefreshTime_ = services_.Get<IApplicationService>().GetTime();
+    const double now = services_.Get<IApplicationService>().GetTime();
+    if (refreshInFlight_ || now - lastRefreshTime_ <= refreshInterval_) return;
+    refreshInFlight_ = true;
+    lastRefreshTime_ = now;
 
-        auto& taskService = services_.Get<ITaskService>();
-        fs::path rootPath = rootPath_;
-        taskService.Submit<DiskCache>(std::function<DiskCache()>([rootPath]() {
-                          return ScanDiskCache(rootPath);
-                      }))
-            .Then([this](const DiskCache& cache) {
-                directoryCache_ = cache;
-                refreshInFlight_ = false;
-            });
-    }
-
-    if (ImGui::Begin(name_.c_str())) {
-        RenderTreeRecursive(rootPath_);
-    }
-    ImGui::End();
+    fs::path rootPath = rootPath_;
+    services_.Get<ITaskService>()
+        .Submit<DiskCache>(std::function<DiskCache()>([rootPath]() { return ScanDiskCache(rootPath); }))
+        .Then([this](const DiskCache& cache) {
+            directoryCache_ = cache;
+            refreshInFlight_ = false;
+        });
 }
 
-void AssetEditor::RenderTreeRecursive(const fs::path& currentPath) {
-    auto& assetService = services_.Get<IAssetService>();
-    
-    std::string pathKey = currentPath.generic_string();
-    if (directoryCache_.find(pathKey) == directoryCache_.end()) return;
+void AssetEditor::Draw() {
+    RefreshDiskCacheIfDue();
 
-    for (const auto& file : directoryCache_[pathKey]) {
-        // --- FIX: PUSH UNIQUE ID ---
-        // This prevents the "id != 0" assert by ensuring every item has a unique path hash
+    if (BeginWindow()) {
+        if (rootPath_.empty()) {
+            EmptyState("No project asset folder");
+        } else {
+            SearchField("##AssetSearch", searchBuffer_, sizeof(searchBuffer_));
+            ImGui::Separator();
+
+            LoadedAssets loaded;
+            for (const auto& [path, asset] : services_.Get<IAssetService>().GetAllAssets()) {
+                if (asset->IsLoaded()) loaded[path.GetRelativePath()] = asset.get();
+            }
+
+            ImGui::BeginChild("AssetTree");
+            if (searchBuffer_[0] != '\0') DrawSearchResults(loaded);
+            else DrawTree(rootPath_, loaded);
+            ImGui::EndChild();
+        }
+    }
+    EndWindow();
+}
+
+void AssetEditor::DrawTree(const fs::path& currentPath, const LoadedAssets& loaded) {
+    auto it = directoryCache_.find(currentPath.generic_string());
+    if (it == directoryCache_.end()) return;
+
+    for (const auto& file : it->second) {
+        // Keyed by path: two files can share a name in different folders.
         ImGui::PushID(file.relativePath.c_str());
 
-        std::string name = file.path.filename().string();
-        
+        const std::string name = file.path.filename().string();
         if (file.isDirectory) {
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth;
-            if (ImGui::TreeNodeEx(name.c_str(), flags)) {
-                RenderTreeRecursive(file.path);
+            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth;
+            const bool open = ImGui::TreeNodeEx("##dir", flags, "%s  %s", ICON_FA_FOLDER, name.c_str());
+            if (open) {
+                DrawTree(file.path, loaded);
                 ImGui::TreePop();
             }
         } else {
-            // Optimization: AssetService has pathToName_, use that if you can
-            // otherwise we'll stick to the scan for now.
-            IAsset* activeAsset = nullptr;
-            for (const auto& [assetName, asset] : assetService.GetAllAssets()) {
-                // Compare relative paths (GetPath returns full path, use GetRelativePath instead)
-                if (asset->GetPath().GetRelativePath() == file.relativePath) {
-                    activeAsset = asset.get();
-                    break;
-                }
-            }
-            
-            bool isLoaded = (activeAsset != nullptr && activeAsset->IsLoaded());
-            
-            // Apply status coloring
-            if (isLoaded) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 1.0f, 0.2f, 1.0f)); 
-            else ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
-
-            bool isSelected = (selectedFile_ == file.relativePath);
-            if (ImGui::Selectable(name.c_str(), isSelected)) {
-                selectedFile_ = file.relativePath;
-            }
-
-            ImGui::PopStyleColor();
-
-            // Right Click Context Menu
-            if (ImGui::BeginPopupContextItem("AssetCtx")) {
-                if (!isLoaded) {
-                    if (ImGui::MenuItem("Load into Elysium")) {
-                        std::string ext = file.path.extension().string();
-                        Path loadPath(file.relativePath);
-                        if (ext == ".wav")       assetService.LoadAsset<Sound>(loadPath);
-                        else if (ext == ".xml")  assetService.LoadAsset<Sprite>(loadPath);
-                        else if (ext == ".lua")  assetService.LoadAsset<Script>(loadPath);
-                        // .fs only: ShaderAsset treats its path as the fragment shader and
-                        // picks up the sibling .vs itself, if there is one.
-                        else if (ext == ".fs" || ext == ".glsl")
-                                                 assetService.LoadAsset<Shader>(loadPath);
-                        else                     assetService.LoadAsset<Texture>(loadPath);
-                    }
-                } else {
-                    if (ImGui::MenuItem("Reload Asset")) {
-                        assetService.ReloadAsset(activeAsset);
-                    }
-                    if (ImGui::MenuItem("Unload Asset")) {
-                        assetService.GetAsset(activeAsset->GetPath())->Unload();
-                    }
-                }
-                ImGui::EndPopup();
-            }
+            DrawFile(file, loaded, name);
         }
 
-        // --- FIX: POP UNIQUE ID ---
         ImGui::PopID();
     }
+}
+
+void AssetEditor::DrawSearchResults(const LoadedAssets& loaded) {
+    bool any = false;
+    for (const auto& [directory, files] : directoryCache_) {
+        for (const auto& file : files) {
+            if (file.isDirectory || !MatchesSearch(file.relativePath, searchBuffer_)) continue;
+            ImGui::PushID(file.relativePath.c_str());
+            DrawFile(file, loaded, file.relativePath);
+            ImGui::PopID();
+            any = true;
+        }
+    }
+    if (!any) EmptyState("No matching assets");
+}
+
+// A file row: icon and label, full-strength text once loaded, and a load/reload context menu.
+void AssetEditor::DrawFile(const DiskFile& file, const LoadedAssets& loaded, const std::string& label) {
+    auto& assetService = services_.Get<IAssetService>();
+
+    auto found = loaded.find(file.relativePath);
+    IAsset* activeAsset = found != loaded.end() ? found->second : nullptr;
+
+    ImGui::PushStyleColor(ImGuiCol_Text, activeAsset ? Palette::Text : Palette::TextMuted);
+    const std::string text = std::string(FileIcon(file.path)) + "  " + label;
+    if (ImGui::Selectable(text.c_str(), selectedFile_ == file.relativePath, ImGuiSelectableFlags_SpanAllColumns)) {
+        selectedFile_ = file.relativePath;
+    }
+    ImGui::PopStyleColor();
+    ItemTooltip(activeAsset ? "Loaded" : "Not loaded - right-click to load");
+
+    if (!ImGui::BeginPopupContextItem("AssetCtx")) return;
+    if (!activeAsset) {
+        if (ImGui::MenuItem("Load")) {
+            std::string ext = file.path.extension().string();
+            Path loadPath(file.relativePath);
+            if (ext == ".wav")       assetService.LoadAsset<Sound>(loadPath);
+            else if (ext == ".xml")  assetService.LoadAsset<Sprite>(loadPath);
+            else if (ext == ".lua")  assetService.LoadAsset<Script>(loadPath);
+            // .fs only: ShaderAsset treats its path as the fragment shader and
+            // picks up the sibling .vs itself, if there is one.
+            else if (ext == ".fs" || ext == ".glsl")
+                                     assetService.LoadAsset<Shader>(loadPath);
+            else                     assetService.LoadAsset<Texture>(loadPath);
+        }
+    } else {
+        if (ImGui::MenuItem(ICON_FA_ROTATE_LEFT "  Reload")) assetService.ReloadAsset(activeAsset);
+        if (ImGui::MenuItem("Unload")) activeAsset->Unload();
+    }
+    ImGui::EndPopup();
 }
 
 } // namespace Elysium

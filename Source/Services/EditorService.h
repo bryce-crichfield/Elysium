@@ -25,10 +25,10 @@ class EditorService : public IEditorService {
 
     Elysium::World* GetWorld() const override;
 
-    // Component introspection (used by WorldEditor)
+    // Component introspection (used by InspectorEditor)
     const std::vector<ComponentPlaceholder>& GetComponentPlaceholders() const override { return componentPlaceholders; }
 
-    // Selection — shared between WorldEditor's entity list/inspector and viewport picking.
+    // Selection — shared between the Hierarchy, Inspector and Viewport panels.
     const std::vector<Entity>& GetSelectedEntities() const override { return selectedEntities_; }
     void SelectEntity(Entity entity, bool additive = false) override;
     void ClearSelection() override;
@@ -37,12 +37,16 @@ class EditorService : public IEditorService {
     // The free camera RenderSystem renders through while in AppMode::Editor.
     EditorCamera& GetEditorCamera() override { return editorCamera_; }
 
+    Elysium::Scene* GetInspectedScene() override;
+    void SetInspectedScene(Elysium::Scene* scene) override { inspectedScene_ = scene; }
+
    private:
     ServiceLocator& registry_;
 
     std::vector<ComponentPlaceholder> componentPlaceholders;
     std::vector<Entity> selectedEntities_;
     EditorCamera editorCamera_;
+    Elysium::Scene* inspectedScene_ = nullptr;  // may dangle once popped; validated on read
 
     void RegisterComponentTypes();
 };

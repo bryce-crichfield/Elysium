@@ -1,5 +1,6 @@
 #include "Components/TileComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Tile.h"
 #include "Core/Xml.h"
 #include "Interfaces/IAssetService.h"
@@ -45,18 +46,11 @@ namespace Elysium {
     }
 
     void TileComponent::Inspect(TileComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
         auto& assetService = services.Get<Services::IAssetService>();
         const auto& allAssets = assetService.GetAllAssets();
 
         // Tile asset picker
-        Label("Tile: ");
+        PropertyLabel("Tile");
         std::vector<std::string> tileAssetNames;
         tileAssetNames.push_back("<None>");
         for (const auto& [name, asset] : allAssets) {
@@ -89,7 +83,7 @@ namespace Elysium {
         }
 
         // Variant picker — populated from the loaded tile asset
-        Label("Variant: ");
+        PropertyLabel("Variant");
         Tile tile;
         if (!c.tileName.empty()) {
             if (auto* tileData = assetService.Get<Tile>(Path(c.tileName))) {
@@ -131,12 +125,12 @@ namespace Elysium {
             }
         }
 
-        Label("Is Isometric:");
+        PropertyLabel("Is Isometric");
         std::string isoId = "##TileIsIso_" + std::to_string(e);
         ImGui::Checkbox(isoId.c_str(), &c.isIsometric);
 
         float tint[4] = {c.tint.r / 255.0f, c.tint.g / 255.0f, c.tint.b / 255.0f, c.tint.a / 255.0f};
-        Label("Tint: ");
+        PropertyLabel("Tint");
         std::string tintId = "##TileTint_" + std::to_string(e);
         if (ImGui::ColorEdit4(tintId.c_str(), tint)) {
             c.tint = {(unsigned char)(tint[0] * 255), (unsigned char)(tint[1] * 255),

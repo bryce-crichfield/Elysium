@@ -1,5 +1,6 @@
 #include "Components/FollowComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -10,18 +11,11 @@ namespace Elysium {
     }
 
     void FollowComponent::Inspect(FollowComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
-        Label("Follow Speed: ");
+        PropertyLabel("Follow Speed");
         ImGui::DragFloat("##FollowSpeed", &c.speed, 0.1f);
-        Label("Offset X: ");
+        PropertyLabel("Offset X");
         ImGui::DragFloat("##OffsetX", &c.offsetX, 1.0f);
-        Label("Offset Y: ");
+        PropertyLabel("Offset Y");
         ImGui::DragFloat("##OffsetY", &c.offsetY, 1.0f);
     }
 

@@ -5,7 +5,6 @@
 #include "Core/Components.h"
 #include "Core/Entity.h"
 #include "Interfaces/ISceneService.h"
-#include "Services/SceneService.h"
 
 namespace Elysium::Services {
 
@@ -16,6 +15,13 @@ void EditorService::Initialize() {
 }
 
 void EditorService::Shutdown() {
+}
+
+Elysium::Scene* EditorService::GetInspectedScene() {
+    auto& scenes = registry_.Get<ISceneService>();
+    if (scenes.IsInStack(inspectedScene_)) return inspectedScene_;
+    inspectedScene_ = nullptr;
+    return scenes.GetTopScene();
 }
 
 void EditorService::RegisterComponentTypes() {
@@ -40,10 +46,12 @@ void EditorService::RegisterComponentTypes() {
         componentPlaceholders.push_back(placeholder);
     }
 
-    std::sort(componentPlaceholders.begin(), componentPlaceholders.end(),
-              [](const ComponentPlaceholder& a, const ComponentPlaceholder& b) {
-                  return a.name < b.name;
-              });
+    // Inspector and Add Component list them in InspectorOrder, then by name.
+    auto& registry = ComponentRegistry::Instance();
+    std::sort(componentPlaceholders.begin(), componentPlaceholders.end(), [&](const auto& a, const auto& b) {
+        const auto orderA = registry.GetInspectorOrder(a.name), orderB = registry.GetInspectorOrder(b.name);
+        return orderA != orderB ? orderA < orderB : a.name < b.name;
+    });
 }
 
 Elysium::World* EditorService::GetWorld() const {

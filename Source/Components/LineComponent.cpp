@@ -1,5 +1,6 @@
 #include "Components/LineComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Xml.h"
 #include "imgui.h"
 
@@ -25,23 +26,17 @@ namespace Elysium {
     }
 
     void LineComponent::Inspect(LineComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
 
-        Label("X1: ");
+        PropertyLabel("X1");
         ImGui::DragFloat("##X1", &c.x1, 1.0f);
-        Label("Y1: ");
+        PropertyLabel("Y1");
         ImGui::DragFloat("##Y1", &c.y1, 1.0f);
-        Label("X2: ");
+        PropertyLabel("X2");
         ImGui::DragFloat("##X2", &c.x2, 1.0f);
-        Label("Y2: ");
+        PropertyLabel("Y2");
         ImGui::DragFloat("##Y2", &c.y2, 1.0f);
 
-        Label("Thickness: ");
+        PropertyLabel("Thickness");
         ImGui::DragFloat("##Thickness", &c.thickness, 0.1f, 0.1f, 50.0f);
     }
 

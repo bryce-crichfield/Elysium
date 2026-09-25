@@ -25,6 +25,7 @@ namespace Elysium {
         }
 
         static constexpr const char* Name() { return "Collider"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Physics;
         static constexpr const char* XmlTag() { return "ColliderComponent"; }
 
         static void LoadXml(ColliderComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

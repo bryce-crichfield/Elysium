@@ -9,6 +9,7 @@
 
 namespace Elysium {
 class World;
+class Scene;
 }  // namespace Elysium
 
 namespace Elysium::Services {
@@ -42,6 +43,11 @@ class IEditorService : public IService {
     virtual bool IsSelected(Entity entity) const = 0;
 
     virtual EditorCamera& GetEditorCamera() = 0;
+
+    // The scene the Scene panel inspects: the one picked in the Scenes panel while it is
+    // still on the stack, otherwise the top of the stack. Null when the stack is empty.
+    virtual Elysium::Scene* GetInspectedScene() = 0;
+    virtual void SetInspectedScene(Elysium::Scene* scene) = 0;
 };
 
 }  // namespace Elysium::Services

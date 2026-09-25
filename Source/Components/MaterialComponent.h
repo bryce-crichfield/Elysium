@@ -32,6 +32,7 @@ namespace Elysium {
         bool enabled = true;
 
         static constexpr const char* Name() { return "Material"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Material;
         static constexpr const char* XmlTag() { return "MaterialComponent"; }
 
         static void LoadXml(MaterialComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

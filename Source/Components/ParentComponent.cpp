@@ -1,5 +1,6 @@
 #include "Components/ParentComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -18,17 +19,10 @@ namespace Elysium {
     }
 
     void ParentComponent::Inspect(ParentComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
-        Label("Parent: ");
+        PropertyLabel("Parent");
         ImGui::Text("%s (id=%zu)", c.targetName.c_str(), c.parent);
 
-        Label("Child Index: ");
+        PropertyLabel("Child Index");
         ImGui::Text("%u", c.childIndex);
     }
 

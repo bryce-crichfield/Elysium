@@ -16,6 +16,7 @@ namespace Elysium {
         SpriteComponent(const Sprite& sprite, const std::string& marker);
 
         static constexpr const char* Name() { return "Sprite"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "SpriteComponent"; }
 
         static void LoadXml(SpriteComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

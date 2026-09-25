@@ -1,18 +1,23 @@
 #include "ScriptEditor.h"
 #include "Core/Application.h"
+#include "Core/Asset.h"
+#include "Core/Path.h"
+#include "Core/Script.h"
+#include "Editor/Widgets.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
 #include "Interfaces/IScriptService.h"
-#include "Core/Script.h"
-#include "Services/ScriptService.h"
-#include "Services/AssetService.h"
-#include "Core/Path.h"
-#include "imgui.h"
+#include <algorithm>
 #include <fstream>
 
 namespace Elysium {
 
-ScriptEditor::ScriptEditor(ServiceLocator& services) : Editor(services, "Scripts") {
+namespace {
+constexpr int kMinFontSize = 8;
+constexpr int kMaxFontSize = 128;
+}  // namespace
+
+ScriptEditor::ScriptEditor(ServiceLocator& services) : Editor(services, Title) {
 }
 
 void ScriptEditor::Initialize(const ApplicationConfig& config) {
@@ -21,93 +26,103 @@ void ScriptEditor::Initialize(const ApplicationConfig& config) {
     font_ = ImGui::GetIO().Fonts->AddFontFromFileTTF(editorFontPath.GetFullPath().c_str(), (float)fontSize_);
 
     textEditor_.SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());
-
 }
 
 void ScriptEditor::Draw() {
-    if (ImGui::Begin("Script Editor", nullptr, ImGuiWindowFlags_NoCollapse)) {
-        
-        auto& assetService = services_.Get<Services::IAssetService>();
-        const auto& allAssets = assetService.GetAllAssets();
+    if (BeginWindow()) {
+        DrawToolbar();
 
-        if (ImGui::BeginCombo("Select Script", selectedAssetName.c_str())) {
-            for (const auto& [name, asset] : allAssets) {
-                if (assetService.GetData<Script>(asset.get())) {
-                    std::string nameStr = name.GetRelativePath();
-                    bool isSelected = (selectedAssetName == nameStr);
-                    if (ImGui::Selectable(nameStr.c_str(), isSelected)) {
-                        selectedAssetName = nameStr;
-                        // Load script content
-                        if (auto* script = assetService.Get<Script>(name)) {
-                            textEditor_.SetText(script->source);
-                            statusMessage = "Loaded script: " + nameStr;
-                        }
-                    }
-                    if (isSelected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-            }
-            ImGui::EndCombo();
-        }
-        
-        if (ImGui::Button("Save")) {
-            if (!selectedAssetName.empty()) {
-                IAsset* asset = assetService.GetAsset(Path(selectedAssetName));
-                if (asset) {
-                    std::string fullPath = asset->GetPath().GetFullPath();
-                    auto scriptSource = textEditor_.GetText();
-                    std::ofstream file(fullPath, std::ios::binary | std::ios::trunc);
-                    file << scriptSource;
-                    bool saved = file.good();
-                    file.close();
-                    if (saved) {
-                        // Capture the path before reloading — ReloadAsset destroys the
-                        // existing instance `asset` points to.
-                        Path scriptPath = asset->GetPath();
-
-                        // Reload in AssetService
-                        assetService.ReloadAsset(asset);
-
-                        // Reload in ScriptService (using relative path as identifier)
-                        auto& scriptService = services_.Get<Services::IScriptService>();
-                        scriptService.ReloadScript(scriptPath);
-                        
-                        statusMessage = "Saved and Reloaded " + selectedAssetName;
-                    } else {
-                        statusMessage = "Failed to save " + selectedAssetName;
-                    }
-                }
-            } else {
-                statusMessage = "No script selected to save";
-            }
-        }
-        
-        ImGui::SameLine();
-        if (ImGui::Button("Run")) {
-            auto& scriptService = services_.Get<Services::IScriptService>();
-            std::string scriptSource = textEditor_.GetText();
-            scriptService.ExecuteString(scriptSource);
-            statusMessage = "Executed script";
-        }
-        
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(100);
-        if (ImGui::InputInt("Font Size", &fontSize_)) {
-            if (fontSize_ < 8) fontSize_ = 8;
-            if (fontSize_ > 128) fontSize_ = 128;
-            services_.Get<Services::IApplicationService>().RequestFontReload();
+        if (!statusMessage_.empty()) {
+            ColoredText(statusIsError_ ? Palette::Error : Palette::TextMuted, statusMessage_.c_str());
         }
 
-        if (!statusMessage.empty()) {
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", statusMessage.c_str());
-        }
-
-        ImGui::PushFont(static_cast<ImFont*>(font_));   
-        textEditor_.Render("Script Editor Text Area", ImVec2(-1.0f, -1.0f), false);
+        // With no script picked the buffer is a scratchpad for Run.
+        ImGui::PushFont(static_cast<ImFont*>(font_));
+        textEditor_.Render("ScriptText", ImVec2(-1.0f, -1.0f), false);
         ImGui::PopFont();
     }
-    ImGui::End();
+    EndWindow();
+}
+
+void ScriptEditor::DrawToolbar() {
+    auto& assetService = services_.Get<Services::IAssetService>();
+
+    // Script picker fills whatever the buttons and font size leave.
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float fontWidth = ImGui::GetFrameHeight() * 4.0f;
+    const float trailing = ButtonWidth(ICON_FA_FLOPPY_DISK "  Save") + ButtonWidth(ICON_FA_PLAY "  Run") + fontWidth +
+                           style.ItemSpacing.x * 3.0f;
+    ImGui::SetNextItemWidth(-trailing);
+    const char* preview = selectedAssetName_.empty() ? "Select a script" : selectedAssetName_.c_str();
+    if (ImGui::BeginCombo("##Script", preview)) {
+        for (const auto& [path, asset] : assetService.GetAllAssets()) {
+            if (!assetService.GetData<Script>(asset.get())) continue;
+            const std::string name = path.GetRelativePath();
+            const bool isSelected = selectedAssetName_ == name;
+            if (ImGui::Selectable(name.c_str(), isSelected)) SelectScript(name);
+            if (isSelected) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+    ImGui::BeginDisabled(selectedAssetName_.empty());
+    if (PrimaryButton(ICON_FA_FLOPPY_DISK "  Save")) SaveScript();
+    ImGui::EndDisabled();
+    ItemTooltip("Write to disk and hot-reload");
+
+    ImGui::SameLine();
+    if (ImGui::Button(ICON_FA_PLAY "  Run")) {
+        services_.Get<Services::IScriptService>().ExecuteString(textEditor_.GetText());
+        SetStatus("Executed script");
+    }
+    ItemTooltip("Execute the buffer as a Lua chunk");
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(fontWidth);
+    if (ImGui::InputInt("##FontSize", &fontSize_)) {
+        fontSize_ = std::clamp(fontSize_, kMinFontSize, kMaxFontSize);
+        services_.Get<Services::IApplicationService>().RequestFontReload();
+    }
+    ItemTooltip("Editor font size");
+}
+
+void ScriptEditor::SelectScript(const std::string& name) {
+    selectedAssetName_ = name;
+    if (auto* script = services_.Get<Services::IAssetService>().Get<Script>(Path(name))) {
+        textEditor_.SetText(script->source);
+        SetStatus("Loaded " + name);
+    }
+}
+
+void ScriptEditor::SaveScript() {
+    auto& assetService = services_.Get<Services::IAssetService>();
+    IAsset* asset = assetService.GetAsset(Path(selectedAssetName_));
+    if (!asset) {
+        SetStatus("Script is no longer loaded: " + selectedAssetName_, true);
+        return;
+    }
+
+    std::ofstream file(asset->GetPath().GetFullPath(), std::ios::binary | std::ios::trunc);
+    file << textEditor_.GetText();
+    const bool saved = file.good();
+    file.close();
+    if (!saved) {
+        SetStatus("Failed to save " + selectedAssetName_, true);
+        return;
+    }
+
+    // Capture the path before reloading — ReloadAsset destroys the existing instance
+    // `asset` points to.
+    Path scriptPath = asset->GetPath();
+    assetService.ReloadAsset(asset);
+    services_.Get<Services::IScriptService>().ReloadScript(scriptPath);
+    SetStatus("Saved and reloaded " + selectedAssetName_);
+}
+
+void ScriptEditor::SetStatus(const std::string& message, bool isError) {
+    statusMessage_ = message;
+    statusIsError_ = isError;
 }
 
 }

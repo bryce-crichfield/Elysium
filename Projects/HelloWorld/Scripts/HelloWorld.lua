@@ -16,3 +16,4 @@ function HelloWorldGame:OnEvent(event)
 end
 
 return HelloWorldGame
+

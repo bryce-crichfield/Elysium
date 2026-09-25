@@ -1,5 +1,6 @@
 #include "Components/AttackComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -9,27 +10,20 @@ namespace Elysium {
         c.cooldown = el->FloatAttribute("cooldown", 1.0f);
     }
 
-    void AttackComponent::Inspect(AttackComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-        
-        Label("Range: ");
+    void AttackComponent::Inspect(AttackComponent& c, Entity e, ServiceLocator& services) {        
+        PropertyLabel("Range");
         ImGui::DragFloat("##Range", &c.range, 1.0f, 0.0f);
-        Label("Damage: ");
+        PropertyLabel("Damage");
         ImGui::DragFloat("##Damage", &c.damage, 1.0f, 0.0f);
-        Label("Cooldown: ");
+        PropertyLabel("Cooldown");
         ImGui::DragFloat("##Cooldown", &c.cooldown, 0.1f, 0.0f);
-        Label("Timer: ");
+        PropertyLabel("Timer");
         ImGui::DragFloat("##Timer", &c.timer, 0.1f, 0.0f);
-        Label("Target ID: ");
+        PropertyLabel("Target ID");
         int tId = (int)c.targetId;
         ImGui::DragInt("##TargetId", &tId, 1.0f, 0);
         c.targetId = (Entity)tId;
-        Label("Is Attacking: ");
+        PropertyLabel("Is Attacking");
         ImGui::Checkbox("##IsAttacking", &c.isAttacking);
     }
 

@@ -8,6 +8,7 @@ namespace Elysium {
         float offsetY = 0.0f;
 
         static constexpr const char* Name() { return "Follow"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Physics;
         static constexpr const char* XmlTag() { return "FollowComponent"; }
 
         static void LoadXml(FollowComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

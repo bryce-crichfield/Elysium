@@ -1,5 +1,6 @@
 #include "Components/EllipseComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Xml.h"
 #include "imgui.h"
 
@@ -18,16 +19,10 @@ namespace Elysium {
     }
 
     void EllipseComponent::Inspect(EllipseComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
 
-        Label("Radius H: ");
+        PropertyLabel("Radius H");
         ImGui::DragFloat("##RadiusH", &c.radiusH, 1.0f, 1.0f, 1000.0f);
-        Label("Radius V: ");
+        PropertyLabel("Radius V");
         ImGui::DragFloat("##RadiusV", &c.radiusV, 1.0f, 1.0f, 1000.0f);
     }
 

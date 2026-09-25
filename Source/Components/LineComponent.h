@@ -11,6 +11,7 @@ namespace Elysium {
                       float thickness = 1.0f);
 
         static constexpr const char* Name() { return "Line"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "LineComponent"; }
 
         static void LoadXml(LineComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

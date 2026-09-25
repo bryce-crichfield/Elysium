@@ -25,6 +25,7 @@ namespace Elysium {
         }
 
         static constexpr const char* Name() { return "Script"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Scripting;
         static constexpr const char* XmlTag() { return "ScriptComponent"; }
 
         static void LoadXml(ScriptComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

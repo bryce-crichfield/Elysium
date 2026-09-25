@@ -38,6 +38,7 @@ namespace Elysium {
         std::unordered_map<std::string, Value> overrides;
 
         static constexpr const char* Name() { return "Shader"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Shader;
         static constexpr const char* XmlTag() { return "ShaderComponent"; }
 
         static void LoadXml(ShaderComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

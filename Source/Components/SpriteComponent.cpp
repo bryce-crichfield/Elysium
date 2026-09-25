@@ -1,5 +1,6 @@
 #include "Components/SpriteComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Sprite.h"
 #include "Core/Xml.h"
 #include "Interfaces/IAssetService.h"
@@ -45,18 +46,11 @@ namespace Elysium {
     }
 
     void SpriteComponent::Inspect(SpriteComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
         auto& assetService = services.Get<Elysium::Services::IAssetService>();
         const auto& allAssets = assetService.GetAllAssets();
 
         // Sprite asset picker
-        Label("Sprite: ");
+        PropertyLabel("Sprite");
         std::vector<std::string> spriteAssetNames;
         spriteAssetNames.push_back("<None>");
 
@@ -101,7 +95,7 @@ namespace Elysium {
         }
 
         // Sheet picker
-        Label("Sheet: ");
+        PropertyLabel("Sheet");
         if (!sprite.name.empty() && !sprite.sheets.empty()) {
             std::vector<std::string> sheetNames;
             sheetNames.push_back("<None>");
@@ -143,7 +137,7 @@ namespace Elysium {
         }
 
         // Sequence picker
-        Label("Sequence: ");
+        PropertyLabel("Sequence");
         if (!sprite.name.empty() && !c.sheetName.empty() && sprite.sheets.count(c.sheetName)) {
             const auto& sheet = sprite.sheets.at(c.sheetName);
             std::vector<std::string> sequenceNames;
@@ -185,15 +179,15 @@ namespace Elysium {
             }
         }
 
-        Label("Sequence Index: ");
+        PropertyLabel("Sequence Index");
         std::string seqIndexId = "##SpriteSequenceIndex_" + std::to_string(e);
         ImGui::DragInt(seqIndexId.c_str(), &c.sequenceIndex, 1.0f, 0);
 
-        Label("Duration: ");
+        PropertyLabel("Duration");
         std::string durationId = "##SpriteFrameDuration_" + std::to_string(e);
         ImGui::DragFloat(durationId.c_str(), &c.frameDuration, 0.01f, 0.0f, 10.0f);
 
-        Label("Elapsed: ");
+        PropertyLabel("Elapsed");
         std::string elapsedId = "##SpriteFrameElapsed_" + std::to_string(e);
         ImGui::DragFloat(elapsedId.c_str(), &c.frameElapsed, 0.01f, 0.0f);
     }

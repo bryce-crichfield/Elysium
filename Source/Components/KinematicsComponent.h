@@ -13,6 +13,7 @@ namespace Elysium {
             : velocity({0,0}), acceleration({0,0}), friction(f), maxSpeed(maxSpd) {}
 
         static constexpr const char* Name() { return "Kinematics"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Physics;
         static constexpr const char* XmlTag() { return "KinematicsComponent"; }
 
         static void LoadXml(KinematicsComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

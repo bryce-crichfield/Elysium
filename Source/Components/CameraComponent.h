@@ -13,6 +13,7 @@ namespace Elysium {
         CameraComponent();
 
         static constexpr const char* Name() { return "Camera"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Rendering;
         static constexpr const char* XmlTag() { return "CameraComponent"; }
 
         static void LoadXml(CameraComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

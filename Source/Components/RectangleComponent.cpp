@@ -1,5 +1,6 @@
 #include "Components/RectangleComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Xml.h"
 #include "imgui.h"
 
@@ -24,20 +25,14 @@ namespace Elysium {
     }
 
     void RectangleComponent::Inspect(RectangleComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
 
-        Label("Width: ");
+        PropertyLabel("Width");
         ImGui::DragFloat("##Width", &c.width, 1.0f, 1.0f, 1000.0f);
-        Label("Height: ");
+        PropertyLabel("Height");
         ImGui::DragFloat("##Height", &c.height, 1.0f, 1.0f, 1000.0f);
-        Label("Corner Radius: ");
+        PropertyLabel("Corner Radius");
         ImGui::DragFloat("##CornerRadius", &c.cornerRadius, 0.01f, 0.0f, 1.0f);
-        Label("Origin: ");
+        PropertyLabel("Origin");
         ImGui::DragFloat2("##Origin", &c.originX, 0.01f, 0.0f, 1.0f);
     }
 

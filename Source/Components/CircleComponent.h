@@ -10,6 +10,7 @@ namespace Elysium {
         CircleComponent(float r = 10.0f);
 
         static constexpr const char* Name() { return "Circle"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "CircleComponent"; }
 
         static void LoadXml(CircleComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

@@ -22,6 +22,7 @@ namespace Elysium {
               tileWidth(tw), tileHeight(th) {}
 
         static constexpr const char* Name() { return "Tile"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "TileComponent"; }
 
         static void LoadXml(TileComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

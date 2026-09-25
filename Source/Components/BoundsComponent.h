@@ -21,6 +21,7 @@ namespace Elysium {
 
 
         static constexpr const char* Name() { return "Bounds"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "BoundsComponent"; }
 
         static void LoadXml(BoundsComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

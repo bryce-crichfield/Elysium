@@ -1,6 +1,7 @@
 #define SOL_HEADER_ONLY 1
 #define SOL_ALL_SAFETIES_ON 1
 #include "Services/ScriptService.h"
+#include "Editor/Widgets.h"
 #include "Core/Common.h"
 #include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
@@ -871,8 +872,7 @@ void ScriptService::InspectEntityScript(Entity entity, Path scriptPath) {
 
         // Skip functions and tables for now
         if (val.is<sol::function>() || val.is<sol::table>()) {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s:", keyStr.c_str());
-            ImGui::SameLine();
+            PropertyLabel(keyStr.c_str(), true);
             ImGui::TextDisabled(val.is<sol::function>() ? "(function)" : "(table)");
             continue;
         }
@@ -882,19 +882,20 @@ void ScriptService::InspectEntityScript(Entity entity, Path scriptPath) {
         // Editable fields
         if (val.is<float>() || val.is<double>()) {
             float value = val.as<float>();
-            ImGui::SetNextItemWidth(150);
-            if (ImGui::DragFloat(keyStr.c_str(), &value, 0.1f)) {
+            PropertyLabel(keyStr.c_str());
+            if (ImGui::DragFloat("##value", &value, 0.1f)) {
                 instance[keyStr] = value;
             }
         } else if (val.is<int>()) {
             int value = val.as<int>();
-            ImGui::SetNextItemWidth(150);
-            if (ImGui::DragInt(keyStr.c_str(), &value)) {
+            PropertyLabel(keyStr.c_str());
+            if (ImGui::DragInt("##value", &value)) {
                 instance[keyStr] = value;
             }
         } else if (val.is<bool>()) {
             bool value = val.as<bool>();
-            if (ImGui::Checkbox(keyStr.c_str(), &value)) {
+            PropertyLabel(keyStr.c_str());
+            if (ImGui::Checkbox("##value", &value)) {
                 instance[keyStr] = value;
             }
         } else if (val.is<std::string>()) {
@@ -903,13 +904,12 @@ void ScriptService::InspectEntityScript(Entity entity, Path scriptPath) {
             strncpy(buffer, value.c_str(), sizeof(buffer) - 1);
             buffer[sizeof(buffer) - 1] = '\0';
 
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::InputText(keyStr.c_str(), buffer, sizeof(buffer))) {
+            PropertyLabel(keyStr.c_str());
+            if (ImGui::InputText("##value", buffer, sizeof(buffer))) {
                 instance[keyStr] = std::string(buffer);
             }
         } else {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s:", keyStr.c_str());
-            ImGui::SameLine();
+            PropertyLabel(keyStr.c_str(), true);
             ImGui::TextDisabled("(unknown type)");
         }
 

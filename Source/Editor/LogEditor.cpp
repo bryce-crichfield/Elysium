@@ -1,21 +1,28 @@
 #include "LogEditor.h"
 #include <algorithm>
-#include "Core/Application.h"
-#include "Interfaces/ILogService.h"
 #include "Core/Common.h"
-#include "Services/LogService.h"
-#include "imgui.h"
+#include "Editor/Widgets.h"
+#include "Interfaces/ILogService.h"
 
 namespace Elysium {
 
 using namespace Services;
 
-LogEditor::LogEditor(ServiceLocator& services) : Editor(services, "Log Viewer") {
-    // Enable all log levels by default
-    levelFilters_[LogLevel::DEBUG] = true;
-    levelFilters_[LogLevel::INFO] = true;
-    levelFilters_[LogLevel::WARNING] = true;
-    levelFilters_[LogLevel::Error] = true;
+namespace {
+struct LevelInfo {
+    LogLevel level;
+    const char* name;
+};
+constexpr LevelInfo kLevels[] = {
+    {LogLevel::DEBUG, "Debug"},
+    {LogLevel::INFO, "Info"},
+    {LogLevel::WARNING, "Warning"},
+    {LogLevel::Error, "Error"},
+};
+}  // namespace
+
+LogEditor::LogEditor(ServiceLocator& services) : Editor(services, Title) {
+    for (const auto& info : kLevels) levelFilters_[info.level] = true;
 }
 
 void LogEditor::Draw() {
@@ -23,166 +30,69 @@ void LogEditor::Draw() {
 
     auto& service = services_.Get<ILogService>();
 
-    ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
-        DrawHeader(service);
+    if (BeginWindow()) {
+        DrawToolbar(service);
         ImGui::Separator();
-
-        if (showFilterPanel_) {
-            DrawFilterPanel(service);
-        }
-
         DrawLogEntries(service);
     }
-    ImGui::End();
+    EndWindow();
 }
 
-void LogEditor::DrawHeader(ILogService& service) {
-    const auto& logBuffer = service.GetLogBuffer();
-    const auto& topics = service.GetAllTopics();
+void LogEditor::DrawToolbar(ILogService& service) {
+    SearchField("##LogSearch", searchBuffer_, sizeof(searchBuffer_), Theme::SearchWidth);
 
-    ImGui::Text("Log Entries: %zu", logBuffer.size());
-    ImGui::SameLine();
-    ImGui::Text("Topics: %zu", topics.size());
-    ImGui::SameLine();
+    DrawLevelToggles();
 
-    if (ImGui::Button(showFilterPanel_ ? "Hide Filters" : "Show Filters")) {
-        showFilterPanel_ = !showFilterPanel_;
-    }
     ImGui::SameLine();
+    DrawTopicFilter(service);
 
-    // Search bar
-    ImGui::Text("Search:");
+    // Right side: entry count and copy.
+    const std::string count = selectedLogIndices_.empty()
+        ? std::to_string(service.GetLogBuffer().size()) + " entries"
+        : std::to_string(selectedLogIndices_.size()) + " selected";
+    AlignRight(ImGui::CalcTextSize(count.c_str()).x + ButtonWidth(ICON_FA_COPY) + ImGui::GetStyle().ItemSpacing.x);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", count.c_str());
     ImGui::SameLine();
-    static char searchBuffer[256] = "";
-    ImGui::PushItemWidth(200);
-    if (ImGui::InputText("##LogSearch", searchBuffer, sizeof(searchBuffer))) {
-        searchFilter_ = std::string(searchBuffer);
-    }
-    ImGui::PopItemWidth();
-    ImGui::SameLine();
+    ImGui::BeginDisabled(selectedLogIndices_.empty());
+    if (IconButton(ICON_FA_COPY, "Copy selected entries")) CopySelection(service);
+    ImGui::EndDisabled();
+}
 
-    if (ImGui::SmallButton("Clear##Search")) {
-        searchBuffer[0] = '\0';
-        searchFilter_.clear();
-    }
-    ImGui::SameLine();
-
-    // Copy selected button
-    if (ImGui::Button("Copy Selected")) {
-        if (!selectedLogIndices_.empty()) {
-            std::string combinedText = "";
-            for (int idx : selectedLogIndices_) {
-                if (idx >= 0 && idx < (int)logBuffer.size()) {
-                    const LogEntry& entry = logBuffer[idx];
-                    combinedText += service.FormatLogEntry(entry) + "\n";
-                }
-            }
-            if (!combinedText.empty()) {
-                ImGui::SetClipboardText(combinedText.c_str());
-            }
-        }
-    }
-
-    if (!selectedLogIndices_.empty()) {
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "(%zu selected)", selectedLogIndices_.size());
+// One toggle per level, tinted with its log color and dimmed while hidden.
+void LogEditor::DrawLevelToggles() {
+    for (const auto& info : kLevels) {
+        bool& enabled = levelFilters_[info.level];
+        ImGui::PushStyleColor(ImGuiCol_Text, enabled ? LevelColor(info.level) : Palette::TextDisabled);
+        ImGui::PushStyleColor(ImGuiCol_Button, enabled ? Palette::Surface0 : Palette::WithAlpha(Palette::Surface0, 0.0f));
+        ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+        if (ImGui::Button(info.name)) enabled = !enabled;
+        ImGui::PopStyleColor(2);
+        ItemTooltip(enabled ? "Hide this level" : "Show this level");
     }
 }
 
-void LogEditor::DrawFilterPanel(ILogService& service) {
-    if (ImGui::BeginChild("FilterPanel", ImVec2(0, 200), true)) {
-        DrawLevelFilters();
-        ImGui::SameLine();
-        DrawTopicFilters(service);
-    }
-    ImGui::EndChild();
-}
+void LogEditor::DrawTopicFilter(ILogService& service) {
+    const auto topics = service.GetAllTopics();
+    // Auto-enable new topics
+    for (const auto& topic : topics) topicFilters_.try_emplace(topic, true);
 
-void LogEditor::DrawLevelFilters() {
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.1f, 0.1f, 0.1f, 0.3f));
-    if (ImGui::BeginChild("LevelFilters", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f - 5, 180), true)) {
-        ImGui::Text("Log Levels");
-        ImGui::Separator();
+    const bool anyHidden = std::any_of(topicFilters_.begin(), topicFilters_.end(), [](const auto& p) { return !p.second; });
+    if (anyHidden) ImGui::PushStyleColor(ImGuiCol_Text, Palette::Accent);
+    if (ImGui::Button(ICON_FA_FILTER "  Topics")) ImGui::OpenPopup("TopicFilter");
+    if (anyHidden) ImGui::PopStyleColor();
 
-        struct LevelFilter {
-            LogLevel level;
-            const char* name;
-            ImU32 color;
-        };
-        const LevelFilter levels[] = {
-            {LogLevel::DEBUG, "DEBUG", IM_COL32(173, 216, 230, 255)},
-            {LogLevel::INFO, "INFO", IM_COL32(255, 255, 255, 255)},
-            {LogLevel::WARNING, "WARNING", IM_COL32(255, 255, 0, 255)},
-            {LogLevel::Error, "ERROR", IM_COL32(255, 100, 100, 255)}};
-
-        for (const auto& levelFilter : levels) {
-            ImGui::PushStyleColor(ImGuiCol_Text, levelFilter.color);
-            ImGui::Checkbox(levelFilter.name, &levelFilters_[levelFilter.level]);
-            ImGui::PopStyleColor();
-            ImGui::SameLine();
-        }
-        ImGui::NewLine();
-
-        if (ImGui::SmallButton("All Levels")) {
-            for (auto& pair : levelFilters_)
-                pair.second = true;
-        }
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Clear Levels")) {
-            for (auto& pair : levelFilters_)
-                pair.second = false;
-        }
-    }
-    ImGui::EndChild();
-    ImGui::PopStyleColor();
-}
-
-void LogEditor::DrawTopicFilters(ILogService& service) {
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.1f, 0.1f, 0.1f, 0.3f));
-    if (ImGui::BeginChild("TopicFilters", ImVec2(0, 180), true)) {
-        auto topics = service.GetAllTopics();
-
-        // Auto-enable new topics
-        for (const auto& topic : topics) {
-            if (topicFilters_.find(topic) == topicFilters_.end()) {
-                topicFilters_[topic] = true;
-            }
-        }
-
-        ImGui::Text("Topics (%zu)", topics.size());
-        ImGui::SameLine();
-
-        if (ImGui::SmallButton("All Topics")) {
-            for (auto& pair : topicFilters_)
-                pair.second = true;
-        }
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Clear Topics")) {
-            for (auto& pair : topicFilters_)
-                pair.second = false;
-        }
-        ImGui::Separator();
-
-        int itemsPerRow = std::max(1, (int)(ImGui::GetContentRegionAvail().x / 120));
-
-        for (size_t i = 0; i < topics.size(); ++i) {
-            const std::string& topic = topics[i];
-            bool& enabled = topicFilters_[topic];
-
-            ImGui::Checkbox(topic.c_str(), &enabled);
-
-            if ((i + 1) % itemsPerRow != 0 && i + 1 < topics.size()) {
-                ImGui::SameLine();
-            }
-        }
-    }
-    ImGui::EndChild();
-    ImGui::PopStyleColor();
+    if (!ImGui::BeginPopup("TopicFilter")) return;
+    if (ImGui::SmallButton("All")) for (auto& [topic, enabled] : topicFilters_) enabled = true;
+    ImGui::SameLine();
+    if (ImGui::SmallButton("None")) for (auto& [topic, enabled] : topicFilters_) enabled = false;
+    ImGui::Separator();
+    for (const auto& topic : topics) ImGui::Checkbox(topic.c_str(), &topicFilters_[topic]);
+    ImGui::EndPopup();
 }
 
 void LogEditor::DrawLogEntries(ILogService& service) {
-    if (ImGui::BeginChild("LogScrollRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar)) {
+    if (ImGui::BeginChild("LogScrollRegion", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar)) {
         const auto& logBuffer = service.GetLogBuffer();
 
         size_t startIdx = logBuffer.size() > MAX_DISPLAY_LOGS ? logBuffer.size() - MAX_DISPLAY_LOGS : 0;
@@ -201,14 +111,7 @@ void LogEditor::DrawLogEntries(ILogService& service) {
             ImGui::PushID(logIndex);
 
             bool isSelected = selectedLogIndices_.find(logIndex) != selectedLogIndices_.end();
-            if (isSelected) {
-                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 255, 255, 255));
-                ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(100, 100, 150, 128));
-                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(120, 120, 170, 128));
-                ImGui::PushStyleColor(ImGuiCol_HeaderActive, IM_COL32(140, 140, 190, 128));
-            }
-
-            if (ImGui::Selectable(("##log_" + std::to_string(logIndex)).c_str(), isSelected, ImGuiSelectableFlags_AllowDoubleClick)) {
+            if (ImGui::Selectable("##log", isSelected, ImGuiSelectableFlags_AllowDoubleClick)) {
                 HandleLogSelection(logIndex, visibleIndices);
 
                 if (ImGui::IsMouseDoubleClicked(0)) {
@@ -216,21 +119,15 @@ void LogEditor::DrawLogEntries(ILogService& service) {
                 }
             }
 
-            if (isSelected) {
-                ImGui::PopStyleColor(4);
-            }
-
             ImGui::SameLine(0, 0);
-            ImGui::PushStyleColor(ImGuiCol_Text, GetImGuiColor(entry.level));
-            ImGui::TextUnformatted(fullLogText.c_str());
-            ImGui::PopStyleColor();
+            ColoredText(LevelColor(entry.level), fullLogText.c_str());
 
             DrawLogContextMenu(service, logIndex, entry, fullLogText);
             ImGui::PopID();
         }
 
-        if (visibleIndices.empty() && logBuffer.size() > 0) {
-            ImGui::TextColored(ImVec4(1, 1, 0, 1), "No entries match current filters. Total entries: %zu", logBuffer.size());
+        if (visibleIndices.empty()) {
+            EmptyState(logBuffer.empty() ? "No log entries yet" : "No entries match the current filters");
         }
 
         if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
@@ -268,40 +165,32 @@ void LogEditor::HandleLogSelection(int logIndex, const std::vector<int>& visible
     }
 }
 
+void LogEditor::CopySelection(ILogService& service) const {
+    const auto& logBuffer = service.GetLogBuffer();
+    std::vector<int> indices(selectedLogIndices_.begin(), selectedLogIndices_.end());
+    std::sort(indices.begin(), indices.end());
+
+    std::string combinedText;
+    for (int idx : indices) {
+        if (idx >= 0 && idx < (int)logBuffer.size()) combinedText += service.FormatLogEntry(logBuffer[idx]) + "\n";
+    }
+    if (!combinedText.empty()) ImGui::SetClipboardText(combinedText.c_str());
+}
+
 void LogEditor::DrawLogContextMenu(ILogService& service, int logIndex, const LogEntry& entry,
                                    const std::string& fullLogText) {
-    if (ImGui::BeginPopupContextItem(("log_context_" + std::to_string(logIndex)).c_str())) {
-        if (ImGui::MenuItem("Copy This Line")) {
-            ImGui::SetClipboardText(fullLogText.c_str());
-        }
-        if (ImGui::MenuItem("Copy Message Only")) {
-            ImGui::SetClipboardText(entry.message.c_str());
-        }
-        if (ImGui::MenuItem("Copy Topic")) {
-            ImGui::SetClipboardText(entry.topic.c_str());
-        }
-        if (ImGui::MenuItem("Copy Timestamp")) {
-            std::string timeStr = service.FormatTimestamp(entry.timestamp);
-            ImGui::SetClipboardText(timeStr.c_str());
-        }
+    if (!ImGui::BeginPopupContextItem("LogContext")) return;
 
-        if (selectedLogIndices_.size() > 1) {
-            ImGui::Separator();
-            if (ImGui::MenuItem("Copy All Selected")) {
-                std::string combinedText = "";
-                const auto& logBuffer = service.GetLogBuffer();
-                for (int idx : selectedLogIndices_) {
-                    if (idx >= 0 && idx < (int)logBuffer.size()) {
-                        combinedText += service.FormatLogEntry(logBuffer[idx]) + "\n";
-                    }
-                }
-                if (!combinedText.empty()) {
-                    ImGui::SetClipboardText(combinedText.c_str());
-                }
-            }
-        }
-        ImGui::EndPopup();
+    if (ImGui::MenuItem("Copy Line")) ImGui::SetClipboardText(fullLogText.c_str());
+    if (ImGui::MenuItem("Copy Message")) ImGui::SetClipboardText(entry.message.c_str());
+    if (ImGui::MenuItem("Copy Topic")) ImGui::SetClipboardText(entry.topic.c_str());
+    if (ImGui::MenuItem("Copy Timestamp")) ImGui::SetClipboardText(service.FormatTimestamp(entry.timestamp).c_str());
+
+    if (selectedLogIndices_.size() > 1) {
+        ImGui::Separator();
+        if (ImGui::MenuItem("Copy All Selected")) CopySelection(service);
     }
+    ImGui::EndPopup();
 }
 
 bool LogEditor::ShouldDisplayEntry(const LogEntry& entry) const {
@@ -315,37 +204,15 @@ bool LogEditor::ShouldDisplayEntry(const LogEntry& entry) const {
         return false;
     }
 
-    if (!searchFilter_.empty()) {
-        std::string lowerSearch = searchFilter_;
-        std::transform(lowerSearch.begin(), lowerSearch.end(), lowerSearch.begin(), ::tolower);
-
-        std::string lowerMessage = entry.message;
-        std::transform(lowerMessage.begin(), lowerMessage.end(), lowerMessage.begin(), ::tolower);
-
-        std::string lowerTopic = entry.topic;
-        std::transform(lowerTopic.begin(), lowerTopic.end(), lowerTopic.begin(), ::tolower);
-
-        if (lowerMessage.find(lowerSearch) == std::string::npos &&
-            lowerTopic.find(lowerSearch) == std::string::npos) {
-            return false;
-        }
-    }
-
-    return true;
+    return MatchesSearch(entry.message, searchBuffer_) || MatchesSearch(entry.topic, searchBuffer_);
 }
 
-unsigned int LogEditor::GetImGuiColor(LogLevel level) const {
+ImVec4 LogEditor::LevelColor(LogLevel level) {
     switch (level) {
-        case LogLevel::DEBUG:
-            return IM_COL32(173, 216, 230, 255);
-        case LogLevel::INFO:
-            return IM_COL32(255, 255, 255, 255);
-        case LogLevel::WARNING:
-            return IM_COL32(255, 255, 0, 255);
-        case LogLevel::Error:
-            return IM_COL32(255, 100, 100, 255);
-        default:
-            return IM_COL32(255, 255, 255, 255);
+        case LogLevel::DEBUG:   return Palette::Debug;
+        case LogLevel::WARNING: return Palette::Warning;
+        case LogLevel::Error:   return Palette::Error;
+        default:                return Palette::Text;
     }
 }
 

@@ -9,12 +9,15 @@
 #include "Services/Services.h"
 #include "Services/ScriptService.h"
 #include "Editor/SceneEditor.h"
-#include "Editor/WorldEditor.h"
+#include "Editor/ScenesEditor.h"
+#include "Editor/HierarchyEditor.h"
+#include "Editor/InspectorEditor.h"
 #include "Editor/LogEditor.h"
 #include "Editor/AssetEditor.h"
 #include "Editor/NetworkEditor.h"
 #include "Editor/ScriptEditor.h"
 #include "Editor/ViewportEditor.h"
+#include "Editor/Theme.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "rlImGui.h"
@@ -119,13 +122,16 @@ bool Application::Initialize(const std::string& configPath) {
     serviceLocator_.Register<Services::ScriptService, Services::IScriptService>(
         std::make_unique<Services::ScriptService>(serviceLocator_));
 
+    // Registration order is tab order within each dock node.
+    RegisterEditor<ScenesEditor>();
+    RegisterEditor<HierarchyEditor>();
+    RegisterEditor<InspectorEditor>();
     RegisterEditor<SceneEditor>();
-    RegisterEditor<WorldEditor>();
+    RegisterEditor<ViewportEditor>();
+    RegisterEditor<ScriptEditor>();
     RegisterEditor<LogEditor>();
     RegisterEditor<AssetEditor>();
     RegisterEditor<NetworkEditor>();
-    RegisterEditor<ScriptEditor>();
-    RegisterEditor<ViewportEditor>();
 
     if (!ApplicationConfig::FromXML(configPath, config_)) {
         LOG_ERROR("Application", "Failed to load ApplicationConfig.xml");
@@ -140,6 +146,8 @@ bool Application::Initialize(const std::string& configPath) {
     // Audio device init deferred until the real audio backend (miniaudio) lands.
 
     rlImGuiSetup(true);
+    Editor::Theme::Apply();
+    Editor::Theme::LoadFonts();
     // SetTargetFPS(config_.targetFPS);
 
     // Must be set before the first ImGui::NewFrame() (rlImGuiBegin() below), or ImGui
@@ -251,11 +259,10 @@ void Application::DrawMenuBar()
         }
 
         if (ImGui::BeginMenu("View")) {
+            // Docked panels are fixed; only the dialogs are opened from here.
             for (auto& editor : editors_) {
-                bool visible = editor->IsVisible();
-                if (ImGui::MenuItem(editor->GetName().c_str(), nullptr, &visible)) {
-                    editor->SetVisible(visible);
-                }
+                if (editor->IsDocked()) continue;
+                if (ImGui::MenuItem(editor->GetName().c_str())) editor->SetVisible(true);
             }
             ImGui::EndMenu();
         }
@@ -281,6 +288,7 @@ void Application::Draw() {
         ImGui::GetIO().Fonts->Clear();
         rlImGuiBeginInitImGui();
         rlImGuiEndInitImGui();
+        Editor::Theme::LoadFonts();
         for (auto& editor : editors_) {
             editor->Initialize(config_);
         }
@@ -304,33 +312,38 @@ void Application::Draw() {
         ImGuiID dockspaceId = ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
 
         // Build default layout once
-        if (!editorLayoutBuilt_) {
+        // Rebuilt whenever the viewport resizes (e.g. the window maximizing after the first
+        // frame): otherwise the central node soaks up all the growth and the side columns
+        // stay at their first-frame width.
+        const ImVec2 workSize = ImGui::GetMainViewport()->WorkSize;
+        if (!editorLayoutBuilt_ || workSize.x != editorLayoutWidth_ || workSize.y != editorLayoutHeight_) {
             editorLayoutBuilt_ = true;
+            editorLayoutWidth_ = workSize.x;
+            editorLayoutHeight_ = workSize.y;
+            focusDefaultTabs_ = true;
 
             ImGui::DockBuilderRemoveNode(dockspaceId);
             ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
             ImGui::DockBuilderSetNodeSize(dockspaceId, ImGui::GetMainViewport()->WorkSize);
 
-            // Split: left 20% | remainder
+            // Scenes/Hierarchy left, Inspector/Scene right, Console/Assets along the bottom
+            // of the middle, Viewport/Scripts in the center. The layout is fixed: panels
+            // can't be closed, moved or undocked (see Editor::BeginWindow).
             ImGuiID dockLeft, dockRemain;
-            ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.20f, &dockLeft, &dockRemain);
+            ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.18f, &dockLeft, &dockRemain);
+            ImGuiID dockRight, dockMiddle;
+            ImGui::DockBuilderSplitNode(dockRemain, ImGuiDir_Right, 0.26f, &dockRight, &dockMiddle);
+            ImGuiID dockBottom, dockCenter;
+            ImGui::DockBuilderSplitNode(dockMiddle, ImGuiDir_Down, 0.28f, &dockBottom, &dockCenter);
 
-            // Split remainder: bottom 25% | center+right
-            ImGuiID dockBottom, dockCenterRight;
-            ImGui::DockBuilderSplitNode(dockRemain, ImGuiDir_Down, 0.25f, &dockBottom, &dockCenterRight);
-
-            // Split center+right: center | right 25%
-            ImGuiID dockCenter, dockRight;
-            ImGui::DockBuilderSplitNode(dockCenterRight, ImGuiDir_Right, 0.25f, &dockRight, &dockCenter);
-
-            // Assign windows
-            ImGui::DockBuilderDockWindow("World Editor", dockLeft);
-            ImGui::DockBuilderDockWindow("Script Editor", dockCenter);
-            ImGui::DockBuilderDockWindow("Game", dockCenter);
-            ImGui::DockBuilderDockWindow("Log Viewer", dockBottom);
-            ImGui::DockBuilderDockWindow("Scene Editor", dockRight);
-            ImGui::DockBuilderDockWindow("Asset Browser", dockRight);
-            ImGui::DockBuilderDockWindow("Network", dockRight);
+            ImGui::DockBuilderDockWindow(ScenesEditor::Title, dockLeft);
+            ImGui::DockBuilderDockWindow(HierarchyEditor::Title, dockLeft);
+            ImGui::DockBuilderDockWindow(ViewportEditor::Title, dockCenter);
+            ImGui::DockBuilderDockWindow(ScriptEditor::Title, dockCenter);
+            ImGui::DockBuilderDockWindow(LogEditor::Title, dockBottom);
+            ImGui::DockBuilderDockWindow(AssetEditor::Title, dockBottom);
+            ImGui::DockBuilderDockWindow(InspectorEditor::Title, dockRight);
+            ImGui::DockBuilderDockWindow(SceneEditor::Title, dockRight);
 
             ImGui::DockBuilderFinish(dockspaceId);
         }
@@ -344,6 +357,14 @@ void Application::Draw() {
     for (auto& editor : editors_) {
         if (editor->IsVisible()) {
             editor->Draw();
+        }
+    }
+
+    // Tabs open on Hierarchy, Inspector, Viewport and Console; the panels have to exist first.
+    if (focusDefaultTabs_ && mode_ == AppMode::Editor) {
+        focusDefaultTabs_ = false;
+        for (const char* title : {HierarchyEditor::Title, InspectorEditor::Title, LogEditor::Title, ViewportEditor::Title}) {
+            ImGui::SetWindowFocus(title);
         }
     }
 
@@ -364,7 +385,7 @@ void Application::SetMode(AppMode mode) {
 
     if (mode_ == AppMode::Editor) {
         for (auto& editor : editors_) {
-            editor->SetVisible(true);
+            editor->SetVisible(editor->IsDocked());
         }
 
         // Editing should start paused by default — the user opts into simulating via the Play button.

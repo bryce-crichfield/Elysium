@@ -25,6 +25,7 @@ namespace Elysium {
         Vector2 lastPosition;
 
         static constexpr const char* Name() { return "Movement"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Physics;
         static constexpr const char* XmlTag() { return "MovementComponent"; }
 
         static void LoadXml(MovementComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

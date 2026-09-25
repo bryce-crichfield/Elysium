@@ -10,29 +10,23 @@ namespace Services {
 class ISceneService;
 }
 
+// The scene picked in the Scenes panel (or the top of the stack): its properties, layers
+// and systems, all editable live in one scrolling layout.
 class SceneEditor : public Editor {
 public:
+    static constexpr const char* Title = "Scene";
+
     explicit SceneEditor(ServiceLocator& services);
 
     void Draw() override;
 
 private:
-    void DrawScenesTab(Services::ISceneService& service);
-    void DrawSceneTab(Services::ISceneService& service);
-    void DrawSystemsTab(Services::ISceneService& service);
+    void DrawProperties(Services::ISceneService& service, Scene& scene);
+    void DrawLayers(Scene& scene);
+    void DrawSystems(Scene& scene);
     void DrawSystemParameters(System& system);
 
-    // Returns the editor-selected scene if it is still in the stack, otherwise the top scene.
-    Scene* GetEditorScene(Services::ISceneService& service);
-
-    // Panel state
-    float leftPanelWidth_ = 300.0f;
-    int selectedSceneIndex_ = -1;
-    std::string selectedSystem_;  // by name: survives the scene being reloaded
     std::string zIndexError_;
-
-    // The scene the editor is inspecting (independent of the active/top scene).
-    Scene* editorSelectedScene_ = nullptr;
 };
 
 }  // namespace Elysium

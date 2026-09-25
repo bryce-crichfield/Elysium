@@ -1,5 +1,6 @@
 #include "Components/KinematicsComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -14,21 +15,14 @@ namespace Elysium {
         c.maxSpeed = el->FloatAttribute("maxSpeed", 200.0f);
     }
 
-    void KinematicsComponent::Inspect(KinematicsComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-        
-        Label("Max Speed: ");
+    void KinematicsComponent::Inspect(KinematicsComponent& c, Entity e, ServiceLocator& services) {        
+        PropertyLabel("Max Speed");
         ImGui::DragFloat("##MaxSpeed", &c.maxSpeed, 1.0f, 0.0f);
-        Label("Friction: ");
+        PropertyLabel("Friction");
         ImGui::DragFloat("##Friction", &c.friction, 0.1f, 0.0f);
-        Label("Velocity X: ");
+        PropertyLabel("Velocity X");
         ImGui::DragFloat("##VelX", &c.velocity.x);
-        Label("Velocity Y: ");
+        PropertyLabel("Velocity Y");
         ImGui::DragFloat("##VelY", &c.velocity.y);
     }
 

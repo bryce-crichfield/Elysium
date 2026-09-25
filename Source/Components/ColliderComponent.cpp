@@ -1,5 +1,6 @@
 #include "Components/ColliderComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -12,26 +13,19 @@ namespace Elysium {
     }
 
     void ColliderComponent::Inspect(ColliderComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("%s", label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
-        Label("Width:");
+        PropertyLabel("Width");
         ImGui::DragFloat("##Width", &c.width, 1.0f, 0.0f, 1000.0f);
 
-        Label("Height:");
+        PropertyLabel("Height");
         ImGui::DragFloat("##Height", &c.height, 1.0f, 0.0f, 1000.0f);
 
-        Label("Offset X:");
+        PropertyLabel("Offset X");
         ImGui::DragFloat("##OffsetX", &c.offsetX, 1.0f, -500.0f, 500.0f);
 
-        Label("Offset Y:");
+        PropertyLabel("Offset Y");
         ImGui::DragFloat("##OffsetY", &c.offsetY, 1.0f, -500.0f, 500.0f);
 
-        Label("Is Trigger:");
+        PropertyLabel("Is Trigger");
         ImGui::Checkbox("##IsTrigger", &c.isTrigger);
     }
 

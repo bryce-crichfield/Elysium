@@ -1,4 +1,5 @@
 #include "Components/PolygonComponent.h"
+#include "Editor/Widgets.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
 #include "imgui.h"
@@ -46,14 +47,8 @@ namespace Elysium {
     }
 
     void PolygonComponent::Inspect(PolygonComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
-        ImGui::Text("Points: %d", (int)c.points.size());
+        PropertyLabel("Points");
+        ImGui::Text("%d", (int)c.points.size());
     }
 
     void PolygonComponent::BindLua(sol::usertype<PolygonComponent>& ut) {

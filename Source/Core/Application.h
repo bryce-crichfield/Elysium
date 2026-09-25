@@ -107,6 +107,9 @@ class Application {
     bool shouldClose_ = false;
     bool pendingFontReload_ = false;
     bool editorLayoutBuilt_ = false;
+    float editorLayoutWidth_ = 0.0f;   // viewport size the layout was built for; rebuilt on change
+    float editorLayoutHeight_ = 0.0f;
+    bool focusDefaultTabs_ = false;    // select the default tabs once the panels exist
 
     float startTime_ = 0.0f;
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -12,9 +13,6 @@
 
 namespace Elysium::Services {
 
-// SceneEditor used to reach these via `friend class SceneEditor` on the
-// concrete SceneService, poking sceneStack_/scenes_ directly. Exposed here
-// instead so it (and anything else) can go through the interface only.
 struct SceneRegistration {
     std::string name;
     Elysium::Scene* scene = nullptr;
@@ -40,6 +38,19 @@ class ISceneService : public IService {
     virtual bool IsEmpty() const = 0;
     virtual const std::vector<Elysium::Scene*>& GetStack() const = 0;
     virtual const std::unordered_map<std::string, SceneRegistration>& GetSceneRegistry() const = 0;
+
+    bool IsInStack(const Elysium::Scene* scene) const {
+        const auto& stack = GetStack();
+        return scene && std::find(stack.begin(), stack.end(), scene) != stack.end();
+    }
+
+    // The name `scene` is registered under, or "Unknown".
+    std::string GetSceneName(const Elysium::Scene* scene) const {
+        for (const auto& [name, registration] : GetSceneRegistry()) {
+            if (registration.scene == scene) return name;
+        }
+        return "Unknown";
+    }
 
     // Rendering info
     virtual const Rectangle& GetLetterboxRect() const = 0;

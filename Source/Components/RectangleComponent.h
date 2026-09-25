@@ -17,6 +17,7 @@ namespace Elysium {
         RectangleComponent(float width = 1, float height = 1, float cornerRadius = 0.0f);
 
         static constexpr const char* Name() { return "Rectangle"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "RectangleComponent"; }
 
         static void LoadXml(RectangleComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

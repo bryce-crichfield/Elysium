@@ -1,4 +1,5 @@
 #include "Components/TeamComponent.h"
+#include "Editor/Widgets.h"
 #include "Core/ComponentRegistry.h"
 #include "imgui.h"
 #include "tinyxml2.h"
@@ -15,10 +16,7 @@ namespace Elysium {
     }
 
     void TeamComponent::Inspect(TeamComponent& c, Entity e, ServiceLocator& services) {
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("Team:");
-        ImGui::SameLine(140.0f);
-        ImGui::SetNextItemWidth(-1);
+        PropertyLabel("Team");
         ImGui::InputInt("##team", &c.team);
     }
 

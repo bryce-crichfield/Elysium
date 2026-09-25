@@ -59,6 +59,7 @@ namespace Elysium {
 
             // 4. Register Inspector
             if constexpr (Inspectable<T>) {
+                inspectorOrder_[name] = InspectorOrderOf<T>();
                 inspectors_[name] = [](World* w, Entity e, ServiceLocator& services) {
                     if (w->HasComponent<T>(e)) {
                         auto& comp = w->GetComponent<T>(e);
@@ -106,6 +107,10 @@ namespace Elysium {
 
         using InspectorFunc = std::function<void(World*, Entity, ServiceLocator&)>;
         const std::unordered_map<std::string, InspectorFunc>& GetInspectors() const { return inspectors_; }
+        InspectorOrder GetInspectorOrder(const std::string& name) const {
+            auto it = inspectorOrder_.find(name);
+            return it == inspectorOrder_.end() ? InspectorOrder::Other : it->second;
+        }
 
         void BindAllScripts(sol::state& lua);
 
@@ -124,6 +129,7 @@ namespace Elysium {
         std::unordered_map<std::string, XmlLoaderFunc> xmlLoaders_;
         std::map<std::string, XmlSaverFunc> xmlSavers_;
         std::unordered_map<std::string, InspectorFunc> inspectors_;
+        std::unordered_map<std::string, InspectorOrder> inspectorOrder_;
         std::vector<std::function<void(sol::state&)>> scriptBinders_;
         std::unordered_map<std::string, LuaComponentAccess> scriptAccessors_;
     };

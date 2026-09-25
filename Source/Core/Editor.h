@@ -1,90 +1,53 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include "imgui.h"
+#include "imgui_internal.h"
 
 #include "Core/Entity.h"
 #include "Core/ServiceLocator.h"
-#include "Core/Value.h"
 
 namespace Elysium {
 
 struct ApplicationConfig;
+
+// Where a component's section sits in the Inspector, top to bottom: what the entity is,
+// where it is, what it looks like, how it behaves. Ties sort by name. A component opts in
+// with `static constexpr InspectorOrder Order = ...;`; without one it sorts last.
+enum class InspectorOrder : int {
+    Identity,   // Name
+    Transform,
+    Hierarchy,  // Parent
+    Geometry,   // shapes, sprites, text, tiles, bounds
+    Layer,
+    Material,
+    Shader,
+    Rendering,  // camera, UI
+    Physics,    // collision and motion
+    Gameplay,
+    Scripting,
+    Other,
+};
+
+template<typename T>
+constexpr InspectorOrder InspectorOrderOf() {
+    if constexpr (requires { { T::Order } -> std::convertible_to<InspectorOrder>; }) return T::Order;
+    else return InspectorOrder::Other;
+}
 
 template<typename T>
 concept Inspectable = requires(T& c, Entity e, ServiceLocator& services) {
     { T::Inspect(c, e, services) } -> std::same_as<void>;
 };
 
-// One widget for a Value, picked by its type; vec3/vec4 use a color picker when asColor.
-// Returns true when edited.
-inline bool InspectValue(const char* id, Value& value, bool asColor = false) {
-    if (value.Is<bool>()) {
-        bool v = value.As<bool>();
-        if (!ImGui::Checkbox(id, &v)) return false;
-        value = Value(v);
-    } else if (value.Is<int>()) {
-        int v = value.As<int>();
-        if (!ImGui::DragInt(id, &v)) return false;
-        value = Value(v);
-    } else if (value.Is<float>()) {
-        float v = value.As<float>();
-        if (!ImGui::DragFloat(id, &v, 0.05f)) return false;
-        value = Value(v);
-    } else if (value.Is<Vector2>()) {
-        Vector2 v = value.As<Vector2>();
-        if (!ImGui::DragFloat2(id, &v.x, 0.05f)) return false;
-        value = Value(v);
-    } else if (value.Is<Vector3>()) {
-        Vector3 v = value.As<Vector3>();
-        if (!(asColor ? ImGui::ColorEdit3(id, &v.x) : ImGui::DragFloat3(id, &v.x, 0.05f))) return false;
-        value = Value(v);
-    } else {
-        Vector4 v = value.As<Vector4>();
-        if (!(asColor ? ImGui::ColorEdit4(id, &v.x) : ImGui::DragFloat4(id, &v.x, 0.05f))) return false;
-        value = Value(v);
-    }
-    return true;
-}
-
-// A Value row: name (grey while at `fallback`), widget, and a Reset button enabled off the
-// default. Returns true when edited or reset; `value` holds the result.
-inline bool InspectValueRow(const std::string& name, Value& value, const Value& fallback, bool isDefault,
-                            bool asColor = false) {
-    ImGui::PushID(name.c_str());
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextColored(isDefault ? ImVec4(0.6f, 0.6f, 0.6f, 1) : ImVec4(1, 1, 1, 1), "%s", name.c_str());
-    ImGui::SameLine(160.0f);
-    ImGui::SetNextItemWidth(-56);
-    bool changed = InspectValue("##value", value, asColor);
-    ImGui::SameLine();
-    ImGui::BeginDisabled(isDefault);
-    if (ImGui::SmallButton("Reset")) { value = fallback; changed = true; }
-    ImGui::EndDisabled();
-    ImGui::PopID();
-    return changed;
-}
-
-// Combo over `options` plus a leading "<None>" (the empty path). Returns true when changed.
-inline bool InspectPathCombo(const char* id, std::string& path, const std::vector<std::string>& options) {
-    bool changed = false;
-    if (ImGui::BeginCombo(id, path.empty() ? "<None>" : path.c_str())) {
-        for (size_t i = 0; i <= options.size(); ++i) {
-            const std::string option = i == 0 ? "" : options[i - 1];
-            const std::string label = (i == 0 ? std::string("<None>") : option) + "##" + std::to_string(i);
-            const bool isSelected = option == path;
-            if (ImGui::Selectable(label.c_str(), isSelected) && !isSelected) { path = option; changed = true; }
-            if (isSelected) ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-    return changed;
-}
-
 class Editor {
    public:
+    // Editor look, defined in Editor/Palette.h and Editor/Theme.h. Shared widgets that
+    // use them are in Editor/Widgets.h.
+    struct Palette;
+    struct Theme;
+
     Editor(ServiceLocator& services, const std::string& name) : services_(services), name_(name) {}
     virtual ~Editor() = default;
 
@@ -93,10 +56,24 @@ class Editor {
 
     bool IsVisible() const { return isVisible_; }
     void SetVisible(bool visible) { isVisible_ = visible; }
-    void ToggleVisibility() { isVisible_ = !isVisible_; }
     const std::string& GetName() const { return name_; }
 
+    // Docked panels are part of the fixed editor layout: always shown, never closed, moved
+    // or undocked. Others are hidden until opened from the View menu.
+    virtual bool IsDocked() const { return true; }
+
    protected:
+    // Opens this docked panel's window, titled by its name. Always pair with EndWindow,
+    // whatever this returns.
+    bool BeginWindow(ImGuiWindowFlags flags = 0) {
+        ImGuiWindowClass locked;
+        locked.DockNodeFlagsOverrideSet = (int)ImGuiDockNodeFlags_NoUndocking | (int)ImGuiDockNodeFlags_NoDockingSplit |
+                                          (int)ImGuiDockNodeFlags_NoWindowMenuButton | (int)ImGuiDockNodeFlags_NoCloseButton;
+        ImGui::SetNextWindowClass(&locked);
+        return ImGui::Begin(name_.c_str(), nullptr, flags | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
+    }
+    void EndWindow() { ImGui::End(); }
+
     ServiceLocator& services_;
     std::string name_;
     bool isVisible_ = false;

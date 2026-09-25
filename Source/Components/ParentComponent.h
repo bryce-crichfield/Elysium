@@ -16,6 +16,7 @@ namespace Elysium {
         ParentComponent(Entity parent, const std::string& targetName) : parent(parent), targetName(targetName) {}
 
         static constexpr const char* Name() { return "Parent"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Hierarchy;
         static constexpr const char* XmlTag() { return "ParentComponent"; }
 
         static void LoadXml(ParentComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

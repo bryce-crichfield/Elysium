@@ -17,6 +17,7 @@ namespace Elysium {
         UiAlignment alignVertical   = UiAlignment::Start;
 
         static constexpr const char* Name() { return "Ui"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Rendering;
         static constexpr const char* XmlTag() { return "UiComponent"; }
 
         static void LoadXml(UiComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

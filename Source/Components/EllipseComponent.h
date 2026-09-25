@@ -9,6 +9,7 @@ namespace Elysium {
         EllipseComponent(float radiusH = 50.0f, float radiusV = 50.0f);
 
         static constexpr const char* Name() { return "Ellipse"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Geometry;
         static constexpr const char* XmlTag() { return "EllipseComponent"; }
 
         static void LoadXml(EllipseComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

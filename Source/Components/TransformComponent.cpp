@@ -1,5 +1,6 @@
 #include "Components/TransformComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -33,61 +34,53 @@ namespace Elysium {
     }
 
     void TransformComponent::Inspect(TransformComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
+        SectionHeader("Local");
 
-        ImGui::TextDisabled("Local");
-
-        Label("X: ");
+        PropertyLabel("X");
         std::string localXId = "##TransformLocalX_" + std::to_string(e);
         ImGui::DragFloat(localXId.c_str(), &c.localX, 1.0f);
 
-        Label("Y: ");
+        PropertyLabel("Y");
         std::string localYId = "##TransformLocalY_" + std::to_string(e);
         ImGui::DragFloat(localYId.c_str(), &c.localY, 1.0f);
 
-        Label("Scale X: ");
+        PropertyLabel("Scale X");
         std::string localScaleXId = "##TransformLocalScaleX_" + std::to_string(e);
         ImGui::DragFloat(localScaleXId.c_str(), &c.localScaleX, 0.01f, 0.0f);
 
-        Label("Scale Y: ");
+        PropertyLabel("Scale Y");
         std::string localScaleYId = "##TransformLocalScaleY_" + std::to_string(e);
         ImGui::DragFloat(localScaleYId.c_str(), &c.localScaleY, 0.01f, 0.0f);
 
-        Label("Rotation: ");
+        PropertyLabel("Rotation");
         std::string localRotationId = "##TransformLocalRotation_" + std::to_string(e);
         ImGui::DragFloat(localRotationId.c_str(), &c.localRotation, 1.0f);
 
-        ImGui::Spacing();
-        ImGui::TextDisabled("World (read-only)");
+        SectionHeader("World (read-only)");
 
         ImGui::BeginDisabled();
 
-        Label("X: ");
+        PropertyLabel("X");
         std::string worldXId = "##TransformWorldX_" + std::to_string(e);
         ImGui::DragFloat(worldXId.c_str(), &c.worldX, 1.0f);
 
-        Label("Y: ");
+        PropertyLabel("Y");
         std::string worldYId = "##TransformWorldY_" + std::to_string(e);
         ImGui::DragFloat(worldYId.c_str(), &c.worldY, 1.0f);
 
-        Label("Scale X: ");
+        PropertyLabel("Scale X");
         std::string worldScaleXId = "##TransformWorldScaleX_" + std::to_string(e);
         ImGui::DragFloat(worldScaleXId.c_str(), &c.worldScaleX, 0.01f, 0.0f);
 
-        Label("Scale Y: ");
+        PropertyLabel("Scale Y");
         std::string worldScaleYId = "##TransformWorldScaleY_" + std::to_string(e);
         ImGui::DragFloat(worldScaleYId.c_str(), &c.worldScaleY, 0.01f, 0.0f);
 
-        Label("Rotation: ");
+        PropertyLabel("Rotation");
         std::string worldRotationId = "##TransformWorldRotation_" + std::to_string(e);
         ImGui::DragFloat(worldRotationId.c_str(), &c.worldRotation, 1.0f);
 
-        Label("Depth: ");
+        PropertyLabel("Depth");
         int depth = (int)c.worldDepth;
         std::string worldDepthId = "##TransformWorldDepth_" + std::to_string(e);
         ImGui::DragInt(worldDepthId.c_str(), &depth, 1.0f);

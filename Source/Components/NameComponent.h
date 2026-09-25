@@ -8,6 +8,7 @@ namespace Elysium {
         NameComponent(const std::string& name = "");
 
         static constexpr const char* Name() { return "Name"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Identity;
         static constexpr const char* XmlTag() { return "NameComponent"; }
 
         static void LoadXml(NameComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

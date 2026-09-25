@@ -1,5 +1,6 @@
 #include "Components/BoundsComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -13,35 +14,28 @@ namespace Elysium {
     }
 
     void BoundsComponent::Inspect(BoundsComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
-        Label("X: ");
+        PropertyLabel("X");
         ImGui::Text("%.1f", c.bounds.x);
-        Label("Y: ");
+        PropertyLabel("Y");
         ImGui::Text("%.1f", c.bounds.y);
-        Label("Width: ");
+        PropertyLabel("Width");
         ImGui::Text("%.1f", c.bounds.width);
-        Label("Height: ");
+        PropertyLabel("Height");
         ImGui::Text("%.1f", c.bounds.height);
 
-        Label("Is Dragging: ");
+        PropertyLabel("Is Dragging");
         ImGui::Checkbox("##IsDragging", &c.isDragging);
 
         float color[4] = {c.debugColor.r / 255.0f, c.debugColor.g / 255.0f,
                           c.debugColor.b / 255.0f, c.debugColor.a / 255.0f};
-        Label("Debug Color: ");
+        PropertyLabel("Debug Color");
         if (ImGui::ColorEdit4("##DebugColor", color)) {
             c.debugColor = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255),
                                  (unsigned char)(color[2] * 255), (unsigned char)(color[3] * 255)};
         }
 
-        ImGui::Separator();
-        ImGui::TextDisabled("Bounds are computed automatically by RenderSystem");
+        ImGui::Spacing();
+        MutedText("Bounds are computed automatically by RenderSystem.");
     }
 
     void BoundsComponent::BindLua(sol::usertype<BoundsComponent>& ut) {

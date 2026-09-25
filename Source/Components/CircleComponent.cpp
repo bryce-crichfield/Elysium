@@ -1,5 +1,6 @@
 #include "Components/CircleComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Xml.h"
 #include "imgui.h"
 
@@ -16,14 +17,8 @@ namespace Elysium {
     }
 
     void CircleComponent::Inspect(CircleComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
 
-        Label("Radius: ");
+        PropertyLabel("Radius");
         ImGui::DragFloat("##Radius", &c.radius, 1.0f, 1.0f, 1000.0f);
     }
 

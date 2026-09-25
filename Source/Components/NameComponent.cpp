@@ -1,4 +1,5 @@
 #include "Components/NameComponent.h"
+#include "Editor/Widgets.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
 #include "imgui.h"
@@ -17,15 +18,11 @@ namespace Elysium {
     }
 
     void NameComponent::Inspect(NameComponent& c, Entity e, ServiceLocator& services) {
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("Name: ");
-        ImGui::SameLine(140.0f);
-        ImGui::SetNextItemWidth(-1);
-
         static char nameBuffer[256];
         strncpy(nameBuffer, c.name.c_str(), sizeof(nameBuffer) - 1);
         nameBuffer[sizeof(nameBuffer) - 1] = '\0';
 
+        PropertyLabel("Name");
         if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer))) {
             c.name = std::string(nameBuffer);
         }

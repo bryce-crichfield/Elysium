@@ -1,5 +1,6 @@
 #include "Components/MaterialComponent.h"
 #include "Components/ShaderComponent.h"
+#include "Editor/Widgets.h"
 #include "Core/Assets/ShaderAsset.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Editor.h"
@@ -68,20 +69,14 @@ namespace Elysium {
     }
 
     void MaterialComponent::Inspect(MaterialComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
 
         auto& assetService = services.Get<Services::IAssetService>();
 
-        Label("Enabled: ");
+        PropertyLabel("Enabled");
         std::string enabledId = "##MaterialEnabled_" + std::to_string(e);
         ImGui::Checkbox(enabledId.c_str(), &c.enabled);
 
-        Label("Padding: ");
+        PropertyLabel("Padding");
         std::string paddingId = "##MaterialPadding_" + std::to_string(e);
         ImGui::DragFloat(paddingId.c_str(), &c.padding, 1.0f, 0.0f, 512.0f);
 
@@ -100,18 +95,18 @@ namespace Elysium {
 
             std::string header = std::to_string(i) + ": " + layer.material;
             bool open = ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap);
-            ImGui::SameLine(ImGui::GetContentRegionAvail().x - 60.0f);
+            AlignRight(ButtonWidth(ICON_FA_ARROW_UP) + ButtonWidth(ICON_FA_XMARK) + ImGui::GetStyle().ItemSpacing.x);
             ImGui::BeginDisabled(i == 0);
-            if (ImGui::SmallButton("Up")) moveUpIndex = (int)i;
+            if (IconButton(ICON_FA_ARROW_UP, "Move up")) moveUpIndex = (int)i;
             ImGui::EndDisabled();
             ImGui::SameLine();
-            if (ImGui::SmallButton("X")) removeIndex = (int)i;
+            if (IconButton(ICON_FA_XMARK, "Remove layer")) removeIndex = (int)i;
 
             if (open) {
-                Label("Enabled: ");
+                PropertyLabel("Enabled");
                 ImGui::Checkbox("##LayerEnabled", &layer.enabled);
 
-                Label("Material: ");
+                PropertyLabel("Material");
                 if (ImGui::BeginCombo("##LayerMaterial", layer.material.c_str())) {
                     for (const std::string& material : AvailableMaterials()) {
                         bool isSelected = layer.material == material;
@@ -125,7 +120,7 @@ namespace Elysium {
                 }
 
                 if (layer.material == "Texture") {
-                    Label("Texture: ");
+                    PropertyLabel("Texture");
                     InspectPathCombo("##LayerTexture", layer.texturePath, texturePaths);
                 }
 
@@ -144,7 +139,7 @@ namespace Elysium {
         if (removeIndex >= 0) c.layers.erase(c.layers.begin() + removeIndex);
         if (moveUpIndex > 0) std::swap(c.layers[moveUpIndex], c.layers[moveUpIndex - 1]);
 
-        if (ImGui::Button("Add Layer")) c.layers.push_back(MaterialLayer{});
+        if (ImGui::Button(ICON_FA_PLUS "  Add Layer", ImVec2(-FLT_MIN, 0))) c.layers.push_back(MaterialLayer{});
     }
 
     namespace {

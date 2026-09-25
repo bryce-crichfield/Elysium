@@ -1,5 +1,6 @@
 #include "Components/ShaderComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Editor.h"
 #include "Core/Shader.h"
 #include "Core/Xml.h"
@@ -73,16 +74,10 @@ namespace Elysium {
     }
 
     void ShaderComponent::Inspect(ShaderComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
 
         auto& assetService = services.Get<Services::IAssetService>();
 
-        Label("Enabled: ");
+        PropertyLabel("Enabled");
         std::string enabledId = "##ShaderEnabled_" + std::to_string(e);
         ImGui::Checkbox(enabledId.c_str(), &c.enabled);
 
@@ -94,18 +89,18 @@ namespace Elysium {
             }
         }
 
-        Label("Shader: ");
+        PropertyLabel("Shader");
         std::string shaderId = "##ShaderPath_" + std::to_string(e);
         if (InspectPathCombo(shaderId.c_str(), c.shaderPath, shaderPaths)) {
             c.overrides.clear();
             if (!c.shaderPath.empty()) assetService.LoadAsset<Shader>(Path(c.shaderPath));
         }
 
-        Label("Padding: ");
+        PropertyLabel("Padding");
         std::string paddingId = "##ShaderPadding_" + std::to_string(e);
         ImGui::DragFloat(paddingId.c_str(), &c.padding, 1.0f, 0.0f, 512.0f);
 
-        Label("Size: ");
+        PropertyLabel("Size");
         std::string sizeId = "##ShaderSize_" + std::to_string(e);
         float size[2] = {c.width, c.height};
         if (ImGui::DragFloat2(sizeId.c_str(), size, 1.0f, 1.0f, 4096.0f)) {
@@ -117,8 +112,7 @@ namespace Elysium {
         auto* shader = assetService.Get<Shader>(Path(c.shaderPath));
         if (!shader || !shader->IsValid()) return;
 
-        ImGui::Spacing();
-        ImGui::TextDisabled("Uniforms");
+        SectionHeader("Uniforms");
         InspectUniformOverrides(*shader, c.overrides);
     }
 

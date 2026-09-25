@@ -15,11 +15,13 @@ class IEditorService;
 
 namespace Elysium {
 
-// Draws the "Game" viewport panel and drives viewport click-to-pick + the move gizmo —
+// Draws the "Viewport" panel and drives viewport click-to-pick + the move gizmo —
 // extracted from Application.cpp so it owns the viewport rect it needs to translate mouse
 // coordinates into the framebuffer coordinates RenderSystem::Pick() expects.
 class ViewportEditor : public Editor {
    public:
+    static constexpr const char* Title = "Viewport";
+
     explicit ViewportEditor(ServiceLocator& services);
 
     void Draw() override;
@@ -50,10 +52,6 @@ class ViewportEditor : public Editor {
     // Maps a framebuffer-space position (as returned by RenderProjector::WorldToFramebuffer)
     // to an ImGui screen-space position within imageScreenRect, for overlay drawing.
     Vector2 FramebufferToScreen(Vector2 fbPos, Rectangle imageScreenRect) const;
-
-    // Shared between DrawViewportOverlays' move-handle visual and the gizmo hit-test below,
-    // so tolerance can't drift from the visual size.
-    static constexpr float kMoveHandleRadius = 8.0f;
 
     // Click-cycling state: repeat-clicking the same spot advances through overlapping hits.
     Vector2 lastClickFbPos_ = { -1.0f, -1.0f };

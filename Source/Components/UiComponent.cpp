@@ -1,4 +1,5 @@
 #include "Components/UiComponent.h"
+#include "Editor/Widgets.h"
 #include "Core/ComponentRegistry.h"
 #include "imgui.h"
 #include <cstring>
@@ -57,17 +58,22 @@ void UiComponent::SaveXml(const UiComponent& c, XMLBuilder& builder) {
 void UiComponent::Inspect(UiComponent& c, Entity, ServiceLocator& services) {
     const char* containerItems[] = { "None", "Vertical", "Horizontal" };
     int current = static_cast<int>(c.containerType);
-    if (ImGui::Combo("Container", &current, containerItems, 3))
+    PropertyLabel("Container");
+    if (ImGui::Combo("##Container", &current, containerItems, 3))
         c.containerType = static_cast<UiContainerType>(current);
-    if (c.containerType != UiContainerType::None)
-        ImGui::DragFloat("Gap", &c.gap, 1.0f, 0.0f, 500.0f);
+    if (c.containerType != UiContainerType::None) {
+        PropertyLabel("Gap");
+        ImGui::DragFloat("##Gap", &c.gap, 1.0f, 0.0f, 500.0f);
+    }
 
     const char* alignItems[] = { "Start", "Middle", "End" };
     int ah = static_cast<int>(c.alignHorizontal);
     int av = static_cast<int>(c.alignVertical);
-    if (ImGui::Combo("Align H", &ah, alignItems, 3))
+    PropertyLabel("Align H");
+    if (ImGui::Combo("##AlignH", &ah, alignItems, 3))
         c.alignHorizontal = static_cast<UiAlignment>(ah);
-    if (ImGui::Combo("Align V", &av, alignItems, 3))
+    PropertyLabel("Align V");
+    if (ImGui::Combo("##AlignV", &av, alignItems, 3))
         c.alignVertical = static_cast<UiAlignment>(av);
 }
 

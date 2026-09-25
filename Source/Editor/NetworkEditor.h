@@ -7,18 +7,27 @@
 #include "Network/Generated.h"
 
 namespace Elysium::Services {
-class NetworkService;
+class INetworkService;
 }
 
 namespace Elysium {
 
 class NetworkEditor : public Editor {
    public:
+    static constexpr const char* Title = "Network";
+
     explicit NetworkEditor(ServiceLocator& services);
 
     void Draw() override;
+    // Opened from the View menu as a modal dialog rather than living in the dock layout.
+    bool IsDocked() const override { return false; }
 
    private:
+    void DrawStatus(Services::INetworkService& service);
+    void DrawConnect(Services::INetworkService& service);
+    void DrawStats(Services::INetworkService& service);
+    void DrawPing();
+
     char addressBuffer_[128] = "127.0.0.1";
     int port_ = 7777;
 

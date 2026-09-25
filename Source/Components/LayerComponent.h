@@ -11,6 +11,7 @@ namespace Elysium {
         LayerComponent(const std::string& name = "default", bool isVisible = true);
 
         static constexpr const char* Name() { return "Layer"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Layer;
         static constexpr const char* XmlTag() { return "LayerComponent"; }
 
         static void LoadXml(LayerComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

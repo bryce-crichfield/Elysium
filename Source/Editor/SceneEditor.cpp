@@ -1,397 +1,189 @@
 #include "SceneEditor.h"
 #include <algorithm>
-#include "Core/Application.h"
-#include "Interfaces/ISceneService.h"
 #include "Core/Common.h"
-#include "Core/Editor.h"
 #include "Core/Scene.h"
 #include "Core/System.h"
-#include "Services/SceneService.h"
-#include "imgui.h"
+#include "Editor/Widgets.h"
+#include "Interfaces/IEditorService.h"
+#include "Interfaces/ISceneService.h"
 
 namespace Elysium {
 
 using namespace Services;
 
-SceneEditor::SceneEditor(ServiceLocator& services) : Editor(services, "Scene Editor") {}
-
-Scene* SceneEditor::GetEditorScene(ISceneService& service) {
-    if (editorSelectedScene_) {
-        for (Scene* s : service.GetStack()) {
-            if (s == editorSelectedScene_) return editorSelectedScene_;
-        }
-        // Selection is stale — scene was freed
-        editorSelectedScene_ = nullptr;
-    }
-    return service.GetTopScene();
+namespace {
+// An eye toggle at the right edge of the header just drawn.
+void VisibilityToggle(bool& visible, const char* tooltip) {
+    const char* icon = visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH;
+    AlignRight(ButtonWidth(icon));
+    ImGui::PushStyleColor(ImGuiCol_Text, visible ? Editor::Palette::Text : Editor::Palette::TextDisabled);
+    // Stable ID: the icon flips with the state.
+    if (IconButton((std::string(icon) + "##visible").c_str(), tooltip)) visible = !visible;
+    ImGui::PopStyleColor();
 }
+
+template <typename Enum>
+void EnumRow(const char* label, Enum& field, const char* const* names, int count) {
+    PropertyLabel(label);
+    int index = static_cast<int>(field);
+    if (ImGui::Combo((std::string("##") + label).c_str(), &index, names, count)) field = static_cast<Enum>(index);
+}
+}  // namespace
+
+SceneEditor::SceneEditor(ServiceLocator& services) : Editor(services, Title) {}
 
 void SceneEditor::Draw() {
     Profile;
 
     auto& service = services_.Get<ISceneService>();
 
-    ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
-        if (ImGui::BeginTabBar("SceneEditorTabs")) {
-            if (ImGui::BeginTabItem("Scenes")) {
-                DrawScenesTab(service);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Scene")) {
-                DrawSceneTab(service);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Systems")) {
-                DrawSystemsTab(service);
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
+    if (BeginWindow()) {
+        if (Scene* scene = services_.Get<IEditorService>().GetInspectedScene()) {
+            DrawProperties(service, *scene);
+            DrawLayers(*scene);
+            DrawSystems(*scene);
+        } else {
+            EmptyState("No scene loaded. Push one from the Scenes panel.");
         }
     }
-    ImGui::End();
+    EndWindow();
 }
 
-void SceneEditor::DrawScenesTab(ISceneService& service) {
-    // Scene Management Buttons
-    bool hasSelection = selectedSceneIndex_ >= 0 && selectedSceneIndex_ < (int)service.GetSceneRegistry().size();
+void SceneEditor::DrawProperties(ISceneService& service, Scene& scene) {
+    const std::string name = service.GetSceneName(&scene);
+    const auto& config = scene.GetConfiguration();
 
-    if (ImGui::Button("Push") && hasSelection) {
-        auto it = service.GetSceneRegistry().begin();
-        std::advance(it, selectedSceneIndex_);
-        service.Push(it->first);
-    }
-    if (!hasSelection) {
-        ImGui::SetItemTooltip("Select a scene to push onto stack");
-    }
-
+    // Header, matching the Inspector's.
+    ImGui::AlignTextToFramePadding();
+    ColoredText(Palette::Accent, ICON_FA_LAYER_GROUP);
     ImGui::SameLine();
-    if (ImGui::Button("Replace") && hasSelection) {
-        auto it = service.GetSceneRegistry().begin();
-        std::advance(it, selectedSceneIndex_);
-        service.Replace(it->first);
-    }
-    if (!hasSelection) {
-        ImGui::SetItemTooltip("Select a scene to replace top of stack");
-    }
+    ImGui::TextUnformatted(name.c_str());
 
-    ImGui::SameLine();
-    if (ImGui::Button("Pop")) {
-        service.Pop();
-    }
-    if (service.IsEmpty()) {
-        ImGui::SetItemTooltip("Stack is empty");
-    }
+    SectionHeader("Properties");
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "%.0f x %.0f", config.resolutionWidth, config.resolutionHeight);
+    ReadOnlyRow("Resolution", buffer);
 
-    ImGui::SameLine();
-    if (ImGui::Button("Clear")) {
-        service.Clear();
-    }
+    const auto& stack = service.GetStack();
+    const auto position = std::find(stack.begin(), stack.end(), &scene) - stack.begin();
+    if (position == (long long)stack.size() - 1) snprintf(buffer, sizeof(buffer), "Top of %zu", stack.size());
+    else snprintf(buffer, sizeof(buffer), "%lld of %zu", (long long)position + 1, stack.size());
+    ReadOnlyRow("Stack", buffer);
 
-    ImGui::Separator();
-
-    // Scene Registry Table
-    ImGui::Text("Scene Registry:");
-    if (ImGui::BeginTable("SceneTable", 3,
-                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
-                              ImGuiTableFlags_ScrollY,
-                          ImVec2(0, 200))) {
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 120);
-        ImGui::TableSetupColumn("XML Path", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("In Stack", ImGuiTableColumnFlags_WidthFixed, 60);
-        ImGui::TableSetupScrollFreeze(0, 1);
-        ImGui::TableHeadersRow();
-
-        int index = 0;
-        for (const auto& [name, sceneData] : service.GetSceneRegistry()) {
-            ImGui::TableNextRow();
-
-            ImGui::TableSetColumnIndex(0);
-            if (ImGui::Selectable(name.c_str(), selectedSceneIndex_ == index, ImGuiSelectableFlags_SpanAllColumns)) {
-                selectedSceneIndex_ = index;
-            }
-
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%s", sceneData.xmlPath.c_str());
-
-            ImGui::TableSetColumnIndex(2);
-            bool inStack = false;
-            for (Scene* s : service.GetStack()) {
-                if (s == sceneData.scene) {
-                    inStack = true;
-                    break;
-                }
-            }
-            ImGui::Text("%s", inStack ? "Yes" : "No");
-
-            index++;
-        }
-        ImGui::EndTable();
-    }
-
-    ImGui::Separator();
-
-    // Scene Stack Table
-    ImGui::Text("Scene Stack (top to bottom):");
-    if (ImGui::BeginTable("StackTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg, ImVec2(0, 0))) {
-        ImGui::TableSetupColumn("Position", ImGuiTableColumnFlags_WidthFixed, 60);
-        ImGui::TableSetupColumn("Scene Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableHeadersRow();
-
-        const auto& stack = service.GetStack();
-        for (int i = (int)stack.size() - 1; i >= 0; --i) {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            if (i == (int)stack.size() - 1) {
-                ImGui::Text("TOP");
-            } else if (i == 0) {
-                ImGui::Text("BOTTOM");
-            } else {
-                ImGui::Text("%d", i);
-            }
-
-            ImGui::TableSetColumnIndex(1);
-            std::string sceneName = "Unknown";
-            for (const auto& [name, data] : service.GetSceneRegistry()) {
-                if (data.scene == stack[i]) {
-                    sceneName = name;
-                    break;
-                }
-            }
-            bool isSelected = (stack[i] == editorSelectedScene_);
-            if (ImGui::Selectable(sceneName.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
-                editorSelectedScene_ = stack[i];
-            }
-        }
-
-        if (stack.empty()) {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("-");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::TextDisabled("(empty)");
-        }
-
-        ImGui::EndTable();
+    auto registration = service.GetSceneRegistry().find(name);
+    if (registration != service.GetSceneRegistry().end() && !registration->second.xmlPath.empty()) {
+        ReadOnlyRow("Source", registration->second.xmlPath.c_str());
     }
 }
 
-void SceneEditor::DrawSceneTab(ISceneService& service) {
-    Scene* topScene = GetEditorScene(service);
-    if (!topScene) {
-        ImGui::Text("No scenes in stack");
-        ImGui::Text("Select a scene from the Scenes tab and click 'Push' to begin.");
-        return;
-    }
+void SceneEditor::DrawLayers(Scene& scene) {
+    SectionHeader("Layers");
 
-    // Find scene name
-    std::string topSceneName = "Unknown";
-    for (const auto& [name, data] : service.GetSceneRegistry()) {
-        if (data.scene == topScene) {
-            topSceneName = name;
-            break;
-        }
-    }
-
-    // Header
-    ImGui::Text("Scene: %s", topSceneName.c_str());
-    ImGui::Text("Stack Size: %zu", service.GetStackSize());
-    ImGui::Separator();
-
-    // Scene Configuration
-    const auto& config = topScene->GetConfiguration();
-    ImGui::Text("Resolution: %.0f x %.0f", config.resolutionWidth, config.resolutionHeight);
-    ImGui::Separator();
-
-    // Layers Table
-    auto& layers = topScene->GetLayers();
+    auto& layers = scene.GetLayers();
     if (layers.empty()) {
-        ImGui::Text("No layers in current scene");
+        ImGui::TextDisabled("No layers");
         return;
     }
 
-    ImGui::Text("Layers:");
-
-    static const char* spaceNames[] = {"World2D", "Screen2D"};
+    static const char* spaceNames[] = {"World", "Screen"};
     static const char* blendNames[] = {"Normal", "Additive", "Multiply"};
 
-    if (ImGui::BeginTable("LayersTable", 8,
-                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
-                              ImGuiTableFlags_ScrollY,
-                          ImVec2(0, 250))) {
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Z-Index", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("Space", ImGuiTableColumnFlags_WidthFixed, 100);
-        ImGui::TableSetupColumn("Layer Blend", ImGuiTableColumnFlags_WidthFixed, 100);
-        ImGui::TableSetupColumn("Composite Blend", ImGuiTableColumnFlags_WidthFixed, 130);
-        ImGui::TableSetupColumn("Ambient", ImGuiTableColumnFlags_WidthFixed, 120);
-        ImGui::TableSetupColumn("Composited, ImGuiTableColumnFlags_WidthFixed, 90");
-        ImGui::TableSetupColumn("Visible", ImGuiTableColumnFlags_WidthFixed, 60);
-        ImGui::TableSetupScrollFreeze(0, 1);
-        ImGui::TableHeadersRow();
+    bool needsSort = false;
+    for (size_t i = 0; i < layers.size(); ++i) {
+        SceneLayer& layer = layers[i];
+        ImGui::PushID("layer");
+        ImGui::PushID((int)i);
 
-        bool needsSort = false;
+        const bool open = CollapsingSection((layer.name + "  (z " + std::to_string(layer.zIndex) + ")###layer").c_str(), layer.isVisible);
+        VisibilityToggle(layer.isVisible, layer.isVisible ? "Hide layer" : "Show layer");
 
-        for (size_t i = 0; i < layers.size(); ++i) {
-            ImGui::TableNextRow();
-            ImGui::PushID((int)i);
-
-            // Name (read-only)
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%s", layers[i].name.c_str());
-
-            // Z-Index (editable)
-            ImGui::TableSetColumnIndex(1);
-            int zIndex = layers[i].zIndex;
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::InputInt("##zIndex", &zIndex, 0, 0) && zIndex != layers[i].zIndex) {
-                // Check for duplicates
-                bool conflict = false;
-                for (size_t j = 0; j < layers.size(); ++j) {
-                    if (j != i && layers[j].zIndex == zIndex) {
-                        zIndexError_ = "Z-Index " + std::to_string(zIndex) + " already used by layer '" + layers[j].name + "'";
-                        conflict = true;
-                        break;
-                    }
-                }
-                if (!conflict) {
-                    layers[i].zIndex = zIndex;
+        if (open) {
+            BeginSectionBody();
+            PropertyLabel("Z Index");
+            int zIndex = layer.zIndex;
+            if (ImGui::InputInt("##zIndex", &zIndex) && zIndex != layer.zIndex) {
+                auto clash = std::find_if(layers.begin(), layers.end(),
+                                          [&](const SceneLayer& other) { return &other != &layer && other.zIndex == zIndex; });
+                if (clash != layers.end()) {
+                    zIndexError_ = "Z " + std::to_string(zIndex) + " is already used by '" + clash->name + "'";
+                } else {
+                    layer.zIndex = zIndex;
                     zIndexError_.clear();
                     needsSort = true;
                 }
             }
 
-            // Space (combo)
-            ImGui::TableSetColumnIndex(2);
-            int spaceIdx = static_cast<int>(layers[i].space);
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::Combo("##space", &spaceIdx, spaceNames, IM_ARRAYSIZE(spaceNames))) {
-                layers[i].space = static_cast<SceneLayerSpace>(spaceIdx);
+            EnumRow("Space", layer.space, spaceNames, IM_ARRAYSIZE(spaceNames));
+            EnumRow("Blend", layer.layerBlend, blendNames, IM_ARRAYSIZE(blendNames));
+            EnumRow("Composite", layer.compositeBlend, blendNames, IM_ARRAYSIZE(blendNames));
+
+            PropertyLabel("Offscreen");
+            ImGui::Checkbox("##composited", &layer.isComposited);
+            ItemTooltip("Render into its own target, then composite onto the frame");
+
+            PropertyLabel("Opacity");
+            ImGui::SliderFloat("##opacity", &layer.opacity, 0.0f, 1.0f, "%.2f");
+
+            PropertyLabel("Ambient");
+            float ambient[4] = {layer.ambient.r / 255.0f, layer.ambient.g / 255.0f, layer.ambient.b / 255.0f,
+                                layer.ambient.a / 255.0f};
+            if (ImGui::ColorEdit4("##ambient", ambient)) {
+                layer.ambient = {(unsigned char)(ambient[0] * 255), (unsigned char)(ambient[1] * 255),
+                                 (unsigned char)(ambient[2] * 255), (unsigned char)(ambient[3] * 255)};
             }
-
-            // Blend (combo)
-            ImGui::TableSetColumnIndex(3);
-            int blendIdx = static_cast<int>(layers[i].layerBlend);
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::Combo("##layerBlend", &blendIdx, blendNames, IM_ARRAYSIZE(blendNames))) {
-                layers[i].layerBlend = static_cast<SceneLayerBlend>(blendIdx);
-            }
-
-            ImGui::TableSetColumnIndex(4);
-            int compositeBlendIdx = static_cast<int>(layers[i].compositeBlend);
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::Combo("##compositeBlend", &compositeBlendIdx, blendNames, IM_ARRAYSIZE(blendNames))) {
-                layers[i].compositeBlend = static_cast<SceneLayerBlend>(compositeBlendIdx);
-            }
-
-            // Ambient (color picker)
-            ImGui::TableSetColumnIndex(5);
-            float ambient[4] = {
-                layers[i].ambient.r / 255.0f,
-                layers[i].ambient.g / 255.0f,
-                layers[i].ambient.b / 255.0f,
-                layers[i].ambient.a / 255.0f
-            };
-
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::ColorEdit4("##ambient", ambient, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
-                layers[i].ambient = {
-                    (unsigned char)(ambient[0] * 255),
-                    (unsigned char)(ambient[1] * 255),
-                    (unsigned char)(ambient[2] * 255),
-                    (unsigned char)(ambient[3] * 255)
-                };
-            }
-
-            // Composited (checkbox)
-            ImGui::TableSetColumnIndex(6);
-            ImGui::Checkbox("##composited", &layers[i].isComposited);
-
-            // Visible (checkbox)
-            ImGui::TableSetColumnIndex(7);
-            ImGui::Checkbox("##visible", &layers[i].isVisible);
-
-            ImGui::PopID();
+            EndSectionBody();
         }
-        ImGui::EndTable();
-
-        if (needsSort) {
-            std::sort(layers.begin(), layers.end(), [](const SceneLayer& a, const SceneLayer& b) {
-                return a.zIndex < b.zIndex;
-            });
-        }
+        ImGui::PopID();
+        ImGui::PopID();
     }
 
+    // Sorted after the loop so the rows being drawn don't move under it.
+    if (needsSort) {
+        std::sort(layers.begin(), layers.end(), [](const SceneLayer& a, const SceneLayer& b) { return a.zIndex < b.zIndex; });
+    }
     if (!zIndexError_.empty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "%s", zIndexError_.c_str());
+        ColoredText(Palette::Error, (ICON_FA_CIRCLE_XMARK "  " + zIndexError_).c_str());
     }
 }
 
-void SceneEditor::DrawSystemsTab(ISceneService& service) {
-    Scene* topScene = GetEditorScene(service);
-    if (!topScene) {
-        ImGui::Text("No active scene");
-        return;
-    }
+void SceneEditor::DrawSystems(Scene& scene) {
+    SectionHeader("Systems");
 
-    const auto& systems = topScene->GetSystems();
+    const auto& systems = scene.GetSystems();
     if (systems.empty()) {
-        ImGui::Text("No systems in current scene");
+        ImGui::TextDisabled("No systems");
         return;
     }
 
-    if (ImGui::BeginTable("SystemsTable", 4,
-                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
-                              ImGuiTableFlags_ScrollY,
-                          ImVec2(0, 200))) {
-        ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 40);
-        ImGui::TableSetupColumn("System Type", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, 70);
-        ImGui::TableSetupColumn("Visible", ImGuiTableColumnFlags_WidthFixed, 70);
-        ImGui::TableSetupScrollFreeze(0, 1);
-        ImGui::TableHeadersRow();
+    for (size_t i = 0; i < systems.size(); ++i) {
+        System& system = *systems[i];
+        ImGui::PushID("system");
+        ImGui::PushID((int)i);
 
-        for (size_t i = 0; i < systems.size(); ++i) {
-            ImGui::TableNextRow();
+        bool isEnabled = system.IsEnabled();
+        const bool open = CollapsingSection((system.GetName() + "###system").c_str(), isEnabled);
 
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%zu", i);
+        // Header controls, right to left: drawing toggle, then the enabled checkbox.
+        bool isVisible = system.IsVisible();
+        VisibilityToggle(isVisible, isVisible ? "Hide drawing" : "Show drawing");
+        if (isVisible != system.IsVisible()) system.SetVisible(isVisible);
+        AlignRight(ImGui::GetFrameHeight() + ButtonWidth(ICON_FA_EYE) + ImGui::GetStyle().ItemSpacing.x);
+        if (ImGui::Checkbox("##enabled", &isEnabled)) system.SetEnabled(isEnabled);
+        ItemTooltip(isEnabled ? "Disable updates" : "Enable updates");
 
-            ImGui::TableSetColumnIndex(1);
-            const std::string& name = systems[i]->GetName();
-            if (ImGui::Selectable((name + "##system" + std::to_string(i)).c_str(), name == selectedSystem_)) {
-                selectedSystem_ = name;
-            }
-
-            ImGui::TableSetColumnIndex(2);
-            bool isEnabled = systems[i]->IsEnabled();
-            if (ImGui::Checkbox(("##enabled" + std::to_string(i)).c_str(), &isEnabled)) {
-                systems[i]->SetEnabled(isEnabled);
-            }
-
-            ImGui::TableSetColumnIndex(3);
-            bool isVisible = systems[i]->IsVisible();
-            if (ImGui::Checkbox(("##visible" + std::to_string(i)).c_str(), &isVisible)) {
-                systems[i]->SetVisible(isVisible);
-            }
+        if (open) {
+            BeginSectionBody();
+            DrawSystemParameters(system);
+            EndSectionBody();
         }
-
-        ImGui::EndTable();
+        ImGui::PopID();
+        ImGui::PopID();
     }
-
-    ImGui::Text("Total Systems: %zu", systems.size());
-
-    auto selected = std::find_if(systems.begin(), systems.end(),
-                                 [&](const auto& system) { return system->GetName() == selectedSystem_; });
-    if (selected == systems.end()) return;
-    DrawSystemParameters(**selected);
 }
 
 // Edits apply live. Scene > Save writes whichever differ from the default back onto the
 // <System> tag.
 void SceneEditor::DrawSystemParameters(System& system) {
-    ImGui::SeparatorText((system.GetName() + " Parameters").c_str());
-
     const SystemParameters defaults = system.GetDefaultParameters();
     if (defaults.empty()) {
         ImGui::TextDisabled("No parameters");

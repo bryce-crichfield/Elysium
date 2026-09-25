@@ -374,7 +374,7 @@ void SceneService::Render() {
 
     ::EndTextureMode();
 
-    // In editor mode the ImGui "Game" panel blits the framebuffer (ViewportEditor);
+    // In editor mode the ImGui "Viewport" panel blits the framebuffer (ViewportEditor);
     // in play mode Application drives Present() after all services have rendered.
 }
 

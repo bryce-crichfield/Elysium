@@ -11,10 +11,8 @@
 #include "Components/CameraComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/TransformComponent.h"
-#include "Services/EditorService.h"
-#include "Services/SceneService.h"
+#include "Editor/Widgets.h"
 #include "Systems/RenderSystem.h"
-#include "imgui.h"
 #include "Core/Input.h"
 #include "Core/MathTypes.h"
 
@@ -23,7 +21,7 @@ namespace Elysium {
 using namespace Services;
 using Systems::CameraView;
 
-ViewportEditor::ViewportEditor(ServiceLocator& services) : Editor(services, "Game") {}
+ViewportEditor::ViewportEditor(ServiceLocator& services) : Editor(services, Title) {}
 
 void ViewportEditor::Draw() {
     Profile;
@@ -33,9 +31,25 @@ void ViewportEditor::Draw() {
 
     InitializeEditorCameraIfNeeded(editorService);
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    if (ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoCollapse)) {
+    if (BeginWindow(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        // Toolbar sits on a raised band spanning the window, bordered off from the image.
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const float windowLeft = ImGui::GetWindowPos().x;
+        const float windowRight = windowLeft + ImGui::GetWindowWidth();
+        const float bandTop = ImGui::GetCursorScreenPos().y - style.WindowPadding.y;
+        const float bandBottom = ImGui::GetCursorScreenPos().y + ImGui::GetFrameHeight() + style.WindowPadding.y;
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->AddRectFilled(ImVec2(windowLeft, bandTop), ImVec2(windowRight, bandBottom), Palette::ToU32(Palette::Mantle));
+        drawList->AddLine(ImVec2(windowLeft, bandBottom), ImVec2(windowRight, bandBottom), Palette::ToU32(Palette::Border));
+
         DrawToolbar(sceneService, editorService);
+        ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, bandBottom + style.ItemSpacing.y));
+
+        // The image runs edge to edge under the padded toolbar.
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::BeginChild("ViewportImage", ImVec2(0, 0), ImGuiChildFlags_None,
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGui::PopStyleVar();
 
         // Grab content region position and size before drawing the image
         ImVec2 pos = ImGui::GetCursorScreenPos();
@@ -83,31 +97,29 @@ void ViewportEditor::Draw() {
         DrawViewportOverlays(sceneService, editorService, view, imageScreenRect);
 
         sceneService.SetViewportRect(imageScreenRect);
+        ImGui::EndChild();
     }
-    ImGui::End();
-    ImGui::PopStyleVar();
+    EndWindow();
 }
 
 void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& editor) {
-    bool isPlaying = sceneService.IsPlaying();
-    if (isPlaying) {
-        if (ImGui::Button("Pause")) {
-            sceneService.SetPlaying(false);
-        }
-    } else {
-        if (ImGui::Button("Play")) {
-            sceneService.SetPlaying(true);
-        }
+    const bool isPlaying = sceneService.IsPlaying();
+    if (isPlaying ? ImGui::Button(ICON_FA_PAUSE) : PrimaryButton(ICON_FA_PLAY)) {
+        sceneService.SetPlaying(!isPlaying);
     }
+    ItemTooltip(isPlaying ? "Pause simulation" : "Play simulation");
     ImGui::SameLine();
-    ImGui::TextDisabled(isPlaying ? "Simulating" : "Paused");
+    ImGui::AlignTextToFramePadding();
+    ColoredText(isPlaying ? Palette::Success : Palette::TextMuted, isPlaying ? "Simulating" : "Paused");
 
-    auto &camera = editor.GetEditorCamera();
-    std::string positionText = "X: " + std::to_string(camera.position.x) + ", Y: " + std::to_string(camera.position.y);
-    std::string zoomText = "Zoom: " + std::to_string(camera.zoom);
-
+    // Right side: editor camera readout and a reset back to the scene's camera.
+    auto& camera = editor.GetEditorCamera();
+    char readout[64];
+    snprintf(readout, sizeof(readout), "%.0f, %.0f   %.0f%%", camera.position.x, camera.position.y, camera.zoom * 100.0f);
+    AlignRight(ImGui::CalcTextSize(readout).x + ButtonWidth(ICON_FA_CROSSHAIRS) + ImGui::GetStyle().ItemSpacing.x);
+    ColoredText(Palette::TextMuted, readout);
     ImGui::SameLine();
-    ImGui::Text("%s | %s", positionText.c_str(), zoomText.c_str());
+    if (IconButton(ICON_FA_CROSSHAIRS, "Reset view to the scene camera")) camera.initialized = false;
 }
 
 void ViewportEditor::InitializeEditorCameraIfNeeded(IEditorService& editorService) {
@@ -212,7 +224,7 @@ void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorServi
             ? Systems::RenderProjector::WorldToFramebuffer({ t.worldX, t.worldY }, view)
             : Systems::RenderProjector::ScreenToFramebuffer({ t.worldX, t.worldY }, view);
         Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
-        if ((mouseFbPos - handleFbPos).Length() <= kMoveHandleRadius) {
+        if ((mouseFbPos - handleFbPos).Length() <= Theme::MoveHandleRadius) {
             isDraggingGizmo_ = true;
             gizmoEntity_ = selected[0];
             lastGizmoFbPos_ = mouseFbPos;
@@ -235,7 +247,7 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
     auto hits = renderSystem->Pick(fbPos, view);
 
-    bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < 4.0f;
+    bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < Theme::ClickCycleDistance;
     size_t index = samePos ? (lastClickIndex_ + 1) % hits.size() : 0;
     lastClickFbPos_ = fbPos;
     lastClickIndex_ = index;
@@ -280,12 +292,12 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
     Vector2 xEnd   = project({ kAxisExtent, 0.0f}, true);
     Vector2 yStart = project({0.0f, -kAxisExtent}, true);
     Vector2 yEnd   = project({0.0f,  kAxisExtent}, true);
-    drawList->AddLine(ImVec2(xStart.x, xStart.y), ImVec2(xEnd.x, xEnd.y), IM_COL32(255, 0, 0, 255), 1.5f);
-    drawList->AddLine(ImVec2(yStart.x, yStart.y), ImVec2(yEnd.x, yEnd.y), IM_COL32(0, 255, 0, 255), 1.5f);
+    drawList->AddLine(ImVec2(xStart.x, xStart.y), ImVec2(xEnd.x, xEnd.y), Palette::ToU32(Palette::AxisX), Theme::AxisWidth);
+    drawList->AddLine(ImVec2(yStart.x, yStart.y), ImVec2(yEnd.x, yEnd.y), Palette::ToU32(Palette::AxisY), Theme::AxisWidth);
 
     // Each real CameraComponent's viewport bounds, since the editor doesn't render through them
     // directly — always a world-space concept too.
-    const ImU32 cameraGizmoColor = IM_COL32(255, 60, 60, 255);
+    const ImU32 cameraGizmoColor = Palette::ToU32(Palette::CameraBounds);
     world->Query<CameraComponent>([&](Entity entity, auto& camera) {
         if (!world->HasComponent<TransformComponent>(entity)) return;
         const auto& t = world->GetComponent<TransformComponent>(entity);
@@ -294,39 +306,41 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
         float halfH = (camera.viewport.height * 0.5f) / zoom;
         Vector2 tl = project({t.worldX - halfW, t.worldY - halfH}, true);
         Vector2 br = project({t.worldX + halfW, t.worldY + halfH}, true);
-        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), cameraGizmoColor, 0.0f, 0, 2.0f);
+        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), cameraGizmoColor, 0.0f, 0, Theme::OverlayLineWidth);
     });
 
     // Selection highlight, sized via the entity's RenderableType::Bounds where it has one
     // (falls back to a fixed box for renderable-less/currently-culled selected entities).
     auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     const auto& selected = editorService.GetSelectedEntities();
-    constexpr float kDefaultHalfSize = 16.0f;
+    const ImU32 selectionColor = Palette::ToU32(Palette::Selection);
     for (Entity entity : selected) {
         Systems::EntityRenderInfo info = renderSystem ? renderSystem->GetEntityRenderInfo(entity) : Systems::EntityRenderInfo{};
         std::optional<Rectangle> bounds = info.bounds;
         if (!bounds && world->HasComponent<TransformComponent>(entity)) {
             const auto& t = world->GetComponent<TransformComponent>(entity);
-            bounds = Rectangle{ t.worldX - kDefaultHalfSize, t.worldY - kDefaultHalfSize,
-                                 kDefaultHalfSize * 2.0f, kDefaultHalfSize * 2.0f };
+            bounds = Rectangle{ t.worldX - Theme::SelectionFallback, t.worldY - Theme::SelectionFallback,
+                                 Theme::SelectionFallback * 2.0f, Theme::SelectionFallback * 2.0f };
         }
         if (!bounds) continue;
         Vector2 tl = project({ bounds->x, bounds->y }, info.isWorldSpace);
         Vector2 br = project({ bounds->x + bounds->width, bounds->y + bounds->height }, info.isWorldSpace);
-        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), IM_COL32(255, 200, 0, 255), 0.0f, 0, 2.0f);
+        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), selectionColor, 0.0f, 0, Theme::OverlayLineWidth);
     }
 
-    // Move handle: constant on-screen size regardless of zoom, matches kMoveHandleRadius's hit-test.
+    // Move handle: constant on-screen size regardless of zoom, matches the MoveHandleRadius hit-test.
     if (selected.size() == 1 && world->HasComponent<TransformComponent>(selected[0])) {
         const auto& t = world->GetComponent<TransformComponent>(selected[0]);
         bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(selected[0]).isWorldSpace : true;
         Vector2 handlePos = project({t.worldX, t.worldY}, isWorldSpace);
         ImVec2 center(handlePos.x, handlePos.y);
-        drawList->AddCircleFilled(center, kMoveHandleRadius, IM_COL32(0, 220, 255, 255));
-        drawList->AddCircle(center, kMoveHandleRadius, IM_COL32(15, 15, 15, 255));
-        float crossHalf = kMoveHandleRadius * 0.5f;
-        drawList->AddLine(ImVec2(center.x - crossHalf, center.y), ImVec2(center.x + crossHalf, center.y), IM_COL32_WHITE, 1.5f);
-        drawList->AddLine(ImVec2(center.x, center.y - crossHalf), ImVec2(center.x, center.y + crossHalf), IM_COL32_WHITE, 1.5f);
+        const float radius = Theme::MoveHandleRadius;
+        const ImU32 glyph = Palette::ToU32(Palette::HandleGlyph);
+        drawList->AddCircleFilled(center, radius, Palette::ToU32(Palette::HandleFill));
+        drawList->AddCircle(center, radius, Palette::ToU32(Palette::HandleOutline));
+        float crossHalf = radius * 0.5f;
+        drawList->AddLine(ImVec2(center.x - crossHalf, center.y), ImVec2(center.x + crossHalf, center.y), glyph, Theme::AxisWidth);
+        drawList->AddLine(ImVec2(center.x, center.y - crossHalf), ImVec2(center.x, center.y + crossHalf), glyph, Theme::AxisWidth);
     }
 
     drawList->PopClipRect();

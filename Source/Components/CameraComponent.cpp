@@ -1,5 +1,6 @@
 #include "Components/CameraComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Component.h"
 #include "Core/Xml.h"
 #include "Interfaces/IApplicationService.h"
@@ -21,20 +22,13 @@ namespace Elysium {
     }
 
     void CameraComponent::Inspect(CameraComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
-        Label("Zoom: ");
+        PropertyLabel("Zoom");
         ImGui::DragFloat("##Zoom", &c.zoom, 0.01f, 0.1f, 10.0f);
-        Label("Viewport: ");
+        PropertyLabel("Viewport");
         ImGui::DragFloat4("##Viewport", &c.viewport.x, 1.0f);
-        Label("Render Order: ");
+        PropertyLabel("Render Order");
         ImGui::DragInt("##RenderOrder", &c.renderOrder);
-        Label("Is Visible: ");
+        PropertyLabel("Is Visible");
         ImGui::Checkbox("##IsVisible", &c.isVisible);
     }
 

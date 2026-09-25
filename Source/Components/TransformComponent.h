@@ -20,6 +20,7 @@ namespace Elysium {
         TransformComponent(float x = 0.0f, float y = 0.0f);
 
         static constexpr const char* Name() { return "Transform"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Transform;
         static constexpr const char* XmlTag() { return "TransformComponent"; }
 
         static void LoadXml(TransformComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);

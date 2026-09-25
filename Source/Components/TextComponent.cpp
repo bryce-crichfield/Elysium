@@ -1,5 +1,6 @@
 #include "Components/TextComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Xml.h"
 #include "imgui.h"
 
@@ -30,27 +31,20 @@ namespace Elysium {
     }
 
     void TextComponent::Inspect(TextComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
-
         static char contentBuffer[1024];
         strncpy(contentBuffer, c.content.c_str(), sizeof(contentBuffer) - 1);
         contentBuffer[sizeof(contentBuffer) - 1] = '\0';
 
-        Label("Content: ");
+        PropertyLabel("Content");
         if (ImGui::InputTextMultiline("##Content", contentBuffer, sizeof(contentBuffer))) {
             c.content = std::string(contentBuffer);
         }
 
-        Label("Font Size: ");
+        PropertyLabel("Font Size");
         ImGui::DragInt("##FontSize", &c.fontSize, 1.0f, 1, 200);
 
         float color[4] = {c.color.r / 255.0f, c.color.g / 255.0f, c.color.b / 255.0f, c.color.a / 255.0f};
-        Label("Color: ");
+        PropertyLabel("Color");
         if (ImGui::ColorEdit4("##Color", color)) {
             c.color = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255), (unsigned char)(color[2] * 255),
                           (unsigned char)(color[3] * 255)};

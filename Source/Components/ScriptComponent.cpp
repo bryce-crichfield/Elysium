@@ -1,5 +1,6 @@
 #include "Components/ScriptComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/Widgets.h"
 #include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
 #include "Services/AssetService.h"
@@ -41,12 +42,6 @@ namespace Elysium {
     }
 
     void ScriptComponent::Inspect(ScriptComponent& c, Entity e, ServiceLocator& services) {
-        auto Label = [](const char* label) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text(label);
-            ImGui::SameLine(140.0f);
-            ImGui::SetNextItemWidth(-1);
-        };
 
         auto& assetService = services.Get<Elysium::Services::IAssetService>();
         const auto& allAssets = assetService.GetAllAssets();
@@ -59,12 +54,11 @@ namespace Elysium {
             }
         }
 
-        Label("Is Active: ");
+        PropertyLabel("Is Active");
         std::string activeId = "##ScriptActive_" + std::to_string(e);
         ImGui::Checkbox(activeId.c_str(), &c.isActive);
 
-        ImGui::Separator();
-        ImGui::Text("Scripts:");
+        SectionHeader("Scripts");
 
         int removeIndex = -1;
         for (size_t i = 0; i < c.scriptNames.size(); ++i) {
@@ -79,7 +73,7 @@ namespace Elysium {
                 }
             }
 
-            ImGui::SetNextItemWidth(-50);
+            ImGui::SetNextItemWidth(-(ButtonWidth(ICON_FA_XMARK) + ImGui::GetStyle().ItemSpacing.x));
             std::string comboId = "##Script_" + std::to_string(e) + "_" + std::to_string(i);
             if (ImGui::BeginCombo(comboId.c_str(), currentScript.c_str())) {
                 for (size_t j = 0; j < scriptPaths.size(); ++j) {
@@ -96,7 +90,7 @@ namespace Elysium {
             }
 
             ImGui::SameLine();
-            if (ImGui::Button("X")) {
+            if (IconButton(ICON_FA_XMARK, "Remove script")) {
                 removeIndex = static_cast<int>(i);
             }
 
@@ -107,7 +101,7 @@ namespace Elysium {
             c.RemoveScript(static_cast<size_t>(removeIndex));
         }
 
-        if (ImGui::Button("+ Add Script")) {
+        if (ImGui::Button(ICON_FA_PLUS "  Add Script", ImVec2(-FLT_MIN, 0))) {
             c.AddScript("");
         }
 
@@ -116,7 +110,7 @@ namespace Elysium {
             auto& scriptService = services.Get<Elysium::Services::IScriptService>();
             for (size_t i = 0; i < c.scriptNames.size(); ++i) {
                 if (!c.scriptNames[i].empty()) {
-                    std::string header = "Script Data: " + c.scriptNames[i];
+                    std::string header = ICON_FA_CODE "  " + c.scriptNames[i];
                     if (ImGui::CollapsingHeader(header.c_str())) {
                         scriptService.InspectEntityScript(e, Path(c.scriptNames[i]));
                     }

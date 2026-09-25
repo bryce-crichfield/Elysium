@@ -14,7 +14,7 @@ void TransformSystem::Update(float /*deltaTime*/) {
     // TransformComponent are different cases: true roots have no adjacency entry
     // to read sibling order from (childrenMap_ only tracks parent->child links,
     // and root-level reordering never populates a childrenMap_[INVALID_ENTITY]
-    // entry — see WorldEditor's root-level drag&drop), so their order has to come
+    // entry — see HierarchyEditor's root-level drag&drop), so their order has to come
     // from Query's entity iteration order instead. Entities under a non-transform
     // parent DO have a real adjacency entry, so they must only be handled via that
     // parent's group below — including them in `roots` as well would double-compose

@@ -15,6 +15,7 @@ namespace Elysium {
             : range(rng), damage(dmg), cooldown(cd), timer(0.0f), targetId(0), isAttacking(false) {}
 
         static constexpr const char* Name() { return "Attack"; }
+        static constexpr InspectorOrder Order = InspectorOrder::Gameplay;
         static constexpr const char* XmlTag() { return "AttackComponent"; }
 
         static void LoadXml(AttackComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
