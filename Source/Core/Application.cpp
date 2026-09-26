@@ -85,11 +85,6 @@ bool ApplicationConfig::FromXML(const std::string& configPath, ApplicationConfig
             config.logLevel = logLevel->GetText() ? logLevel->GetText() : "INFO";
     }
 
-    if (XMLElement* editor = root->FirstChildElement("Editor")) {
-        if (XMLElement* fontName = editor->FirstChildElement("FontName"))
-            config.editorFontName = fontName->GetText() ? fontName->GetText() : "Hermit-Regular.otf";
-    }
-
     LOG_INFOF("Application", "Loaded game config from: %s", configPath.c_str());
 
     return true;

@@ -21,6 +21,7 @@ struct Palette {
     ImVec4 Crust    = Hex(0x131519);  // menu bar, title bars, empty dock space
     ImVec4 Base     = Hex(0x1B1E23);  // window background
     ImVec4 Mantle   = Hex(0x23272E);  // child regions, popups, table headers
+    ImVec4 ViewportBackground = Hex(0x000000);  // empty world behind the scene in the editor viewport
     ImVec4 Surface0 = Hex(0x2F353E);  // input frames, buttons
     ImVec4 Surface1 = Hex(0x3C434E);  // hovered frames
     ImVec4 Surface2 = Hex(0x4A5361);  // pressed frames

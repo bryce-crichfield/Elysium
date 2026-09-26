@@ -3,6 +3,7 @@
 #include "Core/Common.h"
 #include "Core/Event.h"
 #include "Core/Path.h"
+#include "Editor/Theme.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IInvokeService.h"
 #include "Interfaces/IMessageService.h"
@@ -364,7 +365,14 @@ void SceneService::Render() {
 
     // Render all scenes to framebuffer (bottom-to-top)
     ::BeginTextureMode(ToRaylib(framebuffer_));
-    ClearBackground(ToRaylib(config.backgroundColor));
+    // The editor viewport looks at the world through the editor camera, so the empty space
+    // around the scene is editor chrome and follows the theme.
+    Color clearColor = config.backgroundColor;
+    if (app.GetMode() == AppMode::Editor) {
+        const ImVec4 bg = EditorStyle::CurrentPalette().ViewportBackground;
+        clearColor = Color{(unsigned char)(bg.x * 255), (unsigned char)(bg.y * 255), (unsigned char)(bg.z * 255), 255};
+    }
+    ClearBackground(ToRaylib(clearColor));
 
     for (Scene* scene : sceneStack_) {
         if (scene) {

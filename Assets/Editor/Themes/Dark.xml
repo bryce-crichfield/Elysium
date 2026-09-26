@@ -12,6 +12,7 @@
     <Color name="Crust"        value="#131519"/>
     <Color name="Base"         value="#1B1E23"/>
     <Color name="Mantle"       value="#23272E"/>
+    <Color name="ViewportBackground" value="#000000"/>
     <Color name="Surface0"     value="#2F353E"/>
     <Color name="Surface1"     value="#3C434E"/>
     <Color name="Surface2"     value="#4A5361"/>
@@ -39,4 +40,5 @@
     <Metric name="LabelColumnWidth" value="130"/>
   </Metrics>
   <Font file="Fonts/FiraCode-Regular.ttf" size="15"/>
+  <EditorFont file="Fonts/FiraCode-Regular.ttf"/>
 </Theme>

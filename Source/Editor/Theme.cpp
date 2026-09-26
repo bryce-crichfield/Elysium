@@ -42,7 +42,7 @@ constexpr Field<Palette, ImVec4> ColorFields[] = {
     FIELD(Palette, Warning),      FIELD(Palette, Error),         FIELD(Palette, Debug),
     FIELD(Palette, AxisX),        FIELD(Palette, AxisY),         FIELD(Palette, AccentSoft),
     FIELD(Palette, CameraBounds), FIELD(Palette, Selection),     FIELD(Palette, HandleFill),
-    FIELD(Palette, HandleOutline), FIELD(Palette, HandleGlyph),
+    FIELD(Palette, HandleOutline), FIELD(Palette, HandleGlyph),   FIELD(Palette, ViewportBackground),
 };
 constexpr Field<Theme, ImVec2> Vec2Fields[] = {
     FIELD(Theme, WindowPadding), FIELD(Theme, FramePadding), FIELD(Theme, ItemSpacing),
@@ -138,6 +138,9 @@ bool ReadThemeFile(const std::string& path, Theme& t, Palette& p, std::set<std::
     if (const auto* font = root->FirstChildElement("Font")) {
         if (const char* file = font->Attribute("file")) t.FontFile = file;
         font->QueryFloatAttribute("size", &t.FontSize);
+    }
+    if (const auto* font = root->FirstChildElement("EditorFont")) {
+        if (const char* file = font->Attribute("file")) t.EditorFont = file;
     }
     return true;
 }
@@ -271,7 +274,8 @@ bool LoadTheme(const std::string& name) {
     }
     Derive(p, givenColors);
 
-    const bool fontChanged = t.FontFile != theme.FontFile || t.FontSize != theme.FontSize;
+    const bool fontChanged = t.FontFile != theme.FontFile || t.FontSize != theme.FontSize ||
+                             t.EditorFont != theme.EditorFont;
     theme = std::move(t);
     palette = p;
     Install(theme, palette);

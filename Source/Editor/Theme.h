@@ -58,6 +58,7 @@ struct Theme {
     // Typography.
     std::string FontFile = "Fonts/FiraCode-Regular.ttf";  // engine asset
     float FontSize       = 15.0f;
+    std::string EditorFont = "Fonts/FiraCode-Regular.ttf";  // script text editor
 };
 
 // The active theme and palette every editor panel reads.
