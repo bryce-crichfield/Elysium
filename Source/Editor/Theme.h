@@ -51,7 +51,6 @@ struct Theme {
     // Viewport overlays.
     float AxisWidth          = 1.5f;
     float OverlayLineWidth   = 2.0f;
-    float MoveHandleRadius   = 8.0f;
     float SelectionFallback  = 16.0f;  // half-size box for entities without bounds
     float ClickCycleDistance = 4.0f;   // re-clicks this close cycle overlapping hits
 

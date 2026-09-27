@@ -52,9 +52,6 @@ struct Palette {
     ImVec4 AccentSoft;     // selected-row fill
     ImVec4 CameraBounds;
     ImVec4 Selection;
-    ImVec4 HandleFill;
-    ImVec4 HandleOutline;
-    ImVec4 HandleGlyph;
 };
 
 }  // namespace Elysium::EditorStyle

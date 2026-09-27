@@ -79,6 +79,17 @@ inline bool IconButton(const char* icon, const char* tooltip = nullptr) {
     return pressed;
 }
 
+// An IconButton that stays highlighted while `active`, for picking one mode out of a set.
+inline bool ToggleIconButton(const char* icon, bool active, const char* tooltip = nullptr) {
+    const auto& palette = Editor::Palette();
+    ImGui::PushStyleColor(ImGuiCol_Button, active ? palette.AccentSoft : palette.WithAlpha(palette.Surface0, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_Text, active ? palette.Accent : palette.Text);
+    const bool pressed = ImGui::Button(icon);
+    ImGui::PopStyleColor(2);
+    ItemTooltip(tooltip);
+    return pressed;
+}
+
 // A button with the accent fill, for the one primary action in a toolbar.
 inline bool PrimaryButton(const char* label, const ImVec2& size = ImVec2(0, 0)) {
     ImGui::PushStyleColor(ImGuiCol_Button, Editor::Palette().Accent);

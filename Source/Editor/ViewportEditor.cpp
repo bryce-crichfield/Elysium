@@ -1,6 +1,7 @@
 #include "ViewportEditor.h"
 #include <algorithm>
 #include <cmath>
+#include <ImGuizmo.h>
 #include "Core/Application.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IEditorService.h"
@@ -21,6 +22,59 @@ namespace Elysium {
 using namespace Services;
 using Systems::CameraView;
 
+namespace {
+// Ctrl-drag snapping, per gizmo mode.
+constexpr float MoveSnap = 8.0f;     // world units
+constexpr float RotateSnap = 15.0f;  // degrees
+constexpr float ScaleSnap = 0.25f;
+
+// Column-major 4x4s, the layout ImGuizmo reads.
+struct Matrix4 {
+    float m[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+};
+
+// The orthographic projection of what `view` shows. World y grows downward, so the top of
+// the screen is the smaller y.
+Matrix4 ViewProjection(const CameraView& view) {
+    const float halfW = view.viewport.width * 0.5f / view.zoom;
+    const float halfH = view.viewport.height * 0.5f / view.zoom;
+    const float left = view.position.x - halfW, right = view.position.x + halfW;
+    const float top = view.position.y - halfH, bottom = view.position.y + halfH;
+    Matrix4 p;
+    p.m[0] = 2.0f / (right - left);
+    p.m[5] = 2.0f / (top - bottom);
+    p.m[10] = -1.0f;
+    p.m[12] = -(right + left) / (right - left);
+    p.m[13] = -(top + bottom) / (top - bottom);
+    return p;
+}
+
+// Same composition as TransformSystem: translate * rotate * scale.
+Matrix4 EntityMatrix(Vector2 position, float rotationDegrees, float scaleX, float scaleY) {
+    const float c = cosf(rotationDegrees * DegToRad), s = sinf(rotationDegrees * DegToRad);
+    Matrix4 e;
+    e.m[0] = c * scaleX;  e.m[1] = s * scaleX;
+    e.m[4] = -s * scaleY; e.m[5] = c * scaleY;
+    e.m[12] = position.x; e.m[13] = position.y;
+    return e;
+}
+
+float WrapDegrees(float degrees) {
+    degrees = fmodf(degrees + 180.0f, 360.0f);
+    return (degrees < 0.0f ? degrees + 360.0f : degrees) - 180.0f;
+}
+
+// Gizmo colors follow the theme: axes as in the overlays, the rotation ring in the accent.
+void ApplyGizmoStyle(const EditorStyle::Palette& palette) {
+    ImGuizmo::Style& style = ImGuizmo::GetStyle();
+    style.Colors[ImGuizmo::DIRECTION_X] = palette.AxisX;
+    style.Colors[ImGuizmo::DIRECTION_Y] = palette.AxisY;
+    style.Colors[ImGuizmo::DIRECTION_Z] = palette.Accent;
+    style.Colors[ImGuizmo::PLANE_Z] = EditorStyle::Palette::WithAlpha(palette.Accent, 0.38f);
+    style.Colors[ImGuizmo::SELECTION] = palette.Selection;
+}
+}  // namespace
+
 ViewportEditor::ViewportEditor(ServiceLocator& services) : Editor(services, Title) {}
 
 void ViewportEditor::Draw() {
@@ -30,6 +84,7 @@ void ViewportEditor::Draw() {
     auto& editorService = services_.Get<IEditorService>();
 
     InitializeEditorCameraIfNeeded(editorService);
+    ImGuizmo::BeginFrame();
 
     if (BeginWindow(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         // Toolbar sits on a raised band spanning the window, bordered off from the image.
@@ -51,52 +106,44 @@ void ViewportEditor::Draw() {
                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         ImGui::PopStyleVar();
 
-        // Grab content region position and size before drawing the image
-        ImVec2 pos = ImGui::GetCursorScreenPos();
-        ImVec2 avail = ImGui::GetContentRegionAvail();
+        // The scene renders at exactly this panel's size (from the next frame on, after a
+        // resize), so the image is drawn 1:1 in the top-left.
+        const ImVec2 pos = ImGui::GetCursorScreenPos();
+        const ImVec2 avail = ImGui::GetContentRegionAvail();
+        sceneService.SetFramebufferSize((int)avail.x, (int)avail.y);
 
-        // Fit the framebuffer into the content region, centered, preserving aspect. Needed
-        // by input handling and overlay drawing below, and to tell SceneService where the
-        // game viewport landed on screen.
         const Framebuffer& fb = sceneService.GetFramebuffer();
-        float fbAspect = (float)fb.Width() / (float)fb.Height();
-        float regionAspect = avail.x / avail.y;
+        const Rectangle imageScreenRect{pos.x, pos.y, (float)fb.Width(), (float)fb.Height()};
 
-        float drawW, drawH;
-        if (fbAspect > regionAspect) {
-            drawW = avail.x;
-            drawH = avail.x / fbAspect;
-        } else {
-            drawH = avail.y;
-            drawW = avail.y * fbAspect;
-        }
-        float drawX = pos.x + (avail.x - drawW) * 0.5f;
-        float drawY = pos.y + (avail.y - drawH) * 0.5f;
-        Rectangle imageScreenRect{drawX, drawY, drawW, drawH};
-
-        // Draw the framebuffer image, V-flipped (framebuffer textures use GL bottom-up origin).
-        ImGui::SetCursorScreenPos(ImVec2(drawX, drawY));
-        ImGui::Image((ImTextureID)fb.TextureId(), ImVec2(drawW, drawH), ImVec2(0, 1), ImVec2(1, 0));
+        // V-flipped: framebuffer textures use GL bottom-up origin.
+        ImGui::Image((ImTextureID)fb.TextureId(), ImVec2(imageScreenRect.width, imageScreenRect.height), ImVec2(0, 1), ImVec2(1, 0));
+        const bool imageHovered = ImGui::IsItemHovered();
+        const bool imageClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        sceneService.SetViewportRect(imageScreenRect);
 
         // Snapshot the view that produced the currently-displayed framebuffer image
-        // (i.e. before this frame's pan/zoom input is applied) so picking and gizmo
-        // hit-testing line up with what's actually on screen right now.
+        // (i.e. before this frame's pan/zoom input is applied) so picking and the gizmo
+        // line up with what's actually on screen right now.
         auto& editorCam = editorService.GetEditorCamera();
-        const auto& config = services_.Get<IApplicationService>().GetConfig();
         CameraView view{
             editorCam.position,
             editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
-            Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight}
+            Rectangle{0, 0, (float)fb.Width(), (float)fb.Height()}
         };
         if (auto* scene = sceneService.GetTopScene()) {
             if (auto* renderSystem = scene->GetSystem<Systems::RenderSystem>()) renderSystem->PlaceScreenInWorld(view);
         }
 
-        HandleEditorCameraInput(sceneService, editorService);
-        HandleGizmoOrPick(sceneService, editorService, view);
         DrawViewportOverlays(sceneService, editorService, view, imageScreenRect);
+        const bool gizmoOwnsMouse = HandleGizmo(sceneService, editorService, view, imageScreenRect);
+        // The gizmo gets the mouse first; an already-started pan keeps it until release.
+        const bool canInteract = imageHovered && !gizmoOwnsMouse;
+        if (canInteract || isPanningCamera_) HandleEditorCameraInput(sceneService, editorService, view, canInteract);
+        if (canInteract) {
+            HandleGizmoShortcuts(sceneService);
+            if (imageClicked) HandleViewportClick(sceneService, editorService, view);
+        }
 
-        sceneService.SetViewportRect(imageScreenRect);
         ImGui::EndChild();
     }
     EndWindow();
@@ -112,6 +159,14 @@ void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& ed
     ImGui::AlignTextToFramePadding();
     ColoredText(isPlaying ? Palette().Success : Palette().TextMuted, isPlaying ? "Simulating" : "Paused");
 
+    // Gizmo mode.
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
+    if (ToggleIconButton(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT, gizmoMode_ == GizmoMode::Move, "Move (W)")) gizmoMode_ = GizmoMode::Move;
+    ImGui::SameLine();
+    if (ToggleIconButton(ICON_FA_ROTATE, gizmoMode_ == GizmoMode::Rotate, "Rotate (E)")) gizmoMode_ = GizmoMode::Rotate;
+    ImGui::SameLine();
+    if (ToggleIconButton(ICON_FA_UP_RIGHT_AND_DOWN_LEFT_FROM_CENTER, gizmoMode_ == GizmoMode::Scale, "Scale (R)")) gizmoMode_ = GizmoMode::Scale;
+
     // Right side: editor camera readout and a reset back to the scene's camera.
     auto& camera = editor.GetEditorCamera();
     char readout[64];
@@ -120,6 +175,14 @@ void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& ed
     ColoredText(Palette().TextMuted, readout);
     ImGui::SameLine();
     if (IconButton(ICON_FA_CROSSHAIRS, "Reset view to the scene camera")) camera.initialized = false;
+}
+
+void ViewportEditor::HandleGizmoShortcuts(ISceneService& sceneService) {
+    // While simulating, these keys belong to the game.
+    if (sceneService.IsPlaying() || ImGui::GetIO().WantTextInput || ImGui::GetIO().KeyCtrl) return;
+    if (ImGui::IsKeyPressed(ImGuiKey_W, false)) gizmoMode_ = GizmoMode::Move;
+    if (ImGui::IsKeyPressed(ImGuiKey_E, false)) gizmoMode_ = GizmoMode::Rotate;
+    if (ImGui::IsKeyPressed(ImGuiKey_R, false)) gizmoMode_ = GizmoMode::Scale;
 }
 
 void ViewportEditor::InitializeEditorCameraIfNeeded(IEditorService& editorService) {
@@ -145,9 +208,9 @@ void ViewportEditor::InitializeEditorCameraIfNeeded(IEditorService& editorServic
     });
 }
 
-void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEditorService& editorService) {
+void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEditorService& editorService,
+                                             const CameraView& view, bool hovered) {
     auto& cam = editorService.GetEditorCamera();
-    bool hovered = ImGui::IsItemHovered();
 
     if (hovered && Input::IsMouseButtonPressed(MouseButton::Middle)) {
         isPanningCamera_ = true;
@@ -161,85 +224,110 @@ void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEdito
         float zoom = cam.zoom != 0.0f ? cam.zoom : 1.0f;
         cam.position.x -= delta.x / zoom;
         cam.position.y -= delta.y / zoom;
-    }
-
-    if (hovered) {
-        float wheel = Input::GetMouseWheelMove();
-        if (wheel != 0.0f) {
-            // Same viewport-center/zoom math as RenderSystem::CalculateTransform's World2D
-            // branch — find the world point under the cursor before changing zoom, then
-            // re-solve the camera position so that same world point stays under the cursor.
-            const auto& config = services_.Get<IApplicationService>().GetConfig();
-            Vector2 viewportCenter = { config.framebufferWidth * 0.5f, config.framebufferHeight * 0.5f };
-            Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
-
-            float oldZoom = cam.zoom != 0.0f ? cam.zoom : 1.0f;
-            Vector2 worldUnderMouse = {
-                (mouseFbPos.x - viewportCenter.x) / oldZoom + cam.position.x,
-                (mouseFbPos.y - viewportCenter.y) / oldZoom + cam.position.y
-            };
-
-            float factor = 1.0f + wheel * 0.1f;
-            float newZoom = std::clamp(cam.zoom * factor, 0.1f, 10.0f);
-            cam.zoom = newZoom;
-
-            cam.position.x = worldUnderMouse.x - (mouseFbPos.x - viewportCenter.x) / newZoom;
-            cam.position.y = worldUnderMouse.y - (mouseFbPos.y - viewportCenter.y) / newZoom;
-        }
-    }
-}
-
-void ViewportEditor::HandleGizmoOrPick(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
-    auto* world = editorService.GetWorld();
-
-    // Continue or end an in-progress drag. Either way, swallow this frame's click —
-    // it belongs to the drag, not to re-picking.
-    if (isDraggingGizmo_) {
-        if (Input::IsMouseButtonDown(MouseButton::Left) && world &&
-            world->HasComponent<TransformComponent>(gizmoEntity_)) {
-            Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
-            Vector2 fbDelta = { fbPos.x - lastGizmoFbPos_.x, fbPos.y - lastGizmoFbPos_.y };
-            lastGizmoFbPos_ = fbPos;
-            // Screen2D entities move in screen pixels, which the editor draws screenScale
-            // world units apart.
-            float zoom = gizmoIsWorldSpace_ ? view.zoom : view.zoom * view.screenScale;
-            ApplyGizmoDrag(world, gizmoEntity_, zoom, fbDelta, true);
-        } else {
-            isDraggingGizmo_ = false;
-        }
         return;
     }
 
-    // Start a drag if this press landed on the single selected entity's move handle.
-    const auto& selected = editorService.GetSelectedEntities();
-    if (selected.size() == 1 && world &&
-        world->HasComponent<TransformComponent>(selected[0]) &&
-        ImGui::IsItemHovered() && Input::IsMouseButtonPressed(MouseButton::Left)) {
-        const auto& t = world->GetComponent<TransformComponent>(selected[0]);
-        auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
-        // A Screen2D entity's position is a screen pixel, which the editor places in the
-        // world via the view's screen placement rather than the plain camera projection.
-        bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(selected[0]).isWorldSpace : true;
-        Vector2 handleFbPos = isWorldSpace
-            ? Systems::RenderProjector::WorldToFramebuffer({ t.worldX, t.worldY }, view)
-            : Systems::RenderProjector::ScreenToFramebuffer({ t.worldX, t.worldY }, view);
+    float wheel = hovered ? Input::GetMouseWheelMove() : 0.0f;
+    if (wheel != 0.0f) {
+        // Find the world point under the cursor before changing zoom, then re-solve the
+        // camera position so that same world point stays under the cursor.
         Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
-        if ((mouseFbPos - handleFbPos).Length() <= Theme().MoveHandleRadius) {
-            isDraggingGizmo_ = true;
-            gizmoEntity_ = selected[0];
-            lastGizmoFbPos_ = mouseFbPos;
-            gizmoIsWorldSpace_ = isWorldSpace;
-            return;
+        Vector2 worldUnderMouse = Systems::RenderProjector::FramebufferToWorld(mouseFbPos, view);
+
+        float factor = 1.0f + wheel * 0.1f;
+        float newZoom = std::clamp(cam.zoom * factor, 0.1f, 10.0f);
+        cam.zoom = newZoom;
+
+        Vector2 viewportCenter = { view.viewport.width * 0.5f, view.viewport.height * 0.5f };
+        cam.position.x = worldUnderMouse.x - (mouseFbPos.x - viewportCenter.x) / newZoom;
+        cam.position.y = worldUnderMouse.y - (mouseFbPos.y - viewportCenter.y) / newZoom;
+    }
+}
+
+bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& editorService,
+                                 const CameraView& view, Rectangle imageScreenRect) {
+    auto* world = editorService.GetWorld();
+    const auto& selected = editorService.GetSelectedEntities();
+    if (!world || selected.size() != 1 || !world->HasComponent<TransformComponent>(selected[0])) return false;
+    const Entity entity = selected[0];
+
+    // A Screen2D entity's position is a game-screen pixel, which the editor shows in the
+    // world at view.screenOrigin + p * screenScale; the gizmo works in that world position.
+    auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
+    const bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(entity).isWorldSpace : true;
+    const float screenScale = view.screenScale != 0.0f ? view.screenScale : 1.0f;
+    auto toShown = [&](Vector2 p) {
+        return isWorldSpace ? p : Vector2{ view.screenOrigin.x + p.x * screenScale, view.screenOrigin.y + p.y * screenScale };
+    };
+    auto fromShown = [&](Vector2 p) {
+        return isWorldSpace ? p : Vector2{ (p.x - view.screenOrigin.x) / screenScale, (p.y - view.screenOrigin.y) / screenScale };
+    };
+
+    auto& t = world->GetComponent<TransformComponent>(entity);
+    Matrix4 matrix = EntityMatrix(toShown({ t.worldX, t.worldY }), t.worldRotation, t.worldScaleX, t.worldScaleY);
+    const Matrix4 identity;
+    const Matrix4 projection = ViewProjection(view);
+
+    ApplyGizmoStyle(Palette());
+    ImGuizmo::SetOrthographic(true);
+    ImGuizmo::AllowAxisFlip(false);
+    ImGuizmo::SetDrawlist();
+    ImGuizmo::SetRect(imageScreenRect.x, imageScreenRect.y, imageScreenRect.width, imageScreenRect.height);
+
+    ImGuizmo::OPERATION operation = ImGuizmo::OPERATION(ImGuizmo::TRANSLATE_X | ImGuizmo::TRANSLATE_Y);
+    ImGuizmo::MODE mode = ImGuizmo::WORLD;
+    float snapValue = MoveSnap;
+    if (gizmoMode_ == GizmoMode::Rotate) {
+        operation = ImGuizmo::ROTATE_Z;
+        snapValue = RotateSnap;
+    } else if (gizmoMode_ == GizmoMode::Scale) {
+        operation = ImGuizmo::OPERATION(ImGuizmo::SCALE_X | ImGuizmo::SCALE_Y);
+        mode = ImGuizmo::LOCAL;
+        snapValue = ScaleSnap;
+    }
+    const float snap[3] = { snapValue, snapValue, snapValue };
+    const bool snapping = ImGui::GetIO().KeyCtrl;
+
+    if (ImGuizmo::Manipulate(identity.m, projection.m, operation, mode, matrix.m, nullptr, snapping ? snap : nullptr)) {
+        const float* m = matrix.m;
+        // Each mode writes back only what it edits, so a move never rewrites (and rounds)
+        // the rotation or scale. Changes land in the local transform; TransformSystem
+        // recomposes world next frame.
+        if (gizmoMode_ == GizmoMode::Move) {
+            Vector2 target = fromShown({ m[12], m[13] });
+            Vector2 local = target;
+            if (world->HasComponent<ParentComponent>(entity)) {
+                Entity parent = world->GetComponent<ParentComponent>(entity).parent;
+                if (parent != INVALID_ENTITY && world->HasComponent<TransformComponent>(parent)) {
+                    // TransformSystem::ComposeRecursive inverted:
+                    // world = parent.pos + rotate(local * parent.scale, parent.rotation).
+                    const auto& p = world->GetComponent<TransformComponent>(parent);
+                    const float rad = -p.worldRotation * DegToRad;
+                    const float c = cosf(rad), s = sinf(rad);
+                    const Vector2 d = { target.x - p.worldX, target.y - p.worldY };
+                    const Vector2 rotated = { d.x * c - d.y * s, d.x * s + d.y * c };
+                    local = { rotated.x / (p.worldScaleX != 0.0f ? p.worldScaleX : 1.0f),
+                              rotated.y / (p.worldScaleY != 0.0f ? p.worldScaleY : 1.0f) };
+                }
+            }
+            t.localX = local.x;
+            t.localY = local.y;
+        } else if (gizmoMode_ == GizmoMode::Rotate) {
+            // World rotation is parent + local, so the world delta is the local delta.
+            const float newRotation = atan2f(m[1], m[0]) / DegToRad;
+            t.localRotation += WrapDegrees(newRotation - t.worldRotation);
+        } else {
+            // World scale is parent * local, so the ratio carries over. Ratios of the axis
+            // lengths keep a flipped (negative) scale flipped.
+            const float oldX = std::fabs(t.worldScaleX), oldY = std::fabs(t.worldScaleY);
+            if (oldX > 0.0f) t.localScaleX *= std::hypot(m[0], m[1]) / oldX;
+            if (oldY > 0.0f) t.localScaleY *= std::hypot(m[4], m[5]) / oldY;
         }
     }
-
-    HandleViewportClick(sceneService, editorService, view);
+    return ImGuizmo::IsOver() || ImGuizmo::IsUsing();
 }
 
 void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
-    if (!ImGui::IsItemClicked(ImGuiMouseButton_Left))
-        return;
-
     auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     if (!renderSystem)
         return;
@@ -259,14 +347,6 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     }
 }
 
-Vector2 ViewportEditor::FramebufferToScreen(Vector2 fbPos, Rectangle imageScreenRect) const {
-    const auto& config = services_.Get<IApplicationService>().GetConfig();
-    return {
-        imageScreenRect.x + (fbPos.x / (float)config.framebufferWidth)  * imageScreenRect.width,
-        imageScreenRect.y + (fbPos.y / (float)config.framebufferHeight) * imageScreenRect.height
-    };
-}
-
 void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorService& editorService,
                                            const CameraView& view, Rectangle imageScreenRect) {
     auto* world = editorService.GetWorld();
@@ -279,11 +359,12 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
 
     // isWorldSpace true: pos is a world coordinate, needs the camera view projection.
     // isWorldSpace false: pos is a screen pixel (a Screen2D-layer entity), placed in the
-    // world where the game camera shows it (RenderSystem::PlaceScreenInWorld).
+    // world where the game camera shows it (RenderSystem::PlaceScreenInWorld). The image is
+    // drawn 1:1, so a framebuffer pixel is just offset to where the image sits.
     auto project = [&](Vector2 pos, bool isWorldSpace) {
         Vector2 fbPos = isWorldSpace ? Systems::RenderProjector::WorldToFramebuffer(pos, view)
                                      : Systems::RenderProjector::ScreenToFramebuffer(pos, view);
-        return FramebufferToScreen(fbPos, imageScreenRect);
+        return Vector2{ imageScreenRect.x + fbPos.x, imageScreenRect.y + fbPos.y };
     };
 
     // Origin axes — always a world-space concept.
@@ -328,52 +409,7 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
         drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), selectionColor, 0.0f, 0, Theme().OverlayLineWidth);
     }
 
-    // Move handle: constant on-screen size regardless of zoom, matches the MoveHandleRadius hit-test.
-    if (selected.size() == 1 && world->HasComponent<TransformComponent>(selected[0])) {
-        const auto& t = world->GetComponent<TransformComponent>(selected[0]);
-        bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(selected[0]).isWorldSpace : true;
-        Vector2 handlePos = project({t.worldX, t.worldY}, isWorldSpace);
-        ImVec2 center(handlePos.x, handlePos.y);
-        const float radius = Theme().MoveHandleRadius;
-        const ImU32 glyph = Palette().ToU32(Palette().HandleGlyph);
-        drawList->AddCircleFilled(center, radius, Palette().ToU32(Palette().HandleFill));
-        drawList->AddCircle(center, radius, Palette().ToU32(Palette().HandleOutline));
-        float crossHalf = radius * 0.5f;
-        drawList->AddLine(ImVec2(center.x - crossHalf, center.y), ImVec2(center.x + crossHalf, center.y), glyph, Theme().AxisWidth);
-        drawList->AddLine(ImVec2(center.x, center.y - crossHalf), ImVec2(center.x, center.y + crossHalf), glyph, Theme().AxisWidth);
-    }
-
     drawList->PopClipRect();
-}
-
-void ViewportEditor::ApplyGizmoDrag(World* world, Entity entity, float zoom, Vector2 fbDelta, bool isWorldSpace) {
-    zoom = zoom != 0.0f ? zoom : 1.0f;
-    // A Screen2D entity's position is already a framebuffer pixel — a 1px mouse move should
-    // be a 1-unit local move, not scaled by the camera's zoom (which never touches it at render time).
-    Vector2 worldDelta = isWorldSpace ? Vector2{ fbDelta.x / zoom, fbDelta.y / zoom } : fbDelta;
-
-    // Matches TransformSystem::ComposeRecursive's local->world composition, inverted:
-    // world = parentWorld.pos + rotate(local * parentWorld.scale, parentWorld.rotation).
-    Vector2 localDelta = worldDelta;
-    if (world->HasComponent<ParentComponent>(entity)) {
-        Entity parent = world->GetComponent<ParentComponent>(entity).parent;
-        if (parent != INVALID_ENTITY && world->HasComponent<TransformComponent>(parent)) {
-            const auto& parentT = world->GetComponent<TransformComponent>(parent);
-            float rad = -parentT.worldRotation * DegToRad;
-            float cs = cosf(rad), sn = sinf(rad);
-            Vector2 rotated = {
-                worldDelta.x * cs - worldDelta.y * sn,
-                worldDelta.x * sn + worldDelta.y * cs
-            };
-            float parentScaleX = parentT.worldScaleX != 0.0f ? parentT.worldScaleX : 1.0f;
-            float parentScaleY = parentT.worldScaleY != 0.0f ? parentT.worldScaleY : 1.0f;
-            localDelta = { rotated.x / parentScaleX, rotated.y / parentScaleY };
-        }
-    }
-
-    auto& transform = world->GetComponent<TransformComponent>(entity);
-    transform.localX += localDelta.x;
-    transform.localY += localDelta.y;
 }
 
 }  // namespace Elysium

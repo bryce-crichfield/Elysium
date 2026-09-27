@@ -63,6 +63,12 @@ target_include_directories(colortextedit PUBLIC
 )
 target_link_libraries(colortextedit PUBLIC imgui)
 
+# ImGuizmo: only the transform gizmo is used, so the other widgets aren't built
+set(IMGUIZMO_DIR ${CMAKE_SOURCE_DIR}/Vendor/ImGuizmo)
+add_library(imguizmo STATIC ${IMGUIZMO_DIR}/src/ImGuizmo.cpp)
+target_include_directories(imguizmo PUBLIC ${IMGUIZMO_DIR}/src)
+target_link_libraries(imguizmo PUBLIC imgui)
+
 # rlImGui library, since it's header only it's a bit more complicated
 set(RLIMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/rlImGui)
 add_library(rlimgui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
@@ -93,6 +99,7 @@ target_link_libraries(${PROJECT_NAME}
     rlimgui
     imgui
     colortextedit
+    imguizmo
     tinyxml2
     SQLiteCpp
     enet

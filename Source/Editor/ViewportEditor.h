@@ -15,9 +15,9 @@ class IEditorService;
 
 namespace Elysium {
 
-// Draws the "Viewport" panel and drives viewport click-to-pick + the move gizmo —
-// extracted from Application.cpp so it owns the viewport rect it needs to translate mouse
-// coordinates into the framebuffer coordinates RenderSystem::Pick() expects.
+// Draws the "Viewport" panel: the scene through the free editor camera, click-to-pick,
+// and an ImGuizmo transform gizmo on the selected entity. SceneService sizes its
+// framebuffer to this panel in the editor, so the image is shown 1:1 with no scaling.
 class ViewportEditor : public Editor {
    public:
     static constexpr const char* Title = "Viewport";
@@ -27,42 +27,37 @@ class ViewportEditor : public Editor {
     void Draw() override;
 
    private:
+    enum class GizmoMode { Move, Rotate, Scale };
+
     void DrawToolbar(Services::ISceneService& sceneService, Services::IEditorService& editor);
+    // W/E/R pick the gizmo mode while the viewport is hovered and the scene is paused.
+    void HandleGizmoShortcuts(Services::ISceneService& sceneService);
 
     // Snaps the editor camera to the first real CameraComponent's transform/zoom the first
     // time a world becomes available, so scenes don't open centered on the origin.
     void InitializeEditorCameraIfNeeded(Services::IEditorService& editorService);
 
     // Middle-mouse-drag pan + scroll-wheel zoom (anchored under the cursor) for the free
-    // editor camera.
-    void HandleEditorCameraInput(Services::ISceneService& sceneService, Services::IEditorService& editorService);
+    // editor camera. Pans and zooms only start while `hovered`.
+    void HandleEditorCameraInput(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+                                 const Systems::CameraView& view, bool hovered);
 
-    // Dispatches each frame to either continuing/starting a gizmo drag, or (if neither
-    // applies) the ordinary click-to-pick path. Only one of the two ever runs per press.
-    void HandleGizmoOrPick(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
+    // Draws and applies the transform gizmo on the single selected entity. Returns true while
+    // the gizmo owns the mouse (hovered or dragging), so the click doesn't also re-pick.
+    bool HandleGizmo(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+                     const Systems::CameraView& view, Rectangle imageScreenRect);
     void HandleViewportClick(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
-    void ApplyGizmoDrag(World* world, Entity entity, float zoom, Vector2 fbDelta, bool isWorldSpace);
 
-    // Editor-only chrome (origin axes, camera gizmos, selection outline, move handle),
-    // drawn on top of the already-blitted framebuffer image via ImGui's draw list.
-    // imageScreenRect is the on-screen rect the framebuffer image was fit into this frame.
+    // Editor-only chrome (origin axes, camera bounds, selection outline), drawn over the
+    // framebuffer image via ImGui's draw list. imageScreenRect is where the image sits on screen.
     void DrawViewportOverlays(Services::ISceneService& sceneService, Services::IEditorService& editorService,
                                const Systems::CameraView& view, Rectangle imageScreenRect);
 
-    // Maps a framebuffer-space position (as returned by RenderProjector::WorldToFramebuffer)
-    // to an ImGui screen-space position within imageScreenRect, for overlay drawing.
-    Vector2 FramebufferToScreen(Vector2 fbPos, Rectangle imageScreenRect) const;
+    GizmoMode gizmoMode_ = GizmoMode::Move;
 
     // Click-cycling state: repeat-clicking the same spot advances through overlapping hits.
     Vector2 lastClickFbPos_ = { -1.0f, -1.0f };
     size_t lastClickIndex_ = 0;
-
-    // Move gizmo drag state.
-    bool isDraggingGizmo_ = false;
-    Entity gizmoEntity_ = INVALID_ENTITY;
-    Vector2 lastGizmoFbPos_ = { 0.0f, 0.0f };
-    // Cached at drag-start so the continuing-drag branch doesn't need to re-query RenderSystem.
-    bool gizmoIsWorldSpace_ = true;
 
     // Editor camera pan drag state.
     bool isPanningCamera_ = false;

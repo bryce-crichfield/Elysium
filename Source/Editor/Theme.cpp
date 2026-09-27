@@ -41,8 +41,7 @@ constexpr Field<Palette, ImVec4> ColorFields[] = {
     FIELD(Palette, AccentHover),  FIELD(Palette, AccentActive),  FIELD(Palette, Success),
     FIELD(Palette, Warning),      FIELD(Palette, Error),         FIELD(Palette, Debug),
     FIELD(Palette, AxisX),        FIELD(Palette, AxisY),         FIELD(Palette, AccentSoft),
-    FIELD(Palette, CameraBounds), FIELD(Palette, Selection),     FIELD(Palette, HandleFill),
-    FIELD(Palette, HandleOutline), FIELD(Palette, HandleGlyph),   FIELD(Palette, ViewportBackground),
+    FIELD(Palette, CameraBounds), FIELD(Palette, Selection),     FIELD(Palette, ViewportBackground),
 };
 constexpr Field<Theme, ImVec2> Vec2Fields[] = {
     FIELD(Theme, WindowPadding), FIELD(Theme, FramePadding), FIELD(Theme, ItemSpacing),
@@ -56,7 +55,7 @@ constexpr Field<Theme, float> FloatFields[] = {
     FIELD(Theme, PopupBorder),       FIELD(Theme, FrameBorder),        FIELD(Theme, LabelColumnWidth),
     FIELD(Theme, SearchWidth),       FIELD(Theme, IdColumnWidth),      FIELD(Theme, DropZoneHeight),
     FIELD(Theme, DropLineWidth),     FIELD(Theme, DialogWidth),        FIELD(Theme, AxisWidth),
-    FIELD(Theme, OverlayLineWidth),  FIELD(Theme, MoveHandleRadius),   FIELD(Theme, SelectionFallback),
+    FIELD(Theme, OverlayLineWidth),  FIELD(Theme, SelectionFallback),
     FIELD(Theme, ClickCycleDistance), FIELD(Theme, FontSize),
 };
 #undef FIELD
@@ -89,9 +88,6 @@ void Derive(Palette& p, const std::set<std::string>& given) {
     derive("AccentSoft", p.AccentSoft, Palette::WithAlpha(p.Accent, 0.28f));
     derive("CameraBounds", p.CameraBounds, Palette::WithAlpha(p.AxisX, 0.85f));
     derive("Selection", p.Selection, p.Warning);
-    derive("HandleFill", p.HandleFill, p.Accent);
-    derive("HandleOutline", p.HandleOutline, p.Crust);
-    derive("HandleGlyph", p.HandleGlyph, p.Text);
 }
 
 // Applies a theme file over `t` and `p`, recording which colors it set. Bad entries are

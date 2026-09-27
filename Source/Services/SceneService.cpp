@@ -361,7 +361,18 @@ void SceneService::Render() {
         CalculateLetterboxing();
     }
 
-    auto screenRect = Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
+    // The mode can switch at runtime (F1/F2): the editor renders at the viewport panel's
+    // size, play at the fixed game resolution.
+    int width = config.framebufferWidth, height = config.framebufferHeight;
+    if (app.GetMode() == AppMode::Editor && requestedWidth_ > 0 && requestedHeight_ > 0) {
+        width = requestedWidth_;
+        height = requestedHeight_;
+    }
+    if (width != framebuffer_.Width() || height != framebuffer_.Height()) {
+        framebuffer_ = Framebuffer(width, height);
+    }
+
+    auto screenRect = Rectangle{0, 0, (float)framebuffer_.Width(), (float)framebuffer_.Height()};
 
     // Render all scenes to framebuffer (bottom-to-top)
     ::BeginTextureMode(ToRaylib(framebuffer_));
@@ -402,12 +413,17 @@ void SceneService::SetViewportRect(Rectangle rect) {
     viewportRect_ = rect;
 }
 
+void SceneService::SetFramebufferSize(int width, int height) {
+    requestedWidth_ = width;
+    requestedHeight_ = height;
+}
+
 Vector2 SceneService::ScreenToFramebuffer(Vector2 screenPos) const {
-    const auto& config = registry_.Get<IApplicationService>().GetConfig();
+    if (viewportRect_.width <= 0.0f || viewportRect_.height <= 0.0f) return {0.0f, 0.0f};
 
     // Use viewport rect to translate screen coords to framebuffer coords
-    float fbX = (screenPos.x - viewportRect_.x) / viewportRect_.width * config.framebufferWidth;
-    float fbY = (screenPos.y - viewportRect_.y) / viewportRect_.height * config.framebufferHeight;
+    float fbX = (screenPos.x - viewportRect_.x) / viewportRect_.width * framebuffer_.Width();
+    float fbY = (screenPos.y - viewportRect_.y) / viewportRect_.height * framebuffer_.Height();
 
     return Vector2{fbX, fbY};
 }

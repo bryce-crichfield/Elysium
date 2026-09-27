@@ -1024,15 +1024,16 @@ void RenderSystem::Draw() {
     RenderContext ctx(*services, *world);
 
     if (services->Get<Services::IApplicationService>().GetMode() == AppMode::Editor) {
-        // Editor mode renders through the free editor camera, not any in-scene CameraComponent.
+        // Editor mode renders through the free editor camera, not any in-scene CameraComponent,
+        // across the whole framebuffer, which is sized to the viewport panel.
         auto& editorService = services->Get<Services::IEditorService>();
-        const auto& config = services->Get<Services::IApplicationService>().GetConfig();
+        const Framebuffer& target = services->Get<Services::ISceneService>().GetFramebuffer();
         auto& editorCam = editorService.GetEditorCamera();
 
         CameraView view{
             editorCam.position,
             editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
-            Rectangle{0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight}
+            Rectangle{0, 0, (float)target.Width(), (float)target.Height()}
         };
 
         PlaceScreenInWorld(view);
@@ -1050,9 +1051,11 @@ void RenderSystem::Draw() {
 }
 
 void RenderSystem::PlaceScreenInWorld(CameraView& view) {
+    // The game screen is the game resolution, not the editor view's.
+    const auto& config = services->Get<Services::IApplicationService>().GetConfig();
     view.screenInWorld = true;
     view.screenScale = 1.0f;
-    view.screenOrigin = { -view.viewport.width * 0.5f, -view.viewport.height * 0.5f };
+    view.screenOrigin = { -config.framebufferWidth * 0.5f, -config.framebufferHeight * 0.5f };
 
     // Lowest renderOrder, the same camera play mode draws first.
     Entity camera = INVALID_ENTITY;

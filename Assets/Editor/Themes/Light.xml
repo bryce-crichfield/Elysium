@@ -23,7 +23,5 @@
     <Color name="Debug"         value="#3F7FA8"/>
     <Color name="AxisX"         value="#D04545"/>
     <Color name="AxisY"         value="#2E9B4F"/>
-    <Color name="HandleOutline" value="#1F2329"/>
-    <Color name="HandleGlyph"   value="#FFFFFF"/>
   </Palette>
 </Theme>

@@ -58,8 +58,15 @@ class ISceneService : public IService {
     virtual float GetScaleY() const = 0;
 
     // The offscreen target scenes are rendered into. Callers bind it via RenderContext
-    // or sample fb.TextureId() directly (e.g. ImGui::Image).
+    // or sample fb.TextureId() directly (e.g. ImGui::Image). In play mode it is the fixed
+    // game resolution, letterboxed onto the window; in the editor it matches the viewport
+    // panel pixel for pixel (see SetFramebufferSize).
     virtual const Framebuffer& GetFramebuffer() const = 0;
+
+    // Editor only: the size the viewport panel shows the scene at. The framebuffer is
+    // resized to it at the start of the next Render(), so the displayed image is never
+    // one being rendered to. Ignored in play mode.
+    virtual void SetFramebufferSize(int width, int height) = 0;
 
     // Blits the framebuffer to the current render target, letterboxed into `target`
     // (window pixels), and records `target` as the viewport rect for input mapping.

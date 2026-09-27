@@ -89,6 +89,7 @@ public:
     float GetScaleX() const override { return scaleX_; }
     float GetScaleY() const override { return scaleY_; }
     const Framebuffer& GetFramebuffer() const override { return framebuffer_; }
+    void SetFramebufferSize(int width, int height) override;
     void Present(Rectangle target) override;
 
     // The viewport rect is where on the window the framebuffer is actually drawn.
@@ -101,7 +102,7 @@ public:
     void SetPlaying(bool playing) override { paused_ = !playing; }
 
     // Converts a raylib-window screen position (e.g. GetMousePosition()) into framebuffer
-    // pixel coordinates using the current viewport rect. Used by editor viewport picking.
+    // pixel coordinates using the current viewport rect.
     Vector2 ScreenToFramebuffer(Vector2 screenPos) const override;
 
 private:
@@ -128,6 +129,8 @@ private:
 
     // Rendering
     Framebuffer framebuffer_;
+    int requestedWidth_ = 0;   // editor viewport size, applied in Render()
+    int requestedHeight_ = 0;
     Rectangle letterboxRect_;
     float scaleX_ = 1.0f;
     float scaleY_ = 1.0f;
