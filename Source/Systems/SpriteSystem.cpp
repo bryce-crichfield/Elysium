@@ -54,8 +54,7 @@ static void ResolveSprite(Elysium::World* world, Elysium::Services::IAssetServic
     size_t frameIdx = spriteComp.sequenceIndex % sequence.indices.size();
     size_t linearIndex = sequence.indices[frameIdx];
 
-    std::string texturePath = "Sprites/" + sheet.path;
-    auto* textureData = assets.Get<Texture>(Path(texturePath));
+    auto* textureData = assets.Get<Texture>(Path(sheet.path));
     if (!textureData) return;
     const Texture& texture = *textureData;
     if (texture.id == 0) return;
@@ -65,7 +64,7 @@ static void ResolveSprite(Elysium::World* world, Elysium::Services::IAssetServic
     size_t col = linearIndex % sheet.cols;
     size_t row = linearIndex / sheet.cols;
 
-    layer->texturePath = texturePath;
+    layer->texturePath = sheet.path;
     layer->overrides["uSourceRect"] = Value{Vector4{col * frameWidth, row * frameHeight, frameWidth, frameHeight}};
 
     // Frame-sized; the renderer applies the entity's scale (negative mirrors) and rotation.

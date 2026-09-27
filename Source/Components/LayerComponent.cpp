@@ -20,16 +20,11 @@ namespace Elysium {
         if (!c.isVisible) b.SetAttribute("visible", false);
     }
 
-    void LayerComponent::Inspect(LayerComponent& c, Entity e, ServiceLocator& services) {
-        static char nameBuffer[256];
-        strncpy(nameBuffer, c.name.c_str(), sizeof(nameBuffer) - 1);
-        nameBuffer[sizeof(nameBuffer) - 1] = '\0';
-
-        PropertyLabel("Name");
-        if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer))) {
-            c.name = std::string(nameBuffer);
-        }
-        ImGui::Checkbox("Visible", &c.isVisible);
+    FieldList LayerComponent::Fields() {
+        return {
+            Field("Name", &LayerComponent::name, "name"),
+            Field("Visible", &LayerComponent::isVisible, "visible"),
+        };
     }
 
     void LayerComponent::BindLua(sol::usertype<LayerComponent>& ut) {

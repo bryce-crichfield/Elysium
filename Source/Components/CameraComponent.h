@@ -17,7 +17,7 @@ namespace Elysium {
         static constexpr const char* XmlTag() { return "CameraComponent"; }
 
         static void LoadXml(CameraComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
-        static void Inspect(CameraComponent& c, Entity e, ServiceLocator& services);
+        static FieldList Fields();
         static void BindLua(sol::usertype<CameraComponent>& ut);
         static void SetFromLua(CameraComponent& c, sol::object v);
     };

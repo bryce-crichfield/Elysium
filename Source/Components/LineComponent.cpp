@@ -25,19 +25,14 @@ namespace Elysium {
         c.thickness = el->FloatAttribute("thickness", 1.0f);
     }
 
-    void LineComponent::Inspect(LineComponent& c, Entity e, ServiceLocator& services) {
-
-        PropertyLabel("X1");
-        ImGui::DragFloat("##X1", &c.x1, 1.0f);
-        PropertyLabel("Y1");
-        ImGui::DragFloat("##Y1", &c.y1, 1.0f);
-        PropertyLabel("X2");
-        ImGui::DragFloat("##X2", &c.x2, 1.0f);
-        PropertyLabel("Y2");
-        ImGui::DragFloat("##Y2", &c.y2, 1.0f);
-
-        PropertyLabel("Thickness");
-        ImGui::DragFloat("##Thickness", &c.thickness, 0.1f, 0.1f, 50.0f);
+    FieldList LineComponent::Fields() {
+        return {
+            Field("X1", &LineComponent::x1, "x1"),
+            Field("Y1", &LineComponent::y1, "y1"),
+            Field("X2", &LineComponent::x2, "x2"),
+            Field("Y2", &LineComponent::y2, "y2"),
+            Field("Thickness", &LineComponent::thickness, "thickness").Speed(0.1f).Range(0.1f, 50.0f),
+        };
     }
 
     void LineComponent::BindLua(sol::usertype<LineComponent>& ut) {

@@ -19,7 +19,7 @@ namespace Elysium {
         static constexpr const char* XmlTag() { return "AttackComponent"; }
 
         static void LoadXml(AttackComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
-        static void Inspect(AttackComponent& c, Entity e, ServiceLocator& services);
+        static FieldList Fields();
         static void BindLua(sol::usertype<AttackComponent>& ut);
         static void SetFromLua(AttackComponent& c, sol::object v);
     };

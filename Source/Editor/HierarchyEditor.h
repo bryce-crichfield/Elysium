@@ -43,7 +43,7 @@ class HierarchyEditor : public Editor {
     void DrawEntityContextMenu(Services::IEditorService& service, Entity entity);
     void DrawCreateEntityMenu(Services::IEditorService& service);
     void DeferOpenPrefab(Services::IEditorService& service, const World& world, Entity entity);
-    // "Create Prefab" dialog: name + folder for a new prefab made from an entity's subtree.
+    // "Pack Prefab" dialog: name + folder for a new prefab made from an entity's subtree.
     void BeginCreatePrefab(Services::IEditorService& service, Entity entity);
     void DrawCreatePrefabDialog(Services::IEditorService& service);
 

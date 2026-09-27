@@ -1,0 +1,20 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Idle.png">
+                    <Uniform name="uSourceRect" type="vec4" value="0.000000 256.000000 128.000000 128.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name=""/>
+            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
+            <ScriptComponent>
+                <Script name="Scripts/Elysium/Unit.lua"/>
+            </ScriptComponent>
+            <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="" sequenceName=""/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1"/>
+    </Entities>
+</Prefab>

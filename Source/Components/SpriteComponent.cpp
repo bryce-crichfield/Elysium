@@ -1,5 +1,6 @@
 #include "Components/SpriteComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/AssetField.h"
 #include "Editor/Widgets.h"
 #include "Core/Sprite.h"
 #include "Core/Xml.h"
@@ -45,45 +46,21 @@ namespace Elysium {
         }
     }
 
+    FieldList SpriteComponent::Fields() {
+        return {
+            Field("Sprite", &SpriteComponent::spriteName, "spriteName").Asset(AssetKind::Sprite),
+            Field("Sheet", &SpriteComponent::sheetName, "sheetName"),
+            Field("Sequence", &SpriteComponent::sequenceName, "sequenceName"),
+        };
+    }
+
     void SpriteComponent::Inspect(SpriteComponent& c, Entity e, ServiceLocator& services) {
         auto& assetService = services.Get<Elysium::Services::IAssetService>();
-        const auto& allAssets = assetService.GetAllAssets();
 
-        // Sprite asset picker
-        PropertyLabel("Sprite");
-        std::vector<std::string> spriteAssetNames;
-        spriteAssetNames.push_back("<None>");
-
-        for (const auto& [name, asset] : allAssets) {
-            if (assetService.GetData<Sprite>(asset.get()) && asset->IsLoaded()) {
-                spriteAssetNames.push_back(name.GetRelativePath());
-            }
-        }
-
-        std::string currentSpriteName = c.spriteName.empty() ? "<None>" : c.spriteName;
-        int currentSpriteIdx = 0;
-        for (size_t i = 0; i < spriteAssetNames.size(); ++i) {
-            if (spriteAssetNames[i] == currentSpriteName) {
-                currentSpriteIdx = static_cast<int>(i);
-                break;
-            }
-        }
-
-        std::string spriteComboId = "##SpriteAsset_" + std::to_string(e);
-        if (ImGui::BeginCombo(spriteComboId.c_str(), currentSpriteName.c_str())) {
-            for (size_t i = 0; i < spriteAssetNames.size(); ++i) {
-                bool isSelected = (currentSpriteIdx == static_cast<int>(i));
-                std::string selectableId = spriteAssetNames[i] + "##" + std::to_string(i);
-                if (ImGui::Selectable(selectableId.c_str(), isSelected)) {
-                    c.spriteName = (i == 0) ? "" : spriteAssetNames[i];
-                    c.sheetName = "";
-                    c.sequenceName = "";
-                }
-                if (isSelected) {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
+        if (AssetFieldRow("Sprite", AssetKind::Sprite, c.spriteName)) {
+            c.sheetName.clear();
+            c.sequenceName.clear();
+            if (!c.spriteName.empty()) assetService.LoadAsset<Sprite>(Path(c.spriteName));
         }
 
         // Get sprite for sheet/sequence pickers

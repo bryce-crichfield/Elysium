@@ -18,12 +18,11 @@ namespace Elysium {
         c.radiusV = el->FloatAttribute("radiusV", 50.0f);
     }
 
-    void EllipseComponent::Inspect(EllipseComponent& c, Entity e, ServiceLocator& services) {
-
-        PropertyLabel("Radius H");
-        ImGui::DragFloat("##RadiusH", &c.radiusH, 1.0f, 1.0f, 1000.0f);
-        PropertyLabel("Radius V");
-        ImGui::DragFloat("##RadiusV", &c.radiusV, 1.0f, 1.0f, 1000.0f);
+    FieldList EllipseComponent::Fields() {
+        return {
+            Field("Radius H", &EllipseComponent::radiusH, "radiusH").Range(1.0f, 1000.0f),
+            Field("Radius V", &EllipseComponent::radiusV, "radiusV").Range(1.0f, 1000.0f),
+        };
     }
 
     void EllipseComponent::BindLua(sol::usertype<EllipseComponent>& ut) {

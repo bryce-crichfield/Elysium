@@ -155,8 +155,8 @@ void Respawn(World* world, XMLDocument& snapshot, ServiceLocator& services, cons
 std::string UniqueInstanceId(World* world, const std::string& base) {
     std::set<std::string> taken;
     world->Query<PrefabInstanceComponent>([&](Entity, PrefabInstanceComponent& tag) { taken.insert(tag.instanceId); });
-    std::string id = base;
-    for (int n = 2; taken.count(id); ++n) id = base + std::to_string(n);
+    std::string id;
+    for (int n = 1; id.empty() || taken.count(id); ++n) id = base + std::to_string(n);
     return id;
 }
 
@@ -188,6 +188,33 @@ bool SaveFile(World* world, const std::string& fullPath, std::unordered_map<Enti
     }
 
     return WritePrefab(world, fullPath, own, localIds, parameters, services, host, {});
+}
+
+void Unpack(World* world, Entity root) {
+    if (!PrefabInstances::IsRoot(*world, root)) return;
+    const std::string instanceId = world->GetComponent<PrefabInstanceComponent>(root).instanceId;
+    std::vector<Entity> members;
+    for (Entity entity : world->GetLivingEntities()) {
+        if (world->HasComponent<PrefabInstanceComponent>(entity) &&
+            world->GetComponent<PrefabInstanceComponent>(entity).instanceId == instanceId) {
+            members.push_back(entity);
+        }
+    }
+    // Plain entities are parented by name (a prefab's by local id): every member gets a
+    // unique name, then its children point at it.
+    for (Entity entity : members) {
+        if (world->GetEntityName(entity).empty()) {
+            const int localId = world->GetComponent<PrefabInstanceComponent>(entity).localEntityId;
+            world->AddComponent(entity, NameComponent(instanceId + "::Entity" + std::to_string(localId >= 0 ? localId : (int)entity)));
+        }
+    }
+    for (Entity entity : members) {
+        const Entity parent = world->GetParent(entity);
+        if (parent != INVALID_ENTITY && world->HasComponent<ParentComponent>(entity)) {
+            world->GetComponent<ParentComponent>(entity).targetName = world->GetEntityName(parent);
+        }
+    }
+    for (Entity entity : members) world->RemoveComponent<PrefabInstanceComponent>(entity);
 }
 
 bool SaveSubtree(World* world, Entity root, const std::string& fullPath, ServiceLocator& services, const Scene* host) {

@@ -1,4 +1,5 @@
 #include "Services/SceneService.h"
+#include <filesystem>
 #include <typeinfo>
 #include "Core/Common.h"
 #include "Core/Event.h"
@@ -37,6 +38,14 @@ static void FreeScene(SceneRegistration& data) {
 
 SceneService::SceneService(ServiceLocator& registry) : registry_(registry) {}
 
+void SceneService::RegisterScene(const std::string& fullPath) {
+    const std::string sceneName = std::filesystem::path(fullPath).stem().string();
+    if (scenes_.count(sceneName)) return;
+    SceneFactory factory = [](ServiceLocator& services) { return new Scene(services); };
+    scenes_.emplace(sceneName, SceneRegistration{sceneName, nullptr, factory, fullPath, false});
+    LOG_INFOF("SceneService", "Registered scene: %s", sceneName.c_str());
+}
+
 void SceneService::Initialize() {
     Profile;
     const auto& config = registry_.Get<IApplicationService>().GetConfig();
@@ -47,12 +56,7 @@ void SceneService::Initialize() {
     for (const auto& file : sceneFiles) {
         std::string filename = file.GetFilename(".xml");
         if (!filename.empty()) {
-            std::string sceneName = filename.substr(0, filename.find_last_of('.'));
-            std::string xmlPath = file.GetRelativePath();
-            SceneFactory factory = [](ServiceLocator& services) { return new Scene(services); };
-            SceneRegistration data{sceneName, nullptr, factory, xmlPath, false};
-            scenes_.emplace(sceneName, data);
-            LOG_INFOF("SceneService", "Registered scene: %s", sceneName.c_str());
+            RegisterScene(file.GetRelativePath());
         }
     }
 

@@ -18,7 +18,7 @@ namespace Elysium {
 
         static void LoadXml(KinematicsComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const KinematicsComponent& c, XMLBuilder& builder);
-        static void Inspect(KinematicsComponent& c, Entity e, ServiceLocator& services);
+        static FieldList Fields();
         static void BindLua(sol::usertype<KinematicsComponent>& ut);
         static void SetFromLua(KinematicsComponent& c, sol::object v);
     };

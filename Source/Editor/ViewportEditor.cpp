@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <optional>
 #include <unordered_map>
 #include <ImGuizmo.h>
 #include "Core/Application.h"
@@ -15,6 +16,9 @@
 #include "Components/CameraComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/TransformComponent.h"
+#include "Core/Path.h"
+#include "Editor/AssetField.h"
+#include "Editor/AssetStyle.h"
 #include "Editor/Widgets.h"
 #include "Editor/HierarchyEditor.h"
 #include "Systems/RenderSystem.h"
@@ -63,33 +67,25 @@ Matrix4 EntityMatrix(Vector2 position, float rotationDegrees, float scaleX, floa
     return e;
 }
 
-// Orders `entities` shallowest in the hierarchy first; ties go to whichever the Hierarchy
-// panel lists first (roots in world order, children in sibling order, depth-first).
-// Placed prefabs are black boxes: a hit on any of their entities is a hit on the instance root.
-void ResolvePrefabRoots(const World& world, std::vector<Entity>& entities) {
-    std::vector<Entity> resolved;
-    for (Entity entity : entities) {
-        const Entity root = PrefabInstances::RootOf(world, entity);
-        if (std::find(resolved.begin(), resolved.end(), root) == resolved.end()) resolved.push_back(root);
-    }
-    entities = std::move(resolved);
-}
-
-void SortByHierarchy(const World& world, std::vector<Entity>& entities) {
-    std::unordered_map<Entity, std::pair<int, int>> rank;  // entity -> (depth, display order)
-    int order = 0;
-    std::function<void(Entity, int)> visit = [&](Entity entity, int depth) {
-        rank[entity] = {depth, order++};
-        for (Entity child : world.GetChildren(entity)) visit(child, depth + 1);
+// What a click under the cursor can select, most likely intent first.
+// - A placed prefab is a black box, picked as its root. Its internal entities only stand in
+//   for it when the root draws nothing itself, so a big child (a light's glow) doesn't make
+//   the whole area around the prefab grab clicks.
+// - Smallest drawn area first: the thing you aimed at, not the backdrop it sits on. Ties
+//   keep paint order (topmost first).
+std::vector<Entity> PickTargets(const World& world, Systems::RenderSystem& renderSystem, const std::vector<Entity>& hits) {
+    auto area = [&](Entity entity) {
+        const auto bounds = renderSystem.GetEntityRenderInfo(entity).bounds;
+        return bounds ? std::fabs(bounds->width * bounds->height) : FLT_MAX;
     };
-    for (Entity entity : world.GetLivingEntities()) {
-        if (world.GetParent(entity) == INVALID_ENTITY) visit(entity, 0);
+    std::vector<Entity> targets;
+    for (Entity entity : hits) {
+        const Entity root = PrefabInstances::RootOf(world, entity);
+        if (root != entity && renderSystem.GetEntityRenderInfo(root).bounds) continue;
+        if (std::find(targets.begin(), targets.end(), root) == targets.end()) targets.push_back(root);
     }
-    std::stable_sort(entities.begin(), entities.end(), [&](Entity a, Entity b) {
-        auto ra = rank.find(a), rb = rank.find(b);
-        if (ra == rank.end() || rb == rank.end()) return ra != rank.end();
-        return ra->second < rb->second;
-    });
+    std::stable_sort(targets.begin(), targets.end(), [&](Entity a, Entity b) { return area(a) < area(b); });
+    return targets;
 }
 
 float WrapDegrees(float degrees) {
@@ -126,15 +122,18 @@ void ViewportEditor::Draw() {
     }
     ImGuizmo::BeginFrame();
 
-    if (BeginWindow(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+    // No title tab: the document tabs are the header.
+    if (BeginWindow(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse, false)) {
         DrawDocumentTabs(sceneService, editorService);
+        const EditorDocument* document = editorService.GetActiveDocumentInfo();
+        ContentPane* pane = document && !document->HasWorld() ? PaneFor(editorService, *document) : nullptr;
 
         if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::GetIO().KeyCtrl &&
             ImGui::IsKeyPressed(ImGuiKey_S, false)) {
-            editorService.SaveActiveDocument();
+            Save(editorService, pane);
         }
 
-        // Toolbar sits on a raised band spanning the window, bordered off from the image.
+        // Toolbar sits on a raised band spanning the window, bordered off from the content.
         const ImGuiStyle& style = ImGui::GetStyle();
         const float windowLeft = ImGui::GetWindowPos().x;
         const float windowRight = windowLeft + ImGui::GetWindowWidth();
@@ -144,65 +143,119 @@ void ViewportEditor::Draw() {
         drawList->AddRectFilled(ImVec2(windowLeft, bandTop), ImVec2(windowRight, bandBottom), Palette().ToU32(Palette().Mantle));
         drawList->AddLine(ImVec2(windowLeft, bandBottom), ImVec2(windowRight, bandBottom), Palette().ToU32(Palette().Border));
 
-        DrawToolbar(sceneService, editorService);
+        DrawToolbar(editorService, document, pane);
         ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, bandBottom + style.ItemSpacing.y));
 
-        // The image runs edge to edge under the padded toolbar.
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        ImGui::BeginChild("ViewportImage", ImVec2(0, 0), ImGuiChildFlags_None,
-                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-        ImGui::PopStyleVar();
-
-        // The scene renders at exactly this panel's size (from the next frame on, after a
-        // resize), so the image is drawn 1:1 in the top-left.
-        const ImVec2 pos = ImGui::GetCursorScreenPos();
-        const ImVec2 avail = ImGui::GetContentRegionAvail();
-        sceneService.SetFramebufferSize((int)avail.x, (int)avail.y);
-
-        const Framebuffer& fb = sceneService.GetFramebuffer();
-        const Rectangle imageScreenRect{pos.x, pos.y, (float)fb.Width(), (float)fb.Height()};
-
-        // V-flipped: framebuffer textures use GL bottom-up origin.
-        ImGui::Image((ImTextureID)fb.TextureId(), ImVec2(imageScreenRect.width, imageScreenRect.height), ImVec2(0, 1), ImVec2(1, 0));
-        if (!editorService.GetViewportScene()) {
-            const char* hint = "Open a scene (Scenes panel) or a prefab (Assets panel)";
-            const ImVec2 size = ImGui::CalcTextSize(hint);
-            ImGui::GetWindowDrawList()->AddText(ImVec2(pos.x + (avail.x - size.x) * 0.5f, pos.y + (avail.y - size.y) * 0.5f),
-                                                Palette().ToU32(Palette().TextMuted), hint);
-        }
-        const bool imageHovered = ImGui::IsItemHovered();
-        const bool imageClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
-        const bool imageRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
-        sceneService.SetViewportRect(imageScreenRect);
-
-        // Snapshot the view that produced the currently-displayed framebuffer image
-        // (i.e. before this frame's pan/zoom input is applied) so picking and the gizmo
-        // line up with what's actually on screen right now.
-        auto& editorCam = editorService.GetEditorCamera();
-        CameraView view{
-            editorCam.position,
-            editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
-            Rectangle{0, 0, (float)fb.Width(), (float)fb.Height()}
-        };
-        if (auto* scene = editorService.GetViewportScene()) {
-            if (auto* renderSystem = scene->GetSystem<Systems::RenderSystem>()) renderSystem->PlaceScreenInWorld(view);
-        }
-
-        DrawViewportOverlays(sceneService, editorService, view, imageScreenRect);
-        const bool gizmoOwnsMouse = HandleGizmo(sceneService, editorService, view, imageScreenRect);
-        // The gizmo gets the mouse first; an already-started pan keeps it until release.
-        const bool canInteract = imageHovered && !gizmoOwnsMouse;
-        if (canInteract || isPanningCamera_) HandleEditorCameraInput(sceneService, editorService, view, canInteract);
-        if (canInteract) {
-            HandleGizmoShortcuts(sceneService);
-            if (imageClicked) HandleViewportClick(sceneService, editorService, view);
-            if (imageRightClicked) OpenPickMenu(sceneService, editorService, view);
-        }
-        DrawPickMenu(editorService);
-
-        ImGui::EndChild();
+        if (pane) pane->Draw();
+        else if (document && document->HasWorld() && settingsOpen_.count(document->fullPath)) {
+            // Settings edit the document in place.
+            auto& doc = const_cast<EditorDocument&>(*document);
+            if (doc.IsScene()) sceneSettings_.Draw(*doc.scene);
+            else prefabSettings_.Draw(doc);
+        } else DrawWorld(sceneService, editorService);
     }
     EndWindow();
+
+    // Ctrl+S is the Viewport's own (above); these apply wherever focus is.
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S)) BeginSaveAs();
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_N)) BeginNew();
+    HandleFileDialog(editorService);
+}
+
+void ViewportEditor::SaveActive() {
+    auto& editor = services_.Get<IEditorService>();
+    const EditorDocument* document = editor.GetActiveDocumentInfo();
+    if (document) Save(editor, document->HasWorld() ? nullptr : PaneFor(editor, *document));
+}
+
+void ViewportEditor::BeginSaveAs() {
+    if (const EditorDocument* document = services_.Get<IEditorService>().GetActiveDocumentInfo()) {
+        fileDialog_.OpenSaveAs(document->kind, document->fullPath);
+    }
+}
+
+void ViewportEditor::BeginNew() { fileDialog_.OpenNew(); }
+
+void ViewportEditor::HandleFileDialog(IEditorService& editor) {
+    const auto result = fileDialog_.Draw();
+    if (!result) return;
+    if (result->mode == AssetFileDialog::Mode::New) {
+        editor.CreateAsset(result->kind, result->fullPath);
+        return;
+    }
+    // Save As: scenes and prefabs are written by the service, other kinds by their pane.
+    const EditorDocument* document = editor.GetActiveDocumentInfo();
+    if (!document) return;
+    if (document->HasWorld()) {
+        editor.SaveActiveDocumentAs(result->fullPath);
+    } else if (ContentPane* pane = PaneFor(editor, *document); pane && pane->SaveAs(result->fullPath)) {
+        editor.ReplaceActiveDocument(result->fullPath);
+    }
+}
+
+void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& editorService) {
+    // The image runs edge to edge under the padded toolbar.
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::BeginChild("ViewportImage", ImVec2(0, 0), ImGuiChildFlags_None,
+                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::PopStyleVar();
+
+    // The scene renders at exactly this panel's size (from the next frame on, after a
+    // resize), so the image is drawn 1:1 in the top-left.
+    const ImVec2 pos = ImGui::GetCursorScreenPos();
+    const ImVec2 avail = ImGui::GetContentRegionAvail();
+    sceneService.SetFramebufferSize((int)avail.x, (int)avail.y);
+
+    const Framebuffer& fb = sceneService.GetFramebuffer();
+    const Rectangle imageScreenRect{pos.x, pos.y, (float)fb.Width(), (float)fb.Height()};
+
+    // V-flipped: framebuffer textures use GL bottom-up origin.
+    ImGui::Image((ImTextureID)fb.TextureId(), ImVec2(imageScreenRect.width, imageScreenRect.height), ImVec2(0, 1), ImVec2(1, 0));
+    std::optional<std::string> droppedPrefab;
+    if (editorService.GetWorld() && ImGui::BeginDragDropTarget()) {
+        droppedPrefab = AcceptAssetDrop(AssetKind::Prefab);
+        ImGui::EndDragDropTarget();
+    }
+    if (!editorService.GetViewportScene()) {
+        const char* hint = "Open a scene or a prefab from the Assets panel";
+        const ImVec2 size = ImGui::CalcTextSize(hint);
+        ImGui::GetWindowDrawList()->AddText(ImVec2(pos.x + (avail.x - size.x) * 0.5f, pos.y + (avail.y - size.y) * 0.5f),
+                                            Palette().ToU32(Palette().TextMuted), hint);
+    }
+    const bool imageHovered = ImGui::IsItemHovered();
+    const bool imageClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+    const bool imageRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+    sceneService.SetViewportRect(imageScreenRect);
+
+    // Snapshot the view that produced the currently-displayed framebuffer image
+    // (i.e. before this frame's pan/zoom input is applied) so picking and the gizmo
+    // line up with what's actually on screen right now.
+    auto& editorCam = editorService.GetEditorCamera();
+    CameraView view{
+        editorCam.position,
+        editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
+        Rectangle{0, 0, (float)fb.Width(), (float)fb.Height()}
+    };
+    if (auto* scene = editorService.GetViewportScene()) {
+        if (auto* renderSystem = scene->GetSystem<Systems::RenderSystem>()) renderSystem->PlaceScreenInWorld(view);
+    }
+
+    // A prefab dropped from the Assets panel is placed where it was dropped.
+    if (droppedPrefab) PlaceDroppedPrefab(sceneService, editorService, view, *droppedPrefab);
+
+    DrawViewportOverlays(sceneService, editorService, view, imageScreenRect);
+    const bool gizmoOwnsMouse = HandleGizmo(sceneService, editorService, view, imageScreenRect);
+    // The gizmo gets the mouse first; an already-started pan keeps it until release.
+    const bool canInteract = imageHovered && !gizmoOwnsMouse;
+    if (canInteract || isPanningCamera_) HandleEditorCameraInput(sceneService, editorService, view, canInteract);
+    if (canInteract) {
+        HandleGizmoShortcuts(sceneService);
+        if (imageClicked) HandleViewportClick(sceneService, editorService, view);
+        if (imageRightClicked) OpenPickMenu(sceneService, editorService, view);
+    }
+    DrawPickMenu(editorService);
+
+    ImGui::EndChild();
 }
 
 // One closeable tab per open document (scene or prefab), each its own copy loaded from disk.
@@ -217,9 +270,19 @@ void ViewportEditor::DrawDocumentTabs(ISceneService& sceneService, IEditorServic
     if (ImGui::BeginTabBar("Documents", ImGuiTabBarFlags_FittingPolicyScroll)) {
         for (int i = 0; i < (int)documents.size(); ++i) {
             bool open = true;
-            const char* icon = documents[i]->IsPrefab() ? ICON_FA_BOX "  " : ICON_FA_CUBES "  ";
-            std::string label = icon + documents[i]->title + "###" + documents[i]->fullPath;
-            if (ImGui::BeginTabItem(label.c_str(), &open, followService && active == i ? ImGuiTabItemFlags_SetSelected : 0)) {
+            // Tabs wear their asset kind's color and icon, as in the Assets panel.
+            const AssetStyle kind = StyleOf(documents[i]->kind);
+            const ImVec4 color = kind.color;
+            std::string label = std::string(kind.icon) + "  " + documents[i]->title + "###" + documents[i]->fullPath;
+            ImGui::PushStyleColor(ImGuiCol_Tab, Palette().WithAlpha(color, 0.22f));
+            ImGui::PushStyleColor(ImGuiCol_TabHovered, Palette().WithAlpha(color, 0.55f));
+            ImGui::PushStyleColor(ImGuiCol_TabSelected, Palette().WithAlpha(color, 0.45f));
+            ImGui::PushStyleColor(ImGuiCol_TabSelectedOverline, color);
+            ImGui::PushStyleColor(ImGuiCol_TabDimmed, Palette().WithAlpha(color, 0.15f));
+            ImGui::PushStyleColor(ImGuiCol_TabDimmedSelected, Palette().WithAlpha(color, 0.30f));
+            const bool tabOpen = ImGui::BeginTabItem(label.c_str(), &open, followService && active == i ? ImGuiTabItemFlags_SetSelected : 0);
+            ImGui::PopStyleColor(6);
+            if (tabOpen) {
                 selected = i;
                 ImGui::EndTabItem();
             }
@@ -234,12 +297,33 @@ void ViewportEditor::DrawDocumentTabs(ISceneService& sceneService, IEditorServic
     shownDocument_ = editor.GetActiveDocument();
 }
 
-void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& editor) {
+void ViewportEditor::DrawToolbar(IEditorService& editor, const EditorDocument* document, ContentPane* pane) {
     // No play/pause: the editor never simulates its documents, so nothing a simulation
     // moved can be saved by mistake. Play mode (F2) runs the saved files instead.
-    ImGui::BeginDisabled(editor.GetActiveDocument() < 0);
-    if (IconButton(ICON_FA_FLOPPY_DISK, "Save (Ctrl+S)")) editor.SaveActiveDocument();
+    const bool canSave = document && (document->HasWorld() || (pane && pane->CanSave()));
+    ImGui::BeginDisabled(!canSave);
+    if (IconButton(ICON_FA_FLOPPY_DISK, "Save (Ctrl+S)")) Save(editor, pane);
     ImGui::EndDisabled();
+
+    if (pane) {
+        pane->DrawToolbar();
+        return;
+    }
+
+    // A scene or prefab can swap its world for its settings (a scene's layers and systems,
+    // a prefab's parameters) and back.
+    const bool settings = document && document->HasWorld() && settingsOpen_.count(document->fullPath);
+    if (document && document->HasWorld()) {
+        ImGui::SameLine();
+        const std::string back = std::string(ICON_FA_ARROW_LEFT "  Back to ") + StyleOf(document->kind).label;
+        if (settings ? ImGui::Button(back.c_str()) : ImGui::Button(ICON_FA_SLIDERS "  Settings")) {
+            if (settings) settingsOpen_.erase(document->fullPath);
+            else settingsOpen_.insert(document->fullPath);
+        }
+        ItemTooltip(settings ? "Back to the rendered view"
+                             : document->IsScene() ? "The scene's layers and systems" : "The prefab's parameters");
+    }
+    if (settings) return;
 
     // Gizmo mode.
     ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
@@ -257,6 +341,37 @@ void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& ed
     ColoredText(Palette().TextMuted, readout);
     ImGui::SameLine();
     if (IconButton(ICON_FA_CROSSHAIRS, "Reset view to the scene camera")) camera.initialized = false;
+}
+
+void ViewportEditor::Save(IEditorService& editor, ContentPane* pane) {
+    if (pane) pane->Save();
+    else editor.SaveActiveDocument();
+}
+
+ContentPane* ViewportEditor::PaneFor(IEditorService& editor, const EditorDocument& document) {
+    // Forget panes (and settings toggles) of tabs that have closed.
+    auto isOpen = [&](const std::string& fullPath) {
+        for (const auto& doc : editor.GetDocuments()) {
+            if (doc->fullPath == fullPath) return true;
+        }
+        return false;
+    };
+    std::erase_if(panes_, [&](const auto& entry) { return !isOpen(entry.first); });
+    std::erase_if(settingsOpen_, [&](const std::string& fullPath) { return !isOpen(fullPath); });
+
+    auto& pane = panes_[document.fullPath];
+    if (!pane) pane = MakeContentPane(services_, document);
+    return pane.get();
+}
+
+std::unique_ptr<ContentPane> MakeContentPane(ServiceLocator& services, const EditorDocument& document) {
+    switch (document.kind) {
+        case AssetKind::Script:
+        case AssetKind::Shader: return MakeCodePane(services, document);
+        case AssetKind::Texture: return MakeTexturePane(services, document);
+        case AssetKind::Sprite: return MakeSpritePane(services, document);
+        default: return nullptr;
+    }
 }
 
 void ViewportEditor::HandleGizmoShortcuts(ISceneService& sceneService) {
@@ -409,17 +524,32 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
     return ImGuizmo::IsOver() || ImGuizmo::IsUsing();
 }
 
+void ViewportEditor::PlaceDroppedPrefab(ISceneService& sceneService, IEditorService& editorService, const CameraView& view,
+                                        const std::string& relativePath) {
+    const Entity placed = editorService.InstantiatePrefab(Path(relativePath).GetFullPath());
+    World* world = editorService.GetWorld();
+    if (placed == INVALID_ENTITY || !world || !world->HasComponent<TransformComponent>(placed)) return;
+    Vector2 target = Systems::RenderProjector::FramebufferToWorld(sceneService.ScreenToFramebuffer(Input::GetMousePosition()), view);
+    // Local to its parent (a prefab document places under its root).
+    const Entity parent = world->GetParent(placed);
+    if (parent != INVALID_ENTITY && world->HasComponent<TransformComponent>(parent)) {
+        const auto& parentTransform = world->GetComponent<TransformComponent>(parent);
+        target.x -= parentTransform.worldX;
+        target.y -= parentTransform.worldY;
+    }
+    auto& transform = world->GetComponent<TransformComponent>(placed);
+    transform.localX = target.x;
+    transform.localY = target.y;
+}
+
 void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
     auto* renderSystem = editorService.GetViewportScene() ? editorService.GetViewportScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     if (!renderSystem)
         return;
 
     Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
-    auto hits = renderSystem->Pick(fbPos, view);
-    if (auto* world = editorService.GetWorld()) {
-        ResolvePrefabRoots(*world, hits);
-        SortByHierarchy(*world, hits);
-    }
+    auto* world = editorService.GetWorld();
+    const auto hits = world ? PickTargets(*world, *renderSystem, renderSystem->Pick(fbPos, view)) : std::vector<Entity>{};
 
     bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < Theme().ClickCycleDistance;
     size_t index = samePos ? (lastClickIndex_ + 1) % hits.size() : 0;
@@ -433,12 +563,13 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     }
 }
 
-// Right-click: everything under the cursor, topmost first, to pick from when entities overlap.
+// Right-click: everything under the cursor, in click order, to pick from when entities overlap.
 void ViewportEditor::OpenPickMenu(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
     auto* renderSystem = editorService.GetViewportScene() ? editorService.GetViewportScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     if (!renderSystem) return;
-    pickMenuHits_ = renderSystem->Pick(sceneService.ScreenToFramebuffer(Input::GetMousePosition()), view);
-    if (auto* world = editorService.GetWorld()) ResolvePrefabRoots(*world, pickMenuHits_);
+    auto* world = editorService.GetWorld();
+    pickMenuHits_ = world ? PickTargets(*world, *renderSystem, renderSystem->Pick(sceneService.ScreenToFramebuffer(Input::GetMousePosition()), view))
+                          : std::vector<Entity>{};
     ImGui::OpenPopup("ViewportPick");
 }
 

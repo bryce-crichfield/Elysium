@@ -20,12 +20,13 @@ namespace Elysium {
         TransformComponent(float x = 0.0f, float y = 0.0f);
 
         static constexpr const char* Name() { return "Transform"; }
+        static constexpr bool PlacementOwned = true;
         static constexpr InspectorOrder Order = InspectorOrder::Transform;
         static constexpr const char* XmlTag() { return "TransformComponent"; }
 
         static void LoadXml(TransformComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const TransformComponent& c, XMLBuilder& builder);
-        static void Inspect(TransformComponent& c, Entity e, ServiceLocator& services);
+        static FieldList Fields();
         static void BindLua(sol::usertype<TransformComponent>& ut);
         static void SetFromLua(TransformComponent& c, sol::object v);
     };

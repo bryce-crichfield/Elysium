@@ -1,5 +1,6 @@
 #include "Components/MaterialComponent.h"
 #include "Components/ShaderComponent.h"
+#include "Editor/AssetField.h"
 #include "Editor/Widgets.h"
 #include "Core/Assets/ShaderAsset.h"
 #include "Core/ComponentRegistry.h"
@@ -80,13 +81,6 @@ namespace Elysium {
         std::string paddingId = "##MaterialPadding_" + std::to_string(e);
         ImGui::DragFloat(paddingId.c_str(), &c.padding, 1.0f, 0.0f, 512.0f);
 
-        std::vector<std::string> texturePaths;
-        for (const auto& [path, asset] : assetService.GetAllAssets()) {
-            if (asset->IsLoaded() && assetService.GetData<Texture>(asset.get())) {
-                texturePaths.push_back(path.GetRelativePath());
-            }
-        }
-
         int removeIndex = -1;
         int moveUpIndex = -1;
         for (size_t i = 0; i < c.layers.size(); ++i) {
@@ -120,8 +114,9 @@ namespace Elysium {
                 }
 
                 if (layer.material == "Texture") {
-                    PropertyLabel("Texture");
-                    InspectPathCombo("##LayerTexture", layer.texturePath, texturePaths);
+                    if (AssetFieldRow("Texture", AssetKind::Texture, layer.texturePath) && !layer.texturePath.empty()) {
+                        assetService.LoadAsset<Texture>(Path(layer.texturePath));
+                    }
                 }
 
                 Path shaderPath = ComposedShaderPath(kInspectGeometry, layer.material);

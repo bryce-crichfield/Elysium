@@ -1,0 +1,7 @@
+<Sprite name="MySprite" originX="0.5" originY="0.5">
+    <Sequences>
+        <Sequence name="default" indicies="2:*"/>
+        <Sequence name="anotherone" indicies="4:*"/>
+    </Sequences>
+    <Sheet name="Idle" path="Textures/Portraits/Archer.jpg" rows="10" columns="10"/>
+</Sprite>

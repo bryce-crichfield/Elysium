@@ -17,15 +17,10 @@ namespace Elysium {
             .SetAttribute("name", c.name.c_str());
     }
 
-    void NameComponent::Inspect(NameComponent& c, Entity e, ServiceLocator& services) {
-        static char nameBuffer[256];
-        strncpy(nameBuffer, c.name.c_str(), sizeof(nameBuffer) - 1);
-        nameBuffer[sizeof(nameBuffer) - 1] = '\0';
-
-        PropertyLabel("Name");
-        if (ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer))) {
-            c.name = std::string(nameBuffer);
-        }
+    FieldList NameComponent::Fields() {
+        return {
+            Field("Name", &NameComponent::name, "name"),
+        };
     }
 
     void NameComponent::BindLua(sol::usertype<NameComponent>& ut) {

@@ -47,6 +47,11 @@ bool SaveFile(World* world, const std::string& fullPath, std::unordered_map<Enti
 bool SaveSubtree(World* world, Entity root, const std::string& fullPath, ServiceLocator& services,
                  const Scene* host = nullptr);
 
+// Turns the placement rooted at `root` into plain entities, editable like any other: they
+// lose their prefab tags (including entities of prefabs nested in it) and no longer follow
+// the prefab. Names keep their instance namespace so they stay unique.
+void Unpack(World* world, Entity root);
+
 }  // namespace PrefabEditing
 
 }  // namespace Elysium

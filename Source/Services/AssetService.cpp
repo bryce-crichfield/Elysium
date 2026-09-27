@@ -176,7 +176,7 @@ void AssetService::FinishLoad(Path path, IAsset* raw) {
     // Sprites/tiles reference a sheet texture by path — kick off that load too.
     if (auto* spriteAsset = dynamic_cast<SpriteAsset*>(owned.get())) {
         for (auto& [sheetName, sheet] : spriteAsset->GetData().sheets) {
-            Path sheetPath("Sprites/" + sheet.path);
+            Path sheetPath(sheet.path);
             if (!IsAssetLoaded(sheetPath)) {
                 LOG_DEBUGF("AssetService", "Loading sheet texture: %s", sheetPath.c_str());
                 LoadAsset<Texture>(sheetPath);

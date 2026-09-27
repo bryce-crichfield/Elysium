@@ -65,6 +65,14 @@ inline void EmptyState(const char* message) {
     ImGui::TextDisabled("%s", message);
 }
 
+// The whole panel dimmed, with a centered reason: nothing in it applies to what's open.
+inline void UnavailableState(const char* message) {
+    const ImVec2 min = ImGui::GetWindowPos();
+    const ImVec2 max(min.x + ImGui::GetWindowWidth(), min.y + ImGui::GetWindowHeight());
+    ImGui::GetWindowDrawList()->AddRectFilled(min, max, Editor::Palette().ToU32(Editor::Palette().Crust));
+    EmptyState(message);
+}
+
 inline void ItemTooltip(const char* text) {
     if (text && *text) ImGui::SetItemTooltip("%s", text);
 }
@@ -236,22 +244,6 @@ inline bool InspectValueRow(const std::string& name, Value& value, const Value& 
     if (IconButton(ICON_FA_ROTATE_LEFT, "Reset to default")) { value = fallback; changed = true; }
     ImGui::EndDisabled();
     ImGui::PopID();
-    return changed;
-}
-
-// Combo over `options` plus a leading "<None>" (the empty path). Returns true when changed.
-inline bool InspectPathCombo(const char* id, std::string& path, const std::vector<std::string>& options) {
-    bool changed = false;
-    if (ImGui::BeginCombo(id, path.empty() ? "<None>" : path.c_str())) {
-        for (size_t i = 0; i <= options.size(); ++i) {
-            const std::string option = i == 0 ? "" : options[i - 1];
-            const std::string label = (i == 0 ? std::string("<None>") : option) + "##" + std::to_string(i);
-            const bool isSelected = option == path;
-            if (ImGui::Selectable(label.c_str(), isSelected) && !isSelected) { path = option; changed = true; }
-            if (isSelected) ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
     return changed;
 }
 

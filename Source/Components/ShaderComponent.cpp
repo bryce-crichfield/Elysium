@@ -1,5 +1,6 @@
 #include "Components/ShaderComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/AssetField.h"
 #include "Editor/Widgets.h"
 #include "Core/Editor.h"
 #include "Core/Shader.h"
@@ -73,6 +74,16 @@ namespace Elysium {
         }
     }
 
+    FieldList ShaderComponent::Fields() {
+        return {
+            Field("Enabled", &ShaderComponent::enabled, "enabled"),
+            Field("Shader", &ShaderComponent::shaderPath, "shader").Asset(AssetKind::Shader),
+            Field("Padding", &ShaderComponent::padding, "padding"),
+            Field("Width", &ShaderComponent::width, "width"),
+            Field("Height", &ShaderComponent::height, "height"),
+        };
+    }
+
     void ShaderComponent::Inspect(ShaderComponent& c, Entity e, ServiceLocator& services) {
 
         auto& assetService = services.Get<Services::IAssetService>();
@@ -81,17 +92,9 @@ namespace Elysium {
         std::string enabledId = "##ShaderEnabled_" + std::to_string(e);
         ImGui::Checkbox(enabledId.c_str(), &c.enabled);
 
-        std::vector<std::string> shaderPaths;
-        for (const auto& [path, asset] : assetService.GetAllAssets()) {
-            // Composed .sdf shaders belong to MaterialComponent, not the silhouette path.
-            if (!IsComposedShaderPath(path) && asset->IsLoaded() && assetService.GetData<Shader>(asset.get())) {
-                shaderPaths.push_back(path.GetRelativePath());
-            }
-        }
-
-        PropertyLabel("Shader");
-        std::string shaderId = "##ShaderPath_" + std::to_string(e);
-        if (InspectPathCombo(shaderId.c_str(), c.shaderPath, shaderPaths)) {
+        // Composed .sdf shaders belong to MaterialComponent, not the silhouette path.
+        const auto silhouette = [](const std::string& path) { return !IsComposedShaderPath(Path(path)); };
+        if (AssetFieldRow("Shader", AssetKind::Shader, c.shaderPath, silhouette)) {
             c.overrides.clear();
             if (!c.shaderPath.empty()) assetService.LoadAsset<Shader>(Path(c.shaderPath));
         }

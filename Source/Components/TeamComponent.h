@@ -13,7 +13,7 @@ namespace Elysium {
 
         static void LoadXml(TeamComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const TeamComponent& c, XMLBuilder& builder);
-        static void Inspect(TeamComponent& c, Entity e, ServiceLocator& services);
+        static FieldList Fields();
         static void BindLua(sol::usertype<TeamComponent>& ut);
         static void SetFromLua(TeamComponent& c, sol::object v);
     };

@@ -1,8 +1,16 @@
 #pragma once
 
+#include <memory>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "Core/Editor.h"
 #include "Core/Entity.h"
-#include <vector>
+#include "Editor/AssetFileDialog.h"
+#include "Editor/ContentPane.h"
+#include "Editor/PrefabSettings.h"
+#include "Editor/SceneSettings.h"
 #include "Systems/RenderSystem.h"
 
 namespace Elysium {
@@ -13,13 +21,16 @@ class Scene;
 namespace Elysium::Services {
 class ISceneService;
 class IEditorService;
+struct EditorDocument;
 }  // namespace Elysium::Services
 
 namespace Elysium {
 
-// Draws the "Viewport" panel: the scene through the free editor camera, click-to-pick,
-// and an ImGuizmo transform gizmo on the selected entity. SceneService sizes its
-// framebuffer to this panel in the editor, so the image is shown 1:1 with no scaling.
+// Draws the "Viewport" panel, the editor's center: one tab per open asset, colored by its
+// kind, and the active one's content below a shared toolbar. Scenes and prefabs show the
+// world through the free editor camera, with click-to-pick and an ImGuizmo transform gizmo
+// on the selected entity (SceneService sizes its framebuffer to this panel, so the image is
+// shown 1:1); a scene can swap that for its settings. Other kinds draw a ContentPane.
 class ViewportEditor : public Editor {
    public:
     static constexpr const char* Title = "Viewport";
@@ -28,11 +39,23 @@ class ViewportEditor : public Editor {
 
     void Draw() override;
 
+    // File menu actions, on the active tab: Save writes it back; Save As and New ask for a
+    // name (and for New, a kind) first.
+    void SaveActive();
+    void BeginSaveAs();
+    void BeginNew();
+
    private:
     enum class GizmoMode { Move, Rotate, Scale };
 
     void DrawDocumentTabs(Services::ISceneService& sceneService, Services::IEditorService& editor);
-    void DrawToolbar(Services::ISceneService& sceneService, Services::IEditorService& editor);
+    void DrawToolbar(Services::IEditorService& editor, const Services::EditorDocument* document, ContentPane* pane);
+    // The rendered world of a scene or prefab tab (or the empty hint when nothing is open).
+    void DrawWorld(Services::ISceneService& sceneService, Services::IEditorService& editorService);
+    void Save(Services::IEditorService& editor, ContentPane* pane);
+    void HandleFileDialog(Services::IEditorService& editor);
+    // The pane for a tab without a world, made on first use; drops those of closed tabs.
+    ContentPane* PaneFor(Services::IEditorService& editor, const Services::EditorDocument& document);
     // W/E/R pick the gizmo mode while the viewport is hovered and the scene is paused.
     void HandleGizmoShortcuts(Services::ISceneService& sceneService);
 
@@ -51,6 +74,8 @@ class ViewportEditor : public Editor {
                      const Systems::CameraView& view, Rectangle imageScreenRect);
     void OpenPickMenu(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
     void DrawPickMenu(Services::IEditorService& editorService);
+    void PlaceDroppedPrefab(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+                            const Systems::CameraView& view, const std::string& relativePath);
     void HandleViewportClick(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
 
     // Editor-only chrome (origin axes, camera bounds, selection outline), drawn over the
@@ -77,8 +102,16 @@ class ViewportEditor : public Editor {
     // Last scene the viewport showed; a change focuses the Hierarchy panel.
     Scene* lastViewportScene_ = nullptr;
 
-    // Entities under the cursor at the last right-click, topmost first.
+    // Entities under the cursor at the last right-click, in click order.
     std::vector<Entity> pickMenuHits_;
+
+    // Content panes of open tabs without a world, by file.
+    std::unordered_map<std::string, std::unique_ptr<ContentPane>> panes_;
+    // Scene and prefab tabs showing their settings instead of the world, by file.
+    std::set<std::string> settingsOpen_;
+    SceneSettings sceneSettings_{services_};
+    PrefabSettings prefabSettings_{services_};
+    AssetFileDialog fileDialog_;
 };
 
 }  // namespace Elysium

@@ -69,11 +69,13 @@ class Editor {
 
    protected:
     // Opens this docked panel's window, titled by its name. Always pair with EndWindow,
-    // whatever this returns.
-    bool BeginWindow(ImGuiWindowFlags flags = 0) {
+    // whatever this returns. `showTitle` false hides the dock tab, for a panel alone in its
+    // node whose own content says what it is.
+    bool BeginWindow(ImGuiWindowFlags flags = 0, bool showTitle = true) {
         ImGuiWindowClass locked;
         locked.DockNodeFlagsOverrideSet = (int)ImGuiDockNodeFlags_NoUndocking | (int)ImGuiDockNodeFlags_NoDockingSplit |
-                                          (int)ImGuiDockNodeFlags_NoWindowMenuButton | (int)ImGuiDockNodeFlags_NoCloseButton;
+                                          (int)ImGuiDockNodeFlags_NoWindowMenuButton | (int)ImGuiDockNodeFlags_NoCloseButton |
+                                          (showTitle ? 0 : (int)ImGuiDockNodeFlags_NoTabBar);
         ImGui::SetNextWindowClass(&locked);
         return ImGui::Begin(name_.c_str(), nullptr, flags | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
     }

@@ -75,5 +75,7 @@ bool LoadTheme(const std::string& name);
 // Adds the theme's font (with the icon font merged in) and makes it the default. Call after
 // the ImGui backend is set up, and again whenever the font atlas is rebuilt.
 void LoadFonts();
+// The monospace font for code (Theme::EditorFont), loaded by LoadFonts.
+ImFont* CodeFont();
 
 }  // namespace Elysium::EditorStyle

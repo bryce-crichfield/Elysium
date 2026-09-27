@@ -7,7 +7,11 @@
 #include "Core/World.h"
 #include "Core/Entity.h"
 #include "Core/PrefabInstance.h"
+#include "Editor/AssetField.h"
+#include "Editor/PrefabEditing.h"
 #include "Components/PrefabInstanceComponent.h"
+#include "Components/TransformComponent.h"
+#include "Editor/AssetStyle.h"
 #include "Editor/Widgets.h"
 #include "Interfaces/IEditorService.h"
 #include "Interfaces/IScriptService.h"
@@ -48,7 +52,10 @@ void HierarchyEditor::Draw() {
     auto& service = services_.Get<IEditorService>();
 
     if (BeginWindow()) {
-        if (!service.GetWorld()) {
+        // Only scenes and prefabs have entities; other tabs leave this panel dark.
+        if (const EditorDocument* doc = service.GetActiveDocumentInfo(); doc && !doc->HasWorld()) {
+            UnavailableState((std::string(StyleOf(doc->kind).label) + "s have no entities").c_str());
+        } else if (!service.GetWorld()) {
             EmptyState("No world loaded");
         } else {
             DrawToolbar(service);
@@ -80,6 +87,13 @@ void HierarchyEditor::Draw() {
                 }
             }
             ImGui::EndChild();
+            // A prefab dropped on empty space is placed at the top level.
+            if (ImGui::BeginDragDropTarget()) {
+                if (auto path = AcceptAssetDrop(AssetKind::Prefab)) {
+                    pendingAction_ = [&service, fullPath = Path(*path).GetFullPath()] { service.InstantiatePrefab(fullPath); };
+                }
+                ImGui::EndDragDropTarget();
+            }
             openRequest_.reset();
 
             if (pendingAction_) {
@@ -162,7 +176,7 @@ void HierarchyEditor::BeginCreatePrefab(IEditorService& service, Entity entity) 
     }
     snprintf(prefabDialog_.name, sizeof(prefabDialog_.name), "%s", name.empty() ? "NewPrefab" : name.c_str());
 
-    // Every project folder is a candidate; default to Scenes/Prefabs.
+    // Every project folder is a candidate; default to Prefabs.
     prefabDialog_.folders.clear();
     std::error_code ec;
     const fs::path root(Path::GetAssetsRoot());
@@ -175,12 +189,12 @@ void HierarchyEditor::BeginCreatePrefab(IEditorService& service, Entity entity) 
         if (it->is_directory(ec)) prefabDialog_.folders.push_back(fs::relative(it->path(), root, ec).generic_string());
     }
     std::sort(prefabDialog_.folders.begin(), prefabDialog_.folders.end());
-    const bool hasPrefabs = std::find(prefabDialog_.folders.begin(), prefabDialog_.folders.end(), "Scenes/Prefabs") != prefabDialog_.folders.end();
-    prefabDialog_.folder = hasPrefabs ? "Scenes/Prefabs" : "";
+    const bool hasPrefabs = std::find(prefabDialog_.folders.begin(), prefabDialog_.folders.end(), "Prefabs") != prefabDialog_.folders.end();
+    prefabDialog_.folder = hasPrefabs ? "Prefabs" : "";
 }
 
 void HierarchyEditor::DrawCreatePrefabDialog(IEditorService& service) {
-    constexpr const char* kTitle = "Create Prefab";
+    constexpr const char* kTitle = "Pack Prefab";
     if (prefabDialog_.open) {
         ImGui::OpenPopup(kTitle);
         prefabDialog_.open = false;
@@ -257,6 +271,15 @@ bool HierarchyEditor::PassesFilters(const World& world, Entity entity) const {
     return MatchesSearch(EntityLabel(world.GetEntityName(entity), entity), searchBuffer_);
 }
 
+// An entity's name, and for a placed prefab the prefab it came from: "Unit1 [Unit]".
+static std::string HierarchyLabel(const World& world, Entity entity) {
+    std::string label = EntityLabel(world.GetEntityName(entity), entity);
+    if (PrefabInstances::IsRoot(world, entity)) {
+        label += " [" + std::filesystem::path(world.GetComponent<PrefabInstanceComponent>(entity).src).stem().string() + "]";
+    }
+    return label;
+}
+
 void HierarchyEditor::DrawEntityList(IEditorService& service) {
     auto* world = service.GetWorld();
 
@@ -270,7 +293,7 @@ void HierarchyEditor::DrawEntityList(IEditorService& service) {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
         ImGui::PushID((int)entity);
-        const std::string label = EntityLabel(world->GetEntityName(entity), entity);
+        const std::string label = HierarchyLabel(*world, entity);
         if (ImGui::Selectable(label.c_str(), service.IsSelected(entity), ImGuiSelectableFlags_SpanAllColumns)) {
             service.SelectEntity(entity);
         }
@@ -301,10 +324,14 @@ void HierarchyEditor::DrawEntityContextMenu(IEditorService& service, Entity enti
     // Deferred: the tree/list is mid-iteration over the world's entities.
     if (PrefabInstances::IsRoot(*world, entity)) {
         if (ImGui::MenuItem(ICON_FA_PEN_TO_SQUARE "  Open Prefab")) DeferOpenPrefab(service, *world, entity);
+        if (ImGui::MenuItem(ICON_FA_BOX_OPEN "  Unpack Prefab")) {
+            pendingAction_ = [world, entity] { PrefabEditing::Unpack(world, entity); };
+        }
+        ItemTooltip("Turn this placement into plain entities that no longer follow the prefab");
         ImGui::Separator();
-    } else if (!world->GetChildren(entity).empty()) {
-        if (ImGui::MenuItem(ICON_FA_BOX "  Create Prefab...")) BeginCreatePrefab(service, entity);
-        ItemTooltip("Save this entity and its children as a new prefab file");
+    } else {
+        if (ImGui::MenuItem(ICON_FA_BOX "  Pack Prefab...")) BeginCreatePrefab(service, entity);
+        ItemTooltip("Save this entity and its children as a new prefab, placed here in their stead");
         ImGui::Separator();
     }
     if (ImGui::MenuItem(ICON_FA_PLUS "  Create Child")) {
@@ -386,7 +413,7 @@ void HierarchyEditor::DrawHierarchyNode(IEditorService& service, Entity entity) 
     bool hasChildren = !children.empty();
     const bool isPrefab = PrefabInstances::IsRoot(*world, entity);
 
-    const std::string label = EntityLabel(world->GetEntityName(entity), entity);
+    const std::string label = HierarchyLabel(*world, entity);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick |
                                ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DrawLinesToNodes;
@@ -398,7 +425,7 @@ void HierarchyEditor::DrawHierarchyNode(IEditorService& service, Entity entity) 
     ImGui::PushID((int)entity);
     if (hasChildren) ApplyOpenRequest(openRequest_);
     const char* icon = isPrefab ? ICON_FA_BOX : hasChildren ? ICON_FA_LAYER_GROUP : ICON_FA_CUBE;
-    if (isPrefab) ImGui::PushStyleColor(ImGuiCol_Text, Palette().Accent);
+    if (isPrefab) ImGui::PushStyleColor(ImGuiCol_Text, Palette().AssetPrefab);
     bool open = ImGui::TreeNodeEx("##node", flags, "%s  %s", icon, label.c_str());
     if (isPrefab) ImGui::PopStyleColor();
     if (isPrefab) ItemTooltip(("Prefab: " + world->GetComponent<PrefabInstanceComponent>(entity).src).c_str());
@@ -421,6 +448,18 @@ void HierarchyEditor::DrawHierarchyNode(IEditorService& service, Entity entity) 
         if (dragged != INVALID_ENTITY && dragged != entity && world->GetParent(dragged) != entity &&
             !world->IsAncestorOf(dragged, entity)) {
             AppendChild(*world, entity, dragged);
+        }
+        // A prefab dropped on an entity is placed as its child, at its origin.
+        if (auto path = AcceptAssetDrop(AssetKind::Prefab)) {
+            pendingAction_ = [&service, world, entity, fullPath = Path(*path).GetFullPath()] {
+                const Entity placed = service.InstantiatePrefab(fullPath);
+                if (placed == INVALID_ENTITY || !world->IsAlive(entity)) return;
+                AppendChild(*world, entity, placed);
+                if (world->HasComponent<TransformComponent>(placed)) {
+                    auto& transform = world->GetComponent<TransformComponent>(placed);
+                    transform.localX = transform.localY = 0.0f;
+                }
+            };
         }
         ImGui::EndDragDropTarget();
     }

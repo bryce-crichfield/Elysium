@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <cctype>
 #include <functional>
+#include <optional>
 #include <filesystem>
+#include <fstream>
 #include "Components/PrefabInstanceComponent.h"
 #include "Core/Xml.h"
 #include "Core/Common.h"
@@ -28,10 +30,6 @@ void EditorService::Initialize() {
 }
 
 void EditorService::Shutdown() {
-}
-
-Elysium::Scene* EditorService::GetInspectedScene() {
-    return GetViewportScene();
 }
 
 void EditorService::RegisterComponentTypes() {
@@ -66,7 +64,7 @@ void EditorService::RegisterComponentTypes() {
 
 Elysium::World* EditorService::GetWorld() const {
     auto* doc = ActiveDocument();
-    return doc ? doc->scene->GetWorld() : nullptr;
+    return doc && doc->scene ? doc->scene->GetWorld() : nullptr;
 }
 
 void EditorService::SelectEntity(Entity entity, bool additive) {
@@ -139,7 +137,7 @@ void EditorService::AddDocument(std::unique_ptr<EditorDocument> doc) {
 
 const Elysium::Scene* EditorService::HostScene() {
     for (const auto& doc : documents_) {
-        if (!doc->IsPrefab()) return doc->scene.get();
+        if (doc->IsScene()) return doc->scene.get();
     }
     // No scene open: borrow from the entry scene, loaded once just for its setup.
     if (!fallbackHost_) {
@@ -165,11 +163,35 @@ void EditorService::OpenScene(const std::string& sceneName) {
     }
 
     auto doc = std::make_unique<EditorDocument>();
-    doc->kind = EditorDocument::Kind::Scene;
+    doc->kind = AssetKind::Scene;
     doc->fullPath = it->second.xmlPath;
     doc->title = sceneName;
     doc->scene = std::shared_ptr<Elysium::Scene>(it->second.factory(registry_));
     if (!LoadScene(*doc->scene, doc->fullPath)) return;
+    AddDocument(std::move(doc));
+}
+
+void EditorService::OpenAsset(const std::string& fullPath) {
+    const std::optional<AssetKind> kind = AssetKindOf(Path::FromFullPath(fullPath).GetRelativePath());
+    if (!kind || *kind == AssetKind::Folder || *kind == AssetKind::Sound) return;
+    if (*kind == AssetKind::Prefab) return OpenPrefab(fullPath);
+    if (*kind == AssetKind::Scene) {
+        // Scenes open by the name they're registered under.
+        for (const auto& [name, registration] : registry_.Get<ISceneService>().GetSceneRegistry()) {
+            if (SamePath(registration.xmlPath, fullPath)) return OpenScene(name);
+        }
+        LOG_ERRORF("Editor", "%s isn't a registered scene", fullPath.c_str());
+        return;
+    }
+
+    if (int open = FindDocument(fullPath); open >= 0) {
+        SetActiveDocument(open);
+        return;
+    }
+    auto doc = std::make_unique<EditorDocument>();
+    doc->kind = *kind;
+    doc->fullPath = fullPath;
+    doc->title = std::filesystem::path(fullPath).filename().string();
     AddDocument(std::move(doc));
 }
 
@@ -183,7 +205,7 @@ void EditorService::OpenPrefab(const std::string& fullPath) {
     if (!prefab) return;
 
     auto doc = std::make_unique<EditorDocument>();
-    doc->kind = EditorDocument::Kind::Prefab;
+    doc->kind = AssetKind::Prefab;
     doc->fullPath = fullPath;
     doc->title = DirectoryOf(fullPath).empty() ? fullPath : fullPath.substr(DirectoryOf(fullPath).size());
     doc->parameters = prefab->GetParameters();
@@ -227,7 +249,8 @@ bool EditorService::SaveActiveDocument() {
         return false;
     }
     if (doc->IsPrefab()) return SavePrefabDocument(*doc);
-    return SaveScene(*doc->scene, doc->fullPath);
+    if (doc->IsScene()) return SaveScene(*doc->scene, doc->fullPath);
+    return false;
 }
 
 // =============================================================================
@@ -384,25 +407,113 @@ bool EditorService::SavePrefabDocument(EditorDocument& doc) {
     return true;
 }
 
-void EditorService::CreatePrefab(const std::string& directory) {
-    namespace fs = std::filesystem;
-    fs::path path = fs::path(directory) / "NewPrefab.xml";
-    for (int n = 2; fs::exists(path); ++n) path = fs::path(directory) / ("NewPrefab" + std::to_string(n) + ".xml");
+namespace {
+// What a new file of each kind starts as. Scenes aren't here: they copy a scene's setup.
+const char* StarterText(AssetKind kind, const std::string& name) {
+    static std::string text;
+    switch (kind) {
+        case AssetKind::Prefab:
+            text = "<Prefab>\n"
+                   "    <Entities>\n"
+                   "        <Entity id=\"0\">\n"
+                   "            <NameComponent name=\"" + name + "\" />\n"
+                   "            <TransformComponent x=\"0\" y=\"0\" />\n"
+                   "        </Entity>\n"
+                   "    </Entities>\n"
+                   "</Prefab>\n";
+            break;
+        case AssetKind::Script:
+            text = "---@type EntityScript\n"
+                   "local " + name + " = {}\n\n"
+                   "function " + name + ":Initialize(entity)\n"
+                   "end\n\n"
+                   "function " + name + ":Update(entity, dt)\n"
+                   "end\n\n"
+                   "return " + name + "\n";
+            break;
+        case AssetKind::Sprite:
+            text = "<Sprite name=\"" + name + "\" originX=\"0.5\" originY=\"0.5\">\n"
+                   "    <Sequences>\n"
+                   "        <Sequence name=\"default\" indicies=\"0:*\" />\n"
+                   "    </Sequences>\n"
+                   "</Sprite>\n";
+            break;
+        case AssetKind::Shader:
+            text = "#version 330\n\n"
+                   "in vec2 fragTexCoord;\n"
+                   "in vec4 fragColor;\n\n"
+                   "uniform sampler2D texture0;\n"
+                   "uniform vec4 colDiffuse;\n\n"
+                   "out vec4 finalColor;\n\n"
+                   "void main()\n"
+                   "{\n"
+                   "    finalColor = texture(texture0, fragTexCoord) * colDiffuse * fragColor;\n"
+                   "}\n";
+            break;
+        default: return nullptr;
+    }
+    return text.c_str();
+}
+}  // namespace
 
-    tinyxml2::XMLDocument xml;
-    xml.Parse(
-        "<Prefab>\n"
-        "    <Entities>\n"
-        "        <Entity id=\"0\">\n"
-        "            <NameComponent name=\"Root\" />\n"
-        "            <TransformComponent x=\"0\" y=\"0\" />\n"
-        "        </Entity>\n"
-        "    </Entities>\n"
-        "</Prefab>\n");
-    if (!SaveXml(path.string(), xml)) return;
-    Prefab::Reload(registry_.Get<IAssetService>(), path.string());  // in case a stale copy of this path is cached
-    LOG_INFOF("Editor", "Created prefab %s", path.string().c_str());
-    OpenPrefab(path.string());
+bool EditorService::CreateAsset(AssetKind kind, const std::string& fullPath) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    if (fs::exists(fullPath, ec)) {
+        LOG_ERRORF("Editor", "%s already exists", fullPath.c_str());
+        return false;
+    }
+    fs::create_directories(fs::path(fullPath).parent_path(), ec);
+
+    bool ok = false;
+    if (kind == AssetKind::Scene) {
+        // An empty scene with the layers and systems of the scene prefabs borrow from.
+        Elysium::Scene scene(registry_);
+        if (const Elysium::Scene* host = HostScene()) scene.CopySetupFrom(*host, false);
+        ok = SaveScene(scene, fullPath);
+        if (ok) registry_.Get<ISceneService>().RegisterScene(fullPath);
+    } else if (const char* text = StarterText(kind, fs::path(fullPath).stem().string())) {
+        std::ofstream file(fullPath, std::ios::binary);
+        file << text;
+        ok = file.good();
+    }
+    LOG_INFOF("Editor", "%s %s", ok ? "Created" : "Failed to create", fullPath.c_str());
+    if (!ok) return false;
+    if (kind == AssetKind::Prefab) Prefab::Reload(registry_.Get<IAssetService>(), fullPath);  // in case a stale copy is cached
+    OpenAsset(fullPath);
+    return true;
+}
+
+bool EditorService::SaveActiveDocumentAs(const std::string& fullPath) {
+    auto* doc = ActiveDocument();
+    if (!doc || !doc->HasWorld()) return false;
+    bool ok = false;
+    if (doc->IsScene()) {
+        ok = SaveScene(*doc->scene, fullPath);
+        if (ok) registry_.Get<ISceneService>().RegisterScene(fullPath);
+    } else {
+        std::unordered_map<Entity, int> localIds = doc->localIds;  // the original keeps its own
+        const Elysium::Scene* host = HostScene();
+        ok = PrefabEditing::SaveFile(doc->scene->GetWorld(), fullPath, localIds, doc->parameters, registry_,
+                                     host ? host : doc->scene.get());
+    }
+    LOG_INFOF("Editor", "%s %s", ok ? "Saved" : "Failed to save", fullPath.c_str());
+    if (ok) ReplaceActiveDocument(fullPath);
+    return ok;
+}
+
+void EditorService::ReplaceActiveDocument(const std::string& fullPath) {
+    const int old = activeDocument_;
+    OpenAsset(fullPath);
+    // The new tab opened at the end; take the old one's place.
+    if (old >= 0 && activeDocument_ != old && old < (int)documents_.size()) {
+        auto moved = std::move(documents_[activeDocument_]);
+        documents_.erase(documents_.begin() + activeDocument_);
+        documents_.insert(documents_.begin() + old, std::move(moved));
+        activeDocument_ = old;
+        CloseDocument(old + 1);
+        SetActiveDocument(old);
+    }
 }
 
 bool EditorService::CreatePrefabFromEntity(Entity entity, const std::string& fullPath) {
@@ -412,12 +523,33 @@ bool EditorService::CreatePrefabFromEntity(Entity entity, const std::string& ful
         LOG_ERRORF("Editor", "Prefab already exists: %s", fullPath.c_str());
         return false;
     }
+    if (entity == PrefabRoot()) {
+        LOG_WARNING("Editor", "A prefab's root is the prefab itself; pack entities under it instead.");
+        return false;
+    }
     if (!PrefabEditing::SaveSubtree(world, entity, fullPath, registry_, GetViewportScene())) {
         LOG_ERRORF("Editor", "Failed to create prefab %s", fullPath.c_str());
         return false;
     }
-    LOG_INFOF("Editor", "Created prefab %s", fullPath.c_str());
-    OpenPrefab(fullPath);
+    LOG_INFOF("Editor", "Packed prefab %s", fullPath.c_str());
+
+    // The subtree is replaced by a placement of the new prefab, where it was.
+    const Entity parent = world->GetParent(entity);
+    std::optional<TransformComponent> transform;
+    if (world->HasComponent<TransformComponent>(entity)) transform = world->GetComponent<TransformComponent>(entity);
+    DeleteEntity(entity);
+    const Entity root = PrefabEditing::Instantiate(world, fullPath, ActiveOwnerDir(), registry_);
+    if (root == INVALID_ENTITY) return false;
+    if (parent != INVALID_ENTITY) world->AddChild(parent, root);
+    if (transform && world->HasComponent<TransformComponent>(root)) {
+        auto& placed = world->GetComponent<TransformComponent>(root);
+        placed.localX = transform->localX;
+        placed.localY = transform->localY;
+        placed.localScaleX = transform->localScaleX;
+        placed.localScaleY = transform->localScaleY;
+        placed.localRotation = transform->localRotation;
+    }
+    SelectEntity(root);
     return true;
 }
 

@@ -43,7 +43,6 @@ class EditorService : public IEditorService {
     Entity CreateEntity(Entity parent = INVALID_ENTITY) override;
     bool CanBeRoot(Entity entity) const override;
 
-    Elysium::Scene* GetInspectedScene() override;
 
     Elysium::Scene* GetViewportScene() override;
 
@@ -53,9 +52,12 @@ class EditorService : public IEditorService {
     int GetActiveDocument() const override { return activeDocument_; }
     void SetActiveDocument(int index) override;
     void CloseDocument(int index) override;
+    void OpenAsset(const std::string& fullPath) override;
     bool SaveActiveDocument() override;
     Entity InstantiatePrefab(const std::string& fullPath) override;
-    void CreatePrefab(const std::string& directory) override;
+    bool CreateAsset(AssetKind kind, const std::string& fullPath) override;
+    bool SaveActiveDocumentAs(const std::string& fullPath) override;
+    void ReplaceActiveDocument(const std::string& fullPath) override;
     bool CreatePrefabFromEntity(Entity entity, const std::string& fullPath) override;
 
    private:

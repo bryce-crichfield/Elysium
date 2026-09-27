@@ -31,12 +31,36 @@
             <CameraComponent/>
         </Entity>
     </Entities>
-    <PrefabInstance src="Prefabs/Unit.xml" id="Unit">
-        <Param name="X" value="193.99953"/>
-        <Param name="Y" value="126.99968"/>
+    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit1">
+        <Param name="X" value="-89.744087"/>
+        <Param name="Y" value="184.65459"/>
     </PrefabInstance>
-    <PrefabInstance src="Prefabs/Unit.xml" id="Unit2">
-        <Param name="X" value="-164.35506"/>
-        <Param name="Y" value="-11.402943"/>
+    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit2">
+        <Param name="Sprite" value="Sprites/Archer.xml"/>
+        <Param name="X" value="-25.57448"/>
+        <Param name="Y" value="-82.905624"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Unit2.xml" id="Unit21">
+        <Param name="Sprite" value="Sprites/Knight.xml"/>
+        <Override entity="0" component="TransformComponent" field="x" value="206.2906"/>
+        <Override entity="0" component="TransformComponent" field="y" value="93.488083"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit3">
+        <Param name="Sprite" value="Sprites/Archer.xml"/>
+        <Param name="X" value="-239.69725"/>
+        <Param name="Y" value="-103.21667"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit4">
+        <Param name="X" value="245.02173"/>
+        <Param name="Y" value="-90.861176"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit5">
+        <Param name="X" value="95.144958"/>
+        <Param name="Y" value="161.563"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Unit2.xml" id="Unit6">
+        <Param name="Sprite" value="Sprites/Knight.xml"/>
+        <Override entity="0" component="TransformComponent" field="x" value="89.293839"/>
+        <Override entity="0" component="TransformComponent" field="y" value="31.082241"/>
     </PrefabInstance>
 </Scene>

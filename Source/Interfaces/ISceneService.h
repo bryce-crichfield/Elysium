@@ -38,6 +38,9 @@ class ISceneService : public IService {
     virtual bool IsEmpty() const = 0;
     virtual const std::vector<Elysium::Scene*>& GetStack() const = 0;
     virtual const std::unordered_map<std::string, SceneRegistration>& GetSceneRegistry() const = 0;
+    // Registers the scene file at `fullPath` under its file name, as startup does for every
+    // file in Scenes/ (for one created since). No-op if the name is taken.
+    virtual void RegisterScene(const std::string& fullPath) = 0;
 
     bool IsInStack(const Elysium::Scene* scene) const {
         const auto& stack = GetStack();

@@ -23,10 +23,8 @@ class InspectorEditor : public Editor {
     void Draw() override;
 
    private:
-    // When a prefab document is active: the prefab's exposed parameters, above the entity.
-    void DrawPrefabParameters(Services::IEditorService& service, Entity selected);
     void DrawHeader(Services::IEditorService& service, Entity entity);
-    void DrawComponent(Services::IEditorService& service, Entity entity, const Services::ComponentPlaceholder& placeholder);
+    void DrawComponent(Services::IEditorService& service, Entity entity, const Services::ComponentPlaceholder& placeholder, bool removable = true);
     void DrawAddComponent(Services::IEditorService& service, Entity entity);
 
     // The Inspector shows a single "primary" entity — the most recently selected one.

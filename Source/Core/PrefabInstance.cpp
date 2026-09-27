@@ -32,6 +32,25 @@ void SetOrAdd(World* world, Entity entity, const PrefabInstanceComponent& compon
     }
 }
 
+// Attribute differences between `live` and `def`, recursing into nested elements that
+// exist on both sides (matched by FieldKey); `prefix` is the path down to them.
+void DiffElement(int localId, const std::string& component, XMLElement* live, XMLElement* def,
+                 const std::string& prefix, std::vector<PrefabOverride>& overrides) {
+    std::set<std::string> attrNames;
+    for (const XMLAttribute* a = live->FirstAttribute(); a; a = a->Next()) attrNames.insert(a->Name());
+    for (const XMLAttribute* a = def->FirstAttribute(); a; a = a->Next()) attrNames.insert(a->Name());
+    for (const auto& attrName : attrNames) {
+        const std::string liveVal = Attr(live, attrName.c_str()), defaultVal = Attr(def, attrName.c_str());
+        if (liveVal != defaultVal) overrides.push_back({localId, component, prefix + attrName, liveVal});
+    }
+    for (XMLElement* child = live->FirstChildElement(); child; child = child->NextSiblingElement()) {
+        const std::string key = FieldKey(child);
+        if (XMLElement* defChild = FindChildByKey(def, key)) {
+            DiffElement(localId, component, child, defChild, prefix + key + "/", overrides);
+        }
+    }
+}
+
 // Field-level differences between a live entity and its prefab default, reusing each
 // component's XmlSaver as the diffing substrate. Components present on only one side
 // aren't representable as field overrides and are skipped.
@@ -45,18 +64,7 @@ std::vector<PrefabOverride> DiffEntity(int localId, World* liveWorld, Entity liv
         XMLElement* defaultElem = fieldSupport.serialize(defaultDoc, defaultWorld, defaultEntity);
         if (!liveElem || !defaultElem) continue;
 
-        std::set<std::string> attrNames;
-        for (const XMLAttribute* a = liveElem->FirstAttribute(); a; a = a->Next()) attrNames.insert(a->Name());
-        for (const XMLAttribute* a = defaultElem->FirstAttribute(); a; a = a->Next()) attrNames.insert(a->Name());
-
-        for (const auto& attrName : attrNames) {
-            const char* liveVal = liveElem->Attribute(attrName.c_str());
-            const char* defaultVal = defaultElem->Attribute(attrName.c_str());
-            std::string lv = liveVal ? liveVal : "";
-            if (lv != (defaultVal ? defaultVal : "")) {
-                overrides.push_back({localId, xmlTag, attrName, lv});
-            }
-        }
+        DiffElement(localId, xmlTag, liveElem, defaultElem, "", overrides);
     }
 
     std::sort(overrides.begin(), overrides.end(), [](const PrefabOverride& a, const PrefabOverride& b) {
@@ -175,10 +183,13 @@ void Save(XMLBuilder& builder, World* world, ServiceLocator& services, const Sce
             auto defaultIt = defaults.ids.find(localId);
             if (defaultIt == defaults.ids.end()) continue;
             auto diff = DiffEntity(localId, world, liveEntity, scratch.GetWorld(), defaultIt->second);
-            // Black box: internal entities only change through exposed parameters.
+            // Black box: a placement only owns its root's placement data (name, transform);
+            // everything else changes through exposed parameters.
             const bool isRoot = IsRoot(*world, liveEntity);
+            const auto& registry = ComponentRegistry::Instance();
             for (auto& ov : diff) {
-                if (isRoot || prefab->FindParameter(ov.entity, ov.component, ov.field)) overrides.push_back(std::move(ov));
+                const bool owned = isRoot && registry.IsPlacementOwned(ov.component);
+                if (owned || prefab->FindParameter(ov.entity, ov.component, ov.field)) overrides.push_back(std::move(ov));
             }
         }
 
@@ -227,7 +238,9 @@ std::string ReadField(World* world, Entity entity, const std::string& component,
     if (it == support.end()) return "";
     XMLDocument scratch;
     XMLElement* el = it->second.serialize(scratch, world, entity);
-    const char* value = el ? el->Attribute(field.c_str()) : nullptr;
+    std::string attr;
+    XMLElement* target = el ? ResolveField(el, field, attr) : nullptr;
+    const char* value = target ? target->Attribute(attr.c_str()) : nullptr;
     return value ? value : "";
 }
 

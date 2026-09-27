@@ -22,6 +22,7 @@ namespace Elysium {
         static void LoadXml(SpriteComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const SpriteComponent& c, XMLBuilder& builder);
         static void Inspect(SpriteComponent& c, Entity e, ServiceLocator& services);
+        static FieldList Fields();
         static void BindLua(sol::usertype<SpriteComponent>& ut);
         static void SetFromLua(SpriteComponent& c, sol::object v);
     };

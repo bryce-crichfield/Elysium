@@ -10,11 +10,11 @@ namespace Elysium {
         c.current = maxVal;
     }
 
-    void HealthComponent::Inspect(HealthComponent& c, Entity e, ServiceLocator& services) {
-        PropertyLabel("Current");
-        ImGui::DragFloat("##CurrentHealth", &c.current, 1.0f, 0.0f, c.max);
-        PropertyLabel("Max");
-        ImGui::DragFloat("##MaxHealth", &c.max, 1.0f, 1.0f);
+    FieldList HealthComponent::Fields() {
+        return {
+            Field("Max", &HealthComponent::max, "max").Range(1.0f, 100000.0f),
+            Field("Current", &HealthComponent::current),
+        };
     }
 
     void HealthComponent::BindLua(sol::usertype<HealthComponent>& ut) {

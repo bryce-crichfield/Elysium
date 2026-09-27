@@ -15,7 +15,7 @@ namespace Elysium {
 
         static void LoadXml(CircleComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const CircleComponent& c, XMLBuilder& builder);
-        static void Inspect(CircleComponent& c, Entity e, ServiceLocator& services);
+        static FieldList Fields();
         static void BindLua(sol::usertype<CircleComponent>& ut);
         static void SetFromLua(CircleComponent& c, sol::object v);
     };

@@ -16,10 +16,10 @@ namespace Elysium {
         c.radius = el->FloatAttribute("radius", 50.0f);
     }
 
-    void CircleComponent::Inspect(CircleComponent& c, Entity e, ServiceLocator& services) {
-
-        PropertyLabel("Radius");
-        ImGui::DragFloat("##Radius", &c.radius, 1.0f, 1.0f, 1000.0f);
+    FieldList CircleComponent::Fields() {
+        return {
+            Field("Radius", &CircleComponent::radius, "radius").Range(1.0f, 1000.0f),
+        };
     }
 
     void CircleComponent::BindLua(sol::usertype<CircleComponent>& ut) {

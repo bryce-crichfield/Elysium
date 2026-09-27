@@ -8,14 +8,11 @@
 #include "Services/ApplicationService.h"
 #include "Services/Services.h"
 #include "Services/ScriptService.h"
-#include "Editor/SceneEditor.h"
-#include "Editor/ScenesEditor.h"
 #include "Editor/HierarchyEditor.h"
 #include "Editor/InspectorEditor.h"
 #include "Editor/LogEditor.h"
 #include "Editor/AssetEditor.h"
 #include "Editor/NetworkEditor.h"
-#include "Editor/ScriptEditor.h"
 #include "Editor/ViewportEditor.h"
 #include "Editor/Theme.h"
 #include "imgui.h"
@@ -118,14 +115,11 @@ bool Application::Initialize(const std::string& configPath) {
         std::make_unique<Services::ScriptService>(serviceLocator_));
 
     // Registration order is tab order within each dock node.
-    RegisterEditor<ScenesEditor>();
     RegisterEditor<HierarchyEditor>();
     RegisterEditor<InspectorEditor>();
-    RegisterEditor<SceneEditor>();
     RegisterEditor<ViewportEditor>();
-    RegisterEditor<ScriptEditor>();
-    RegisterEditor<LogEditor>();
     RegisterEditor<AssetEditor>();
+    RegisterEditor<LogEditor>();
     RegisterEditor<NetworkEditor>();
 
     if (!ApplicationConfig::FromXML(configPath, config_)) {
@@ -223,23 +217,17 @@ void Application::DrawMenuBar()
 {
     // Add menu bar
     if (ImGui::BeginMainMenuBar()) {
+        // File acts on the asset open in the Viewport.
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
-                // TODO: Handle new scene
+            ViewportEditor* viewport = nullptr;
+            for (auto& editor : editors_) {
+                if (auto* v = dynamic_cast<ViewportEditor*>(editor.get())) viewport = v;
             }
-            if (ImGui::MenuItem("Open Scene", "Ctrl+O")) {
-                // TODO: Handle open scene
-            }
-            if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
-                // TODO: Handle save scene
-            }
-            if (ImGui::MenuItem("Save Scene As", "Ctrl+Shift+S")) {
-                
-            }
+            const bool hasDocument = serviceLocator_.Get<Services::IEditorService>().GetActiveDocumentInfo() != nullptr;
+            if (ImGui::MenuItem(ICON_FA_FILE_CIRCLE_PLUS "  New...", "Ctrl+N", false, viewport)) viewport->BeginNew();
             ImGui::Separator();
-            if (ImGui::MenuItem("Exit", "Alt+F4")) {
-                shouldClose_ = true;
-            }
+            if (ImGui::MenuItem(ICON_FA_FLOPPY_DISK "  Save", "Ctrl+S", false, viewport && hasDocument)) viewport->SaveActive();
+            if (ImGui::MenuItem("       Save As...", "Ctrl+Shift+S", false, viewport && hasDocument)) viewport->BeginSaveAs();
             ImGui::EndMenu();
         }
 
@@ -332,8 +320,8 @@ void Application::Draw() {
             ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
             ImGui::DockBuilderSetNodeSize(dockspaceId, ImGui::GetMainViewport()->WorkSize);
 
-            // Scenes/Hierarchy left, Inspector/Scene right, Console/Assets along the bottom
-            // of the middle, Viewport/Scripts in the center. The layout is fixed: panels
+            // Hierarchy left, Inspector right, Console/Assets along the bottom of the
+            // middle, the Viewport (every open asset, one tab each) in the center. The layout is fixed: panels
             // can't be closed, moved or undocked (see Editor::BeginWindow).
             ImGuiID dockLeft, dockRemain;
             ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.18f, &dockLeft, &dockRemain);
@@ -342,14 +330,11 @@ void Application::Draw() {
             ImGuiID dockBottom, dockCenter;
             ImGui::DockBuilderSplitNode(dockMiddle, ImGuiDir_Down, 0.28f, &dockBottom, &dockCenter);
 
-            ImGui::DockBuilderDockWindow(ScenesEditor::Title, dockLeft);
             ImGui::DockBuilderDockWindow(HierarchyEditor::Title, dockLeft);
             ImGui::DockBuilderDockWindow(ViewportEditor::Title, dockCenter);
-            ImGui::DockBuilderDockWindow(ScriptEditor::Title, dockCenter);
-            ImGui::DockBuilderDockWindow(LogEditor::Title, dockBottom);
             ImGui::DockBuilderDockWindow(AssetEditor::Title, dockBottom);
+            ImGui::DockBuilderDockWindow(LogEditor::Title, dockBottom);
             ImGui::DockBuilderDockWindow(InspectorEditor::Title, dockRight);
-            ImGui::DockBuilderDockWindow(SceneEditor::Title, dockRight);
 
             ImGui::DockBuilderFinish(dockspaceId);
         }
@@ -366,10 +351,10 @@ void Application::Draw() {
         }
     }
 
-    // Tabs open on Hierarchy, Inspector, Viewport and Console; the panels have to exist first.
+    // Tabs open on Hierarchy, Inspector, Viewport and Assets; the panels have to exist first.
     if (focusDefaultTabs_ && mode_ == AppMode::Editor) {
         focusDefaultTabs_ = false;
-        for (const char* title : {HierarchyEditor::Title, InspectorEditor::Title, LogEditor::Title, ViewportEditor::Title}) {
+        for (const char* title : {HierarchyEditor::Title, InspectorEditor::Title, AssetEditor::Title, ViewportEditor::Title}) {
             ImGui::SetWindowFocus(title);
         }
     }

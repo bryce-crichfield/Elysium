@@ -12,21 +12,14 @@ namespace Elysium {
         if (el->Attribute("isTrigger")) c.isTrigger = el->BoolAttribute("isTrigger");
     }
 
-    void ColliderComponent::Inspect(ColliderComponent& c, Entity e, ServiceLocator& services) {
-        PropertyLabel("Width");
-        ImGui::DragFloat("##Width", &c.width, 1.0f, 0.0f, 1000.0f);
-
-        PropertyLabel("Height");
-        ImGui::DragFloat("##Height", &c.height, 1.0f, 0.0f, 1000.0f);
-
-        PropertyLabel("Offset X");
-        ImGui::DragFloat("##OffsetX", &c.offsetX, 1.0f, -500.0f, 500.0f);
-
-        PropertyLabel("Offset Y");
-        ImGui::DragFloat("##OffsetY", &c.offsetY, 1.0f, -500.0f, 500.0f);
-
-        PropertyLabel("Is Trigger");
-        ImGui::Checkbox("##IsTrigger", &c.isTrigger);
+    FieldList ColliderComponent::Fields() {
+        return {
+            Field("Width", &ColliderComponent::width, "width").Range(0.0f, 1000.0f),
+            Field("Height", &ColliderComponent::height, "height").Range(0.0f, 1000.0f),
+            Field("Offset X", &ColliderComponent::offsetX, "offsetX"),
+            Field("Offset Y", &ColliderComponent::offsetY, "offsetY"),
+            Field("Is Trigger", &ColliderComponent::isTrigger, "isTrigger"),
+        };
     }
 
     void ColliderComponent::BindLua(sol::usertype<ColliderComponent>& ut) {

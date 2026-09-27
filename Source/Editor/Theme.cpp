@@ -42,6 +42,9 @@ constexpr Field<Palette, ImVec4> ColorFields[] = {
     FIELD(Palette, Warning),      FIELD(Palette, Error),         FIELD(Palette, Debug),
     FIELD(Palette, AxisX),        FIELD(Palette, AxisY),         FIELD(Palette, AccentSoft),
     FIELD(Palette, CameraBounds), FIELD(Palette, Selection),     FIELD(Palette, ViewportBackground),
+    FIELD(Palette, AssetFolder),  FIELD(Palette, AssetScene),    FIELD(Palette, AssetPrefab),
+    FIELD(Palette, AssetScript),  FIELD(Palette, AssetSound),    FIELD(Palette, AssetSprite),
+    FIELD(Palette, AssetTexture), FIELD(Palette, AssetShader),
 };
 constexpr Field<Theme, ImVec2> Vec2Fields[] = {
     FIELD(Theme, WindowPadding), FIELD(Theme, FramePadding), FIELD(Theme, ItemSpacing),
@@ -278,6 +281,10 @@ bool LoadTheme(const std::string& name) {
     return fontChanged;
 }
 
+namespace {
+ImFont* codeFont = nullptr;
+}
+
 void LoadFonts() {
     ImGuiIO& io = ImGui::GetIO();
     const std::string path = Path(theme.FontFile, PathRoot::Engine).GetFullPath();
@@ -285,6 +292,11 @@ void LoadFonts() {
         SetupFontAwesome();
         io.FontDefault = font;
     }
+    codeFont = io.Fonts->AddFontFromFileTTF(Path(theme.EditorFont, PathRoot::Engine).GetFullPath().c_str(), theme.FontSize);
+}
+
+ImFont* CodeFont() {
+    return codeFont ? codeFont : ImGui::GetIO().FontDefault;
 }
 
 }  // namespace EditorStyle

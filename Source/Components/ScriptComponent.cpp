@@ -1,5 +1,6 @@
 #include "Components/ScriptComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Editor/AssetField.h"
 #include "Editor/Widgets.h"
 #include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
@@ -44,15 +45,6 @@ namespace Elysium {
     void ScriptComponent::Inspect(ScriptComponent& c, Entity e, ServiceLocator& services) {
 
         auto& assetService = services.Get<Elysium::Services::IAssetService>();
-        const auto& allAssets = assetService.GetAllAssets();
-
-        std::vector<std::string> scriptPaths;
-        scriptPaths.push_back("<None>");
-        for (const auto& [name, asset] : allAssets) {
-            if (assetService.GetData<Script>(asset.get()) && asset->IsLoaded()) {
-                scriptPaths.push_back(name.GetRelativePath());
-            }
-        }
 
         PropertyLabel("Is Active");
         std::string activeId = "##ScriptActive_" + std::to_string(e);
@@ -64,29 +56,10 @@ namespace Elysium {
         for (size_t i = 0; i < c.scriptNames.size(); ++i) {
             ImGui::PushID(static_cast<int>(i));
 
-            std::string currentScript = c.scriptNames[i].empty() ? "<None>" : c.scriptNames[i];
-            int currentIndex = 0;
-            for (size_t j = 0; j < scriptPaths.size(); ++j) {
-                if (scriptPaths[j] == currentScript) {
-                    currentIndex = static_cast<int>(j);
-                    break;
-                }
-            }
-
             ImGui::SetNextItemWidth(-(ButtonWidth(ICON_FA_XMARK) + ImGui::GetStyle().ItemSpacing.x));
-            std::string comboId = "##Script_" + std::to_string(e) + "_" + std::to_string(i);
-            if (ImGui::BeginCombo(comboId.c_str(), currentScript.c_str())) {
-                for (size_t j = 0; j < scriptPaths.size(); ++j) {
-                    bool isSelected = (currentIndex == static_cast<int>(j));
-                    if (ImGui::Selectable(scriptPaths[j].c_str(), isSelected)) {
-                        c.scriptNames[i] = (j == 0) ? "" : scriptPaths[j];
-                        c.isInitialized[i] = false;
-                    }
-                    if (isSelected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
+            if (AssetField("##Script", AssetKind::Script, c.scriptNames[i])) {
+                c.isInitialized[i] = false;
+                if (!c.scriptNames[i].empty()) assetService.LoadAsset<Script>(Path(c.scriptNames[i]));
             }
 
             ImGui::SameLine();

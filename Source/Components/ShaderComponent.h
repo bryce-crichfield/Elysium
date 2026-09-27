@@ -44,6 +44,7 @@ namespace Elysium {
         static void LoadXml(ShaderComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
         static void SaveXml(const ShaderComponent& c, XMLBuilder& builder);
         static void Inspect(ShaderComponent& c, Entity e, ServiceLocator& services);
+        static FieldList Fields();
         static void BindLua(sol::usertype<ShaderComponent>& ut);
     };
 }

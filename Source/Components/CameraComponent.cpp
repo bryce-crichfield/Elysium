@@ -21,15 +21,12 @@ namespace Elysium {
         c.zoom = el->FloatAttribute("zoom", 1.0f);
     }
 
-    void CameraComponent::Inspect(CameraComponent& c, Entity e, ServiceLocator& services) {
-        PropertyLabel("Zoom");
-        ImGui::DragFloat("##Zoom", &c.zoom, 0.01f, 0.1f, 10.0f);
-        PropertyLabel("Viewport");
-        ImGui::DragFloat4("##Viewport", &c.viewport.x, 1.0f);
-        PropertyLabel("Render Order");
-        ImGui::DragInt("##RenderOrder", &c.renderOrder);
-        PropertyLabel("Is Visible");
-        ImGui::Checkbox("##IsVisible", &c.isVisible);
+    FieldList CameraComponent::Fields() {
+        return {
+            Field("Zoom", &CameraComponent::zoom, "zoom").Speed(0.01f).Range(0.1f, 10.0f),
+            Field("Render Order", &CameraComponent::renderOrder),
+            Field("Is Visible", &CameraComponent::isVisible),
+        };
     }
 
     void CameraComponent::BindLua(sol::usertype<CameraComponent>& ut) {

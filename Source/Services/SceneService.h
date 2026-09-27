@@ -83,6 +83,7 @@ public:
     bool IsEmpty() const override { return sceneStack_.empty(); }
     const std::vector<Scene*>& GetStack() const override { return sceneStack_; }
     const std::unordered_map<std::string, SceneRegistration>& GetSceneRegistry() const override { return scenes_; }
+    void RegisterScene(const std::string& fullPath) override;
 
     // Rendering info getters
     const Rectangle& GetLetterboxRect() const override { return letterboxRect_; }

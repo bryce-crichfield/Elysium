@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <string>
 #include <memory>
+#include <set>
 
 #include "Core/Entity.h"
 #include "Core/Component.h"
@@ -13,11 +14,41 @@
 
 #include "Core/Xml.h"
 #include "Core/Editor.h"
+#include "Core/Reflection.h"
 #include <sol/sol.hpp>
 
 namespace Elysium {
 
     class World;
+
+    // Override field paths. A top-level field is just the attribute name ("x"); a nested one
+    // names each element on the way down, then the attribute: "Layer[Texture]/Uniform[uColor]/value".
+    // An element is keyed by its `name` attribute when it has one, else by its position among
+    // same-tag siblings ("Layer#1"), so a prefab adding a uniform doesn't misdirect overrides.
+    inline std::string FieldKey(const tinyxml2::XMLElement* element) {
+        if (const char* name = element->Attribute("name")) return std::string(element->Name()) + "[" + name + "]";
+        int index = 0;
+        for (auto* e = element->PreviousSiblingElement(element->Name()); e; e = e->PreviousSiblingElement(element->Name())) ++index;
+        return std::string(element->Name()) + "#" + std::to_string(index);
+    }
+
+    inline tinyxml2::XMLElement* FindChildByKey(tinyxml2::XMLElement* parent, const std::string& key) {
+        for (auto* child = parent->FirstChildElement(); child; child = child->NextSiblingElement()) {
+            if (FieldKey(child) == key) return child;
+        }
+        return nullptr;
+    }
+
+    // The element `field` lives on (under `component`) and its attribute name, or null.
+    inline tinyxml2::XMLElement* ResolveField(tinyxml2::XMLElement* component, const std::string& field, std::string& attr) {
+        tinyxml2::XMLElement* element = component;
+        size_t start = 0;
+        for (size_t slash; element && (slash = field.find('/', start)) != std::string::npos; start = slash + 1) {
+            element = FindChildByKey(element, field.substr(start, slash - start));
+        }
+        attr = field.substr(start);
+        return element;
+    }
 
     class ComponentRegistry {
     public:
@@ -29,6 +60,8 @@ namespace Elysium {
             // Serializes the entity's component into `scratch`; null if absent or nothing written.
             std::function<tinyxml2::XMLElement*(tinyxml2::XMLDocument& scratch, World*, Entity)> serialize;
             // Overwrites one serialized field and reloads the component through its LoadXml.
+            // `field` is an attribute of the component element, or a path to one on a nested
+            // element (see ResolveField).
             std::function<void(World*, Entity, const std::string& field, const std::string& value, ServiceLocator&)> applyOverride;
         };
 
@@ -41,6 +74,22 @@ namespace Elysium {
             });
 
             const char* name = T::Name();
+            const char* tag = name;
+            if constexpr (requires { T::XmlTag(); }) tag = T::XmlTag();
+
+            // Typed fields, by display name and by XML tag (what prefab parameters name).
+            if constexpr (Reflected<T>) {
+                fields_[name] = T::Fields();
+                fields_[tag] = T::Fields();
+            }
+            // Placement-owned: a prefab placement's own data (where it is, what it's called),
+            // editable on its root; everything else inside a placement is the prefab's.
+            if constexpr (requires { { T::PlacementOwned } -> std::convertible_to<bool>; }) {
+                if (T::PlacementOwned) {
+                    placementOwned_.insert(name);
+                    placementOwned_.insert(tag);
+                }
+            }
 
             // 2. Register XML Loader
             if constexpr (XmlLoadable<T>) {
@@ -103,7 +152,10 @@ namespace Elysium {
                         compElem = scratch.NewElement(fieldXmlTag);
                         scratchRoot->InsertFirstChild(compElem);
                     }
-                    compElem->SetAttribute(field.c_str(), value.c_str());
+                    std::string attr;
+                    tinyxml2::XMLElement* target = ResolveField(compElem, field, attr);
+                    if (!target) return;  // the nested element it names no longer exists
+                    target->SetAttribute(attr.c_str(), value.c_str());
 
                     // Reload on top of the live value so runtime-only state (e.g. a resolved
                     // parent Entity) survives.
@@ -116,6 +168,7 @@ namespace Elysium {
             }
 
             // 4. Register Inspector
+            // Its own Inspect, or else one drawn from its fields.
             if constexpr (Inspectable<T>) {
                 inspectorOrder_[name] = InspectorOrderOf<T>();
                 inspectors_[name] = [](World* w, Entity e, ServiceLocator& services) {
@@ -123,6 +176,11 @@ namespace Elysium {
                         auto& comp = w->GetComponent<T>(e);
                         T::Inspect(comp, e, services);
                     }
+                };
+            } else if constexpr (Reflected<T>) {
+                inspectorOrder_[name] = InspectorOrderOf<T>();
+                inspectors_[name] = [fields = T::Fields()](World* w, Entity e, ServiceLocator&) {
+                    if (w->HasComponent<T>(e)) InspectFields(&w->GetComponent<T>(e), fields);
                 };
             }
 
@@ -172,6 +230,22 @@ namespace Elysium {
 
         const std::unordered_map<std::string, PrefabFieldSupport>& GetPrefabFieldSupport() const { return prefabFieldSupport_; }
 
+        // A component's typed fields, by display name or XML tag; null if it has none.
+        const FieldList* GetFields(const std::string& component) const {
+            auto it = fields_.find(component);
+            return it == fields_.end() ? nullptr : &it->second;
+        }
+        // The field `key` (an XML attribute) of `component`, or null.
+        const FieldInfo* FindField(const std::string& component, const std::string& key) const {
+            const FieldList* fields = GetFields(component);
+            if (!fields) return nullptr;
+            for (const auto& field : *fields) {
+                if (field.key == key) return &field;
+            }
+            return nullptr;
+        }
+        bool IsPlacementOwned(const std::string& component) const { return placementOwned_.count(component) > 0; }
+
         void BindAllScripts(sol::state& lua);
 
         struct LuaComponentAccess {
@@ -191,6 +265,8 @@ namespace Elysium {
         std::unordered_map<std::string, InspectorFunc> inspectors_;
         std::unordered_map<std::string, InspectorOrder> inspectorOrder_;
         std::unordered_map<std::string, PrefabFieldSupport> prefabFieldSupport_;
+        std::unordered_map<std::string, FieldList> fields_;
+        std::set<std::string> placementOwned_;
         std::vector<std::function<void(sol::state&)>> scriptBinders_;
         std::unordered_map<std::string, LuaComponentAccess> scriptAccessors_;
     };

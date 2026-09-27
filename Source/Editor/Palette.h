@@ -48,6 +48,16 @@ struct Palette {
     ImVec4 AxisX = Hex(0xE06C6C);
     ImVec4 AxisY = Hex(0x7CC68D);
 
+    // Asset types: the color every view of an asset marks it with.
+    ImVec4 AssetFolder  = Hex(0x8C9AAE);
+    ImVec4 AssetScene   = Hex(0x5B9BD5);
+    ImVec4 AssetPrefab  = Hex(0x6CBF7F);
+    ImVec4 AssetScript  = Hex(0xE3C35A);
+    ImVec4 AssetSound   = Hex(0xE06C6C);
+    ImVec4 AssetSprite  = Hex(0xA98BE0);
+    ImVec4 AssetTexture = Hex(0xE8995A);
+    ImVec4 AssetShader  = Hex(0x5CC8D0);
+
     // Derived from the colors above after a theme loads, unless the theme sets them.
     ImVec4 AccentSoft;     // selected-row fill
     ImVec4 CameraBounds;

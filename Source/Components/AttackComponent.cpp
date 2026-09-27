@@ -10,21 +10,14 @@ namespace Elysium {
         c.cooldown = el->FloatAttribute("cooldown", 1.0f);
     }
 
-    void AttackComponent::Inspect(AttackComponent& c, Entity e, ServiceLocator& services) {        
-        PropertyLabel("Range");
-        ImGui::DragFloat("##Range", &c.range, 1.0f, 0.0f);
-        PropertyLabel("Damage");
-        ImGui::DragFloat("##Damage", &c.damage, 1.0f, 0.0f);
-        PropertyLabel("Cooldown");
-        ImGui::DragFloat("##Cooldown", &c.cooldown, 0.1f, 0.0f);
-        PropertyLabel("Timer");
-        ImGui::DragFloat("##Timer", &c.timer, 0.1f, 0.0f);
-        PropertyLabel("Target ID");
-        int tId = (int)c.targetId;
-        ImGui::DragInt("##TargetId", &tId, 1.0f, 0);
-        c.targetId = (Entity)tId;
-        PropertyLabel("Is Attacking");
-        ImGui::Checkbox("##IsAttacking", &c.isAttacking);
+    FieldList AttackComponent::Fields() {
+        return {
+            Field("Range", &AttackComponent::range, "range").Range(0.0f, 100000.0f),
+            Field("Damage", &AttackComponent::damage, "damage").Range(0.0f, 100000.0f),
+            Field("Cooldown", &AttackComponent::cooldown, "cooldown").Speed(0.1f).Range(0.0f, 1000.0f),
+            Field("Timer", &AttackComponent::timer).Section("State"),
+            Field("Is Attacking", &AttackComponent::isAttacking).Section("State"),
+        };
     }
 
     void AttackComponent::BindLua(sol::usertype<AttackComponent>& ut) {

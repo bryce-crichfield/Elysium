@@ -154,6 +154,15 @@ PrefabSpawnResult Prefab::Spawn(World* world, const std::string& instanceId, Ser
         }
     }
 
+    // The root carries the placement's own name; the prefab it came from is shown by the
+    // editor, not stored in the name. Internal entities stay namespaced ("Unit1::Body") so
+    // two placements' by-name references don't collide.
+    if (!instanceId.empty() && !result.ids.empty()) {
+        const Entity root = result.ids.count(0) ? result.ids.at(0) : result.spawned.front();
+        if (world->HasComponent<NameComponent>(root)) world->GetComponent<NameComponent>(root).name = instanceId;
+        else world->AddComponent(root, NameComponent(instanceId));
+    }
+
     // Composition: prefabs placed inside this prefab.
     if (root_) {
         ++spawnDepth;

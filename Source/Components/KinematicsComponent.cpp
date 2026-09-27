@@ -15,15 +15,13 @@ namespace Elysium {
         c.maxSpeed = el->FloatAttribute("maxSpeed", 200.0f);
     }
 
-    void KinematicsComponent::Inspect(KinematicsComponent& c, Entity e, ServiceLocator& services) {        
-        PropertyLabel("Max Speed");
-        ImGui::DragFloat("##MaxSpeed", &c.maxSpeed, 1.0f, 0.0f);
-        PropertyLabel("Friction");
-        ImGui::DragFloat("##Friction", &c.friction, 0.1f, 0.0f);
-        PropertyLabel("Velocity X");
-        ImGui::DragFloat("##VelX", &c.velocity.x);
-        PropertyLabel("Velocity Y");
-        ImGui::DragFloat("##VelY", &c.velocity.y);
+    FieldList KinematicsComponent::Fields() {
+        return {
+            Field("Max Speed", &KinematicsComponent::maxSpeed, "maxSpeed").Range(0.0f, 100000.0f),
+            Field("Friction", &KinematicsComponent::friction, "friction").Speed(0.1f).Range(0.0f, 1000.0f),
+            Field("Velocity", &KinematicsComponent::velocity).Section("State"),
+            Field("Acceleration", &KinematicsComponent::acceleration).Section("State"),
+        };
     }
 
     void KinematicsComponent::BindLua(sol::usertype<KinematicsComponent>& ut) {

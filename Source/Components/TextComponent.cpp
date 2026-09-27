@@ -30,25 +30,12 @@ namespace Elysium {
         return Colors::White;
     }
 
-    void TextComponent::Inspect(TextComponent& c, Entity e, ServiceLocator& services) {
-        static char contentBuffer[1024];
-        strncpy(contentBuffer, c.content.c_str(), sizeof(contentBuffer) - 1);
-        contentBuffer[sizeof(contentBuffer) - 1] = '\0';
-
-        PropertyLabel("Content");
-        if (ImGui::InputTextMultiline("##Content", contentBuffer, sizeof(contentBuffer))) {
-            c.content = std::string(contentBuffer);
-        }
-
-        PropertyLabel("Font Size");
-        ImGui::DragInt("##FontSize", &c.fontSize, 1.0f, 1, 200);
-
-        float color[4] = {c.color.r / 255.0f, c.color.g / 255.0f, c.color.b / 255.0f, c.color.a / 255.0f};
-        PropertyLabel("Color");
-        if (ImGui::ColorEdit4("##Color", color)) {
-            c.color = {(unsigned char)(color[0] * 255), (unsigned char)(color[1] * 255), (unsigned char)(color[2] * 255),
-                          (unsigned char)(color[3] * 255)};
-        }
+    FieldList TextComponent::Fields() {
+        return {
+            Field("Content", &TextComponent::content, "text").Multiline(),
+            Field("Font Size", &TextComponent::fontSize, "fontSize").Range(1.0f, 200.0f),
+            Field("Color", &TextComponent::color, "color"),
+        };
     }
 
     void TextComponent::BindLua(sol::usertype<TextComponent>& ut) {

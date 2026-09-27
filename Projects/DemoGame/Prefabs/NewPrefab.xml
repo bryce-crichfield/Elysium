@@ -1,0 +1,20 @@
+<Prefab>
+    <Parameters>
+        <Parameter name="X" entity="0" component="TransformComponent" field="x"/>
+        <Parameter name="Y" entity="0" component="TransformComponent" field="y"/>
+        <Parameter name="Width" entity="0" component="RectangleComponent" field="width"/>
+        <Parameter name="Height" entity="0" component="RectangleComponent" field="height"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.472964 0.873134 0.381182 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Root"/>
+            <RectangleComponent width="64" height="24" cornerRadius="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

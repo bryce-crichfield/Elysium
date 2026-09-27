@@ -1,0 +1,62 @@
+<Prefab>
+    <Parameters>
+        <Parameter name="Sprite" entity="0" component="SpriteComponent" field="spriteName"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <KinematicsComponent friction="5" maxSpeed="150"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Bishop/Idle.png">
+                    <Uniform name="uSourceRect" type="vec4" value="0.000000 256.000000 128.000000 128.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Unit"/>
+            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
+            <ScriptComponent>
+                <Script name="Scripts/Elysium/Unit.lua"/>
+            </ScriptComponent>
+            <SpriteComponent spriteName="Sprites/Bishop.xml" sheetName="" sequenceName=""/>
+            <TeamComponent team="0"/>
+            <TransformComponent x="-1.7944565" y="-1.9146767"/>
+        </Entity>
+        <Entity id="1">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <MaterialComponent padding="512" enabled="false">
+                <Layer material="Meter" enabled="true">
+                    <Uniform name="uMode" type="float" value="1.000000"/>
+                    <Uniform name="uProgress" type="float" value="-0.700000"/>
+                    <Uniform name="uAutoSpeed" type="float" value="0.100000"/>
+                    <Uniform name="uTrackColor" type="vec4" value="0.078431 0.101961 0.160784 0.000000"/>
+                    <Uniform name="uFillColor" type="vec4" value="0.639216 0.000000 0.000000 0.784314"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Unit::Cooldown"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="2.0522766" y="7.0615005"/>
+        </Entity>
+        <Entity id="2">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Unit::Selection"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="-0.30000019" y="0.50000191"/>
+        </Entity>
+        <Entity id="3">
+            <EllipseComponent radiusH="500" radiusV="250"/>
+            <LayerComponent name="shadow"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Falloff" enabled="true"/>
+            </MaterialComponent>
+            <NameComponent name="Unit::Light"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="3.4203262" y="-3.5184174"/>
+        </Entity>
+    </Entities>
+</Prefab>

@@ -10,13 +10,12 @@ namespace Elysium {
         el->QueryFloatAttribute("offsetY", &c.offsetY);
     }
 
-    void FollowComponent::Inspect(FollowComponent& c, Entity e, ServiceLocator& services) {
-        PropertyLabel("Follow Speed");
-        ImGui::DragFloat("##FollowSpeed", &c.speed, 0.1f);
-        PropertyLabel("Offset X");
-        ImGui::DragFloat("##OffsetX", &c.offsetX, 1.0f);
-        PropertyLabel("Offset Y");
-        ImGui::DragFloat("##OffsetY", &c.offsetY, 1.0f);
+    FieldList FollowComponent::Fields() {
+        return {
+            Field("Follow Speed", &FollowComponent::speed, "followSpeed").Speed(0.1f),
+            Field("Offset X", &FollowComponent::offsetX, "offsetX"),
+            Field("Offset Y", &FollowComponent::offsetY, "offsetY"),
+        };
     }
 
     void FollowComponent::BindLua(sol::usertype<FollowComponent>& ut) {

@@ -1,0 +1,8 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <NameComponent name="Root"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

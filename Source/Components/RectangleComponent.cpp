@@ -24,16 +24,14 @@ namespace Elysium {
         c.originY = el->FloatAttribute("originY", 0.5f);
     }
 
-    void RectangleComponent::Inspect(RectangleComponent& c, Entity e, ServiceLocator& services) {
-
-        PropertyLabel("Width");
-        ImGui::DragFloat("##Width", &c.width, 1.0f, 1.0f, 1000.0f);
-        PropertyLabel("Height");
-        ImGui::DragFloat("##Height", &c.height, 1.0f, 1.0f, 1000.0f);
-        PropertyLabel("Corner Radius");
-        ImGui::DragFloat("##CornerRadius", &c.cornerRadius, 0.01f, 0.0f, 1.0f);
-        PropertyLabel("Origin");
-        ImGui::DragFloat2("##Origin", &c.originX, 0.01f, 0.0f, 1.0f);
+    FieldList RectangleComponent::Fields() {
+        return {
+            Field("Width", &RectangleComponent::width, "width").Range(1.0f, 1000.0f),
+            Field("Height", &RectangleComponent::height, "height").Range(1.0f, 1000.0f),
+            Field("Corner Radius", &RectangleComponent::cornerRadius, "cornerRadius").Speed(0.01f).Range(0.0f, 1.0f),
+            Field("Origin X", &RectangleComponent::originX, "originX").Speed(0.01f).Range(0.0f, 1.0f),
+            Field("Origin Y", &RectangleComponent::originY, "originY").Speed(0.01f).Range(0.0f, 1.0f),
+        };
     }
 
     void RectangleComponent::BindLua(sol::usertype<RectangleComponent>& ut) {

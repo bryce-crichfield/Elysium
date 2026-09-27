@@ -15,9 +15,10 @@ namespace Elysium {
             .SetAttribute("team", c.team);
     }
 
-    void TeamComponent::Inspect(TeamComponent& c, Entity e, ServiceLocator& services) {
-        PropertyLabel("Team");
-        ImGui::InputInt("##team", &c.team);
+    FieldList TeamComponent::Fields() {
+        return {
+            Field("Team", &TeamComponent::team, "team"),
+        };
     }
 
     void TeamComponent::BindLua(sol::usertype<TeamComponent>& ut) {
