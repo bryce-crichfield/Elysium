@@ -75,8 +75,21 @@ class ISceneService : public IService {
     virtual void SetViewportRect(Rectangle rect) = 0;
     virtual const Rectangle& GetViewportRect() const = 0;
 
+    // Editor only: the open editor document's scene (never on the stack) to render and tick,
+    // paused. In editor mode the stack itself is frozen and not drawn.
+    virtual void SetEditorScene(Elysium::Scene* scene) = 0;
+    virtual Elysium::Scene* GetEditorScene() const = 0;
+
+    // The project's entry scene, pushed at startup and when entering Play with an empty stack.
+    virtual void SetEntryScene(const std::string& sceneName) = 0;
+    virtual const std::string& GetEntryScene() const = 0;
+
+    // Throws away the loaded stack and reloads the same scenes (or the entry scene) from
+    // disk, so Play always runs what's saved rather than anything the editor touched.
+    virtual void ReloadFromDisk() = 0;
+
+    // Gameplay simulation (systems, scripts, input) runs exactly when the app is in Play mode.
     virtual bool IsPlaying() const = 0;
-    virtual void SetPlaying(bool playing) = 0;
 
     virtual Vector2 ScreenToFramebuffer(Vector2 screenPos) const = 0;
 };

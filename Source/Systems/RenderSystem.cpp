@@ -1039,6 +1039,12 @@ void RenderSystem::Draw() {
         PlaceScreenInWorld(view);
         RenderView(ctx, view);
     } else {
+        // Only play mode needs an in-scene camera; the editor (and prefab documents, which
+        // never have one) always renders through the editor camera above.
+        if (_cameraEntities.empty()) {
+            ClearBackground(::BLACK);
+            DrawText("No active camera found", 10, 10, 20, ::RED);
+        }
         for (auto& cameraEntity : _cameraEntities) {
             auto& camera = world->GetComponent<CameraComponent>(cameraEntity);
             if (!camera.isVisible) continue;
@@ -1079,12 +1085,6 @@ void RenderSystem::FindCameras() {
     world->Query<CameraComponent>([&](Entity entity, auto&) {
         _cameraEntities.push_back(entity);
     });
-
-    if (_cameraEntities.empty()) {
-        ClearBackground(::BLACK);
-        DrawText("No active camera found", 10, 10, 20, ::RED);
-        return;
-    }
 
     std::sort(_cameraEntities.begin(), _cameraEntities.end(), [&](Entity a, Entity b) {
         auto& camA = world->GetComponent<CameraComponent>(a);

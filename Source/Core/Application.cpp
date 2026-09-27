@@ -394,16 +394,15 @@ void Application::SetMode(AppMode mode) {
             editor->SetVisible(editor->IsDocked());
         }
 
-        // Editing should start paused by default — the user opts into simulating via the Play button.
-        sceneService.SetPlaying(false);
+        // The editor works on its own document copies; the game's stack just freezes.
     } else {
         for (auto& editor : editors_) {
             editor->SetVisible(false);
         }
         editorLayoutBuilt_ = false;
 
-        // Fullscreen Play mode always simulates.
-        sceneService.SetPlaying(true);
+        // Play runs what's on disk, never the editor's in-memory copies.
+        sceneService.ReloadFromDisk();
     }
 }
 

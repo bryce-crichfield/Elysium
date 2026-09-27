@@ -10,8 +10,8 @@ class ISceneService;
 class IEditorService;
 }  // namespace Services
 
-// Every scene the project registers, and the live scene stack. Picking a stack entry
-// points the Scene panel at it.
+// Every scene the project registers. Opening one gives it a viewport tab holding the
+// editor's own copy, loaded from disk; the game's scene stack is only used in Play mode.
 class ScenesEditor : public Editor {
    public:
     static constexpr const char* Title = "Scenes";
@@ -21,11 +21,10 @@ class ScenesEditor : public Editor {
     void Draw() override;
 
    private:
-    void DrawToolbar(Services::ISceneService& scenes);
-    void DrawAvailable(Services::ISceneService& scenes);
-    void DrawStack(Services::ISceneService& scenes, Services::IEditorService& editor);
+    void DrawToolbar(Services::ISceneService& scenes, Services::IEditorService& editor);
+    void DrawAvailable(Services::ISceneService& scenes, Services::IEditorService& editor);
 
-    std::string selectedSceneName_;  // registry entry the Push/Replace buttons act on
+    std::string selectedSceneName_;  // registry entry the Open button acts on
     char search_[64] = "";
 };
 

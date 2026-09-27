@@ -20,3 +20,4 @@
 #include "Components/UiComponent.h"
 #include "Components/ShaderComponent.h"
 #include "Components/MaterialComponent.h"
+#include "Components/PrefabInstanceComponent.h"

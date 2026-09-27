@@ -147,6 +147,7 @@ class World {
     void DestroyEntity(Entity entity);                     // Declaration only
     size_t GetEntityCount() const;                         // Declaration only
     const std::vector<Entity>& GetLivingEntities() const;  // Declaration only
+    bool IsAlive(Entity entity) const;
 
     // World listener registration
     void AddWorldListener(IWorldListener* listener);
@@ -197,6 +198,8 @@ class World {
     // Returns true if ancestor is in the parent-chain of entity.
     // Used to prevent cycles when reparenting.
     bool IsAncestorOf(Entity ancestor, Entity entity) const;
+    // `root` and all its descendants, depth-first with `root` first. Destroy in reverse.
+    std::vector<Entity> GetSubtree(Entity root) const;
     // Reorder entity in livingEntities relative to a target.
     void MoveEntityBefore(Entity toMove, Entity target);
     void MoveEntityAfter(Entity toMove, Entity target);

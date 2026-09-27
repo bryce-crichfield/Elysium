@@ -1,6 +1,13 @@
 #include "InspectorEditor.h"
 #include <cstring>
+#include <algorithm>
+#include <set>
 #include "Components/NameComponent.h"
+#include "Components/PrefabInstanceComponent.h"
+#include "Core/ComponentRegistry.h"
+#include "Core/Prefab.h"
+#include "Core/Scene.h"
+#include "Core/World.h"
 #include "Core/Common.h"
 #include "Editor/Widgets.h"
 #include "Interfaces/IEditorService.h"
@@ -24,6 +31,8 @@ void InspectorEditor::Draw() {
     const Entity entity = GetPrimarySelection(service);
 
     if (BeginWindow()) {
+        if (world) DrawPrefabParameters(service, entity);
+
         if (!world) {
             EmptyState("No world loaded");
         } else if (entity == INVALID_ENTITY) {
@@ -49,6 +58,96 @@ void InspectorEditor::Draw() {
         }
     }
     EndWindow();
+}
+
+void InspectorEditor::DrawPrefabParameters(IEditorService& service, Entity selected) {
+    const int active = service.GetActiveDocument();
+    if (active < 0) return;
+    EditorDocument& doc = *service.GetDocuments()[active];
+    World* world = doc.scene->GetWorld();
+
+    if (!CollapsingSection(ICON_FA_BOX "  Prefab Parameters", true, ImGuiTreeNodeFlags_DefaultOpen)) return;
+    BeginSectionBody();
+
+    // Entity for a local id, for labelling each parameter's target.
+    auto entityOf = [&](int localId) {
+        for (const auto& [entity, id] : doc.localIds) if (id == localId) return entity;
+        return INVALID_ENTITY;
+    };
+
+    if (doc.parameters.empty()) MutedText("None. Select an entity, then add one of its fields.");
+
+    int toRemove = -1;
+    for (int i = 0; i < (int)doc.parameters.size(); ++i) {
+        PrefabParameter& param = doc.parameters[i];
+        ImGui::PushID(i);
+
+        // Parameters sharing a name drive all their fields together.
+        char nameBuffer[128];
+        snprintf(nameBuffer, sizeof(nameBuffer), "%s", param.name.c_str());
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.35f);
+        if (ImGui::InputText("##name", nameBuffer, sizeof(nameBuffer), ImGuiInputTextFlags_EnterReturnsTrue) && nameBuffer[0]) {
+            param.name = nameBuffer;
+        }
+        ItemTooltip("Parameter name (Enter to apply). Parameters sharing a name are set together.");
+
+        ImGui::SameLine();
+        const Entity target = entityOf(param.entity);
+        const std::string targetLabel = (target != INVALID_ENTITY ? EntityLabel(world->GetEntityName(target), target) : "#" + std::to_string(param.entity)) +
+                                        "  " + param.component + "." + param.field;
+        ImGui::AlignTextToFramePadding();
+        ColoredText(target == INVALID_ENTITY ? Palette().Error : Palette().TextMuted, targetLabel.c_str());
+        if (target == INVALID_ENTITY) ItemTooltip("Target entity no longer exists");
+        else if (ImGui::IsItemClicked()) service.SelectEntity(target);
+
+        AlignRight(ButtonWidth(ICON_FA_TRASH_CAN));
+        if (IconButton(ICON_FA_TRASH_CAN, "Remove parameter")) toRemove = i;
+        ImGui::PopID();
+    }
+    if (toRemove >= 0) doc.parameters.erase(doc.parameters.begin() + toRemove);
+
+    // Add: a field of the selected entity. Only the prefab's own entities (not entities of
+    // prefabs placed inside it) can be exposed.
+    const bool canAdd = selected != INVALID_ENTITY && !world->HasComponent<PrefabInstanceComponent>(selected);
+    ImGui::BeginDisabled(!canAdd);
+    if (ImGui::Button(ICON_FA_PLUS "  Add Parameter")) ImGui::OpenPopup("AddParameter");
+    ImGui::EndDisabled();
+    if (!canAdd) ItemTooltip("Select one of this prefab's own entities first");
+
+    if (ImGui::BeginPopup("AddParameter")) {
+        for (const auto& [component, support] : ComponentRegistry::Instance().GetPrefabFieldSupport()) {
+            tinyxml2::XMLDocument scratch;
+            tinyxml2::XMLElement* el = support.serialize(scratch, world, selected);
+            if (!el || !el->FirstAttribute()) continue;
+            if (!ImGui::BeginMenu(component.c_str())) continue;
+            for (const tinyxml2::XMLAttribute* attr = el->FirstAttribute(); attr; attr = attr->Next()) {
+                if (!ImGui::MenuItem(attr->Name())) continue;
+
+                // The entity needs a stable local id to be addressed from placements.
+                auto idIt = doc.localIds.find(selected);
+                if (idIt == doc.localIds.end()) {
+                    int next = 0;
+                    for (const auto& [e, id] : doc.localIds) next = std::max(next, id + 1);
+                    idIt = doc.localIds.emplace(selected, next).first;
+                }
+
+                // Default name: the field, capitalized, made unique.
+                std::string base = attr->Name();
+                if (!base.empty()) base[0] = (char)toupper((unsigned char)base[0]);
+                std::set<std::string> taken;
+                for (const auto& p : doc.parameters) taken.insert(p.name);
+                std::string name = base;
+                for (int n = 2; taken.count(name); ++n) name = base + std::to_string(n);
+
+                doc.parameters.push_back({name, idIt->second, component, attr->Name()});
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndPopup();
+    }
+
+    EndSectionBody();
+    ImGui::Separator();
 }
 
 void InspectorEditor::DrawHeader(IEditorService& service, Entity entity) {
@@ -84,7 +183,7 @@ void InspectorEditor::DrawComponent(IEditorService& service, Entity entity, cons
     ImGui::PushID(placeholder.name.c_str());
 
     ApplyOpenRequest(openRequest_);
-    const bool open = CollapsingSection(placeholder.name.c_str(), true, ImGuiTreeNodeFlags_DefaultOpen);
+    const bool open = CollapsingSection(placeholder.name.c_str(), true);
 
     // Per-component actions behind a kebab button on the header's right edge.
     AlignRight(ButtonWidth(ICON_FA_ELLIPSIS_VERTICAL));

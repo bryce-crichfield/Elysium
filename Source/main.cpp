@@ -28,6 +28,7 @@ int main(int argc, char** argv) {
     }
 
     auto& sceneService = app.GetServiceLocator().Get<Elysium::Services::ISceneService>();
+    sceneService.SetEntryScene(project.entryScene);
     sceneService.Push(project.entryScene);
 
     app.Run();

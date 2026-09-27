@@ -11,6 +11,8 @@
 #include "System.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
+#include "Core/PrefabInstance.h"
+#include "Components/PrefabInstanceComponent.h"
 #include "Components/CameraComponent.h"
 #include "Components/FollowComponent.h"
 #include "Components/ParentComponent.h"
@@ -164,6 +166,9 @@ void SaveEntities(XMLBuilder& builder, World* world) {
 
     const auto& entities = world->GetLivingEntities();
     for (Entity entity : entities) {
+        // Prefab placements are written by PrefabInstances::Save as <PrefabInstance> blocks.
+        if (world->HasComponent<PrefabInstanceComponent>(entity)) continue;
+
         std::string entityName = world->GetEntityName(entity);
 
         // Skip layer entities and tile entities as they're saved separately
@@ -230,6 +235,7 @@ bool SaveScene(Scene& scene, const std::string& path) {
     SaveLayers(builder, scene);
     SaveTilemap(builder, world);
     SaveEntities(builder, world);
+    PrefabInstances::Save(builder, world, scene.GetServices(), &scene);
 
     if (!SaveXml(path, doc)) {
         LOG_ERROR("Scene", "Failed to save scene file.");

@@ -1,4 +1,5 @@
 #include "AssetEditor.h"
+#include "Core/Prefab.h"
 #include "Core/Audio.h"
 #include "Core/Graphics.h"
 #include "Core/Asset.h"
@@ -8,6 +9,8 @@
 #include "Editor/Widgets.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
+#include "Interfaces/IEditorService.h"
+#include <tinyxml2.h>
 #include "Interfaces/ITaskService.h"
 #include "Core/Path.h"
 #include <algorithm>
@@ -122,6 +125,13 @@ void AssetEditor::DrawTree(const fs::path& currentPath, const LoadedAssets& load
         if (file.isDirectory) {
             const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth;
             const bool open = ImGui::TreeNodeEx("##dir", flags, "%s  %s", ICON_FA_FOLDER, name.c_str());
+            if (ImGui::BeginPopupContextItem("DirCtx")) {
+                if (ImGui::MenuItem(ICON_FA_BOX "  New Prefab")) {
+                    services_.Get<IEditorService>().CreatePrefab(file.path.string());
+                    lastRefreshTime_ = -1e9;  // rescan now so the new file shows up
+                }
+                ImGui::EndPopup();
+            }
             if (open) {
                 DrawTree(file.path, loaded);
                 ImGui::TreePop();
@@ -148,6 +158,14 @@ void AssetEditor::DrawSearchResults(const LoadedAssets& loaded) {
     if (!any) EmptyState("No matching assets");
 }
 
+// A prefab is an .xml whose root is <Prefab>.
+static bool IsPrefabFile(const std::filesystem::path& path) {
+    if (path.extension() != ".xml") return false;
+    tinyxml2::XMLDocument doc;
+    if (doc.LoadFile(path.string().c_str()) != tinyxml2::XML_SUCCESS || !doc.RootElement()) return false;
+    return std::string(doc.RootElement()->Name()) == "Prefab";
+}
+
 // A file row: icon and label, full-strength text once loaded, and a load/reload context menu.
 void AssetEditor::DrawFile(const DiskFile& file, const LoadedAssets& loaded, const std::string& label) {
     auto& assetService = services_.Get<IAssetService>();
@@ -157,18 +175,30 @@ void AssetEditor::DrawFile(const DiskFile& file, const LoadedAssets& loaded, con
 
     ImGui::PushStyleColor(ImGuiCol_Text, activeAsset ? Palette().Text : Palette().TextMuted);
     const std::string text = std::string(FileIcon(file.path)) + "  " + label;
-    if (ImGui::Selectable(text.c_str(), selectedFile_ == file.relativePath, ImGuiSelectableFlags_SpanAllColumns)) {
+    if (ImGui::Selectable(text.c_str(), selectedFile_ == file.relativePath,
+                          ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick)) {
         selectedFile_ = file.relativePath;
+        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && IsPrefabFile(file.path)) {
+            services_.Get<IEditorService>().OpenPrefab(Path(file.relativePath).GetFullPath());
+        }
     }
     ImGui::PopStyleColor();
     ItemTooltip(activeAsset ? "Loaded" : "Not loaded - right-click to load");
 
     if (!ImGui::BeginPopupContextItem("AssetCtx")) return;
+    if (IsPrefabFile(file.path)) {
+        auto& editor = services_.Get<IEditorService>();
+        const std::string fullPath = Path(file.relativePath).GetFullPath();
+        if (ImGui::MenuItem(ICON_FA_PEN_TO_SQUARE "  Open Prefab")) editor.OpenPrefab(fullPath);
+        if (ImGui::MenuItem(ICON_FA_CUBE "  Place in Viewport")) editor.InstantiatePrefab(fullPath);
+        ImGui::Separator();
+    }
     if (!activeAsset) {
         if (ImGui::MenuItem("Load")) {
             std::string ext = file.path.extension().string();
             Path loadPath(file.relativePath);
             if (ext == ".wav")       assetService.LoadAsset<Sound>(loadPath);
+            else if (IsPrefabFile(file.path)) assetService.LoadAsset<Prefab>(loadPath);
             else if (ext == ".xml")  assetService.LoadAsset<Sprite>(loadPath);
             else if (ext == ".lua")  assetService.LoadAsset<Script>(loadPath);
             // .fs only: ShaderAsset treats its path as the fragment shader and

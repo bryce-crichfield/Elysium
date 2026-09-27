@@ -10,6 +10,7 @@
 #include "Core/Sprite.h"
 
 #include "Interfaces/IAssetService.h"
+#include "Interfaces/ISceneService.h"
 #include "Services/AssetService.h"
 
 namespace Elysium::Systems {
@@ -17,27 +18,25 @@ namespace Elysium::Systems {
 SpriteSystem::SpriteSystem(Context context) : System(context) {
 }
 
-// The entity's Texture layer, created (first in the stack, so any other layers draw
-// over the sprite) along with its MaterialComponent if missing.
-static MaterialLayer& EnsureTextureLayer(Elysium::World* world, Entity entity) {
-    if (!world->HasComponent<MaterialComponent>(entity)) world->AddComponent<MaterialComponent>(entity, MaterialComponent{});
-    auto& material = world->GetComponent<MaterialComponent>(entity);
-    for (MaterialLayer& layer : material.layers) {
-        if (layer.material == "Texture") return layer;
+// The entity's Texture material layer, or null. Never created: an entity opts into
+// drawing its sprite by authoring a MaterialComponent with a Texture layer.
+static MaterialLayer* FindTextureLayer(Elysium::World* world, Entity entity) {
+    if (!world->HasComponent<MaterialComponent>(entity)) return nullptr;
+    for (MaterialLayer& layer : world->GetComponent<MaterialComponent>(entity).layers) {
+        if (layer.material == "Texture") return &layer;
     }
-    MaterialLayer layer;
-    layer.material = "Texture";
-    material.layers.insert(material.layers.begin(), std::move(layer));
-    return material.layers.front();
+    return nullptr;
 }
 
-// Resolves spriteName/sheetName/sequenceName/sequenceIndex to a sheet texture + frame
-// rect and writes it into the entity's shape: a RectangleComponent sized to
-// the frame (pivoting at the sprite's origin) carrying a Texture material layer whose
-// uSourceRect selects the frame. Both are added on first
-// resolve. Tint and any other layer overrides are left alone so they stay per-instance.
+// Resolves spriteName/sheetName/sequenceName/sequenceIndex to a sheet texture + frame rect
+// and writes it into the entity's Texture material layer (texturePath + uSourceRect clip).
+// A RectangleComponent, if present, is sized to the frame and pivots at the sprite's
+// origin. Nothing is added: without a MaterialComponent + Texture layer this is a no-op.
 static void ResolveSprite(Elysium::World* world, Elysium::Services::IAssetService& assets,
                           Entity entity, const SpriteComponent& spriteComp) {
+    MaterialLayer* layer = FindTextureLayer(world, entity);
+    if (!layer) return;
+
     auto* spriteData = assets.Get<Sprite>(Path(spriteComp.spriteName));
     if (!spriteData) return;
     const Sprite& sprite = *spriteData;
@@ -66,27 +65,30 @@ static void ResolveSprite(Elysium::World* world, Elysium::Services::IAssetServic
     size_t col = linearIndex % sheet.cols;
     size_t row = linearIndex / sheet.cols;
 
-    if (!world->HasComponent<RectangleComponent>(entity)) {
-        world->AddComponent<RectangleComponent>(entity, RectangleComponent{1, 1});
-    }
-    // Frame-sized; the renderer applies the entity's scale (negative mirrors) and rotation.
-    auto& rect = world->GetComponent<RectangleComponent>(entity);
-    rect.width = frameWidth;
-    rect.height = frameHeight;
-    rect.originX = sprite.originX;
-    rect.originY = sprite.originY;
+    layer->texturePath = texturePath;
+    layer->overrides["uSourceRect"] = Value{Vector4{col * frameWidth, row * frameHeight, frameWidth, frameHeight}};
 
-    MaterialLayer& layer = EnsureTextureLayer(world, entity);
-    layer.texturePath = texturePath;
-    layer.overrides["uSourceRect"] = Value{Vector4{col * frameWidth, row * frameHeight, frameWidth, frameHeight}};
+    // Frame-sized; the renderer applies the entity's scale (negative mirrors) and rotation.
+    if (world->HasComponent<RectangleComponent>(entity)) {
+        auto& rect = world->GetComponent<RectangleComponent>(entity);
+        rect.width = frameWidth;
+        rect.height = frameHeight;
+        rect.originX = sprite.originX;
+        rect.originY = sprite.originY;
+    }
 }
 
 void SpriteSystem::Update(float deltaTime) {
     auto& assets = services->Get<Services::IAssetService>();
 
+    // Runs while paused so the editor (and prefab documents, which never play) still shows
+    // each sprite's current frame; animation only advances during simulation.
+    auto& sceneService = services->Get<Services::ISceneService>();
+    const bool animate = sceneService.IsPlaying() && sceneService.GetEditorScene() != scene;
+
     world->Query<SpriteComponent>([&](Entity entity, auto& spriteComp) {
-        spriteComp.frameElapsed += deltaTime;
-        if (spriteComp.frameElapsed >= spriteComp.frameDuration) {
+        if (animate) spriteComp.frameElapsed += deltaTime;
+        if (animate && spriteComp.frameElapsed >= spriteComp.frameDuration) {
             spriteComp.frameElapsed -= spriteComp.frameDuration;
 
             auto* spriteData = assets.Get<Sprite>(Path(spriteComp.spriteName));

@@ -11,12 +11,63 @@
 #include "Core/ComponentRegistry.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Components.h"
+#include "Core/Path.h"
+#include "Core/PrefabInstance.h"
 #include "Systems/SpatialSystem.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;
 
 namespace Elysium {
+
+namespace {
+
+using ComponentLoader = std::function<void(XMLElement*, World*, Entity, ServiceLocator&)>;
+
+// XML tag -> component loader, from the registry, with the CameraComponent special case
+// layered on top: a "target" also stamps FollowComponent + ParentComponent.
+const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
+    static const std::unordered_map<std::string, ComponentLoader> loaders = [] {
+        std::unordered_map<std::string, ComponentLoader> result;
+        for (const auto& [name, loader] : ComponentRegistry::Instance().GetXmlLoaders()) result[name] = loader;
+
+        result["CameraComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity, ServiceLocator& services) {
+            CameraComponent cam{};
+            CameraComponent::LoadXml(cam, xmlComponent, services);
+            world->AddComponent(entity, cam);
+
+            std::string target = xmlComponent->Attribute("target") ? xmlComponent->Attribute("target") : "";
+            if (!target.empty()) {
+                world->AddComponent(entity, FollowComponent{});  // speed=0 -> instant by default
+                ParentComponent parentComp;
+                parentComp.targetName = target;
+                world->AddComponent(entity, parentComp);
+            }
+        };
+        return result;
+    }();
+    return loaders;
+}
+
+}  // namespace
+
+void LoadEntityComponents(XMLElement* xmlEntity, World* world, Entity entity, ServiceLocator& services) {
+    ForEachChild(xmlEntity, [&](XMLElement* component) {
+        std::string componentType = component->Name();
+        auto parser = ComponentLoaders().find(componentType);
+        if (parser == ComponentLoaders().end()) {
+            LOG_WARNINGF("Scene", "Unknown component type: %s", componentType.c_str());
+            return;
+        }
+        parser->second(component, world, entity, services);
+
+        // Backward compatibility: a component's layerName attribute implies a LayerComponent.
+        const char* layerName = component->Attribute("layerName");
+        if (layerName && !world->HasComponent<LayerComponent>(entity)) {
+            world->AddComponent<LayerComponent>(entity, LayerComponent(layerName));
+        }
+    });
+}
 
 void LoadLayers(XMLElement* root, Scene& scene) {
     VisitElement(root, "SceneConfiguration", [&](XMLElement* configElement) {
@@ -113,71 +164,13 @@ void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& out
     });
 }
 
-// Create map of tag name to component parser functions
-using ComponentLoader = std::function<void(XMLElement*, World*, Entity, ServiceLocator&)>;
-const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
-    static std::unordered_map<std::string, ComponentLoader> componentLoaders;
-
-    if (!componentLoaders.empty())
-        return componentLoaders;
-
-    // Load from registry
-    const auto& registryLoaders = ComponentRegistry::Instance().GetXmlLoaders();
-    for(const auto& [name, loader] : registryLoaders) {
-        componentLoaders[name] = loader;
-    }
-
-    // Register custom overrides
-    componentLoaders["CameraComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity, ServiceLocator& services) {
-        CameraComponent cam{};
-        CameraComponent::LoadXml(cam, xmlComponent, services);
-        world->AddComponent(entity, cam);
-
-        // If a follow target is specified, add FollowComponent + ParentComponent so
-        // FollowSystem will move the camera toward that target.
-        std::string target = xmlComponent->Attribute("target") ? xmlComponent->Attribute("target") : "";
-        if (!target.empty()) {
-            world->AddComponent(entity, FollowComponent{});  // speed=0 → instant by default
-            ParentComponent parentComp;
-            parentComp.targetName = target;
-            world->AddComponent(entity, parentComp);
-        }
-    };
-
-    return componentLoaders;
-}
-
 void LoadEntities(XMLElement* root, World* world, ServiceLocator& services) {
-    // Load entities
     LOG_INFO("Scene", "Starting entity loading");
 
-    // ForEachElement handles multiple <Entities> blocks — the original inline block
-    // plus any injected by <Include> tags (each prefab file has <Entities> as its root).
     ForEachElement(root, "Entities", [&](XMLElement* entities) {
-        LOG_DEBUG("Scene", "Processing Entities section");
         ForEachElement(entities, "Entity", [&](XMLElement* xmlEntity) {
-            // Create the entity
             Entity entity = world->CreateEntity();
-            LOG_DEBUGF("Scene", "Created entity: %zu", entity);
-
-            // Create the components
-            ForEachChild(xmlEntity, [&](XMLElement* component) {
-                std::string componentType = component->Name();
-                auto parser = ComponentLoaders().find(componentType);
-                if (parser != ComponentLoaders().end()) {
-                    LOG_DEBUGF("Scene", "Processing component: %s", componentType.c_str());
-                    parser->second(component, world, entity, services);
-
-                    // Backward compatibility: if a component has a layerName attribute, 
-                    // add a LayerComponent to the entity if it doesn't have one.
-                    const char* layerName = component->Attribute("layerName");
-                    if (layerName && !world->HasComponent<LayerComponent>(entity)) {
-                        world->AddComponent<LayerComponent>(entity, LayerComponent(layerName));
-                    }
-                } else {
-                    LOG_WARNINGF("Scene", "Unknown component type: %s", componentType.c_str());
-                }
-            });
+            LoadEntityComponents(xmlEntity, world, entity, services);
         });
     });
 }
@@ -187,6 +180,8 @@ void LoadEntities(XMLElement* root, World* world, ServiceLocator& services) {
 void ResolveHierarchy(World* world) {
     world->Query<ParentComponent>([&](Entity child, ParentComponent& pc) {
         if (pc.targetName.empty()) return;
+        // Already linked directly (intra-prefab parents resolve by local id).
+        if (pc.parent != INVALID_ENTITY) return;
         Entity parent = INVALID_ENTITY;
         if (world->GetEntityByName(pc.targetName, &parent)) {
             world->AddChild(parent, child);
@@ -255,6 +250,7 @@ bool LoadScene(Scene& scene, const std::string& path) {
     LoadLayers(root, scene);
     LoadTilemap(root, world_, tileWidth, tileHeight, isIsometric);
     LoadEntities(root, world_, scene.GetServices());
+    PrefabInstances::Load(root, world_, DirectoryOf(path), scene.GetServices());
     ResolveHierarchy(world_);
     LoadSystems(root, scene);
 

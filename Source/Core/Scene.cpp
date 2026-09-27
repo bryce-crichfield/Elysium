@@ -14,6 +14,7 @@
 #include "Systems/SpriteSystem.h"
 #include "Core/Xml.h"
 #include "Core/Path.h"
+#include "Core/SystemRegistry.h"
 #include "tinyxml2.h"
 
 namespace Elysium {
@@ -119,6 +120,19 @@ void Scene::OnMessage(Message& message) {
 void Scene::AddSystem(std::unique_ptr<System> system) {
     systems_.emplace_back(std::move(system));
     LOG_DEBUGF("Scene", "Added system: %s", typeid(*systems_.back()).name());
+}
+
+void Scene::CopySetupFrom(const Scene& host, bool pausedSystemsOnly) {
+    SetConfiguration(host.GetConfiguration());
+    for (const auto& layer : host.GetLayers()) AddLayer(layer);
+    for (const auto& hostSystem : host.GetSystems()) {
+        if (hostSystem->GetName().empty() || (pausedSystemsOnly && !hostSystem->RunsWhenPaused())) continue;
+        Context context{.services = &services_, .scene = this, .world = GetWorld()};
+        if (auto system = SystemRegistry::Instance().Create(hostSystem->GetName(), context)) {
+            system->Initialize(hostSystem->GetParameters());
+            AddSystem(std::move(system));
+        }
+    }
 }
 
 void Scene::RemoveSystem(System* system) {

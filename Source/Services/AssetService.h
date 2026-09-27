@@ -71,6 +71,8 @@ protected:
     // Async asset loading — I/O runs on background thread,
     // cache insertion happens on main thread via Future continuations
     Future<IAsset*> LoadAssetRaw(Path path, std::function<std::unique_ptr<IAsset>(Path)> factory) override;
+    // Synchronous load on the main thread; finalizes immediately if the asset needs it.
+    IAsset* LoadAssetNowRaw(Path path, std::function<std::unique_ptr<IAsset>(Path)> factory, bool reload) override;
 };
 
 }  // namespace Elysium::Services

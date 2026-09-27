@@ -2,10 +2,12 @@
 
 #include "Core/Editor.h"
 #include "Core/Entity.h"
+#include <vector>
 #include "Systems/RenderSystem.h"
 
 namespace Elysium {
 class World;
+class Scene;
 }  // namespace Elysium
 
 namespace Elysium::Services {
@@ -29,6 +31,7 @@ class ViewportEditor : public Editor {
    private:
     enum class GizmoMode { Move, Rotate, Scale };
 
+    void DrawDocumentTabs(Services::ISceneService& sceneService, Services::IEditorService& editor);
     void DrawToolbar(Services::ISceneService& sceneService, Services::IEditorService& editor);
     // W/E/R pick the gizmo mode while the viewport is hovered and the scene is paused.
     void HandleGizmoShortcuts(Services::ISceneService& sceneService);
@@ -46,6 +49,8 @@ class ViewportEditor : public Editor {
     // the gizmo owns the mouse (hovered or dragging), so the click doesn't also re-pick.
     bool HandleGizmo(Services::ISceneService& sceneService, Services::IEditorService& editorService,
                      const Systems::CameraView& view, Rectangle imageScreenRect);
+    void OpenPickMenu(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
+    void DrawPickMenu(Services::IEditorService& editorService);
     void HandleViewportClick(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
 
     // Editor-only chrome (origin axes, camera bounds, selection outline), drawn over the
@@ -65,6 +70,15 @@ class ViewportEditor : public Editor {
     // Tracks world changes (e.g. loading a different scene) so the editor camera re-snaps
     // to the new scene's first camera instead of staying pointed at the old one.
     World* lastWorld_ = nullptr;
+
+    // The document tab ImGui last showed as selected (-1 = scene stack).
+    int shownDocument_ = -1;
+
+    // Last scene the viewport showed; a change focuses the Hierarchy panel.
+    Scene* lastViewportScene_ = nullptr;
+
+    // Entities under the cursor at the last right-click, topmost first.
+    std::vector<Entity> pickMenuHits_;
 };
 
 }  // namespace Elysium

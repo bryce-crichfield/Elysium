@@ -23,6 +23,15 @@ namespace Elysium {
     public:
         static ComponentRegistry& Instance();
 
+        // Prefab override support, keyed by XML tag (the "component" of an <Override>).
+        // Only for components that round-trip through XML (loadable and savable).
+        struct PrefabFieldSupport {
+            // Serializes the entity's component into `scratch`; null if absent or nothing written.
+            std::function<tinyxml2::XMLElement*(tinyxml2::XMLDocument& scratch, World*, Entity)> serialize;
+            // Overwrites one serialized field and reloads the component through its LoadXml.
+            std::function<void(World*, Entity, const std::string& field, const std::string& value, ServiceLocator&)> applyOverride;
+        };
+
         // Register a component type
         template<typename T>
         void Register() {
@@ -55,6 +64,55 @@ namespace Elysium {
                         T::SaveXml(w->GetComponent<T>(e), builder);
                     }
                 };
+            }
+
+            // 3b. Register prefab field support (diff + override application)
+            if constexpr (XmlLoadable<T> && XmlSavable<T>) {
+                const char* fieldXmlTag = name;
+                if constexpr (requires { T::XmlTag(); }) {
+                    fieldXmlTag = T::XmlTag();
+                }
+
+                PrefabFieldSupport support;
+                support.serialize = [](tinyxml2::XMLDocument& scratch, World* w, Entity e) -> tinyxml2::XMLElement* {
+                    if (!w->HasComponent<T>(e)) return nullptr;
+                    tinyxml2::XMLElement* scratchRoot = scratch.RootElement();
+                    if (!scratchRoot) {
+                        scratchRoot = scratch.NewElement("Scratch");
+                        scratch.InsertFirstChild(scratchRoot);
+                    }
+                    tinyxml2::XMLElement* before = scratchRoot->LastChildElement();
+                    XMLBuilder builder(&scratch, scratchRoot);
+                    T::SaveXml(w->GetComponent<T>(e), builder);
+                    tinyxml2::XMLElement* after = scratchRoot->LastChildElement();
+                    return after != before ? after : nullptr;
+                };
+                support.applyOverride = [fieldXmlTag](World* w, Entity e, const std::string& field, const std::string& value,
+                                                      ServiceLocator& services) {
+                    if (!w->HasComponent<T>(e)) return;
+
+                    tinyxml2::XMLDocument scratch;
+                    tinyxml2::XMLElement* scratchRoot = scratch.NewElement("Scratch");
+                    scratch.InsertFirstChild(scratchRoot);
+                    XMLBuilder builder(&scratch, scratchRoot);
+                    T::SaveXml(w->GetComponent<T>(e), builder);
+
+                    tinyxml2::XMLElement* compElem = scratchRoot->FirstChildElement();
+                    if (!compElem) {
+                        // Saver wrote nothing (all defaults): give the override somewhere to land.
+                        compElem = scratch.NewElement(fieldXmlTag);
+                        scratchRoot->InsertFirstChild(compElem);
+                    }
+                    compElem->SetAttribute(field.c_str(), value.c_str());
+
+                    // Reload on top of the live value so runtime-only state (e.g. a resolved
+                    // parent Entity) survives.
+                    T comp = w->GetComponent<T>(e);
+                    T::LoadXml(comp, compElem, services);
+                    w->GetComponent<T>(e) = std::move(comp);
+                };
+
+                prefabFieldSupport_[fieldXmlTag] = std::move(support);
             }
 
             // 4. Register Inspector
@@ -112,6 +170,8 @@ namespace Elysium {
             return it == inspectorOrder_.end() ? InspectorOrder::Other : it->second;
         }
 
+        const std::unordered_map<std::string, PrefabFieldSupport>& GetPrefabFieldSupport() const { return prefabFieldSupport_; }
+
         void BindAllScripts(sol::state& lua);
 
         struct LuaComponentAccess {
@@ -130,6 +190,7 @@ namespace Elysium {
         std::map<std::string, XmlSaverFunc> xmlSavers_;
         std::unordered_map<std::string, InspectorFunc> inspectors_;
         std::unordered_map<std::string, InspectorOrder> inspectorOrder_;
+        std::unordered_map<std::string, PrefabFieldSupport> prefabFieldSupport_;
         std::vector<std::function<void(sol::state&)>> scriptBinders_;
         std::unordered_map<std::string, LuaComponentAccess> scriptAccessors_;
     };

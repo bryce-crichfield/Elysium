@@ -288,31 +288,43 @@ void SceneService::OnMessage(const Message& message) {
     }
 }
 
+bool SceneService::IsPlaying() const {
+    return registry_.Get<IApplicationService>().GetMode() == AppMode::Play;
+}
+
+void SceneService::ReloadFromDisk() {
+    std::vector<std::string> names;
+    for (Scene* scene : sceneStack_) names.push_back(GetSceneName(scene));
+    if (names.empty() && !entryScene_.empty()) names.push_back(entryScene_);
+
+    // Anything queued (e.g. the startup push while in the editor) is superseded.
+    pendingOperations_.clear();
+    Clear();  // frees the scenes, so the pushes below load them fresh from their XML
+    for (const auto& name : names) Push(name);
+}
+
 void SceneService::Update(float deltaTime) {
     Profile;
 
-    ApplySceneOperations();
-
-    bool isPlaying = !paused_;
-
-    // Gameplay input/scripting stays paused with the sim; structural systems
-    // (TransformSystem) keep running below so editor edits still take effect.
-    if (isPlaying) {
-        if (deltaTime > 0.0f && deltaTime < 0.1f) {
-            cachedDeltaTime_ = deltaTime;
-        }
-
-        ProcessInput();
-
-        if (!pendingOperations_.empty()) {
-            ApplySceneOperations();
-        }
+    if (deltaTime > 0.0f && deltaTime < 0.1f) {
+        cachedDeltaTime_ = deltaTime;
     }
+
+    // Editor: the game's stack is frozen (queued changes wait for Play); only the open
+    // document ticks, paused, so structural systems keep editor edits applied.
+    if (!IsPlaying()) {
+        if (editorScene_) editorScene_->OnUpdate(cachedDeltaTime_, false);
+        return;
+    }
+
+    ApplySceneOperations();
+    ProcessInput();
+    ApplySceneOperations();
 
     // Only the top scene runs its update loop.
     // Lower scenes are suspended until they become the top again.
     if (Scene* top = GetTopScene()) {
-        top->OnUpdate(cachedDeltaTime_, isPlaying);
+        top->OnUpdate(cachedDeltaTime_, true);
     }
 }
 
@@ -385,9 +397,13 @@ void SceneService::Render() {
     }
     ClearBackground(ToRaylib(clearColor));
 
-    for (Scene* scene : sceneStack_) {
-        if (scene) {
-            scene->OnDraw(screenRect);
+    if (app.GetMode() == AppMode::Editor) {
+        if (editorScene_) editorScene_->OnDraw(screenRect);
+    } else {
+        for (Scene* scene : sceneStack_) {
+            if (scene) {
+                scene->OnDraw(screenRect);
+            }
         }
     }
 

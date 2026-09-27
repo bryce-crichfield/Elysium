@@ -87,6 +87,28 @@ Future<IAsset*> AssetService::LoadAssetRaw(Path path, std::function<std::unique_
     return caller;
 }
 
+IAsset* AssetService::LoadAssetNowRaw(Path path, std::function<std::unique_ptr<IAsset>(Path)> factory, bool reload) {
+    auto existing = assetsByPath_.find(path);
+    if (existing != assetsByPath_.end()) {
+        if (!reload && existing->second->IsLoaded()) return existing->second.get();
+        existing->second->Unload();
+        assetsByPath_.erase(existing);
+    }
+
+    std::unique_ptr<IAsset> asset(LoadAssetData(factory, path));
+    if (!asset) return nullptr;
+    if (asset->NeedsFinalize() && !asset->IsLoaded() && !asset->Finalize()) {
+        LOG_WARNINGF("AssetService", "Finalize failed for asset: %s", path.c_str());
+        return nullptr;
+    }
+
+    IAsset* stored = asset.get();
+    assetsByPath_[path] = std::move(asset);
+    LOG_DEBUGF("AssetService", "Loaded asset now: %s", path.c_str());
+    NotifyWaiters(path, stored);  // anyone waiting on an async load of the same path
+    return stored;
+}
+
 Future<IAsset*> AssetService::ReloadAsset(IAsset* asset) {
     if (!asset) return Future<IAsset*>{};
 
@@ -142,6 +164,14 @@ void AssetService::FinishLoad(Path path, IAsset* raw) {
     }
 
     std::unique_ptr<IAsset> owned(raw);
+
+    // LoadAssetNow got there first while this was in flight: keep that copy, since
+    // callers may already hold pointers into it.
+    if (auto it = assetsByPath_.find(path); it != assetsByPath_.end() && it->second->IsLoaded()) {
+        owned->Unload();
+        NotifyWaiters(path, it->second.get());
+        return;
+    }
 
     // Sprites/tiles reference a sheet texture by path — kick off that load too.
     if (auto* spriteAsset = dynamic_cast<SpriteAsset*>(owned.get())) {

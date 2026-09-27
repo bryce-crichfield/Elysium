@@ -1,4 +1,5 @@
 #include "Entity.h"
+#include <algorithm>
 #include "Sprite.h"
 #include "ComponentRegistry.h"
 #include "Core/Components.h"
@@ -271,6 +272,15 @@ bool World::IsAncestorOf(Entity ancestor, Entity entity) const {
     return false;
 }
 
+std::vector<Entity> World::GetSubtree(Entity root) const {
+    std::vector<Entity> subtree{root};
+    for (size_t i = 0; i < subtree.size(); ++i) {
+        const auto& children = GetChildren(subtree[i]);
+        subtree.insert(subtree.begin() + i + 1, children.begin(), children.end());
+    }
+    return subtree;
+}
+
 void World::MoveEntityBefore(Entity toMove, Entity target) {
     entityManager->MoveEntityBefore(toMove, target);
 }
@@ -335,5 +345,10 @@ size_t World::GetEntityCount() const {
 
 const std::vector<Entity>& World::GetLivingEntities() const {
     return entityManager->GetLivingEntities();
+}
+
+bool World::IsAlive(Entity entity) const {
+    const auto& living = GetLivingEntities();
+    return std::find(living.begin(), living.end(), entity) != living.end();
 }
 }  // namespace Elysium

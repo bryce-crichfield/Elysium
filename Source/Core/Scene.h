@@ -97,6 +97,11 @@ class Scene final : public IEventListener, IMessageListener {
     void AddSystem(std::unique_ptr<System> system);
     void RemoveSystem(System* system);
 
+    // Takes `host`'s configuration and layers, and fresh copies of its systems (only the
+    // ones that run while paused, if `pausedSystemsOnly`). Lets a scratch scene (a prefab
+    // document, prefab defaults being settled) render and settle like the host would.
+    void CopySetupFrom(const Scene& host, bool pausedSystemsOnly);
+
     // Called during XML loading to create scene-specific systems
     virtual void CreateCustomSystems() {}
 
@@ -119,5 +124,9 @@ using SceneFactory = std::function<Scene*(ServiceLocator&)>;
 
 bool LoadScene(Scene& scene, const std::string& path);
 bool SaveScene(Scene& scene, const std::string& path);
+
+// Loads every child component of one <Entity> onto `entity` through the ComponentRegistry,
+// including the CameraComponent -> FollowComponent/ParentComponent special case.
+void LoadEntityComponents(tinyxml2::XMLElement* xmlEntity, World* world, Entity entity, ServiceLocator& services);
 
 }  // namespace Elysium

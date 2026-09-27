@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -27,6 +28,9 @@ class HierarchyEditor : public Editor {
     void Draw() override;
 
    private:
+    // Structural edits (duplicate/delete) chosen while drawing, applied once drawing is done.
+    std::function<void()> pendingAction_;
+
     void DrawToolbar(Services::IEditorService& service);
     void DrawLuaFilter();
     void DrawEntityList(Services::IEditorService& service);
@@ -38,6 +42,10 @@ class HierarchyEditor : public Editor {
     void DrawInsertionZone(Services::IEditorService& service, Entity parent, Entity beforeSibling);
     void DrawEntityContextMenu(Services::IEditorService& service, Entity entity);
     void DrawCreateEntityMenu(Services::IEditorService& service);
+    void DeferOpenPrefab(Services::IEditorService& service, const World& world, Entity entity);
+    // "Create Prefab" dialog: name + folder for a new prefab made from an entity's subtree.
+    void BeginCreatePrefab(Services::IEditorService& service, Entity entity);
+    void DrawCreatePrefabDialog(Services::IEditorService& service);
 
     // True when `entity` passes both the name search and the Lua filter.
     bool PassesFilters(const World& world, Entity entity) const;
@@ -50,6 +58,14 @@ class HierarchyEditor : public Editor {
     bool luaFilterActive_ = false;
     std::vector<Entity> filteredEntities_;
     std::optional<bool> openRequest_;  // expand/collapse all, applied for one frame
+
+    struct {
+        Entity source = INVALID_ENTITY;  // entity the prefab is made from
+        bool open = false;               // open next frame (OpenPopup can't run inside the context menu)
+        char name[128] = "";
+        std::string folder;                // relative to the project root
+        std::vector<std::string> folders;  // project folders, gathered when the dialog opens
+    } prefabDialog_;
 };
 
 }  // namespace Elysium

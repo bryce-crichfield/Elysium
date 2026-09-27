@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <vector>
 #include "Core/Common.h"
+#include "Core/Path.h"
 #include "Core/Scene.h"
 #include "Editor/Widgets.h"
 #include "Interfaces/IEditorService.h"
@@ -20,41 +21,23 @@ void ScenesEditor::Draw() {
     auto& editor = services_.Get<IEditorService>();
 
     if (BeginWindow()) {
-        DrawToolbar(scenes);
-        DrawAvailable(scenes);
-        DrawStack(scenes, editor);
+        DrawToolbar(scenes, editor);
+        DrawAvailable(scenes, editor);
     }
     EndWindow();
 }
 
-void ScenesEditor::DrawToolbar(ISceneService& scenes) {
+void ScenesEditor::DrawToolbar(ISceneService& scenes, IEditorService& editor) {
     const bool hasSelection = scenes.GetSceneRegistry().count(selectedSceneName_) > 0;
-    const float spacing = ImGui::GetStyle().ItemSpacing.x;
-    const float buttons = ButtonWidth(ICON_FA_PLUS) + ButtonWidth(ICON_FA_ARROW_RIGHT_ARROW_LEFT) +
-                          ButtonWidth(ICON_FA_ARROW_UP_FROM_BRACKET) + ButtonWidth(ICON_FA_TRASH_CAN) + spacing * 4;
 
-    SearchField("##search", search_, sizeof(search_), -buttons);
-
+    SearchField("##search", search_, sizeof(search_), -(ButtonWidth(ICON_FA_FOLDER_OPEN) + ImGui::GetStyle().ItemSpacing.x));
     ImGui::SameLine();
     ImGui::BeginDisabled(!hasSelection);
-    if (IconButton(ICON_FA_PLUS, "Push the selected scene onto the stack")) scenes.Push(selectedSceneName_);
-    ImGui::SameLine();
-    if (IconButton(ICON_FA_ARROW_RIGHT_ARROW_LEFT, "Replace the top of the stack with the selected scene")) {
-        scenes.Replace(selectedSceneName_);
-    }
-    ImGui::EndDisabled();
-
-    ImGui::SameLine();
-    ImGui::BeginDisabled(scenes.IsEmpty());
-    if (IconButton(ICON_FA_ARROW_UP_FROM_BRACKET, "Pop the top scene")) scenes.Pop();
-    ImGui::SameLine();
-    if (IconButton(ICON_FA_TRASH_CAN, "Clear the stack")) scenes.Clear();
+    if (IconButton(ICON_FA_FOLDER_OPEN, "Open the selected scene in a viewport tab")) editor.OpenScene(selectedSceneName_);
     ImGui::EndDisabled();
 }
 
-void ScenesEditor::DrawAvailable(ISceneService& scenes) {
-    SectionHeader("Available");
-
+void ScenesEditor::DrawAvailable(ISceneService& scenes, IEditorService& editor) {
     // The registry is unordered; list it alphabetically so rows don't shuffle.
     std::vector<std::pair<const std::string*, const SceneRegistration*>> sorted;
     for (const auto& [name, registration] : scenes.GetSceneRegistry()) {
@@ -68,36 +51,18 @@ void ScenesEditor::DrawAvailable(ISceneService& scenes) {
     }
 
     for (const auto& [name, registration] : sorted) {
-        const bool loaded = scenes.IsInStack(registration->scene);
-        const std::string tooltip = registration->xmlPath + (registration->xmlPath.empty() ? "" : "\n") + "Double-click to push";
-        if (ListRow(name->c_str(), selectedSceneName_ == *name, loaded ? ICON_FA_CIRCLE_CHECK : ICON_FA_FILE,
-                    loaded ? Palette().Success : Palette().TextMuted, name->c_str(), nullptr, tooltip.c_str())) {
+        // Open = has a tab in the viewport (the editor's own copy, not the game's stack).
+        bool open = false;
+        for (const auto& doc : editor.GetDocuments()) {
+            if (!doc->IsPrefab() && SamePath(doc->fullPath, registration->xmlPath)) open = true;
+        }
+        const bool isEntry = *name == scenes.GetEntryScene();
+        const std::string tooltip = registration->xmlPath + (registration->xmlPath.empty() ? "" : "\n") + "Double-click to open";
+        if (ListRow(name->c_str(), selectedSceneName_ == *name, open ? ICON_FA_CIRCLE_CHECK : ICON_FA_FILE,
+                    open ? Palette().Success : Palette().TextMuted, name->c_str(), isEntry ? "entry" : nullptr, tooltip.c_str())) {
             selectedSceneName_ = *name;
-            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) scenes.Push(*name);
+            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) editor.OpenScene(*name);
         }
-    }
-}
-
-void ScenesEditor::DrawStack(ISceneService& scenes, IEditorService& editor) {
-    SectionHeader("Stack");
-
-    const auto& stack = scenes.GetStack();
-    if (stack.empty()) {
-        ImGui::TextDisabled("Empty. Double-click a scene to push it.");
-        return;
-    }
-
-    const Scene* inspected = editor.GetInspectedScene();
-    for (int i = (int)stack.size() - 1; i >= 0; --i) {
-        const bool isTop = i == (int)stack.size() - 1;
-        const std::string name = scenes.GetSceneName(stack[i]);
-        ImGui::PushID(i);
-        if (ListRow(name.c_str(), stack[i] == inspected, isTop ? ICON_FA_LAYER_GROUP : ICON_FA_BARS_STAGGERED,
-                    isTop ? Palette().Accent : Palette().TextMuted, name.c_str(), isTop ? "top" : nullptr,
-                    "Inspect in the Scene panel")) {
-            editor.SetInspectedScene(stack[i]);
-        }
-        ImGui::PopID();
     }
 }
 

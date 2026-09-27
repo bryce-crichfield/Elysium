@@ -97,9 +97,14 @@ public:
     void SetViewportRect(Rectangle rect) override;
     const Rectangle& GetViewportRect() const override { return viewportRect_; }
 
-    // Single source of truth for whether gameplay simulation (systems + scripts) is ticking.
-    bool IsPlaying() const override { return !paused_; }
-    void SetPlaying(bool playing) override { paused_ = !playing; }
+    void SetEditorScene(Scene* scene) override { editorScene_ = scene; }
+    Scene* GetEditorScene() const override { return editorScene_; }
+
+    void SetEntryScene(const std::string& sceneName) override { entryScene_ = sceneName; }
+    const std::string& GetEntryScene() const override { return entryScene_; }
+    void ReloadFromDisk() override;
+
+    bool IsPlaying() const override;
 
     // Converts a raylib-window screen position (e.g. GetMousePosition()) into framebuffer
     // pixel coordinates using the current viewport rect.
@@ -142,8 +147,10 @@ private:
     // Cached for systems that need it
     float cachedDeltaTime_ = 0.016f;
 
-    // Editor pause flag — stops scene updates and input processing
-    bool paused_ = false;
+    std::string entryScene_;
+
+    // Open prefab document shown in the editor viewport instead of the stack (not owned)
+    Scene* editorScene_ = nullptr;
 };
 
 }  // namespace Elysium::Services

@@ -1,6 +1,8 @@
 #include "ViewportEditor.h"
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <unordered_map>
 #include <ImGuizmo.h>
 #include "Core/Application.h"
 #include "Interfaces/IApplicationService.h"
@@ -9,10 +11,12 @@
 #include "Core/Common.h"
 #include "Core/Entity.h"
 #include "Core/World.h"
+#include "Core/PrefabInstance.h"
 #include "Components/CameraComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/TransformComponent.h"
 #include "Editor/Widgets.h"
+#include "Editor/HierarchyEditor.h"
 #include "Systems/RenderSystem.h"
 #include "Core/Input.h"
 #include "Core/MathTypes.h"
@@ -59,6 +63,35 @@ Matrix4 EntityMatrix(Vector2 position, float rotationDegrees, float scaleX, floa
     return e;
 }
 
+// Orders `entities` shallowest in the hierarchy first; ties go to whichever the Hierarchy
+// panel lists first (roots in world order, children in sibling order, depth-first).
+// Placed prefabs are black boxes: a hit on any of their entities is a hit on the instance root.
+void ResolvePrefabRoots(const World& world, std::vector<Entity>& entities) {
+    std::vector<Entity> resolved;
+    for (Entity entity : entities) {
+        const Entity root = PrefabInstances::RootOf(world, entity);
+        if (std::find(resolved.begin(), resolved.end(), root) == resolved.end()) resolved.push_back(root);
+    }
+    entities = std::move(resolved);
+}
+
+void SortByHierarchy(const World& world, std::vector<Entity>& entities) {
+    std::unordered_map<Entity, std::pair<int, int>> rank;  // entity -> (depth, display order)
+    int order = 0;
+    std::function<void(Entity, int)> visit = [&](Entity entity, int depth) {
+        rank[entity] = {depth, order++};
+        for (Entity child : world.GetChildren(entity)) visit(child, depth + 1);
+    };
+    for (Entity entity : world.GetLivingEntities()) {
+        if (world.GetParent(entity) == INVALID_ENTITY) visit(entity, 0);
+    }
+    std::stable_sort(entities.begin(), entities.end(), [&](Entity a, Entity b) {
+        auto ra = rank.find(a), rb = rank.find(b);
+        if (ra == rank.end() || rb == rank.end()) return ra != rank.end();
+        return ra->second < rb->second;
+    });
+}
+
 float WrapDegrees(float degrees) {
     degrees = fmodf(degrees + 180.0f, 360.0f);
     return (degrees < 0.0f ? degrees + 360.0f : degrees) - 180.0f;
@@ -84,14 +117,28 @@ void ViewportEditor::Draw() {
     auto& editorService = services_.Get<IEditorService>();
 
     InitializeEditorCameraIfNeeded(editorService);
+
+    // Opening a scene or switching document tabs: bring the Hierarchy forward (over Scenes)
+    // so the newly shown world's entities are what's on screen.
+    if (Scene* shown = editorService.GetViewportScene(); shown != lastViewportScene_) {
+        if (shown) ImGui::SetWindowFocus(HierarchyEditor::Title);
+        lastViewportScene_ = shown;
+    }
     ImGuizmo::BeginFrame();
 
     if (BeginWindow(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        DrawDocumentTabs(sceneService, editorService);
+
+        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::GetIO().KeyCtrl &&
+            ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+            editorService.SaveActiveDocument();
+        }
+
         // Toolbar sits on a raised band spanning the window, bordered off from the image.
         const ImGuiStyle& style = ImGui::GetStyle();
         const float windowLeft = ImGui::GetWindowPos().x;
         const float windowRight = windowLeft + ImGui::GetWindowWidth();
-        const float bandTop = ImGui::GetCursorScreenPos().y - style.WindowPadding.y;
+        const float bandTop = ImGui::GetCursorScreenPos().y - style.ItemSpacing.y;
         const float bandBottom = ImGui::GetCursorScreenPos().y + ImGui::GetFrameHeight() + style.WindowPadding.y;
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(ImVec2(windowLeft, bandTop), ImVec2(windowRight, bandBottom), Palette().ToU32(Palette().Mantle));
@@ -117,8 +164,15 @@ void ViewportEditor::Draw() {
 
         // V-flipped: framebuffer textures use GL bottom-up origin.
         ImGui::Image((ImTextureID)fb.TextureId(), ImVec2(imageScreenRect.width, imageScreenRect.height), ImVec2(0, 1), ImVec2(1, 0));
+        if (!editorService.GetViewportScene()) {
+            const char* hint = "Open a scene (Scenes panel) or a prefab (Assets panel)";
+            const ImVec2 size = ImGui::CalcTextSize(hint);
+            ImGui::GetWindowDrawList()->AddText(ImVec2(pos.x + (avail.x - size.x) * 0.5f, pos.y + (avail.y - size.y) * 0.5f),
+                                                Palette().ToU32(Palette().TextMuted), hint);
+        }
         const bool imageHovered = ImGui::IsItemHovered();
         const bool imageClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        const bool imageRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
         sceneService.SetViewportRect(imageScreenRect);
 
         // Snapshot the view that produced the currently-displayed framebuffer image
@@ -130,7 +184,7 @@ void ViewportEditor::Draw() {
             editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
             Rectangle{0, 0, (float)fb.Width(), (float)fb.Height()}
         };
-        if (auto* scene = sceneService.GetTopScene()) {
+        if (auto* scene = editorService.GetViewportScene()) {
             if (auto* renderSystem = scene->GetSystem<Systems::RenderSystem>()) renderSystem->PlaceScreenInWorld(view);
         }
 
@@ -142,22 +196,50 @@ void ViewportEditor::Draw() {
         if (canInteract) {
             HandleGizmoShortcuts(sceneService);
             if (imageClicked) HandleViewportClick(sceneService, editorService, view);
+            if (imageRightClicked) OpenPickMenu(sceneService, editorService, view);
         }
+        DrawPickMenu(editorService);
 
         ImGui::EndChild();
     }
     EndWindow();
 }
 
-void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& editor) {
-    const bool isPlaying = sceneService.IsPlaying();
-    if (isPlaying ? ImGui::Button(ICON_FA_PAUSE) : PrimaryButton(ICON_FA_PLAY)) {
-        sceneService.SetPlaying(!isPlaying);
+// One closeable tab per open document (scene or prefab), each its own copy loaded from disk.
+void ViewportEditor::DrawDocumentTabs(ISceneService& sceneService, IEditorService& editor) {
+    const auto& documents = editor.GetDocuments();
+    const int active = editor.GetActiveDocument();
+    // The service changed the active document (e.g. a prefab was just opened): make ImGui follow.
+    const bool followService = active != shownDocument_;
+
+    int selected = active;
+    int closeIndex = -1;
+    if (ImGui::BeginTabBar("Documents", ImGuiTabBarFlags_FittingPolicyScroll)) {
+        for (int i = 0; i < (int)documents.size(); ++i) {
+            bool open = true;
+            const char* icon = documents[i]->IsPrefab() ? ICON_FA_BOX "  " : ICON_FA_CUBES "  ";
+            std::string label = icon + documents[i]->title + "###" + documents[i]->fullPath;
+            if (ImGui::BeginTabItem(label.c_str(), &open, followService && active == i ? ImGuiTabItemFlags_SetSelected : 0)) {
+                selected = i;
+                ImGui::EndTabItem();
+            }
+            ItemTooltip(documents[i]->fullPath.c_str());
+            if (!open) closeIndex = i;
+        }
+        ImGui::EndTabBar();
     }
-    ItemTooltip(isPlaying ? "Pause simulation" : "Play simulation");
-    ImGui::SameLine();
-    ImGui::AlignTextToFramePadding();
-    ColoredText(isPlaying ? Palette().Success : Palette().TextMuted, isPlaying ? "Simulating" : "Paused");
+
+    if (!followService && selected != active) editor.SetActiveDocument(selected);
+    if (closeIndex >= 0) editor.CloseDocument(closeIndex);
+    shownDocument_ = editor.GetActiveDocument();
+}
+
+void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& editor) {
+    // No play/pause: the editor never simulates its documents, so nothing a simulation
+    // moved can be saved by mistake. Play mode (F2) runs the saved files instead.
+    ImGui::BeginDisabled(editor.GetActiveDocument() < 0);
+    if (IconButton(ICON_FA_FLOPPY_DISK, "Save (Ctrl+S)")) editor.SaveActiveDocument();
+    ImGui::EndDisabled();
 
     // Gizmo mode.
     ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
@@ -179,7 +261,7 @@ void ViewportEditor::DrawToolbar(ISceneService& sceneService, IEditorService& ed
 
 void ViewportEditor::HandleGizmoShortcuts(ISceneService& sceneService) {
     // While simulating, these keys belong to the game.
-    if (sceneService.IsPlaying() || ImGui::GetIO().WantTextInput || ImGui::GetIO().KeyCtrl) return;
+    if (ImGui::GetIO().WantTextInput || ImGui::GetIO().KeyCtrl) return;
     if (ImGui::IsKeyPressed(ImGuiKey_W, false)) gizmoMode_ = GizmoMode::Move;
     if (ImGui::IsKeyPressed(ImGuiKey_E, false)) gizmoMode_ = GizmoMode::Rotate;
     if (ImGui::IsKeyPressed(ImGuiKey_R, false)) gizmoMode_ = GizmoMode::Scale;
@@ -253,7 +335,7 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
 
     // A Screen2D entity's position is a game-screen pixel, which the editor shows in the
     // world at view.screenOrigin + p * screenScale; the gizmo works in that world position.
-    auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
+    auto* renderSystem = editorService.GetViewportScene() ? editorService.GetViewportScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     const bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(entity).isWorldSpace : true;
     const float screenScale = view.screenScale != 0.0f ? view.screenScale : 1.0f;
     auto toShown = [&](Vector2 p) {
@@ -328,12 +410,16 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
 }
 
 void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
-    auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
+    auto* renderSystem = editorService.GetViewportScene() ? editorService.GetViewportScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     if (!renderSystem)
         return;
 
     Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
     auto hits = renderSystem->Pick(fbPos, view);
+    if (auto* world = editorService.GetWorld()) {
+        ResolvePrefabRoots(*world, hits);
+        SortByHierarchy(*world, hits);
+    }
 
     bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < Theme().ClickCycleDistance;
     size_t index = samePos ? (lastClickIndex_ + 1) % hits.size() : 0;
@@ -345,6 +431,32 @@ void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorSer
     } else {
         editorService.ClearSelection();
     }
+}
+
+// Right-click: everything under the cursor, topmost first, to pick from when entities overlap.
+void ViewportEditor::OpenPickMenu(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
+    auto* renderSystem = editorService.GetViewportScene() ? editorService.GetViewportScene()->GetSystem<Systems::RenderSystem>() : nullptr;
+    if (!renderSystem) return;
+    pickMenuHits_ = renderSystem->Pick(sceneService.ScreenToFramebuffer(Input::GetMousePosition()), view);
+    if (auto* world = editorService.GetWorld()) ResolvePrefabRoots(*world, pickMenuHits_);
+    ImGui::OpenPopup("ViewportPick");
+}
+
+void ViewportEditor::DrawPickMenu(IEditorService& editorService) {
+    if (!ImGui::BeginPopup("ViewportPick")) return;
+    auto* world = editorService.GetWorld();
+    SectionHeader("Under Cursor");
+    if (!world || pickMenuHits_.empty()) MutedText("Nothing here");
+    for (Entity entity : pickMenuHits_) {
+        if (!world || !world->IsAlive(entity)) continue;  // destroyed since the pick
+        ImGui::PushID((int)entity);
+        const std::string label = EntityLabel(world->GetEntityName(entity), entity);
+        if (ImGui::Selectable(label.c_str(), editorService.IsSelected(entity))) {
+            editorService.SelectEntity(entity, ImGui::GetIO().KeyShift);
+        }
+        ImGui::PopID();
+    }
+    ImGui::EndPopup();
 }
 
 void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorService& editorService,
@@ -392,7 +504,7 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
 
     // Selection highlight, sized via the entity's RenderableType::Bounds where it has one
     // (falls back to a fixed box for renderable-less/currently-culled selected entities).
-    auto* renderSystem = sceneService.GetTopScene() ? sceneService.GetTopScene()->GetSystem<Systems::RenderSystem>() : nullptr;
+    auto* renderSystem = editorService.GetViewportScene() ? editorService.GetViewportScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     const auto& selected = editorService.GetSelectedEntities();
     const ImU32 selectionColor = Palette().ToU32(Palette().Selection);
     for (Entity entity : selected) {
