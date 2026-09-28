@@ -50,6 +50,11 @@ class Shader {
     // use. No-op on an invalid shader or a name the compiler optimized out.
     void SetFloatArray(const std::string& name, const float* data, int count, int components);
 
+    // Binds a texture to a sampler2D uniform for the next draw. Call while this shader is
+    // pushed (RenderContext::PushShader), right before drawing: the binding lasts until the
+    // backend flushes its batch. No-op for a name the compiler optimized out.
+    void SetTexture(const std::string& name, unsigned int textureId);
+
     const std::vector<ShaderUniform>& GetUniforms() const { return uniforms_; }
 
     // Opaque pointer to the backend handle (a raylib ::Shader*), for RenderContext's

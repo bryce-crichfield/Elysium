@@ -10,7 +10,8 @@ namespace Elysium {
 class Framebuffer {
    public:
     Framebuffer() = default;
-    Framebuffer(int width, int height);
+    // hdr: a 16-bit float color buffer, for values past 1 (emission, light).
+    Framebuffer(int width, int height, bool hdr = false);
     ~Framebuffer();
 
     Framebuffer(const Framebuffer&) = delete;
@@ -26,8 +27,13 @@ class Framebuffer {
     int Width() const { return width_; }
     int Height() const { return height_; }
 
+    // Builds the color texture's mip chain from its current contents and samples it
+    // trilinearly, for shaders that read it blurred (textureLod).
+    void GenerateMipmaps();
+
     // Destroys and recreates the backend object at the new size. No-op if already that size.
     void Resize(int width, int height);
+    bool IsHdr() const { return hdr_; }
 
    private:
     void Destroy();
@@ -37,6 +43,7 @@ class Framebuffer {
     unsigned int depthBufferId_ = 0;
     int width_ = 0;
     int height_ = 0;
+    bool hdr_ = false;
 };
 
 }  // namespace Elysium

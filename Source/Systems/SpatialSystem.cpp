@@ -163,6 +163,11 @@ std::vector<Vector2> SpatialSystem::FindPath(Vector2 startPos, Vector2 endPos) {
     GridNode* endNode = GetNodeFromWorld(endPos);
     
     std::vector<Vector2> path;
+    // No tilemap, no grid: nothing to route around, so walk straight there.
+    if (grid_.empty()) {
+        path.push_back(endPos);
+        return path;
+    }
     if (!startNode || !endNode || !endNode->isWalkable) {
         // Fallback: just go straight to target if valid
         if (endNode && endNode->isWalkable) path.push_back(endPos);

@@ -42,6 +42,19 @@ struct SceneLayer {
 
     Color ambient{0, 0, 0, 0};
 
+    // Lighting (see RenderCompositor::RenderLit). A lit layer is drawn three times, into
+    // albedo, normal and emission buffers. Its light is the ambient plus its own emission:
+    // every glowing pixel (a Fire, a Glow, an emissive map) lights the surfaces around it
+    // as if hovering lightHeight above the layer, out to lightReach.
+    bool isLit = false;
+    Color lightAmbient{96, 96, 112, 255};   // light everywhere, before any emitter
+    float lightReach = 300.0f;              // world units an emitter's light carries
+    float lightHeight = 24.0f;              // world units emitters sit above what they light
+    float lightStrength = 8.0f;
+    int lightBands = 0;                     // > 0: quantize each light into that many steps (cel)
+    float outline = 0.0f;                   // ink lines at silhouettes and normal creases, 0..1
+    Color outlineColor{20, 16, 24, 255};
+
     static constexpr const char* XmlTag() { return "SceneLayer"; }
 
     static void LoadXml(SceneLayer& layer, tinyxml2::XMLElement* el);

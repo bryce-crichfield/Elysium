@@ -13,3 +13,10 @@ vec4 Shade(float sd, vec2 p, vec2 uv)
     float a = clamp(falloff * uIntensity * pulse, 0.0, 1.0);
     return vec4(uColor.rgb, uColor.a * a);
 }
+
+// Lit layers: an effect, not a surface. It glows (uEmission scales how much stays bright
+// in the dark) and leaves the normals of whatever it's drawn over alone.
+uniform float uEmission; // default: 1
+#define HAS_SURFACE_EMISSION
+#define SURFACE_NO_NORMAL
+vec3 SurfaceEmission(float sd, vec2 p, vec2 uv, vec4 color) { return color.rgb * uEmission; }

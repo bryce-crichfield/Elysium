@@ -15,6 +15,7 @@
 #include "Core/RenderContext.h"
 
 namespace Elysium::Services { class IAssetService; }
+namespace Elysium { class Path; }
 
 namespace Elysium::Systems {
 
@@ -97,7 +98,8 @@ private:
 };
 
 // Renders one layer's slice of a RenderSorter's queue: immediate-mode straight to the
-// framebuffer, or composited through an offscreen buffer (blend modes, opacity, ambient).
+// framebuffer, composited through an offscreen buffer (blend modes, opacity, ambient), or
+// lit (albedo/normal/emission buffers, lit by the layer's own emission).
 class RenderCompositor {
 public:
     void RenderLayer(RenderContext& ctx, const CameraView& view,
@@ -113,6 +115,11 @@ private:
                           const SceneLayer& layer, std::span<const RenderRecord> records);
     void RenderComposited(RenderContext& ctx, const CameraView& view,
                            const SceneLayer& layer, std::span<const RenderRecord> records);
+    // A lit layer: its records drawn three times, as albedo (the usual draw), normals and
+    // emission (material entities only; see Sdf/Main.glsl), then combined onto the frame
+    // through Shaders/Lighting.fs, where the emission lights its surroundings.
+    void RenderLit(RenderContext& ctx, const CameraView& view,
+                   const SceneLayer& layer, std::span<const RenderRecord> records);
     // Walks the layer's records in order, grouping the contiguous run each entity produced
     // so a ShaderComponent entity can be diverted through RenderShadedEntity as a unit.
     // `enclosingTarget` is the framebuffer already bound by the caller. raylib's
@@ -138,11 +145,22 @@ private:
     void RenderMaterialEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records);
 
     Shader* GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material);
+    Shader* GetShader(Services::IAssetService& assets, const Path& path);
     static void PushBlend(RenderContext& ctx, SceneLayerBlend blend);
     const Framebuffer& EnsureCompositeBuffer(int width, int height);
     const Framebuffer& EnsureEntityBuffer(Entity entity, int width, int height);
 
     Framebuffer compositeBuffer_;
+    Framebuffer normalBuffer_;
+    Framebuffer emissionBuffer_{1, 1, true};  // HDR: emission is brightness, it goes past 1
+    // Low resolution, HDR: the light gathered from the emission, and where it comes from.
+    Framebuffer lightBuffer_{1, 1, true};
+    Framebuffer directionBuffer_{1, 1, true};
+
+    // Which surface RenderRecords is drawing. Only Color draws everything; Normal and
+    // Emission draw material entities alone (through their @Normal/@Emission shaders).
+    enum class SurfaceOutput { Color, Normal, Emission };
+    SurfaceOutput output_ = SurfaceOutput::Color;
     // One retained buffer per shaded entity, resized when its bounds change. Kept across
     // frames because allocating a render texture per entity per frame is not viable.
     std::unordered_map<Entity, Framebuffer> entityBuffers_;

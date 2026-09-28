@@ -92,6 +92,7 @@ static bool HasShaderImpl(const World& world, Entity entity) {
 
 static void RenderShaderImpl(RenderContext&, const RenderRecord&) {}
 
+
 static std::optional<Rectangle> BoundsShaderImpl(const World& world, const RenderRecord& rec) {
     const auto& component = world.GetComponent<ShaderComponent>(rec.entity);
     float left = rec.isWorldSpace ? rec.x - component.width  * 0.5f : rec.x;
@@ -689,6 +690,13 @@ void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderR
         std::span<const RenderRecord> group = records.subspan(index, end - index);
         index = end;
 
+        // Normals and emission come from materials alone; anything else (text, tiles,
+        // script draws) leaves the flat, dark defaults the buffers were cleared to.
+        if (output_ != SurfaceOutput::Color) {
+            if (IsEnabled<MaterialComponent>(world, entity)) RenderMaterialEntity(ctx, entity, group);
+            continue;
+        }
+
         // A ShaderComponent filters the entity after it's drawn: RenderShadedEntity draws
         // it (materials included) into an offscreen buffer and blits that through the shader.
         if (IsEnabled<ShaderComponent>(world, entity)) {
@@ -727,7 +735,11 @@ static void ApplyUniformOverrides(Shader& shader, const std::unordered_map<std::
 // Composed shaders are requested lazily on first use. Remembered so a load in flight
 // (or one that failed — a missing chunk) isn't re-requested every frame.
 Shader* RenderCompositor::GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material) {
-    Path path = ComposedShaderPath(geometry, material);
+    const char* output = output_ == SurfaceOutput::Normal ? "Normal" : output_ == SurfaceOutput::Emission ? "Emission" : "";
+    return GetShader(assets, ComposedShaderPath(geometry, material, output));
+}
+
+Shader* RenderCompositor::GetShader(Services::IAssetService& assets, const Path& path) {
     if (Shader* shader = assets.Get<Shader>(path)) return shader->IsValid() ? shader : nullptr;
     if (requestedShaders_.insert(path.GetRelativePath()).second) assets.LoadAsset<Shader>(path);
     return nullptr;
@@ -799,6 +811,22 @@ void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, s
             }
             ApplyUniformOverrides(shader, pass.layer->overrides);
 
+            // Lit layers: how normals turn with the shape, and its lighting maps.
+            const Texture* normalMap = nullptr;
+            const Texture* emissionMap = nullptr;
+            if (output_ != SurfaceOutput::Color) {
+                shader.SetUniform("e_NormalXform", Value{Vector4{xf.cs, xf.sn, xf.scaleX < 0.0f ? -1.0f : 1.0f,
+                                                                 xf.scaleY < 0.0f ? -1.0f : 1.0f}});
+                auto mapOf = [&](const std::string& path) -> const Texture* {
+                    const Texture* map = path.empty() ? nullptr : assets.Get<Texture>(Path(path));
+                    return map && map->id != 0 ? map : nullptr;
+                };
+                normalMap = mapOf(pass.layer->normalMapPath);
+                emissionMap = mapOf(pass.layer->emissionMapPath);
+                shader.SetUniform("e_HasNormalMap", Value{normalMap != nullptr});
+                shader.SetUniform("e_HasEmissionMap", Value{emissionMap != nullptr});
+            }
+
             const Texture* texture = pass.layer->texturePath.empty()
                                          ? nullptr
                                          : assets.Get<Texture>(Path(pass.layer->texturePath));
@@ -806,6 +834,9 @@ void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, s
             if (texture) shader.SetUniform("e_TextureSize", Value{Vector2{(float)texture->width, (float)texture->height}});
 
             ctx.PushShader(shader);
+            // Samplers bind to the draw that follows, so only once the shader is pushed.
+            if (normalMap) shader.SetTexture("e_NormalMap", normalMap->id);
+            if (emissionMap) shader.SetTexture("e_EmissionMap", emissionMap->id);
             ctx.DrawShaderQuad(corners, texture, Colors::White);
             ctx.PopShader();
         }
@@ -916,7 +947,9 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
 
 void RenderCompositor::RenderLayer(RenderContext& ctx, const CameraView& view,
                                     const SceneLayer& layer, std::span<const RenderRecord> records) {
-    if (layer.isComposited) {
+    if (layer.isLit) {
+        RenderLit(ctx, view, layer, records);
+    } else if (layer.isComposited) {
         RenderComposited(ctx, view, layer, records);
     } else {
         RenderImmediate(ctx, view, layer, records);
@@ -988,6 +1021,104 @@ void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& vi
         (int)view.viewport.y,
         (int)view.viewport.width,
         (int)view.viewport.height);
+}
+
+void RenderCompositor::RenderLit(RenderContext& ctx, const CameraView& view,
+                                  const SceneLayer& layer, std::span<const RenderRecord> records) {
+    ProfileN("Render Lit Layer");
+
+    auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
+    Shader* lighting = GetShader(assets, Path("Shaders/Lighting.fs", PathRoot::Engine));
+    Shader* gather = GetShader(assets, Path("Shaders/LightGather.fs", PathRoot::Engine));
+    if (!lighting || !gather) {
+        // Still compiling (or failed): the layer unlit rather than missing.
+        RenderComposited(ctx, view, layer, records);
+        return;
+    }
+
+    const Matrix layerTransform = RenderProjector::CalculateTransform(view, layer);
+    const int w = (int)view.viewport.width;
+    const int h = (int)view.viewport.height;
+    const Framebuffer& albedo = EnsureCompositeBuffer(w, h);
+    normalBuffer_.Resize(w, h);
+    emissionBuffer_.Resize(w, h);
+
+    ctx.PopScissorMode();
+
+    // The three surfaces. Normals clear to flat (facing the camera), emission to none.
+    struct Surface { SurfaceOutput output; const Framebuffer* target; Color clear; };
+    const Surface surfaces[] = {
+        {SurfaceOutput::Color, &albedo, layer.ambient},
+        {SurfaceOutput::Normal, &normalBuffer_, Color{128, 128, 255, 0}},
+        {SurfaceOutput::Emission, &emissionBuffer_, Color{0, 0, 0, 0}},
+    };
+    for (const Surface& surface : surfaces) {
+        output_ = surface.output;
+        ctx.BeginRenderTarget(*surface.target);
+        ctx.ClearTarget(surface.clear);
+        // The layer's blend is for its colors; normals and glow simply stack.
+        PushBlend(ctx, surface.output == SurfaceOutput::Color ? layer.layerBlend : SceneLayerBlend::Normal);
+        ctx.PushMatrix();
+        ctx.MultiplyMatrix(layerTransform);
+        RenderRecords(ctx, records, layerTransform, *surface.target);
+        ctx.PopMatrix();
+        ctx.PopBlendMode();
+        ctx.EndRenderTarget();
+    }
+    output_ = SurfaceOutput::Color;
+
+    // Emission lights the layer: blurred copies of it (its mips) are what Lighting.fs
+    // gathers from further away.
+    emissionBuffer_.GenerateMipmaps();
+    const float zoom = layer.space == SceneLayerSpace::World2D ? view.zoom : 1.0f;
+    auto rgb = [](Color c) { return Vector3{c.r / 255.0f, c.g / 255.0f, c.b / 255.0f}; };
+    lighting->SetUniform("e_Resolution", Value{Vector2{(float)w, (float)h}});
+    lighting->SetUniform("e_Ambient", Value{rgb(layer.lightAmbient)});
+    lighting->SetUniform("e_Bands", Value{(float)layer.lightBands});
+    lighting->SetUniform("e_Outline", Value{layer.outline});
+    const Color ink = layer.outlineColor;
+    lighting->SetUniform("e_OutlineColor", Value{Vector4{ink.r / 255.0f, ink.g / 255.0f, ink.b / 255.0f, ink.a / 255.0f}});
+
+    // Gather the light from the emission at a fraction of the resolution (it's smooth, and
+    // the gather is the expensive part): how much arrives, then from where. Lighting.fs
+    // re-aims it by each pixel's normal at full resolution.
+    constexpr int kLightDownscale = 4;
+    const int lw = std::max(1, w / kLightDownscale), lh = std::max(1, h / kLightDownscale);
+    lightBuffer_.Resize(lw, lh);
+    directionBuffer_.Resize(lw, lh);
+    gather->SetUniform("e_Resolution", Value{Vector2{(float)w, (float)h}});
+    gather->SetUniform("e_Reach", Value{layer.lightReach * zoom});
+    gather->SetUniform("e_Height", Value{layer.lightHeight * zoom});
+    gather->SetUniform("e_Strength", Value{layer.lightStrength});
+    const Framebuffer* gathered[] = {&lightBuffer_, &directionBuffer_};
+    for (int mode = 0; mode < 2; ++mode) {
+        gather->SetUniform("e_Mode", Value{mode});
+        ctx.BeginRenderTarget(*gathered[mode]);
+        ctx.ClearTarget(Colors::Transparent);
+        ctx.PushBlendMode(BlendMode::Alpha);  // opaque output: a plain write
+        ctx.PushShader(*gather);
+        ctx.DrawFramebuffer(emissionBuffer_, Rectangle{0, 0, (float)lw, (float)lh}, Colors::White);
+        ctx.PopShader();
+        ctx.PopBlendMode();
+        ctx.EndRenderTarget();
+    }
+
+    // Combine onto the frame, the way RenderComposited composites.
+    auto& sceneService = ctx.GetServices().Get<Services::ISceneService>();
+    ctx.BeginRenderTarget(sceneService.GetFramebuffer());
+    PushBlend(ctx, layer.compositeBlend);
+    Color tint = Colors::White;
+    tint.a = (unsigned char)(255.0f * std::clamp(layer.opacity, 0.0f, 1.0f));
+    ctx.PushShader(*lighting);
+    lighting->SetTexture("e_NormalBuffer", normalBuffer_.TextureId());
+    lighting->SetTexture("e_EmissionBuffer", emissionBuffer_.TextureId());
+    lighting->SetTexture("e_LightBuffer", lightBuffer_.TextureId());
+    lighting->SetTexture("e_DirectionBuffer", directionBuffer_.TextureId());
+    ctx.DrawFramebuffer(albedo, Rectangle{view.viewport.x, view.viewport.y, (float)w, (float)h}, tint);
+    ctx.PopShader();
+    ctx.PopBlendMode();
+
+    ctx.PushScissorMode((int)view.viewport.x, (int)view.viewport.y, (int)view.viewport.width, (int)view.viewport.height);
 }
 
 // RenderSystem — glue: owns the camera list and script draw-command queue, drives

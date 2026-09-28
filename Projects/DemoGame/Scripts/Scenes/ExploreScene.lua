@@ -109,6 +109,9 @@ function ExploreScene:OnEvent(event)
         if event.key == KEY_ESCAPE then
             ScenePush("OptionsScene")
             return true
+		elseif event.key == KEY_J then
+			ScenePush("OptionsScene")
+			return true
         elseif event.key == KEY_I then
             ScenePush("InventoryScene")
             return true
@@ -138,3 +141,4 @@ function ExploreScene:_handleMoveOrder(wx, wy)
 end
 
 return ExploreScene
+

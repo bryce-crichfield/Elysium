@@ -78,6 +78,8 @@ Sprite Sprite::LoadFromXml(const std::string& filepath) {
         SpriteSheet sheet;
         sheet.name = sheetElem->Attribute("name") ? sheetElem->Attribute("name") : "";
         sheet.path = sheetElem->Attribute("path") ? sheetElem->Attribute("path") : "";
+        if (const char* normal = sheetElem->Attribute("normal")) sheet.normalPath = normal;
+        if (const char* emission = sheetElem->Attribute("emission")) sheet.emissionPath = emission;
         sheet.rows = sheetElem->UnsignedAttribute("rows", 1);
         sheet.cols = sheetElem->UnsignedAttribute("columns", 1);
         sheet.width = 0;  // To be set when texture is loaded

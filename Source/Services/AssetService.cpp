@@ -181,6 +181,9 @@ void AssetService::FinishLoad(Path path, IAsset* raw) {
                 LOG_DEBUGF("AssetService", "Loading sheet texture: %s", sheetPath.c_str());
                 LoadAsset<Texture>(sheetPath);
             }
+            for (const std::string* map : {&sheet.normalPath, &sheet.emissionPath}) {
+                if (!map->empty() && !IsAssetLoaded(Path(*map))) LoadAsset<Texture>(Path(*map));
+            }
         }
     } else if (auto* tileAsset = dynamic_cast<TileAsset*>(owned.get())) {
         const Tile& tile = tileAsset->GetData();

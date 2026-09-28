@@ -14,6 +14,8 @@ struct SpriteSequence {
 struct SpriteSheet {
     std::string name;
     std::string path;
+    std::string normalPath;    // optional: same layout as path, tangent-space normals (green up)
+    std::string emissionPath;  // optional: same layout as path, what glows in the dark
 
     size_t rows, cols;
     size_t width, height;

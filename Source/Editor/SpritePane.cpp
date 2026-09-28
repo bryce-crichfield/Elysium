@@ -137,6 +137,8 @@ class SpritePane : public ContentPane {
             tinyxml2::XMLElement* el = doc.NewElement("Sheet");
             el->SetAttribute("name", animation.name);
             el->SetAttribute("path", animation.texture.c_str());
+            if (!animation.normal.empty()) el->SetAttribute("normal", animation.normal.c_str());
+            if (!animation.emission.empty()) el->SetAttribute("emission", animation.emission.c_str());
             el->SetAttribute("rows", animation.rows);
             el->SetAttribute("columns", animation.columns);
             root->InsertEndChild(el);
@@ -152,6 +154,8 @@ class SpritePane : public ContentPane {
     struct Animation {
         char name[64] = "";
         std::string texture;  // project-relative
+        std::string normal;    // optional lighting maps, laid out like texture
+        std::string emission;
         int rows = 1, columns = 1;
     };
     struct Sequence {
@@ -202,6 +206,10 @@ class SpritePane : public ContentPane {
             if (!animation.name[0]) snprintf(animation.name, sizeof(animation.name), "%s", std::filesystem::path(animation.texture).stem().string().c_str());
             Edited(true);
         }
+        Edited(AssetFieldRow("Normal Map", AssetKind::Texture, animation.normal));
+        ItemTooltip("Optional. Same layout as the texture; lights shade it on lit layers");
+        Edited(AssetFieldRow("Emission Map", AssetKind::Texture, animation.emission));
+        ItemTooltip("Optional. Same layout as the texture; what stays bright in the dark");
         PropertyLabel("Columns");
         Edited(ImGui::InputInt("##columns", &animation.columns));
         PropertyLabel("Rows");
@@ -444,6 +452,8 @@ class SpritePane : public ContentPane {
             Animation& animation = animations_.emplace_back();
             copy(animation.name, sizeof(animation.name), el->Attribute("name"));
             animation.texture = el->Attribute("path") ? el->Attribute("path") : "";
+            animation.normal = el->Attribute("normal") ? el->Attribute("normal") : "";
+            animation.emission = el->Attribute("emission") ? el->Attribute("emission") : "";
             animation.rows = el->IntAttribute("rows", 1);
             animation.columns = el->IntAttribute("columns", 1);
         }

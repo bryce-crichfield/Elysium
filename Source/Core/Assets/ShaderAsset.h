@@ -11,7 +11,10 @@ namespace Elysium {
 // Material/<material>.glsl (engine Assets/Shaders/Sdf). Load it like any shader:
 // LoadAsset<Shader>(ComposedShaderPath(...)) / Get<Shader>(...). No file exists at the
 // path — ShaderAsset::Load recognises the .sdf extension and assembles the source.
-Path ComposedShaderPath(const std::string& geometry, const std::string& material);
+//
+// `output` picks what the shader writes, for lit layers: "" the color (albedo), "Normal"
+// the surface normal, "Emission" what glows. Keyed as "Geometry+Material@Output.sdf".
+Path ComposedShaderPath(const std::string& geometry, const std::string& material, const std::string& output = "");
 bool IsComposedShaderPath(const Path& path);
 
 // Loads a GLSL fragment shader from disk. Two-phase on purpose: Load() runs on a worker

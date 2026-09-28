@@ -1,0 +1,61 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <KinematicsComponent friction="5" maxSpeed="150"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png" normalMap="Textures/Sprites/Archer/Archer_idle_bored_normal.png">
+                    <Uniform name="uSourceRect" type="vec4" value="6400.000000 768.000000 256.000000 256.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Unit6"/>
+            <RectangleComponent width="256" height="256" cornerRadius="0" originX="0.5" originY="0.6875"/>
+            <ScriptComponent>
+                <Script name="Scripts/Elysium/Monster.lua"/>
+            </ScriptComponent>
+            <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="" sequenceName=""/>
+            <TeamComponent team="0"/>
+            <TransformComponent x="0" y="0" scaleX="0.33000001" scaleY="0.33000001"/>
+        </Entity>
+        <Entity id="1">
+            <EllipseComponent radiusH="500" radiusV="250"/>
+            <LayerComponent name="shadow"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Falloff" enabled="true"/>
+            </MaterialComponent>
+            <NameComponent name="Unit6::Unit::Light"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="1.6710663" y="-4.3930779"/>
+        </Entity>
+        <Entity id="2">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <LayerComponent name="selection"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Unit6::Unit::Selection"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="-0.30000019" y="0.50000191" scaleX="2" scaleY="2"/>
+        </Entity>
+        <Entity id="3">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <LayerComponent name="selection"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Meter" enabled="true">
+                    <Uniform name="uFillColor" type="vec4" value="0.149020 0.639216 0.000000 0.501961"/>
+                    <Uniform name="uTrackColor" type="vec4" value="0.078431 0.101961 0.160784 0.000000"/>
+                    <Uniform name="uAutoSpeed" type="float" value="0.100000"/>
+                    <Uniform name="uMode" type="float" value="1.000000"/>
+                    <Uniform name="uProgress" type="float" value="-14.450000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Unit6::Unit::Cooldown"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="0" scaleX="2" scaleY="2"/>
+        </Entity>
+    </Entities>
+</Prefab>

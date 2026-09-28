@@ -117,6 +117,39 @@ void SceneSettings::DrawLayers(Scene& scene) {
                 layer.ambient = {(unsigned char)(ambient[0] * 255), (unsigned char)(ambient[1] * 255),
                                  (unsigned char)(ambient[2] * 255), (unsigned char)(ambient[3] * 255)};
             }
+            ItemTooltip("What an offscreen layer is cleared to before drawing");
+
+            SectionHeader("Lighting");
+            PropertyLabel("Lit");
+            ImGui::Checkbox("##lit", &layer.isLit);
+            ItemTooltip("Shade this layer: glowing materials light what's around them, by its normal maps");
+            if (layer.isLit) {
+                auto colorRow = [](const char* label, const char* id, Color& color) {
+                    PropertyLabel(label);
+                    float rgba[4] = {color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f};
+                    if (ImGui::ColorEdit4(id, rgba)) {
+                        color = {(unsigned char)(rgba[0] * 255), (unsigned char)(rgba[1] * 255),
+                                 (unsigned char)(rgba[2] * 255), (unsigned char)(rgba[3] * 255)};
+                    }
+                };
+                colorRow("Ambient Light", "##lightAmbient", layer.lightAmbient);
+                ItemTooltip("Light everywhere on the layer. White looks unlit");
+                PropertyLabel("Reach");
+                ImGui::DragFloat("##lightReach", &layer.lightReach, 1.0f, 1.0f, 4000.0f, "%.0f");
+                ItemTooltip("How far a glowing material's light carries, in world units");
+                PropertyLabel("Height");
+                ImGui::DragFloat("##lightHeight", &layer.lightHeight, 0.5f, 1.0f, 1000.0f, "%.0f");
+                ItemTooltip("How far above the layer glowing pixels sit. Lower rakes across normal maps");
+                PropertyLabel("Strength");
+                ImGui::DragFloat("##lightStrength", &layer.lightStrength, 0.01f, 0.0f, 20.0f, "%.2f");
+                PropertyLabel("Bands");
+                ImGui::SliderInt("##lightBands", &layer.lightBands, 0, 8, layer.lightBands == 0 ? "Smooth" : "%d");
+                ItemTooltip("Quantize light into steps for a cel-shaded look");
+                PropertyLabel("Outline");
+                ImGui::SliderFloat("##outline", &layer.outline, 0.0f, 1.0f, "%.2f");
+                ItemTooltip("Ink lines at silhouettes and creases in the normals");
+                if (layer.outline > 0.0f) colorRow("Outline Color", "##outlineColor", layer.outlineColor);
+            }
             EndSectionBody();
         }
         ImGui::PopID();

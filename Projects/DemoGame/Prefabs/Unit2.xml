@@ -7,8 +7,8 @@
             <KinematicsComponent friction="5" maxSpeed="150"/>
             <LayerComponent name="entity"/>
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Bishop/Idle.png">
-                    <Uniform name="uSourceRect" type="vec4" value="0.000000 256.000000 128.000000 128.000000"/>
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Bishop/Attack.png">
+                    <Uniform name="uSourceRect" type="vec4" value="768.000000 0.000000 128.000000 128.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="Unit"/>
@@ -24,11 +24,11 @@
             <EllipseComponent radiusH="30" radiusV="15"/>
             <MaterialComponent padding="512" enabled="false">
                 <Layer material="Meter" enabled="true">
-                    <Uniform name="uMode" type="float" value="1.000000"/>
-                    <Uniform name="uProgress" type="float" value="-0.700000"/>
-                    <Uniform name="uAutoSpeed" type="float" value="0.100000"/>
-                    <Uniform name="uTrackColor" type="vec4" value="0.078431 0.101961 0.160784 0.000000"/>
                     <Uniform name="uFillColor" type="vec4" value="0.639216 0.000000 0.000000 0.784314"/>
+                    <Uniform name="uTrackColor" type="vec4" value="0.078431 0.101961 0.160784 0.000000"/>
+                    <Uniform name="uAutoSpeed" type="float" value="0.100000"/>
+                    <Uniform name="uProgress" type="float" value="-0.700000"/>
+                    <Uniform name="uMode" type="float" value="1.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="Unit::Cooldown"/>
@@ -39,9 +39,9 @@
             <EllipseComponent radiusH="30" radiusV="15"/>
             <MaterialComponent padding="512" enabled="true">
                 <Layer material="Fire" enabled="true">
-                    <Uniform name="uRise" type="float" value="0.000000"/>
-                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
                     <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uRise" type="float" value="0.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="Unit::Selection"/>

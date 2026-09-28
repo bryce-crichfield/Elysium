@@ -127,4 +127,16 @@ void Shader::SetFloatArray(const std::string& name, const float* data, int count
     ::SetShaderValueV(native_->shader, it->second, data, kTypes[components - 1], count);
 }
 
+void Shader::SetTexture(const std::string& name, unsigned int textureId) {
+    if (!native_ || native_->shader.id == 0 || textureId == 0) return;
+    auto it = native_->locations.find(name);
+    if (it == native_->locations.end()) {
+        it = native_->locations.emplace(name, ::GetShaderLocation(native_->shader, name.c_str())).first;
+    }
+    if (it->second == -1) return;
+    ::Texture2D texture{};
+    texture.id = textureId;
+    ::SetShaderValueTexture(native_->shader, it->second, texture);
+}
+
 }  // namespace Elysium

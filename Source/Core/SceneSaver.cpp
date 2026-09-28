@@ -66,6 +66,16 @@ void SaveLayers(XMLBuilder& builder, const Scene& scene) {
             .SetAttribute("isComposited", layer.isComposited)
             .SetAttribute("isVisible", layer.isVisible)
             .SetAttribute("opacity", layer.opacity);
+        if (layer.isLit) {
+            layerBuilder.SetAttribute("lit", true)
+                .SetAttribute("lightAmbient", ColorToHex(layer.lightAmbient).c_str())
+                .SetAttribute("lightReach", layer.lightReach)
+                .SetAttribute("lightHeight", layer.lightHeight)
+                .SetAttribute("lightStrength", layer.lightStrength)
+                .SetAttribute("lightBands", layer.lightBands)
+                .SetAttribute("outline", layer.outline)
+                .SetAttribute("outlineColor", ColorToHex(layer.outlineColor).c_str());
+        }
         // Only write ambient if it has a non-zero value
         if (layer.ambient.r != 0 || layer.ambient.g != 0 || layer.ambient.b != 0 || layer.ambient.a != 0) {
             layerBuilder.SetAttribute("ambient", ColorToHex(layer.ambient).c_str());

@@ -14,6 +14,9 @@ namespace Elysium {
         std::string material = "Flat";
         bool enabled = true;
         std::string texturePath;
+        // Lighting maps for lit layers, sampled like texturePath (Texture material only).
+        std::string normalMapPath;
+        std::string emissionMapPath;
         std::unordered_map<std::string, Value> overrides;
     };
 

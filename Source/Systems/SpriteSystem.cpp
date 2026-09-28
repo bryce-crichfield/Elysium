@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "Systems/SpriteSystem.h"
 #include "Core/Path.h"
 #include "Core/SystemRegistry.h"
@@ -28,6 +29,35 @@ static MaterialLayer* FindTextureLayer(Elysium::World* world, Entity entity) {
     return nullptr;
 }
 
+// The sheet and sequence a component shows. Unset or unknown names fall back to the
+// sprite's first sheet (by name) and its "default" sequence (else its first), so a sprite
+// shows something the moment it's picked, before a script or the inspector names them.
+struct ResolvedFrames {
+    const SpriteSheet* sheet = nullptr;
+    const SpriteSequence* sequence = nullptr;
+};
+
+static ResolvedFrames ResolveFrames(const Sprite& sprite, const SpriteComponent& spriteComp) {
+    ResolvedFrames out;
+    auto sheetIt = sprite.sheets.find(spriteComp.sheetName);
+    if (sheetIt == sprite.sheets.end()) {
+        sheetIt = std::min_element(sprite.sheets.begin(), sprite.sheets.end(),
+                                   [](const auto& a, const auto& b) { return a.first < b.first; });
+    }
+    if (sheetIt == sprite.sheets.end()) return out;
+    out.sheet = &sheetIt->second;
+
+    const auto& sequences = out.sheet->sequences;
+    auto seqIt = sequences.find(spriteComp.sequenceName);
+    if (seqIt == sequences.end()) seqIt = sequences.find("default");
+    if (seqIt == sequences.end()) {
+        seqIt = std::min_element(sequences.begin(), sequences.end(),
+                                 [](const auto& a, const auto& b) { return a.first < b.first; });
+    }
+    if (seqIt != sequences.end() && !seqIt->second.indices.empty()) out.sequence = &seqIt->second;
+    return out;
+}
+
 // Resolves spriteName/sheetName/sequenceName/sequenceIndex to a sheet texture + frame rect
 // and writes it into the entity's Texture material layer (texturePath + uSourceRect clip).
 // A RectangleComponent, if present, is sized to the frame and pivots at the sprite's
@@ -42,14 +72,10 @@ static void ResolveSprite(Elysium::World* world, Elysium::Services::IAssetServic
     const Sprite& sprite = *spriteData;
     if (sprite.name.empty()) return;
 
-    auto sheetIt = sprite.sheets.find(spriteComp.sheetName);
-    if (sheetIt == sprite.sheets.end()) return;
-    const SpriteSheet& sheet = sheetIt->second;
-
-    auto seqIt = sheet.sequences.find(spriteComp.sequenceName);
-    if (seqIt == sheet.sequences.end()) return;
-    const SpriteSequence& sequence = seqIt->second;
-    if (sequence.indices.empty()) return;
+    const ResolvedFrames frames = ResolveFrames(sprite, spriteComp);
+    if (!frames.sheet || !frames.sequence) return;
+    const SpriteSheet& sheet = *frames.sheet;
+    const SpriteSequence& sequence = *frames.sequence;
 
     size_t frameIdx = spriteComp.sequenceIndex % sequence.indices.size();
     size_t linearIndex = sequence.indices[frameIdx];
@@ -65,6 +91,8 @@ static void ResolveSprite(Elysium::World* world, Elysium::Services::IAssetServic
     size_t row = linearIndex / sheet.cols;
 
     layer->texturePath = sheet.path;
+    layer->normalMapPath = sheet.normalPath;
+    layer->emissionMapPath = sheet.emissionPath;
     layer->overrides["uSourceRect"] = Value{Vector4{col * frameWidth, row * frameHeight, frameWidth, frameHeight}};
 
     // Frame-sized; the renderer applies the entity's scale (negative mirrors) and rotation.
@@ -80,25 +108,18 @@ static void ResolveSprite(Elysium::World* world, Elysium::Services::IAssetServic
 void SpriteSystem::Update(float deltaTime) {
     auto& assets = services->Get<Services::IAssetService>();
 
-    // Runs while paused so the editor (and prefab documents, which never play) still shows
-    // each sprite's current frame; animation only advances during simulation.
-    auto& sceneService = services->Get<Services::ISceneService>();
-    const bool animate = sceneService.IsPlaying() && sceneService.GetEditorScene() != scene;
-
+    // Runs while paused, and animates there too, so the editor (and prefab documents, which
+    // never play) previews every sprite playing.
     world->Query<SpriteComponent>([&](Entity entity, auto& spriteComp) {
-        if (animate) spriteComp.frameElapsed += deltaTime;
-        if (animate && spriteComp.frameElapsed >= spriteComp.frameDuration) {
+        spriteComp.frameElapsed += deltaTime;
+        if (spriteComp.frameElapsed >= spriteComp.frameDuration) {
             spriteComp.frameElapsed -= spriteComp.frameDuration;
 
             auto* spriteData = assets.Get<Sprite>(Path(spriteComp.spriteName));
             if (!spriteData || spriteData->name.empty()) return;
             const Sprite& sprite = *spriteData;
 
-            auto sheetIt = sprite.sheets.find(spriteComp.sheetName);
-            if (sheetIt == sprite.sheets.end()) return;
-            const SpriteSequence* sequence = nullptr;
-            auto seqIt = sheetIt->second.sequences.find(spriteComp.sequenceName);
-            if (seqIt != sheetIt->second.sequences.end()) sequence = &seqIt->second;
+            const SpriteSequence* sequence = ResolveFrames(sprite, spriteComp).sequence;
 
             if (sequence && !sequence->indices.empty()) {
                 // Advance to next frame (loop back to 0 when reaching end)

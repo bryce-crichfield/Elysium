@@ -14,14 +14,14 @@
         <System type="UiSystem"/>
         <System type="RenderSystem"/>
     </Systems>
-    <SceneConfiguration width="800" height="600">
+    <SceneConfiguration width="1280" height="1080">
         <SceneLayer name="background" z="-2" space="World2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
         <SceneLayer name="default" z="-1" space="World2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
         <SceneLayer name="tile" z="0" space="World2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
         <SceneLayer name="selection" z="1" space="World2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
-        <SceneLayer name="entity" z="2" space="World2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="entity" z="2" space="World2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lit="true" lightAmbient="#606070FF" lightReach="300" lightHeight="24" lightStrength="50" lightBands="0" outline="0" outlineColor="#141018FF"/>
         <SceneLayer name="light" z="4" space="World2D" layerBlend="Additive" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
-        <SceneLayer name="shadow" z="5" space="World2D" layerBlend="Normal" compositeBlend="Multiply" isComposited="true" isVisible="true" opacity="1" ambient="#000000FF"/>
+        <SceneLayer name="shadow" z="5" space="World2D" layerBlend="Normal" compositeBlend="Multiply" isComposited="true" isVisible="true" opacity="1" ambient="#000000C4"/>
         <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
     </SceneConfiguration>
     <Entities>
@@ -30,37 +30,101 @@
             <TransformComponent x="0" y="0"/>
             <CameraComponent/>
         </Entity>
+        <Entity name="Torch">
+            <CircleComponent radius="5"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="194" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uEmission" type="float" value="25.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.800000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.390298 0.050000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Torch"/>
+            <TransformComponent x="255.23665" y="-169.62221"/>
+        </Entity>
+        <Entity name="Torch">
+            <CircleComponent radius="5"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="194" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uEmission" type="float" value="0.500000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.800000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.326493 0.050000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Torch"/>
+            <TransformComponent x="-40.396248" y="26.148567"/>
+        </Entity>
+        <Entity name="Torch">
+            <CircleComponent radius="5"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="194" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uEmission" type="float" value="25.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.800000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.390298 0.050000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Torch"/>
+            <TransformComponent x="215.05057" y="-173.80354"/>
+        </Entity>
+        <Entity name="Monster21">
+            <LayerComponent name="entity"/>
+            <NameComponent name="Monster21"/>
+            <TransformComponent x="-81.716537" y="35.83408" scaleX="0.050000001" scaleY="0.050000001"/>
+        </Entity>
+        <Entity name="Monster21::Brazer1::Entity2">
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Brazer/Brazer.png" normalMap="Textures/Brazer/Brazer_normal.png">
+                    <Uniform name="uSourceRect" type="vec4" value="0.000000 0.000000 512.000000 512.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Monster21::Brazer1::Entity2"/>
+            <ParentComponent target="Monster21"/>
+            <RectangleComponent width="512" height="512" cornerRadius="0" originX="0.50480318" originY="0.74815881"/>
+            <SpriteComponent spriteName="Sprites/Brazer.xml" sheetName="" sequenceName=""/>
+            <TransformComponent x="-376.86966" y="147.93091"/>
+        </Entity>
+        <Entity name="Monster21::Brazer1::Fire">
+            <EllipseComponent radiusH="53" radiusV="26"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Fire" enabled="true"/>
+                <Layer material="Glow" enabled="false">
+                    <Uniform name="uEmission" type="float" value="5.150000"/>
+                    <Uniform name="uIntensity" type="float" value="7.150000"/>
+                    <Uniform name="uRadius" type="float" value="6.950000"/>
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.522388 0.200000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Monster21::Brazer1::Fire"/>
+            <ParentComponent target="Monster21"/>
+            <TransformComponent x="-379.54041" y="-64.695587"/>
+        </Entity>
     </Entities>
-    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit1">
-        <Param name="X" value="-89.744087"/>
-        <Param name="Y" value="184.65459"/>
+    <PrefabInstance src="../Prefabs/Monster.xml" id="Monster1">
+        <Override entity="0" component="TransformComponent" field="x" value="-136.04587"/>
+        <Override entity="0" component="TransformComponent" field="y" value="43.048061"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit2">
-        <Param name="Sprite" value="Sprites/Archer.xml"/>
-        <Param name="X" value="-25.57448"/>
-        <Param name="Y" value="-82.905624"/>
+    <PrefabInstance src="../Prefabs/Monster.xml" id="Monster2">
+        <Override entity="0" component="TransformComponent" field="x" value="-140.84283"/>
+        <Override entity="0" component="TransformComponent" field="y" value="206.94753"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Unit2.xml" id="Unit21">
-        <Param name="Sprite" value="Sprites/Knight.xml"/>
-        <Override entity="0" component="TransformComponent" field="x" value="206.2906"/>
-        <Override entity="0" component="TransformComponent" field="y" value="93.488083"/>
+    <PrefabInstance src="../Prefabs/Monster.xml" id="Monster3">
+        <Override entity="0" component="TransformComponent" field="x" value="242.87473"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-8.0477104"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit3">
-        <Param name="Sprite" value="Sprites/Archer.xml"/>
-        <Param name="X" value="-239.69725"/>
-        <Param name="Y" value="-103.21667"/>
+    <PrefabInstance src="../Prefabs/Monster.xml" id="Monster4">
+        <Override entity="0" component="TransformComponent" field="x" value="151.3849"/>
+        <Override entity="0" component="TransformComponent" field="y" value="133.34685"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit4">
-        <Param name="X" value="245.02173"/>
-        <Param name="Y" value="-90.861176"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Unit.xml" id="Unit5">
-        <Param name="X" value="95.144958"/>
-        <Param name="Y" value="161.563"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Unit2.xml" id="Unit6">
-        <Param name="Sprite" value="Sprites/Knight.xml"/>
-        <Override entity="0" component="TransformComponent" field="x" value="89.293839"/>
-        <Override entity="0" component="TransformComponent" field="y" value="31.082241"/>
+    <PrefabInstance src="../Prefabs/Monster.xml" id="Monster5">
+        <Override entity="0" component="TransformComponent" field="x" value="-29.747726"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-96.765472"/>
     </PrefabInstance>
 </Scene>

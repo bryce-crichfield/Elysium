@@ -1,18 +1,14 @@
-<Sprite name="Knight" originX="0.5" originY="0.6875">
+<Sprite name="Knight" originX="0.46317652" originY="0.78017932">
     <Sequences>
-        <Sequence name="east"  indicies="0:*" />
-        <Sequence name="southeast"  indicies="1:*" />
-        <Sequence name="south"  indicies="2:*" />
-        <Sequence name="southwest"  indicies="3:*" />
-        <Sequence name="west"  indicies="4:*" />
-        <Sequence name="northwest"  indicies="5:*" />
-        <Sequence name="north"  indicies="6:*" />
-        <Sequence name="northeast"  indicies="7:*" />
+        <Sequence name="east" indicies="0:*"/>
+        <Sequence name="northeast" indicies="1:*"/>
+        <Sequence name="north" indicies="2:*"/>
+        <Sequence name="northwest" indicies="3:*"/>
+        <Sequence name="west" indicies="4:*"/>
+        <Sequence name="southwest" indicies="5:*"/>
+        <Sequence name="south" indicies="6:*"/>
+        <Sequence name="southeast" indicies="7:*"/>
     </Sequences>
-
-    <Sheet name="Idle" path="Textures/Sprites/Knight/Idle.png" rows="8" columns="15" />
-    <Sheet name="Walk" path="Textures/Sprites/Knight/Walk.png" rows="8" columns="15" />
-    <Sheet name="Run" path="Textures/Sprites/Knight/Run.png" rows="8" columns="15" />
-    <Sheet name="Die" path="Textures/Sprites/Knight/Die.png" rows="8" columns="15" />
-    <Sheet name="Attack" path="Textures/Sprites/Knight/Attack.png" rows="8" columns="15" />
+    <Sheet name="Walk" path="Textures/Sprites/Knight/Knight_run_jog.png" normal="Textures/Sprites/Knight/Knight_run_jog_normal.png" rows="8" columns="10"/>
+    <Sheet name="Knight_idle_stretch" path="Textures/Sprites/Knight/Knight_idle_stretch.png" normal="Textures/Sprites/Knight/Knight_idle_stretch_normal.png" rows="8" columns="138"/>
 </Sprite>

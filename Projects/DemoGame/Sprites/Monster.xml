@@ -1,0 +1,13 @@
+<Sprite name="Monster" originX="0.49519703" originY="0.75456291">
+    <Sequences>
+        <Sequence name="southwest" indicies="0:*"/>
+        <Sequence name="south" indicies="1:*"/>
+        <Sequence name="southeast" indicies="2:*"/>
+        <Sequence name="east" indicies="3:*"/>
+        <Sequence name="northeast" indicies="4:*"/>
+        <Sequence name="north" indicies="5:*"/>
+        <Sequence name="northwest" indicies="6:*"/>
+        <Sequence name="west" indicies="7:*"/>
+    </Sequences>
+    <Sheet name="hero_walking" path="Textures/Sprites/Monster/hero_walking.png" normal="Textures/Sprites/Monster/hero_walking_normal.png" rows="8" columns="17"/>
+</Sprite>

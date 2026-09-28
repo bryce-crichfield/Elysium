@@ -51,6 +51,15 @@ void SceneLayer::LoadXml(SceneLayer& layer, tinyxml2::XMLElement* el) {
     const char* compositeBlendAttr = el->Attribute("compositeBlend");
     layer.compositeBlend = ParseSceneLayerBlend(compositeBlendAttr);
 
+    layer.isLit = el->BoolAttribute("lit", false);
+    if (const char* lightAmbient = el->Attribute("lightAmbient")) layer.lightAmbient = ParseHexColor(lightAmbient, layer.lightAmbient);
+    layer.lightReach = el->FloatAttribute("lightReach", layer.lightReach);
+    layer.lightHeight = el->FloatAttribute("lightHeight", layer.lightHeight);
+    layer.lightStrength = el->FloatAttribute("lightStrength", layer.lightStrength);
+    layer.lightBands = el->IntAttribute("lightBands", 0);
+    layer.outline = el->FloatAttribute("outline", 0.0f);
+    if (const char* outlineColor = el->Attribute("outlineColor")) layer.outlineColor = ParseHexColor(outlineColor, layer.outlineColor);
+
     // Parse ambient color
     const char* ambientStr = el->Attribute("ambient");
     if (ambientStr) {

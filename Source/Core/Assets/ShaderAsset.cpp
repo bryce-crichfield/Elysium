@@ -34,6 +34,12 @@ bool ComposeSdfSource(const std::string& keyPath, std::string& out) {
     std::string stem = keyPath.substr(dir.size());
     stem = stem.substr(0, stem.size() - 4);  // strip ".sdf"
 
+    std::string output;
+    if (size_t at = stem.find('@'); at != std::string::npos) {
+        output = stem.substr(at + 1);
+        stem = stem.substr(0, at);
+    }
+
     size_t plus = stem.find('+');
     if (plus == std::string::npos) {
         LOG_ERRORF("ShaderAsset", "Malformed SDF shader key (want Geometry+Material.sdf): %s", keyPath.c_str());
@@ -56,6 +62,11 @@ bool ComposeSdfSource(const std::string& keyPath, std::string& out) {
         }
         out += text;
         out += '\n';
+        // Right after the prelude's #version line: which surface Main.glsl writes.
+        if (&chunk == &chunks[0] && !output.empty()) {
+            size_t lineEnd = out.find('\n');
+            out.insert(lineEnd + 1, "#define E_OUTPUT_" + output + "\n");
+        }
     }
     return true;
 }
@@ -67,8 +78,9 @@ bool EndsWith(const std::string& text, const char* suffix) {
 
 }  // namespace
 
-Path ComposedShaderPath(const std::string& geometry, const std::string& material) {
-    return Path("Shaders/Sdf/" + geometry + "+" + material + ".sdf", PathRoot::Engine);
+Path ComposedShaderPath(const std::string& geometry, const std::string& material, const std::string& output) {
+    const std::string suffix = output.empty() ? "" : "@" + output;
+    return Path("Shaders/Sdf/" + geometry + "+" + material + suffix + ".sdf", PathRoot::Engine);
 }
 
 bool IsComposedShaderPath(const Path& path) { return EndsWith(path.GetRelativePath(), ".sdf"); }
