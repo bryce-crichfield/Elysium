@@ -36,6 +36,23 @@ class HierarchyEditor : public Editor {
     void DrawEntityList(Services::IEditorService& service);
     void DrawHierarchyTree(Services::IEditorService& service);
     void DrawHierarchyNode(Services::IEditorService& service, Entity entity);
+
+    // --- Placement grouping ---------------------------------------------------------------
+    // A dungeon floor is a hundred-odd identical Floor placements. Listed one per row they bury
+    // the handful of entities that actually differ, and the layer filter is no help because they
+    // all sit on the same layer. So root-level placements of the same prefab on the same layer
+    // collapse into a single expandable row, which is purely a view of the same entities:
+    // nothing about the scene format changes.
+
+    // One row of the root list: a lone entity, or several that collapsed together.
+    struct RootRow {
+        std::string label;           // the prefab's name, for a group
+        std::string layer;           // which layer they are on, for the tooltip
+        std::vector<Entity> members;
+    };
+    // Root entities as rows, in world order, with groupable placements merged.
+    std::vector<RootRow> BuildRootRows(Services::IEditorService& service) const;
+    void DrawGroupNode(Services::IEditorService& service, const RootRow& row);
     // Renders a thin drop zone used for reordering and reparenting via drag-and-drop.
     // parent: the entity whose childrenMap_ will receive the drop (INVALID_ENTITY = root level).
     // beforeSibling: the sibling to insert before; INVALID_ENTITY = append at end.
@@ -53,6 +70,7 @@ class HierarchyEditor : public Editor {
 
     bool showHierarchyView_ = true;
     bool showLuaFilter_ = false;
+    bool groupPlacements_ = true;
 
     char searchBuffer_[128] = "";
     char luaFilterBuffer_[1024] = "function filter(e)\n  return true\nend";

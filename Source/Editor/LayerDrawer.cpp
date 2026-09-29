@@ -136,8 +136,8 @@ void LayerDrawer::DrawBrushSection(IEditorService& editor) {
 
     const bool canPaint = !brushPrefab_.empty() && !active.empty() && !editor.IsLayerLocked(active);
     ImGui::BeginDisabled(!canPaint);
-    if (ToggleIconButton(ICON_FA_PAINT_ROLLER, paintMode_, "Paint prefab (click to place, drag to fill)")) {
-        paintMode_ = !paintMode_;
+    if (ToggleIconButton(ICON_FA_PAINT_ROLLER, painting_, "Paint prefab (click to place, drag to fill)")) {
+        paintToggleRequested_ = true;
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
@@ -146,13 +146,11 @@ void LayerDrawer::DrawBrushSection(IEditorService& editor) {
     if (brushPrefab_.empty())                  MutedText("Pick a prefab to paint");
     else if (active.empty())                   MutedText("Focus a layer to paint onto");
     else if (editor.IsLayerLocked(active))     ColoredText(Editor::Palette().Warning, "Layer is locked");
-    else if (paintMode_)                       ColoredText(Editor::Palette().Accent, ("Painting onto " + active).c_str());
+    else if (painting_)                        ColoredText(Editor::Palette().Accent, ("Painting onto " + active).c_str());
     else                                       MutedText(("Paints onto " + active).c_str());
 
-    if (!canPaint) paintMode_ = false;
-
     GridSettings& grid = editor.GetGrid();
-    if (paintMode_ && !grid.snapEnabled) {
+    if (painting_ && !grid.snapEnabled) {
         MutedText("Snap is off — placing freehand");
     }
 }

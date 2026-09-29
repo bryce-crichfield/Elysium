@@ -1,4 +1,5 @@
 #include "Editor/NavMeshTool.h"
+#include "extras/IconsFontAwesome6.h"
 #include <algorithm>
 #include "Components/NameComponent.h"
 #include "Components/TransformComponent.h"
@@ -31,14 +32,23 @@ Vector2 Centroid(const std::vector<Vector2>& points) {
 
 }  // namespace
 
-void NavMeshTool::SetActive(bool active) {
-    active_ = active;
-    brush_.reset();
-    inProgress_.clear();
-    handles_.End();
+const char* NavMeshTool::Icon() const { return ICON_FA_ROUTE; }
+
+const char* NavMeshTool::Unavailable(Services::IEditorService&, bool isScene) const {
+    return isScene ? nullptr : "Navmesh editing needs a scene";
 }
 
-void NavMeshTool::DrawToolbar() {
+void NavMeshTool::OnActivate(Services::IEditorService&) {
+    brush_.reset();
+    inProgress_.clear();
+}
+
+void NavMeshTool::OnDeactivate(Services::IEditorService&) {
+    brush_.reset();
+    inProgress_.clear();
+}
+
+void NavMeshTool::DrawToolbar(Services::IEditorService&) {
     auto brushButton = [&](const char* icon, NavAreaType type, const char* tip) {
         ImGui::SameLine();
         if (ToggleIconButton(icon, brush_ == type, tip)) {
@@ -51,7 +61,7 @@ void NavMeshTool::DrawToolbar() {
     brushButton(ICON_FA_WEIGHT_HANGING, NavAreaType::Cost,     "Cost area");
 
     ImGui::SameLine();
-    const char* hint = !brush_             ? "Click an area to select it, drag its handles, Delete removes it"
+    const char* hint = !brush_             ? "Click an area to select it, Delete removes it; the vertex tool reshapes it"
                      : inProgress_.empty() ? "Click to lay vertices"
                                            : "Right-click, Enter or the first vertex closes; Esc cancels";
     ColoredText(Editor::Palette().TextMuted, hint);
@@ -61,11 +71,6 @@ std::vector<Vector2> NavMeshTool::WorldPolygon(World& world, Entity area) {
     if (!world.HasComponent<NavAreaComponent>(area) || !world.HasComponent<TransformComponent>(area)) return {};
     const auto& t = world.GetComponent<TransformComponent>(area);
     return TranslatePolygon(world.GetComponent<NavAreaComponent>(area).LocalPolygon(), {t.worldX, t.worldY});
-}
-
-void NavMeshTool::SetWorldPolygon(World& world, Entity area, const std::vector<Vector2>& worldPoints) {
-    const auto& t = world.GetComponent<TransformComponent>(area);
-    world.GetComponent<NavAreaComponent>(area).points = FormatPointList(TranslatePolygon(worldPoints, {-t.worldX, -t.worldY}));
 }
 
 std::optional<Entity> NavMeshTool::AreaAt(World& world, Vector2 mouseWorld) const {
@@ -85,8 +90,12 @@ void NavMeshTool::ClosePolygon(World& world, Services::IEditorService& editor) {
     inProgress_.clear();
     if (points.size() < 3 || !brush_) return;
 
+    editor.BeginTransaction("Add Nav Area");
     Entity e = editor.CreateEntity();
-    if (e == INVALID_ENTITY) return;
+    if (e == INVALID_ENTITY) {
+        editor.EndTransaction();
+        return;
+    }
 
     const Vector2 centroid = Centroid(points);
     NavAreaComponent area;
@@ -102,23 +111,20 @@ void NavMeshTool::ClosePolygon(World& world, Services::IEditorService& editor) {
     world.AddComponent<TransformComponent>(e, transform);
     world.AddComponent<NavAreaComponent>(e, area);
     editor.SelectEntity(e);
+    editor.EndTransaction();
 }
 
-bool NavMeshTool::HandleInput(World& world, Services::IEditorService& editor, const ViewportInput& in) {
-    if (!active_) return false;
-    const float handleRadius = OverlayPainter::HandleRadius * in.worldPerPixel;
+bool NavMeshTool::HandleInput(ToolContext& context) {
+    World& world = context.world;
+    Services::IEditorService& editor = context.editor;
+    const ViewportInput& in = context.input;
     const float closeRadius = kClosePixels * in.worldPerPixel;
 
-    if (handles_.Dragging()) {
-        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left) || !world.IsAlive(editing_)) { handles_.End(); return true; }
-        auto polygon = WorldPolygon(world, editing_);
-        handles_.Drag(polygon, in.mouseWorld);
-        SetWorldPolygon(world, editing_, polygon);
-        return true;
-    }
     if (!in.hovered) return false;
 
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+    // Escape backs out one step at a time: the polygon being laid, then the brush. Only claimed
+    // when there is something to cancel, so a third press still means "leave the tool".
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && (!inProgress_.empty() || brush_)) {
         if (!inProgress_.empty()) inProgress_.clear();
         else brush_.reset();
         return true;
@@ -134,22 +140,23 @@ bool NavMeshTool::HandleInput(World& world, Services::IEditorService& editor, co
 
     if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
         auto selected = editor.GetSelectedEntities();
+        editor.BeginTransaction("Delete Nav Areas");
         for (Entity e : selected) {
             if (world.HasComponent<NavAreaComponent>(e)) editor.DeleteEntity(e);
         }
+        editor.EndTransaction();
         return !selected.empty();
     }
 
     if (!in.clicked) return false;
-    for (Entity e : editor.GetSelectedEntities()) {
-        if (handles_.Begin(WorldPolygon(world, e), in.mouseWorld, handleRadius)) { editing_ = e; return true; }
-    }
     if (auto hit = AreaAt(world, in.mouseWorld)) { editor.SelectEntity(*hit); return true; }
     return false;
 }
 
-void NavMeshTool::DrawOverlay(World& world, Services::IEditorService& editor, const Systems::NavMeshSystem* nav, OverlayPainter& painter) {
-    if (!active_) return;
+void NavMeshTool::DrawOverlay(ToolContext& context, OverlayPainter& painter) {
+    World& world = context.world;
+    Services::IEditorService& editor = context.editor;
+    const Systems::NavMeshSystem* nav = context.nav;
 
     if (nav && nav->Width() > 0) {
         const float cs = nav->CellSize();
@@ -189,7 +196,6 @@ void NavMeshTool::DrawOverlay(World& world, Services::IEditorService& editor, co
         const ImVec4& color = NavAreaColor(area.Type());
         const bool selected = editor.IsSelected(e);
         painter.Polygon(polygon, color, selected ? 0.25f : 0.12f, selected ? painter.LineWidth() + 1.0f : 0.0f);
-        if (selected) painter.Handles(polygon, Editor::Palette().Selection);
     });
 
     if (!inProgress_.empty() && brush_) {

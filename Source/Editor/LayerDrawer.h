@@ -31,15 +31,25 @@ public:
 
     // The prefab the paint tool places, project-relative; empty when nothing is picked.
     const std::string& BrushPrefab() const { return brushPrefab_; }
-    bool PaintMode() const { return paintMode_ && !brushPrefab_.empty(); }
-    void SetPaintMode(bool paint) { paintMode_ = paint; }
+
+    // The brush section's paint button is a *request*, not a state: the Viewport owns which tool
+    // is active, and a second copy of that here is exactly the kind of duplicated mode the tool
+    // registry exists to remove. Consumed once by whoever asks.
+    bool TakePaintToggleRequest() {
+        const bool requested = paintToggleRequested_;
+        paintToggleRequested_ = false;
+        return requested;
+    }
+    // Pushed in by the Viewport each frame so the section can show whether painting is on.
+    void SetPainting(bool painting) { painting_ = painting; }
 
 private:
     void DrawLayerRow(Scene& scene, Services::IEditorService& editor, const std::string& name, int zIndex);
     void DrawBrushSection(Services::IEditorService& editor);
 
     bool open_ = false;
-    bool paintMode_ = false;
+    bool painting_ = false;
+    bool paintToggleRequested_ = false;
     std::string brushPrefab_;
 };
 

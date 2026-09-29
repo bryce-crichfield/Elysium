@@ -4,7 +4,7 @@
 #include <unordered_set>
 #include "Core/Entity.h"
 #include "Core/MathTypes.h"
-#include "Editor/NavMeshTool.h"  // ViewportInput
+#include "Editor/Tools/ViewportTool.h"  // ViewportInput
 
 namespace Elysium {
 class World;

@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <unordered_map>
 #include "Core/Common.h"
 #include "Core/Path.h"
 #include "Core/World.h"
@@ -29,16 +30,11 @@ Entity AcceptEntityDrop(ImGuiDragDropFlags flags = 0) {
     return payload ? *(const Entity*)payload->Data : INVALID_ENTITY;
 }
 
-void Detach(World& world, Entity entity) {
-    const Entity parent = world.GetParent(entity);
-    if (parent != INVALID_ENTITY) world.RemoveChild(parent, entity);
-}
-
-// Makes `child` the last child of `parent`, drawn after it so the parent renders first.
-void AppendChild(World& world, Entity parent, Entity child) {
-    Detach(world, child);
-    world.AddChild(parent, child);
-    world.MoveEntityAfter(child, parent);
+// Ctrl or Shift extends the selection instead of replacing it. The selection has always been
+// a list rather than a single entity; until now no panel offered a way to build one.
+bool AdditivePick() {
+    const ImGuiIO& io = ImGui::GetIO();
+    return io.KeyCtrl || io.KeyShift;
 }
 
 constexpr const char* kSingleRootTip = "A prefab has a single root: create entities under it";
@@ -81,7 +77,11 @@ void HierarchyEditor::Draw() {
                 const Entity primary = service.GetSelectedEntities().back();
                 if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
                     const std::vector<Entity> selection = service.GetSelectedEntities();
-                    pendingAction_ = [&service, selection] { for (Entity e : selection) service.DeleteEntity(e); };
+                    pendingAction_ = [&service, selection] {
+                        service.BeginTransaction("Delete Entities");
+                        for (Entity e : selection) service.DeleteEntity(e);
+                        service.EndTransaction();
+                    };
                 } else if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false)) {
                     pendingAction_ = [&service, primary] { service.DuplicateEntity(primary); };
                 }
@@ -110,7 +110,8 @@ void HierarchyEditor::DrawToolbar(IEditorService& service) {
     const char* viewIcon = showHierarchyView_ ? ICON_FA_LIST : ICON_FA_SITEMAP;
     const float spacing = ImGui::GetStyle().ItemSpacing.x;
     const float buttonsWidth = ButtonWidth(ICON_FA_PLUS) + ButtonWidth(viewIcon) +
-                               ButtonWidth(ICON_FA_FILTER) + spacing * 3.0f + ExpandCollapseWidth();
+                               ButtonWidth(ICON_FA_BOXES_STACKED) + ButtonWidth(ICON_FA_FILTER) +
+                               spacing * 4.0f + ExpandCollapseWidth();
 
     SearchField("##Search", searchBuffer_, sizeof(searchBuffer_), -buttonsWidth);
 
@@ -124,6 +125,13 @@ void HierarchyEditor::DrawToolbar(IEditorService& service) {
     if (IconButton(viewIcon, showHierarchyView_ ? "Show as flat list" : "Show as hierarchy")) {
         showHierarchyView_ = !showHierarchyView_;
     }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!showHierarchyView_);
+    if (ToggleIconButton(ICON_FA_BOXES_STACKED, groupPlacements_,
+                         "Group repeated prefab placements (tiles, walls) into one row")) {
+        groupPlacements_ = !groupPlacements_;
+    }
+    ImGui::EndDisabled();
     ImGui::SameLine();
     if (luaFilterActive_) ImGui::PushStyleColor(ImGuiCol_Text, Palette().Accent);
     if (IconButton(ICON_FA_FILTER, "Lua filter")) showLuaFilter_ = !showLuaFilter_;
@@ -305,7 +313,7 @@ void HierarchyEditor::DrawEntityList(IEditorService& service) {
         ImGui::PushID((int)entity);
         const std::string label = HierarchyLabel(*world, entity);
         if (ImGui::Selectable(label.c_str(), service.IsSelected(entity), ImGuiSelectableFlags_SpanAllColumns)) {
-            service.SelectEntity(entity);
+            service.SelectEntity(entity, AdditivePick());
         }
         DrawEntityContextMenu(service, entity);
         ImGui::PopID();
@@ -353,7 +361,7 @@ void HierarchyEditor::DrawEntityContextMenu(IEditorService& service, Entity enti
     }
     Entity parent = world->GetParent(entity);
     if (parent != INVALID_ENTITY && service.CanBeRoot(entity) && ImGui::MenuItem(ICON_FA_ARROW_UP "  Detach from Parent")) {
-        world->RemoveChild(parent, entity);
+        pendingAction_ = [&service, entity] { service.Reparent(entity, INVALID_ENTITY); };
     }
     ImGui::Separator();
     ImGui::PushStyleColor(ImGuiCol_Text, Palette().Error);
@@ -391,17 +399,14 @@ void HierarchyEditor::DrawInsertionZone(IEditorService& service, Entity parent, 
         const bool valid = dragged != INVALID_ENTITY && dragged != parent &&
                            (parent == INVALID_ENTITY ? service.CanBeRoot(dragged) : !world->IsAncestorOf(dragged, parent));
         if (valid) {
-            if (parent == INVALID_ENTITY) {
-                // Root level: detach, then reorder unless dropped at the end.
-                Detach(*world, dragged);
-                if (beforeSibling != INVALID_ENTITY) world->MoveEntityBefore(dragged, beforeSibling);
-            } else if (beforeSibling == INVALID_ENTITY) {
-                AppendChild(*world, parent, dragged);
-            } else {
-                Detach(*world, dragged);
-                world->InsertChildBefore(parent, dragged, beforeSibling);
-                world->MoveEntityBefore(dragged, beforeSibling);
-            }
+            pendingAction_ = [&service, parent, beforeSibling, dragged] {
+                service.BeginTransaction("Move Entity");
+                // Root level (parent INVALID_ENTITY) detaches; otherwise it re-homes and lands
+                // at the end, and the reorder below moves it up to the drop position.
+                service.Reparent(dragged, parent);
+                if (beforeSibling != INVALID_ENTITY) service.ReorderBefore(dragged, beforeSibling);
+                service.EndTransaction();
+            };
         }
         ImGui::EndDragDropTarget();
     }
@@ -441,7 +446,7 @@ void HierarchyEditor::DrawHierarchyNode(IEditorService& service, Entity entity) 
     if (isPrefab) ItemTooltip(("Prefab: " + world->GetComponent<PrefabInstanceComponent>(entity).src).c_str());
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
-        service.SelectEntity(entity);
+        service.SelectEntity(entity, AdditivePick());
     if (isPrefab && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         DeferOpenPrefab(service, *world, entity);
 
@@ -457,14 +462,14 @@ void HierarchyEditor::DrawHierarchyNode(IEditorService& service, Entity entity) 
         const Entity dragged = AcceptEntityDrop();
         if (dragged != INVALID_ENTITY && dragged != entity && world->GetParent(dragged) != entity &&
             !world->IsAncestorOf(dragged, entity)) {
-            AppendChild(*world, entity, dragged);
+            pendingAction_ = [&service, entity, dragged] { service.Reparent(dragged, entity); };
         }
         // A prefab dropped on an entity is placed as its child, at its origin.
         if (auto path = AcceptAssetDrop(AssetKind::Prefab)) {
             pendingAction_ = [&service, world, entity, fullPath = Path(*path).GetFullPath()] {
                 const Entity placed = service.InstantiatePrefab(fullPath);
                 if (placed == INVALID_ENTITY || !world->IsAlive(entity)) return;
-                AppendChild(*world, entity, placed);
+                service.Reparent(placed, entity);
                 if (world->HasComponent<TransformComponent>(placed)) {
                     auto& transform = world->GetComponent<TransformComponent>(placed);
                     transform.localX = transform.localY = 0.0f;
@@ -489,22 +494,90 @@ void HierarchyEditor::DrawHierarchyNode(IEditorService& service, Entity entity) 
     ImGui::PopID();
 }
 
-void HierarchyEditor::DrawHierarchyTree(IEditorService& service) {
+std::vector<HierarchyEditor::RootRow> HierarchyEditor::BuildRootRows(IEditorService& service) const {
     auto* world = service.GetWorld();
 
-    // Build a snapshot of root entities so insertion-zone drops don't invalidate iteration.
-    std::vector<Entity> roots;
+    std::vector<RootRow> rows;
+    // Row index per (layer, prefab) so a placement joins the group its first sibling opened,
+    // while the rows themselves stay in world order.
+    std::unordered_map<std::string, size_t> rowByKey;
+
     for (Entity entity : world->GetLivingEntities()) {
-        if (world->GetParent(entity) == INVALID_ENTITY && PassesFilters(service, *world, entity))
-            roots.push_back(entity);
+        if (world->GetParent(entity) != INVALID_ENTITY || !PassesFilters(service, *world, entity)) continue;
+
+        // Only placements group, and only ones with nothing parented to them from outside: a
+        // placement someone has hung children on is a thing in its own right, not one of a crowd.
+        const bool groupable = groupPlacements_ && PrefabInstances::IsRoot(*world, entity) &&
+                               world->GetChildren(entity).empty();
+        if (!groupable) {
+            rows.push_back(RootRow{{}, {}, {entity}});
+            continue;
+        }
+
+        const std::string layer = service.GetEntityLayer(entity);
+        const std::string src = world->GetComponent<PrefabInstanceComponent>(entity).src;
+        const std::string key = layer + "|" + src;
+
+        auto [it, inserted] = rowByKey.try_emplace(key, rows.size());
+        if (inserted) {
+            rows.push_back(RootRow{std::filesystem::path(src).stem().string(), layer, {entity}});
+        } else {
+            rows[it->second].members.push_back(entity);
+        }
+    }
+    return rows;
+}
+
+void HierarchyEditor::DrawGroupNode(IEditorService& service, const RootRow& row) {
+    const bool anySelected = std::any_of(row.members.begin(), row.members.end(),
+                                         [&](Entity e) { return service.IsSelected(e); });
+
+    ImGui::PushID(row.label.c_str());
+    ImGui::PushID(row.layer.c_str());
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick |
+                               ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (anySelected) flags |= ImGuiTreeNodeFlags_Selected;
+
+    ImGui::PushStyleColor(ImGuiCol_Text, Palette().AssetPrefab);
+    const bool open = ImGui::TreeNodeEx("##group", flags, ICON_FA_BOXES_STACKED "  %s  x%zu", row.label.c_str(),
+                                        row.members.size());
+    ImGui::PopStyleColor();
+    ItemTooltip((row.label + " on " + (row.layer.empty() ? "no layer" : row.layer) +
+                 " - click to select all of them, expand to reach one")
+                    .c_str());
+
+    // Selecting the group selects every placement in it, which is what turns "retint every wall"
+    // into one Inspector edit instead of fourteen.
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+        if (!AdditivePick()) service.ClearSelection();
+        for (Entity member : row.members) {
+            if (!service.IsSelected(member)) service.SelectEntity(member, true);
+        }
     }
 
-    for (Entity root : roots) {
-        // Insertion zone before each root: drop here to reorder at root level or unparent.
-        DrawInsertionZone(service, INVALID_ENTITY, root);
-        DrawHierarchyNode(service, root);
+    if (open) {
+        for (Entity member : row.members) DrawHierarchyNode(service, member);
+        ImGui::TreePop();
     }
-    // Zone after the last root.
+
+    ImGui::PopID();
+    ImGui::PopID();
+}
+
+void HierarchyEditor::DrawHierarchyTree(IEditorService& service) {
+    // A snapshot, so insertion-zone drops don't invalidate iteration.
+    const std::vector<RootRow> rows = BuildRootRows(service);
+
+    for (const RootRow& row : rows) {
+        // Insertion zone before each row: drop here to reorder at root level or unparent. A
+        // group anchors on its first member, so dropping above it still lands in the right place.
+        DrawInsertionZone(service, INVALID_ENTITY, row.members.front());
+
+        if (row.members.size() > 1) DrawGroupNode(service, row);
+        else DrawHierarchyNode(service, row.members.front());
+    }
+    // Zone after the last row.
     DrawInsertionZone(service, INVALID_ENTITY, INVALID_ENTITY);
 }
 

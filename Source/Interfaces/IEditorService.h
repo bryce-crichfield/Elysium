@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -7,6 +8,8 @@
 #include <string>
 #include <vector>
 #include "Core/AssetKind.h"
+#include "Core/CommandHistory.h"
+#include "Core/EditorCommand.h"
 #include "Core/Entity.h"
 #include "Core/MathTypes.h"
 #include "Core/Prefab.h"
@@ -48,6 +51,18 @@ struct EditorDocument {
     // Prefab only:
     std::unordered_map<Entity, int> localIds;     // entity -> <Entity id> in the file
     std::vector<Elysium::PrefabParameter> parameters;
+
+    // Undo/redo for this tab, so each open scene has its own history and closing the tab
+    // discards it. Scenes and prefabs only; a content pane has nothing to undo through here.
+    Elysium::CommandHistory history;
+
+    // Stable entity references for the history. `Entity` is a recycled index with no
+    // generation counter (Core/Entity.h), so a command holding one could address a different
+    // entity entirely after an undo destroyed and recreated something. Commands hold a stable
+    // id instead and resolve it through here; undo rebinds the same id to what it recreates.
+    std::unordered_map<uint64_t, Entity> entityByStableId;
+    std::unordered_map<Entity, uint64_t> stableIdByEntity;
+    uint64_t nextStableId = 1;
 
     bool IsPrefab() const { return kind == AssetKind::Prefab; }
     bool IsScene() const { return kind == AssetKind::Scene; }
@@ -114,7 +129,49 @@ class IEditorService : public IService {
     // `world` snapped to the grid, or unchanged when snapping is off.
     virtual Vector2 SnapToGrid(Vector2 world) const = 0;
 
+    // --- Commands -----------------------------------------------------------------------
+    // Every mutation the editor makes to a document's world should go through here, so that it
+    // can be undone. Reaching into World directly doesn't merely skip undo — it leaves the
+    // history describing a state that no longer exists, which is worse than having no history.
+    //
+    // Commands apply immediately. Callers that mutate while iterating the entities they are
+    // drawing must defer the call themselves (see HierarchyEditor's pendingAction_).
+    virtual void Execute(std::unique_ptr<Elysium::EditorCommand> command) = 0;
+    // The active document's history, or null when the active tab has no world.
+    virtual Elysium::CommandHistory* GetHistory() = 0;
+    virtual void Undo() = 0;
+    virtual void Redo() = 0;
+    // Group several commands into one undo step. Nestable; forwarded to the active history, and
+    // silently ignored when there is no document, so callers need no null check.
+    virtual void BeginTransaction(const std::string& label) = 0;
+    virtual void EndTransaction() = 0;
+    // A transaction that also merges repeats of the same edit, for a continuous drag.
+    virtual void BeginGesture(const std::string& label) = 0;
+    virtual void EndGesture() = 0;
+
+    // --- Stable entity references -------------------------------------------------------
+    // See EditorDocument. Commands store the id, never the Entity.
+    // Assigns one on first use; 0 for INVALID_ENTITY.
+    virtual uint64_t StableIdOf(Entity entity) = 0;
+    // The entity `id` currently refers to, or INVALID_ENTITY if it refers to nothing (because
+    // an undo destroyed it, or the document was reloaded).
+    virtual Entity EntityForStableId(uint64_t id) const = 0;
+    // Points `id` at `entity`, for a command that has just recreated what it destroyed.
+    // INVALID_ENTITY unbinds it.
+    virtual void RebindStableId(uint64_t id, Entity entity) = 0;
+
     virtual const std::vector<ComponentPlaceholder>& GetComponentPlaceholders() const = 0;
+
+    // --- Clipboard ----------------------------------------------------------------------
+    // Entities are copied as serialized XML onto the *system* clipboard, so a copy carries
+    // between open documents and between running instances of the editor, and survives a
+    // reload. Cut is a copy and a delete in one undo step.
+    virtual void CopySelection() = 0;
+    virtual void CutSelection() = 0;
+    // Pastes the clipboard with its first root at `at` (grid-snapped), the rest keeping their
+    // offsets from it, onto the active layer. Returns the first pasted root.
+    virtual Entity Paste(Vector2 at) = 0;
+    virtual bool CanPaste() const = 0;
 
     virtual const std::vector<Entity>& GetSelectedEntities() const = 0;
     virtual void SelectEntity(Entity entity, bool additive = false) = 0;
@@ -130,6 +187,12 @@ class IEditorService : public IService {
     virtual void DeleteEntity(Entity entity) = 0;
     // Creates an entity under `parent`, or at root level. Returns INVALID_ENTITY if refused.
     virtual Entity CreateEntity(Entity parent = INVALID_ENTITY) = 0;
+    // Hierarchy edits, so the Hierarchy panel's drag-and-drop is undoable like everything else.
+    // Reparent to INVALID_ENTITY detaches to root level. Both reorders move `entity` to sit
+    // beside `sibling` under the same parent.
+    virtual void Reparent(Entity entity, Entity parent) = 0;
+    virtual void ReorderBefore(Entity entity, Entity sibling) = 0;
+    virtual void ReorderAfter(Entity entity, Entity sibling) = 0;
     // Whether `entity` (INVALID_ENTITY: a new one) may sit at root level in the active
     // document. A prefab has exactly one root, so there it's only the existing root.
     virtual bool CanBeRoot(Entity entity) const = 0;

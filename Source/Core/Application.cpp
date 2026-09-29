@@ -231,14 +231,41 @@ void Application::DrawMenuBar()
             ImGui::EndMenu();
         }
 
+        // Edit acts on the active tab's command history, so each open scene undoes its own work.
+        auto& editor = serviceLocator_.Get<Services::IEditorService>();
         if (ImGui::BeginMenu("Edit")) {
-            if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
-                // Handle undo
-            }
-            if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
-                // Handle redo
-            }
+            Elysium::CommandHistory* history = editor.GetHistory();
+            const char* undoing = history ? history->UndoLabel() : nullptr;
+            const char* redoing = history ? history->RedoLabel() : nullptr;
+
+            // Naming what will happen ("Undo Delete Entity") is the difference between trusting
+            // the shortcut and guessing at it.
+            const std::string undoLabel = std::string(ICON_FA_ROTATE_LEFT "  Undo") + (undoing ? std::string(" ") + undoing : "");
+            const std::string redoLabel = std::string(ICON_FA_ROTATE_RIGHT "  Redo") + (redoing ? std::string(" ") + redoing : "");
+
+            if (ImGui::MenuItem(undoLabel.c_str(), "Ctrl+Z", false, undoing != nullptr)) editor.Undo();
+            if (ImGui::MenuItem(redoLabel.c_str(), "Ctrl+Shift+Z", false, redoing != nullptr)) editor.Redo();
+
+            ImGui::Separator();
+            const bool hasSelection = !editor.GetSelectedEntities().empty();
+            if (ImGui::MenuItem(ICON_FA_SCISSORS "  Cut", "Ctrl+X", false, hasSelection)) editor.CutSelection();
+            if (ImGui::MenuItem(ICON_FA_COPY "  Copy", "Ctrl+C", false, hasSelection)) editor.CopySelection();
+            // From the menu there is no cursor to paste under, so it lands where the editor
+            // camera is pointed, which is the part of the scene being looked at.
+            if (ImGui::MenuItem(ICON_FA_PASTE "  Paste", "Ctrl+V", false, editor.CanPaste()))
+                editor.Paste(editor.GetEditorCamera().position);
             ImGui::EndMenu();
+        }
+
+        // Wherever focus is, except inside a text field — Ctrl+Z belongs to the box being typed
+        // in. Ctrl+Y is the second redo binding out of habit; both reach the same history.
+        if (!ImGui::GetIO().WantTextInput) {
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Z)) editor.Undo();
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z)) editor.Redo();
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y)) editor.Redo();
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_X)) editor.CutSelection();
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_C)) editor.CopySelection();
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_V)) editor.Paste(editor.GetEditorCamera().position);
         }
 
         if (ImGui::BeginMenu("View")) {

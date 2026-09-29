@@ -5,6 +5,8 @@
 #include "Components/NameComponent.h"
 #include "Components/PrefabInstanceComponent.h"
 #include "Core/ComponentRegistry.h"
+#include "Core/EntitySerializer.h"
+#include "Editor/Commands/EditorCommands.h"
 #include "Core/Prefab.h"
 #include "Core/PrefabInstance.h"
 #include "Core/Scene.h"
@@ -58,7 +60,9 @@ void InspectorEditor::Draw() {
             if (!componentToRemove_.empty()) {
                 for (const auto& placeholder : service.GetComponentPlaceholders()) {
                     if (placeholder.name == componentToRemove_) {
-                        placeholder.removeComponentFunc(entity, world);
+                        // An empty "after" is how ComponentEditCommand expresses a removal.
+                        DrawDiffed(service, entity, placeholder.name, "Remove " + placeholder.name,
+                                   [&] { placeholder.removeComponentFunc(entity, world); });
                         break;
                     }
                 }
@@ -73,8 +77,50 @@ void InspectorEditor::Draw() {
             }
             openRequest_.reset();
         }
+        FlushEdits(service);
     }
     EndWindow();
+}
+
+void InspectorEditor::DrawDiffed(IEditorService& service, Entity entity, const std::string& componentName,
+                                 const std::string& label, const std::function<void()>& draw) {
+    auto* world = service.GetWorld();
+    // A component with no XML tag has no saver, so it isn't written to the scene either and
+    // there is nothing meaningful to restore. Draw it, don't record it.
+    const std::string tag = ComponentRegistry::Instance().GetXmlTag(componentName);
+    if (!world || tag.empty()) {
+        draw();
+        return;
+    }
+
+    std::string before = EntityXml::SaveComponent(*world, entity, tag);
+    draw();
+    std::string after = EntityXml::SaveComponent(*world, entity, tag);
+    if (after == before) return;
+
+    pendingEdits_.push_back({entity, tag, std::move(before), std::move(after), label});
+}
+
+void InspectorEditor::FlushEdits(IEditorService& service) {
+    // IsAnyItemActive is global, so it is paired with a focus check: a drag in the Viewport
+    // shouldn't hold this panel's gesture open and swallow a later, unrelated edit into it.
+    const bool holding = ImGui::IsAnyItemActive() && ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+
+    if (holding && !gestureOpen_) {
+        service.BeginGesture(pendingEdits_.empty() ? "Edit Component" : pendingEdits_.front().label);
+        gestureOpen_ = true;
+    }
+
+    for (auto& edit : pendingEdits_) {
+        service.Execute(std::make_unique<ComponentEditCommand>(EntityRef{service.StableIdOf(edit.entity)},
+                                                               edit.component, edit.before, edit.after, edit.label));
+    }
+    pendingEdits_.clear();
+
+    if (!holding && gestureOpen_) {
+        service.EndGesture();
+        gestureOpen_ = false;
+    }
 }
 
 void InspectorEditor::DrawHeader(IEditorService& service, Entity entity) {
@@ -91,13 +137,14 @@ void InspectorEditor::DrawHeader(IEditorService& service, Entity entity) {
     ColoredText(Palette().Accent, ICON_FA_CUBE);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-(ImGui::CalcTextSize(id.c_str()).x + ImGui::GetStyle().ItemSpacing.x + ExpandCollapseWidth()));
-    if (ImGui::InputTextWithHint("##EntityName", "Unnamed entity", nameBuffer_, sizeof(nameBuffer_))) {
+    DrawDiffed(service, entity, NameComponent::Name(), "Rename Entity", [&] {
+        if (!ImGui::InputTextWithHint("##EntityName", "Unnamed entity", nameBuffer_, sizeof(nameBuffer_))) return;
         if (world->HasComponent<NameComponent>(entity)) {
             world->GetComponent<NameComponent>(entity).name = nameBuffer_;
         } else {
             world->AddComponent(entity, NameComponent(nameBuffer_));
         }
-    }
+    });
     ImGui::SameLine();
     ImGui::TextDisabled("%s", id.c_str());
     ImGui::SameLine();
@@ -118,7 +165,10 @@ void InspectorEditor::DrawComponent(IEditorService& service, Entity entity, cons
         AlignRight(ButtonWidth(ICON_FA_ELLIPSIS_VERTICAL));
         if (IconButton(ICON_FA_ELLIPSIS_VERTICAL, "Component actions")) ImGui::OpenPopup("ComponentActions");
         if (ImGui::BeginPopup("ComponentActions")) {
-            if (ImGui::MenuItem(ICON_FA_ROTATE_LEFT "  Reset")) placeholder.resetComponentFunc(entity, world);
+            if (ImGui::MenuItem(ICON_FA_ROTATE_LEFT "  Reset")) {
+                DrawDiffed(service, entity, placeholder.name, "Reset " + placeholder.name,
+                           [&] { placeholder.resetComponentFunc(entity, world); });
+            }
             ImGui::PushStyleColor(ImGuiCol_Text, Palette().Error);
             if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Remove")) componentToRemove_ = placeholder.name;
             ImGui::PopStyleColor();
@@ -128,7 +178,8 @@ void InspectorEditor::DrawComponent(IEditorService& service, Entity entity, cons
 
     if (open) {
         BeginSectionBody();
-        placeholder.drawFunc(entity, world);
+        DrawDiffed(service, entity, placeholder.name, "Edit " + placeholder.name,
+                   [&] { placeholder.drawFunc(entity, world); });
         EndSectionBody();
     }
     ImGui::PopID();
@@ -155,7 +206,8 @@ void InspectorEditor::DrawAddComponent(IEditorService& service, Entity entity) {
         if (!MatchesSearch(placeholder.name, componentSearch_)) continue;
 
         if (ImGui::Selectable(placeholder.name.c_str())) {
-            placeholder.addComponentFunc(entity, world);
+            DrawDiffed(service, entity, placeholder.name, "Add " + placeholder.name,
+                       [&] { placeholder.addComponentFunc(entity, world); });
             ImGui::CloseCurrentPopup();
         }
     }

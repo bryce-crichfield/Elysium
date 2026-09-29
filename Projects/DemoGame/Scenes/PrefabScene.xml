@@ -32,7 +32,7 @@
         </Entity>
         <Entity name="NavArea Room">
             <NameComponent name="NavArea Room"/>
-            <NavAreaComponent points="-20.9906,-185.793 448.534,64.4498 139.129,252.279 -375.815,-1.9873" type="Walkable" cost="1"/>
+            <NavAreaComponent points="163.929,-274.433 645.38,-28.173 139.129,252.279 -375.815,-1.9873" type="Walkable" cost="1"/>
             <TransformComponent x="-9.174284" y="111.99997"/>
         </Entity>
         <Entity name="NavArea Pit">
@@ -59,6 +59,380 @@
             <NameComponent name="NavArea Blocked"/>
             <NavAreaComponent points="-46.7864,7.6839 16.0508,-23.7347 46.1034,-9.39142 -15.3678,25.4423" type="Blocked" cost="1"/>
             <TransformComponent x="143.27362" y="312.19873"/>
+        </Entity>
+        <Entity name="Knight3">
+            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
+            <KinematicsComponent friction="5" maxSpeed="140"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Vampire/Knight_idle_breathing.png" normalMap="Textures/Sprites/Vampire/Knight_idle_breathing_normal.png">
+                    <Uniform name="uSourceRect" type="vec4" value="1664.000000 0.000000 128.000000 128.000000"/>
+                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <MovementComponent state="Idle" goalX="0" goalY="0"/>
+            <NameComponent name="Knight3"/>
+            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.52401549" originY="0.7769773"/>
+            <ScriptComponent>
+                <Script name="Scripts/Elysium/Unit.lua"/>
+            </ScriptComponent>
+            <SpriteComponent spriteName="Sprites/Vampire.xml" sheetName="Idle" sequenceName="south"/>
+            <TeamComponent team="0"/>
+            <TransformComponent x="42.304615" y="215.5298" scaleX="0.66000003" scaleY="0.66000003"/>
+        </Entity>
+        <Entity name="Knight3::Light">
+            <EllipseComponent radiusH="48" radiusV="24"/>
+            <LayerComponent name="shadow"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Falloff" enabled="true">
+                    <Uniform name="uHardness" type="float" value="-0.300000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knight3::Light"/>
+            <ParentComponent target="Knight3"/>
+            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
+        </Entity>
+        <Entity name="Knight3::Selection">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <LayerComponent name="selection"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knight3::Selection"/>
+            <ParentComponent target="Knight3"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity name="Knight2">
+            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
+            <KinematicsComponent friction="5" maxSpeed="140"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png" normalMap="Textures/Sprites/Archer/Archer_idle_bored_normal.png">
+                    <Uniform name="uSourceRect" type="vec4" value="1024.000000 128.000000 128.000000 128.000000"/>
+                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <MovementComponent state="Idle" goalX="0" goalY="0"/>
+            <NameComponent name="Knight2"/>
+            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
+            <ScriptComponent>
+                <Script name="Scripts/Elysium/Unit.lua"/>
+            </ScriptComponent>
+            <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="Idle" sequenceName="south"/>
+            <TeamComponent team="0"/>
+            <TransformComponent x="263.20358" y="211.21133" scaleX="0.66000003" scaleY="0.66000003"/>
+        </Entity>
+        <Entity name="Knight2::Light">
+            <EllipseComponent radiusH="48" radiusV="24"/>
+            <LayerComponent name="shadow"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Falloff" enabled="true">
+                    <Uniform name="uHardness" type="float" value="-0.300000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knight2::Light"/>
+            <ParentComponent target="Knight2"/>
+            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
+        </Entity>
+        <Entity name="Knight2::Selection">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <LayerComponent name="selection"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knight2::Selection"/>
+            <ParentComponent target="Knight2"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity name="Knight2">
+            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
+            <KinematicsComponent friction="5" maxSpeed="140"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png" normalMap="Textures/Sprites/Archer/Archer_idle_bored_normal.png">
+                    <Uniform name="uSourceRect" type="vec4" value="1024.000000 128.000000 128.000000 128.000000"/>
+                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <MovementComponent state="Idle" goalX="0" goalY="0"/>
+            <NameComponent name="Knight2"/>
+            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
+            <ScriptComponent>
+                <Script name="Scripts/Elysium/Unit.lua"/>
+            </ScriptComponent>
+            <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="Idle" sequenceName="south"/>
+            <TeamComponent team="0"/>
+            <TransformComponent x="58.615738" y="42.146763" scaleX="0.66000003" scaleY="0.66000003"/>
+        </Entity>
+        <Entity name="Knight2::Light">
+            <EllipseComponent radiusH="48" radiusV="24"/>
+            <LayerComponent name="shadow"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Falloff" enabled="true">
+                    <Uniform name="uHardness" type="float" value="-0.300000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knight2::Light"/>
+            <ParentComponent target="Knight2"/>
+            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
+        </Entity>
+        <Entity name="Knight2::Selection">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <LayerComponent name="selection"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knight2::Selection"/>
+            <ParentComponent target="Knight2"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity name="Knight2">
+            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
+            <KinematicsComponent friction="5" maxSpeed="140"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png" normalMap="Textures/Sprites/Archer/Archer_idle_bored_normal.png">
+                    <Uniform name="uSourceRect" type="vec4" value="1024.000000 128.000000 128.000000 128.000000"/>
+                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <MovementComponent state="Idle" goalX="0" goalY="0"/>
+            <NameComponent name="Knight2"/>
+            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
+            <ScriptComponent>
+                <Script name="Scripts/Elysium/Unit.lua"/>
+            </ScriptComponent>
+            <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="Idle" sequenceName="south"/>
+            <TeamComponent team="0"/>
+            <TransformComponent x="-105.8442" y="145.4272" scaleX="0.66000003" scaleY="0.66000003"/>
+        </Entity>
+        <Entity name="Knight2::Light">
+            <EllipseComponent radiusH="48" radiusV="24"/>
+            <LayerComponent name="shadow"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Falloff" enabled="true">
+                    <Uniform name="uHardness" type="float" value="-0.300000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knight2::Light"/>
+            <ParentComponent target="Knight2"/>
+            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
+        </Entity>
+        <Entity name="Knight2::Selection">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <LayerComponent name="selection"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knight2::Selection"/>
+            <ParentComponent target="Knight2"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="192" y="224"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="256" y="192"/>
+        </Entity>
+        <Entity name="Wall_NE7">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
+            </MaterialComponent>
+            <NameComponent name="Wall_NE7"/>
+            <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="64" y="256"/>
+        </Entity>
+        <Entity name="Floor121">
+            <LayerComponent name="tile"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/floor.png"/>
+            </MaterialComponent>
+            <NameComponent name="Floor121"/>
+            <OccluderComponent footprint="0,-16 32,0 0,16 -32,0" height="0" isStatic="true" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="32" cornerRadius="0"/>
+            <TransformComponent x="448" y="160"/>
+        </Entity>
+        <Entity name="WallBack_7">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallBack_7"/>
+            <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="32" y="-80"/>
+        </Entity>
+        <Entity name="WallBack_7">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallBack_7"/>
+            <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="96" y="-48"/>
+        </Entity>
+        <Entity name="WallBack_7">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallBack_7"/>
+            <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="160" y="-16"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="224" y="-16"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="288" y="-48"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="320" y="160"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="384" y="128"/>
+        </Entity>
+        <Entity name="Wall_NE7">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
+            </MaterialComponent>
+            <NameComponent name="Wall_NE7"/>
+            <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="384" y="96"/>
+        </Entity>
+        <Entity name="Wall_NE7">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
+            </MaterialComponent>
+            <NameComponent name="Wall_NE7"/>
+            <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="320" y="64"/>
+        </Entity>
+        <Entity name="Wall_NE7">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
+            </MaterialComponent>
+            <NameComponent name="Wall_NE7"/>
+            <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="288" y="48"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="288" y="16"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="128" y="256"/>
+        </Entity>
+        <Entity name="Wall_NE7">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
+            </MaterialComponent>
+            <NameComponent name="Wall_NE7"/>
+            <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="0" y="224"/>
         </Entity>
     </Entities>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor1">
@@ -135,7 +509,7 @@
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor115">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
-        <Override entity="0" component="TransformComponent" field="y" value="224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="224.30659"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor116">
         <Override entity="0" component="TransformComponent" field="x" value="288"/>
@@ -233,28 +607,271 @@
         <Override entity="0" component="TransformComponent" field="x" value="224"/>
         <Override entity="0" component="TransformComponent" field="y" value="272"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor138">
+        <Override entity="0" component="TransformComponent" field="x" value="160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor139">
+        <Override entity="0" component="TransformComponent" field="x" value="192"/>
+        <Override entity="0" component="TransformComponent" field="y" value="32"/>
+    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor14">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor140">
+        <Override entity="0" component="TransformComponent" field="x" value="256"/>
+        <Override entity="0" component="TransformComponent" field="y" value="64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor141">
+        <Override entity="0" component="TransformComponent" field="x" value="288"/>
+        <Override entity="0" component="TransformComponent" field="y" value="80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor142">
+        <Override entity="0" component="TransformComponent" field="x" value="320"/>
+        <Override entity="0" component="TransformComponent" field="y" value="96"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor143">
+        <Override entity="0" component="TransformComponent" field="x" value="352"/>
+        <Override entity="0" component="TransformComponent" field="y" value="112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor144">
+        <Override entity="0" component="TransformComponent" field="x" value="384"/>
+        <Override entity="0" component="TransformComponent" field="y" value="128"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor145">
+        <Override entity="0" component="TransformComponent" field="x" value="416"/>
+        <Override entity="0" component="TransformComponent" field="y" value="144"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor146">
+        <Override entity="0" component="TransformComponent" field="x" value="224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor147">
+        <Override entity="0" component="TransformComponent" field="x" value="192"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor148">
+        <Override entity="0" component="TransformComponent" field="x" value="224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor149">
+        <Override entity="0" component="TransformComponent" field="x" value="256"/>
+        <Override entity="0" component="TransformComponent" field="y" value="32"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor15">
         <Override entity="0" component="TransformComponent" field="x" value="-96"/>
         <Override entity="0" component="TransformComponent" field="y" value="240"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor150">
+        <Override entity="0" component="TransformComponent" field="x" value="288"/>
+        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor151">
+        <Override entity="0" component="TransformComponent" field="x" value="320"/>
+        <Override entity="0" component="TransformComponent" field="y" value="64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor152">
+        <Override entity="0" component="TransformComponent" field="x" value="384"/>
+        <Override entity="0" component="TransformComponent" field="y" value="64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor153">
+        <Override entity="0" component="TransformComponent" field="x" value="416"/>
+        <Override entity="0" component="TransformComponent" field="y" value="80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor154">
+        <Override entity="0" component="TransformComponent" field="x" value="384"/>
+        <Override entity="0" component="TransformComponent" field="y" value="96"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor155">
+        <Override entity="0" component="TransformComponent" field="x" value="416"/>
+        <Override entity="0" component="TransformComponent" field="y" value="112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor156">
+        <Override entity="0" component="TransformComponent" field="x" value="448"/>
+        <Override entity="0" component="TransformComponent" field="y" value="128"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor157">
+        <Override entity="0" component="TransformComponent" field="x" value="352"/>
+        <Override entity="0" component="TransformComponent" field="y" value="80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor158">
+        <Override entity="0" component="TransformComponent" field="x" value="480"/>
+        <Override entity="0" component="TransformComponent" field="y" value="144"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor159">
+        <Override entity="0" component="TransformComponent" field="x" value="448"/>
+        <Override entity="0" component="TransformComponent" field="y" value="96"/>
+    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor16">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="256"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor160">
+        <Override entity="0" component="TransformComponent" field="x" value="512"/>
+        <Override entity="0" component="TransformComponent" field="y" value="128"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor161">
+        <Override entity="0" component="TransformComponent" field="x" value="480"/>
+        <Override entity="0" component="TransformComponent" field="y" value="112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor162">
+        <Override entity="0" component="TransformComponent" field="x" value="224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor163">
+        <Override entity="0" component="TransformComponent" field="x" value="256"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor164">
+        <Override entity="0" component="TransformComponent" field="x" value="288"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor165">
+        <Override entity="0" component="TransformComponent" field="x" value="320"/>
+        <Override entity="0" component="TransformComponent" field="y" value="32"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor166">
+        <Override entity="0" component="TransformComponent" field="x" value="352"/>
+        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor167">
+        <Override entity="0" component="TransformComponent" field="x" value="128"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor168">
+        <Override entity="0" component="TransformComponent" field="x" value="160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor169">
+        <Override entity="0" component="TransformComponent" field="x" value="192"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-32"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor17">
         <Override entity="0" component="TransformComponent" field="x" value="-32"/>
         <Override entity="0" component="TransformComponent" field="y" value="272"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor170">
+        <Override entity="0" component="TransformComponent" field="x" value="96"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor171">
+        <Override entity="0" component="TransformComponent" field="x" value="128"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-32"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor172">
+        <Override entity="0" component="TransformComponent" field="x" value="160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor173">
+        <Override entity="0" component="TransformComponent" field="y" value="-64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor174">
+        <Override entity="0" component="TransformComponent" field="x" value="32"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor175">
+        <Override entity="0" component="TransformComponent" field="x" value="64"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-96"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor176">
+        <Override entity="0" component="TransformComponent" field="x" value="96"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor177">
+        <Override entity="0" component="TransformComponent" field="x" value="128"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor178">
+        <Override entity="0" component="TransformComponent" field="x" value="96"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor179">
+        <Override entity="0" component="TransformComponent" field="x" value="64"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-32"/>
+    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor18">
         <Override entity="0" component="TransformComponent" field="y" value="256"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor180">
+        <Override entity="0" component="TransformComponent" field="x" value="32"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor181">
+        <Override entity="0" component="TransformComponent" field="x" value="64"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor182">
+        <Override entity="0" component="TransformComponent" field="x" value="96"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor183">
+        <Override entity="0" component="TransformComponent" field="x" value="128"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-96"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor184">
+        <Override entity="0" component="TransformComponent" field="x" value="160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor185">
+        <Override entity="0" component="TransformComponent" field="x" value="192"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor186">
+        <Override entity="0" component="TransformComponent" field="x" value="224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor187">
+        <Override entity="0" component="TransformComponent" field="x" value="256"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-32"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor188">
+        <Override entity="0" component="TransformComponent" field="x" value="288"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor189">
+        <Override entity="0" component="TransformComponent" field="x" value="320"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor19">
         <Override entity="0" component="TransformComponent" field="x" value="32"/>
         <Override entity="0" component="TransformComponent" field="y" value="240"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor190">
+        <Override entity="0" component="TransformComponent" field="x" value="352"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor191">
+        <Override entity="0" component="TransformComponent" field="x" value="384"/>
+        <Override entity="0" component="TransformComponent" field="y" value="32"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor192">
+        <Override entity="0" component="TransformComponent" field="x" value="416"/>
+        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor193">
+        <Override entity="0" component="TransformComponent" field="x" value="448"/>
+        <Override entity="0" component="TransformComponent" field="y" value="64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor194">
+        <Override entity="0" component="TransformComponent" field="x" value="480"/>
+        <Override entity="0" component="TransformComponent" field="y" value="80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor195">
+        <Override entity="0" component="TransformComponent" field="x" value="512"/>
+        <Override entity="0" component="TransformComponent" field="y" value="96"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor196">
+        <Override entity="0" component="TransformComponent" field="x" value="544"/>
+        <Override entity="0" component="TransformComponent" field="y" value="112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor197">
+        <Override entity="0" component="TransformComponent" field="x" value="128"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-128"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor198">
+        <Override entity="0" component="TransformComponent" field="x" value="160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor199">
+        <Override entity="0" component="TransformComponent" field="x" value="224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-80"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor2">
         <Override entity="0" component="TransformComponent" field="x" value="-224"/>
@@ -264,13 +881,119 @@
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor200">
+        <Override entity="0" component="TransformComponent" field="x" value="256"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor201">
+        <Override entity="0" component="TransformComponent" field="x" value="288"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor202">
+        <Override entity="0" component="TransformComponent" field="x" value="320"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-32"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor203">
+        <Override entity="0" component="TransformComponent" field="x" value="352"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor204">
+        <Override entity="0" component="TransformComponent" field="x" value="384"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor205">
+        <Override entity="0" component="TransformComponent" field="x" value="416"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor206">
+        <Override entity="0" component="TransformComponent" field="x" value="448"/>
+        <Override entity="0" component="TransformComponent" field="y" value="32"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor207">
+        <Override entity="0" component="TransformComponent" field="x" value="480"/>
+        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor208">
+        <Override entity="0" component="TransformComponent" field="x" value="512"/>
+        <Override entity="0" component="TransformComponent" field="y" value="64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor209">
+        <Override entity="0" component="TransformComponent" field="x" value="544"/>
+        <Override entity="0" component="TransformComponent" field="y" value="80"/>
+    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor21">
         <Override entity="0" component="TransformComponent" field="x" value="96"/>
         <Override entity="0" component="TransformComponent" field="y" value="208"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor210">
+        <Override entity="0" component="TransformComponent" field="x" value="576"/>
+        <Override entity="0" component="TransformComponent" field="y" value="96"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor211">
+        <Override entity="0" component="TransformComponent" field="x" value="192"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-96"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor212">
+        <Override entity="0" component="TransformComponent" field="x" value="160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-144"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor213">
+        <Override entity="0" component="TransformComponent" field="x" value="192"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-128"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor214">
+        <Override entity="0" component="TransformComponent" field="x" value="224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor215">
+        <Override entity="0" component="TransformComponent" field="x" value="256"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-96"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor216">
+        <Override entity="0" component="TransformComponent" field="x" value="288"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor217">
+        <Override entity="0" component="TransformComponent" field="x" value="320"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor218">
+        <Override entity="0" component="TransformComponent" field="x" value="352"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor219">
+        <Override entity="0" component="TransformComponent" field="x" value="384"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-32"/>
+    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor22">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="192"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor220">
+        <Override entity="0" component="TransformComponent" field="x" value="416"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor221">
+        <Override entity="0" component="TransformComponent" field="x" value="544"/>
+        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor222">
+        <Override entity="0" component="TransformComponent" field="x" value="576"/>
+        <Override entity="0" component="TransformComponent" field="y" value="64"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor223">
+        <Override entity="0" component="TransformComponent" field="x" value="608"/>
+        <Override entity="0" component="TransformComponent" field="y" value="80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor224">
+        <Override entity="0" component="TransformComponent" field="x" value="448"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor225">
+        <Override entity="0" component="TransformComponent" field="x" value="480"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor226">
+        <Override entity="0" component="TransformComponent" field="x" value="512"/>
+        <Override entity="0" component="TransformComponent" field="y" value="32"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor23">
         <Override entity="0" component="TransformComponent" field="x" value="160"/>
@@ -652,9 +1375,6 @@
         <Override entity="0" component="TransformComponent" field="x" value="32"/>
         <Override entity="0" component="TransformComponent" field="y" value="48"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Floor.xml" id="Floor_2_2">
-        <Override entity="0" component="TransformComponent" field="y" value="64"/>
-    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor_2_3">
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
     </PrefabInstance>
@@ -729,15 +1449,6 @@
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Knight.xml" id="Knight2">
-        <Param name="Sprite" value="Sprites/Archer.xml"/>
-        <Override entity="0" component="TransformComponent" field="y" value="64"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Knight.xml" id="Knight3">
-        <Param name="Sprite" value="Sprites/Vampire.xml"/>
-        <Override entity="0" component="TransformComponent" field="x" value="256"/>
-        <Override entity="0" component="TransformComponent" field="y" value="256"/>
-    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar_A">
         <Override entity="0" component="TransformComponent" field="x" value="-32"/>
         <Override entity="0" component="TransformComponent" field="y" value="16"/>
@@ -765,10 +1476,6 @@
     <PrefabInstance src="../Prefabs/Wall_NE.xml" id="WallBack_1">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Wall_NE.xml" id="WallBack_2">
-        <Override entity="0" component="TransformComponent" field="x" value="-64"/>
-        <Override entity="0" component="TransformComponent" field="y" value="256"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Wall_NE.xml" id="WallBack_3">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>
@@ -809,17 +1516,11 @@
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Wall_NW.xml" id="WallRight_4">
-        <Override entity="0" component="TransformComponent" field="x" value="128"/>
-        <Override entity="0" component="TransformComponent" field="y" value="128"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Wall_NW.xml" id="WallRight_5">
-        <Override entity="0" component="TransformComponent" field="x" value="128"/>
-        <Override entity="0" component="TransformComponent" field="y" value="192"/>
+        <Override entity="0" component="TransformComponent" field="x" value="192"/>
+        <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Wall_NW.xml" id="WallRight_6">
-        <Override entity="0" component="TransformComponent" field="y" value="256"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Wall_NE.xml" id="Wall_NE1">
+        <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Wall_NE.xml" id="Wall_NE2">
@@ -830,17 +1531,9 @@
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Wall_NE.xml" id="Wall_NE5">
+    <PrefabInstance src="../Prefabs/Wall_NE.xml" id="Wall_NE6">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Wall_NE.xml" id="Wall_NE6">
-        <Override entity="0" component="TransformComponent" field="x" value="64"/>
-        <Override entity="0" component="TransformComponent" field="y" value="192"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Wall_NE.xml" id="Wall_NE7">
-        <Override entity="0" component="TransformComponent" field="x" value="192"/>
-        <Override entity="0" component="TransformComponent" field="y" value="128"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Wall_NW.xml" id="Wall_NW1">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>

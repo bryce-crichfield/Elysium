@@ -65,6 +65,21 @@ namespace Elysium {
             std::function<void(World*, Entity, const std::string& field, const std::string& value, ServiceLocator&)> applyOverride;
         };
 
+        // Generic per-component operations keyed by XML tag, for code that has to round-trip a
+        // single component without knowing its type — the editor's undo history and clipboard.
+        // Same gate as prefab overrides: a component is only here if XML can round-trip it.
+        struct XmlComponentOps {
+            const char* displayName = nullptr;  // T::Name(), what the inspector tables are keyed by
+            // Serializes the entity's component into `scratch`; null if absent or nothing written.
+            std::function<tinyxml2::XMLElement*(tinyxml2::XMLDocument& scratch, World*, Entity)> serialize;
+            // Loads `element` onto the entity, adding the component if it is missing. Loads on top
+            // of the live value so runtime-only state (a resolved parent Entity, an initialized
+            // script flag) survives a reload of the serialized fields.
+            std::function<void(tinyxml2::XMLElement* element, World*, Entity, ServiceLocator&)> apply;
+            std::function<void(World*, Entity)> remove;
+            std::function<bool(World*, Entity)> has;
+        };
+
         // Register a component type
         template<typename T>
         void Register() {
@@ -136,6 +151,26 @@ namespace Elysium {
                     tinyxml2::XMLElement* after = scratchRoot->LastChildElement();
                     return after != before ? after : nullptr;
                 };
+
+                // 3c. Generic ops for the editor's command history, sharing the same serializer.
+                XmlComponentOps ops;
+                ops.displayName = name;
+                ops.serialize = support.serialize;
+                ops.apply = [](tinyxml2::XMLElement* element, World* w, Entity e, ServiceLocator& services) {
+                    T comp = w->HasComponent<T>(e) ? w->GetComponent<T>(e) : T{};
+                    T::LoadXml(comp, element, services);
+                    if (w->HasComponent<T>(e)) {
+                        w->GetComponent<T>(e) = std::move(comp);
+                    } else {
+                        w->AddComponent<T>(e, std::move(comp));
+                    }
+                };
+                ops.remove = [](World* w, Entity e) {
+                    if (w->HasComponent<T>(e)) w->RemoveComponent<T>(e);
+                };
+                ops.has = [](World* w, Entity e) { return w->HasComponent<T>(e); };
+                xmlComponentOps_[fieldXmlTag] = std::move(ops);
+                xmlTagByName_[name] = fieldXmlTag;
                 support.applyOverride = [fieldXmlTag](World* w, Entity e, const std::string& field, const std::string& value,
                                                       ServiceLocator& services) {
                     if (!w->HasComponent<T>(e)) return;
@@ -230,6 +265,21 @@ namespace Elysium {
 
         const std::unordered_map<std::string, PrefabFieldSupport>& GetPrefabFieldSupport() const { return prefabFieldSupport_; }
 
+        // Generic single-component round-tripping, keyed by XML tag. Null for a component XML
+        // can't round-trip (missing LoadXml or SaveXml), which is also the set of components the
+        // undo history can't record — see ComponentEditCommand.
+        const XmlComponentOps* GetXmlOps(const std::string& xmlTag) const {
+            auto it = xmlComponentOps_.find(xmlTag);
+            return it == xmlComponentOps_.end() ? nullptr : &it->second;
+        }
+        // The XML tag of the component whose T::Name() is `name` (the key the inspector and
+        // placeholder tables use). Empty when it doesn't round-trip through XML.
+        const std::string& GetXmlTag(const std::string& name) const {
+            static const std::string none;
+            auto it = xmlTagByName_.find(name);
+            return it == xmlTagByName_.end() ? none : it->second;
+        }
+
         // A component's typed fields, by display name or XML tag; null if it has none.
         const FieldList* GetFields(const std::string& component) const {
             auto it = fields_.find(component);
@@ -265,6 +315,8 @@ namespace Elysium {
         std::unordered_map<std::string, InspectorFunc> inspectors_;
         std::unordered_map<std::string, InspectorOrder> inspectorOrder_;
         std::unordered_map<std::string, PrefabFieldSupport> prefabFieldSupport_;
+        std::unordered_map<std::string, XmlComponentOps> xmlComponentOps_;
+        std::unordered_map<std::string, std::string> xmlTagByName_;
         std::unordered_map<std::string, FieldList> fields_;
         std::set<std::string> placementOwned_;
         std::vector<std::function<void(sol::state&)>> scriptBinders_;

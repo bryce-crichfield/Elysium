@@ -1,6 +1,7 @@
 #include "ViewportEditor.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <functional>
 #include <optional>
 #include <unordered_map>
@@ -11,7 +12,14 @@
 #include "Interfaces/ISceneService.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
+#include "Core/ComponentRegistry.h"
+#include "Core/EntitySerializer.h"
 #include "Core/World.h"
+#include "Editor/Commands/EditorCommands.h"
+#include "Editor/NavMeshTool.h"
+#include "Editor/Tools/PaintTool.h"
+#include "Editor/Tools/SelectTool.h"
+#include "Editor/Tools/VertexTool.h"
 #include "Core/PrefabInstance.h"
 #include "Components/CameraComponent.h"
 #include "Components/ParentComponent.h"
@@ -106,7 +114,61 @@ void ApplyGizmoStyle(const EditorStyle::Palette& palette) {
 }
 }  // namespace
 
-ViewportEditor::ViewportEditor(ServiceLocator& services) : Editor(services, Title) {}
+ViewportEditor::ViewportEditor(ServiceLocator& services) : Editor(services, Title) {
+    // Order is the toolbar order and the 1-4 shortcuts. Select is first because it is the
+    // default and what an unavailable tool falls back to.
+    tools_.push_back(std::make_unique<SelectTool>());
+    tools_.push_back(std::make_unique<PaintTool>(layerDrawer_));
+    tools_.push_back(std::make_unique<NavMeshTool>());
+    tools_.push_back(std::make_unique<VertexTool>());
+}
+
+ViewportTool* ViewportEditor::ActiveTool() {
+    return activeTool_ >= 0 && activeTool_ < (int)tools_.size() ? tools_[activeTool_].get() : nullptr;
+}
+
+int ViewportEditor::ToolIndex(const char* name) const {
+    for (int i = 0; i < (int)tools_.size(); i++) {
+        if (std::strcmp(tools_[i]->Name(), name) == 0) return i;
+    }
+    return -1;
+}
+
+void ViewportEditor::SetActiveTool(int index, IEditorService& editor) {
+    if (index < 0 || index >= (int)tools_.size() || index == activeTool_) return;
+    if (auto* previous = ActiveTool()) previous->OnDeactivate(editor);
+    activeTool_ = index;
+    tools_[activeTool_]->OnActivate(editor);
+}
+
+void ViewportEditor::DrawToolButtons(IEditorService& editor, bool isScene) {
+    // A tool that has become unusable (its layer got locked, the tab is a prefab) is stepped
+    // away from rather than left active and silently doing nothing.
+    if (auto* active = ActiveTool(); active && active->Unavailable(editor, isScene)) SetActiveTool(0, editor);
+
+    for (int i = 0; i < (int)tools_.size(); i++) {
+        ViewportTool& tool = *tools_[i];
+        const char* why = tool.Unavailable(editor, isScene);
+
+        ImGui::SameLine();
+        ImGui::BeginDisabled(why != nullptr);
+        if (ToggleIconButton(tool.Icon(), activeTool_ == i, why ? why : tool.Tooltip())) SetActiveTool(i, editor);
+        ImGui::EndDisabled();
+    }
+
+    if (auto* active = ActiveTool()) active->DrawToolbar(editor);
+}
+
+void ViewportEditor::HandleToolShortcuts(IEditorService& editor, bool isScene) {
+    if (ImGui::GetIO().WantTextInput) return;
+
+    for (int i = 0; i < (int)tools_.size() && i < 9; i++) {
+        if (!ImGui::IsKeyPressed((ImGuiKey)(ImGuiKey_1 + i), false)) continue;
+        if (!tools_[i]->Unavailable(editor, isScene)) SetActiveTool(i, editor);
+    }
+    // Esc always lands on Select, so there is one key that reliably gets you out of a mode.
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && activeTool_ != 0) SetActiveTool(0, editor);
+}
 
 void ViewportEditor::Draw() {
     Profile;
@@ -252,36 +314,38 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& edit
 
     DrawViewportOverlays(sceneService, editorService, view, imageScreenRect);
 
+    const Vector2 mouseFb = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
     const ViewportInput input{
-        .mouseWorld = Systems::RenderProjector::FramebufferToWorld(sceneService.ScreenToFramebuffer(Input::GetMousePosition()), view),
+        .mouseWorld = Systems::RenderProjector::FramebufferToWorld(mouseFb, view),
+        .mouseFb = mouseFb,
         .worldPerPixel = 1.0f / view.zoom,
         .hovered = imageHovered,
         .clicked = imageClicked,
         .rightClicked = imageRightClicked,
+        .imageScreenRect = imageScreenRect,
     };
 
-    // Tool precedence: paint mode first (its whole job is the left button), then navmesh mode,
-    // then the gizmo, then plain picking and the camera.
+    // The gizmo comes first, and only for a tool that wants it: a paint stroke that also
+    // dragged the last selection around would be unusable.
+    ViewportTool* tool = ActiveTool();
+    const bool gizmoOwnsMouse = tool && tool->UsesGizmo() && HandleGizmo(sceneService, editorService, view, imageScreenRect);
+
     bool toolConsumedClick = false;
-    if (layerDrawer_.PaintMode() && editorService.GetWorld()) {
-        toolConsumedClick = prefabPainter_.HandleInput(*editorService.GetWorld(), editorService, input,
-                                                      layerDrawer_.BrushPrefab());
-    } else {
-        prefabPainter_.EndStroke();
+    if (tool && !gizmoOwnsMouse && editorService.GetWorld()) {
+        ToolContext context = MakeToolContext(sceneService, editorService, view, input);
+        toolConsumedClick = tool->HandleInput(context);
     }
-    if (!toolConsumedClick && navMeshTool_.IsActive() && editorService.GetWorld()) {
-        toolConsumedClick = navMeshTool_.HandleInput(*editorService.GetWorld(), editorService, input);
-    }
-    const bool gizmoOwnsMouse = !layerDrawer_.PaintMode() && HandleGizmo(sceneService, editorService, view, imageScreenRect);
-    // The gizmo gets the mouse first; an already-started pan keeps it until release.
+
     const bool canInteract = imageHovered && !gizmoOwnsMouse && !toolConsumedClick;
     if (canInteract || isPanningCamera_) HandleEditorCameraInput(sceneService, editorService, view, canInteract);
     if (canInteract) {
         HandleGizmoShortcuts(sceneService);
-        if (imageClicked) HandleViewportClick(sceneService, editorService, view);
-        if (imageRightClicked && !navMeshTool_.IsActive() && !layerDrawer_.PaintMode()) {
-            OpenPickMenu(sceneService, editorService, view);
-        }
+        // After the tool, so a tool that uses Escape itself (cancelling a half-laid polygon)
+        // gets it before Escape means "back to Select".
+        const EditorDocument* shown = editorService.GetActiveDocumentInfo();
+        HandleToolShortcuts(editorService, shown && shown->IsScene());
+        // The pick menu is the select tool's right-click; other tools use that button themselves.
+        if (imageRightClicked && tool && tool->UsesGizmo()) OpenPickMenu(sceneService, editorService, view);
     }
     DrawPickMenu(editorService);
 
@@ -289,6 +353,14 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& edit
     if (auto* scene = editorService.GetViewportScene()) {
         const auto* document = editorService.GetActiveDocumentInfo();
         if (document && document->IsScene()) layerDrawer_.Draw(*scene, editorService, imageScreenRect);
+    }
+
+    // The drawer's brush section shows whether painting is on and asks to toggle it; which tool
+    // is active is decided here and nowhere else.
+    const int paintTool = ToolIndex("Paint");
+    layerDrawer_.SetPainting(activeTool_ == paintTool);
+    if (layerDrawer_.TakePaintToggleRequest()) {
+        SetActiveTool(activeTool_ == paintTool ? 0 : paintTool, editorService);
     }
 
     ImGui::EndChild();
@@ -361,13 +433,20 @@ void ViewportEditor::DrawToolbar(IEditorService& editor, const EditorDocument* d
     }
     if (settings) return;
 
-    // Gizmo mode.
+    // Tools first: which one is active decides what the rest of the toolbar even means.
+    const bool isSceneTab = document && document->IsScene();
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
+    DrawToolButtons(editor, isSceneTab);
+
+    // Gizmo mode, for the tool that uses the gizmo.
+    ImGui::BeginDisabled(ActiveTool() && !ActiveTool()->UsesGizmo());
     ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
     if (ToggleIconButton(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT, gizmoMode_ == GizmoMode::Move, "Move (W)")) gizmoMode_ = GizmoMode::Move;
     ImGui::SameLine();
     if (ToggleIconButton(ICON_FA_ROTATE, gizmoMode_ == GizmoMode::Rotate, "Rotate (E)")) gizmoMode_ = GizmoMode::Rotate;
     ImGui::SameLine();
     if (ToggleIconButton(ICON_FA_UP_RIGHT_AND_DOWN_LEFT_FROM_CENTER, gizmoMode_ == GizmoMode::Scale, "Scale (R)")) gizmoMode_ = GizmoMode::Scale;
+    ImGui::EndDisabled();
 
     ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
     DrawOverlaysMenu(overlays_);
@@ -380,21 +459,11 @@ void ViewportEditor::DrawToolbar(IEditorService& editor, const EditorDocument* d
     ImGui::SameLine();
     if (ToggleIconButton(ICON_FA_TABLE_CELLS_LARGE, grid.showGrid, "Show grid")) grid.showGrid = !grid.showGrid;
 
-    const bool isScene = document && document->IsScene();
-    if (!isScene) {
-        if (navMeshTool_.IsActive()) navMeshTool_.SetActive(false);
-        // The drawer and the paint tool are scene-only; a prefab tab has no layer list.
-        layerDrawer_.SetPaintMode(false);
-        layerDrawer_.SetOpen(false);
-    }
-    if (isScene) {
+    // The layer drawer is scene-only; a prefab tab has no layer list.
+    if (!isSceneTab) layerDrawer_.SetOpen(false);
+    if (isSceneTab) {
         ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
         layerDrawer_.DrawToolbarButton();
-        ImGui::SameLine();
-        if (ToggleIconButton(ICON_FA_ROUTE, navMeshTool_.IsActive(), "Navmesh mode")) navMeshTool_.SetActive(!navMeshTool_.IsActive());
-        if (navMeshTool_.IsActive()) navMeshTool_.DrawToolbar();
-        // Painting and navmesh editing both want the left button; entering one leaves the other.
-        if (navMeshTool_.IsActive()) layerDrawer_.SetPaintMode(false);
 
         const std::string& activeLayer = editor.GetActiveLayer();
         if (!activeLayer.empty()) {
@@ -516,10 +585,32 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
                                  const CameraView& view, Rectangle imageScreenRect) {
     auto* world = editorService.GetWorld();
     const auto& selected = editorService.GetSelectedEntities();
-    if (!world || selected.size() != 1 || !world->HasComponent<TransformComponent>(selected[0])) return false;
-    const Entity entity = selected[0];
+    // The gizmo sits on the most recently selected entity and the rest of the selection follows
+    // it by the same delta, so a box-selected row of walls moves as one.
+    if (!world || selected.empty() || !world->HasComponent<TransformComponent>(selected.back())) {
+        gizmoDragEntities_.clear();
+        return false;
+    }
+    const Entity entity = selected.back();
     // Locked layer: no gizmo at all, so there's nothing to drag it by.
-    if (editorService.IsEntityLocked(entity)) return false;
+    if (editorService.IsEntityLocked(entity)) {
+        gizmoDragEntities_.clear();
+        return false;
+    }
+
+    // Everything the drag should carry along: the rest of the selection, minus anything a
+    // selected ancestor already moves (applying the delta twice would double its motion) and
+    // anything on a locked layer.
+    std::vector<Entity> followers;
+    for (Entity other : selected) {
+        if (other == entity || !world->IsAlive(other)) continue;
+        if (!world->HasComponent<TransformComponent>(other)) continue;
+        if (editorService.IsEntityLocked(other)) continue;
+        const bool carriedByAncestor = std::any_of(selected.begin(), selected.end(), [&](Entity ancestor) {
+            return ancestor != other && world->IsAncestorOf(ancestor, other);
+        });
+        if (!carriedByAncestor) followers.push_back(other);
+    }
 
     // A Screen2D entity's position is a game-screen pixel, which the editor shows in the
     // world at view.screenOrigin + p * screenScale; the gizmo works in that world position.
@@ -534,6 +625,10 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
     };
 
     auto& t = world->GetComponent<TransformComponent>(entity);
+    // The primary's local transform before the manipulation, so whatever delta it ends up
+    // receiving can be handed on to the followers.
+    const float wasX = t.localX, wasY = t.localY, wasRotation = t.localRotation;
+    const float wasScaleX = t.localScaleX, wasScaleY = t.localScaleY;
     Matrix4 matrix = EntityMatrix(toShown({ t.worldX, t.worldY }), t.worldRotation, t.worldScaleX, t.worldScaleY);
     const Matrix4 identity;
     const Matrix4 projection = ViewProjection(view);
@@ -597,8 +692,71 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
             if (oldX > 0.0f) t.localScaleX *= std::hypot(m[0], m[1]) / oldX;
             if (oldY > 0.0f) t.localScaleY *= std::hypot(m[4], m[5]) / oldY;
         }
+
+        // Hand the primary's delta to the rest of the selection. Position goes across as an
+        // offset and scale as a ratio, so each entity keeps its own arrangement instead of being
+        // snapped onto the one the gizmo happens to be on.
+        const float deltaX = t.localX - wasX, deltaY = t.localY - wasY;
+        const float deltaRotation = t.localRotation - wasRotation;
+        const float ratioX = wasScaleX != 0.0f ? t.localScaleX / wasScaleX : 1.0f;
+        const float ratioY = wasScaleY != 0.0f ? t.localScaleY / wasScaleY : 1.0f;
+
+        for (Entity follower : followers) {
+            auto& other = world->GetComponent<TransformComponent>(follower);
+            if (gizmoMode_ == GizmoMode::Move) {
+                other.localX += deltaX;
+                other.localY += deltaY;
+            } else if (gizmoMode_ == GizmoMode::Rotate) {
+                other.localRotation += deltaRotation;
+            } else {
+                other.localScaleX *= ratioX;
+                other.localScaleY *= ratioY;
+            }
+        }
     }
+
+    RecordGizmoDrag(editorService, entity, followers);
     return ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+}
+
+void ViewportEditor::RecordGizmoDrag(IEditorService& editorService, Entity primary,
+                                     const std::vector<Entity>& followers) {
+    // The gizmo writes the transform directly on every frame of a drag, and ImGuizmo exposes no
+    // drag-begin or drag-end of its own. Rather than record each frame and merge them, watch the
+    // edge of IsUsing() and snapshot once at each end: the entry is then exactly the drag.
+    auto* world = editorService.GetWorld();
+    const bool dragging = ImGuizmo::IsUsing();
+    const std::string tag = ComponentRegistry::Instance().GetXmlTag(TransformComponent::Name());
+
+    if (dragging && gizmoDragEntities_.empty()) {
+        gizmoDragEntities_.push_back(primary);
+        gizmoDragEntities_.insert(gizmoDragEntities_.end(), followers.begin(), followers.end());
+        gizmoDragBefore_.clear();
+        for (Entity entity : gizmoDragEntities_) {
+            gizmoDragBefore_.push_back(EntityXml::SaveComponent(*world, entity, tag));
+        }
+        return;
+    }
+    if (dragging || gizmoDragEntities_.empty()) return;
+
+    const std::vector<Entity> dragged = std::move(gizmoDragEntities_);
+    const std::vector<std::string> before = std::move(gizmoDragBefore_);
+    gizmoDragEntities_.clear();
+    gizmoDragBefore_.clear();
+
+    static constexpr const char* labels[] = { "Move Entity", "Rotate Entity", "Scale Entity" };
+
+    // One transaction, so dragging six walls is one Ctrl+Z rather than six.
+    editorService.BeginTransaction(labels[(int)gizmoMode_]);
+    for (size_t i = 0; i < dragged.size() && i < before.size(); i++) {
+        if (!world->IsAlive(dragged[i])) continue;
+        std::string after = EntityXml::SaveComponent(*world, dragged[i], tag);
+        if (after == before[i]) continue;  // a click on the gizmo that moved nothing
+        editorService.Execute(std::make_unique<ComponentEditCommand>(
+            EntityRef{ editorService.StableIdOf(dragged[i]) }, tag, before[i], std::move(after),
+            labels[(int)gizmoMode_]));
+    }
+    editorService.EndTransaction();
 }
 
 void ViewportEditor::PlaceDroppedPrefab(ISceneService& sceneService, IEditorService& editorService, const CameraView& view,
@@ -681,30 +839,62 @@ void ViewportEditor::DrawGrid(IEditorService& editorService, const CameraView& v
     }
 }
 
-void ViewportEditor::HandleViewportClick(ISceneService& sceneService, IEditorService& editorService, const CameraView& view) {
-    auto* renderSystem = editorService.GetViewportScene() ? editorService.GetViewportScene()->GetSystem<Systems::RenderSystem>() : nullptr;
-    if (!renderSystem)
-        return;
-
-    Vector2 fbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
+std::vector<Entity> ViewportEditor::PickAt(ISceneService&, IEditorService& editorService, const CameraView& view,
+                                           Vector2 fbPos) const {
+    auto* scene = editorService.GetViewportScene();
+    auto* renderSystem = scene ? scene->GetSystem<Systems::RenderSystem>() : nullptr;
     auto* world = editorService.GetWorld();
-    auto hits = world ? PickTargets(*world, *renderSystem, renderSystem->Pick(fbPos, view)) : std::vector<Entity>{};
+    if (!renderSystem || !world) return {};
+
+    std::vector<Entity> hits = PickTargets(*world, *renderSystem, renderSystem->Pick(fbPos, view));
     // A locked layer is click-through: its entities can't be selected, so you can work on what
     // is behind them without fighting the selection.
-    hits.erase(std::remove_if(hits.begin(), hits.end(),
-                              [&](Entity e) { return editorService.IsEntityLocked(e); }),
+    hits.erase(std::remove_if(hits.begin(), hits.end(), [&](Entity e) { return editorService.IsEntityLocked(e); }),
                hits.end());
+    return hits;
+}
 
-    bool samePos = !hits.empty() && (fbPos - lastClickFbPos_).Length() < Theme().ClickCycleDistance;
-    size_t index = samePos ? (lastClickIndex_ + 1) % hits.size() : 0;
-    lastClickFbPos_ = fbPos;
-    lastClickIndex_ = index;
+std::vector<Entity> ViewportEditor::PickInRect(IEditorService& editorService, Rectangle worldRect) const {
+    auto* scene = editorService.GetViewportScene();
+    auto* renderSystem = scene ? scene->GetSystem<Systems::RenderSystem>() : nullptr;
+    auto* world = editorService.GetWorld();
+    if (!renderSystem || !world) return {};
 
-    if (!hits.empty()) {
-        editorService.SelectEntity(hits[index]);
-    } else {
-        editorService.ClearSelection();
+    auto overlaps = [&](const Rectangle& a) {
+        return a.x <= worldRect.x + worldRect.width && a.x + a.width >= worldRect.x &&
+               a.y <= worldRect.y + worldRect.height && a.y + a.height >= worldRect.y;
+    };
+
+    std::vector<Entity> inside;
+    for (Entity entity : world->GetLivingEntities()) {
+        // A placement is opaque, so the box selects the placement rather than its internals.
+        const Entity target = PrefabInstances::RootOf(*world, entity);
+        if (target != entity) continue;
+        if (editorService.IsEntityLocked(target)) continue;
+
+        const auto info = renderSystem->GetEntityRenderInfo(target);
+        // Screen-space entities are excluded: the box is a world rectangle, and a HUD element's
+        // position isn't in the same space.
+        if (!info.isWorldSpace || !info.bounds || !overlaps(*info.bounds)) continue;
+        if (std::find(inside.begin(), inside.end(), target) == inside.end()) inside.push_back(target);
     }
+    return inside;
+}
+
+ToolContext ViewportEditor::MakeToolContext(ISceneService& sceneService, IEditorService& editorService,
+                                            const CameraView& view, const ViewportInput& input) {
+    auto* scene = editorService.GetViewportScene();
+    ToolContext context{*editorService.GetWorld(), editorService, input};
+    context.pick = [this, &sceneService, &editorService, view, input] {
+        return PickAt(sceneService, editorService, view, input.mouseFb);
+    };
+    context.pickRect = [this, &editorService](Rectangle worldRect) { return PickInRect(editorService, worldRect); };
+    context.worldToScreen = [view, input](Vector2 world) {
+        const Vector2 fb = Systems::RenderProjector::WorldToFramebuffer(world, view);
+        return Vector2{input.imageScreenRect.x + fb.x, input.imageScreenRect.y + fb.y};
+    };
+    context.nav = scene ? scene->GetSystem<Systems::NavMeshSystem>() : nullptr;
+    return context;
 }
 
 // Right-click: everything under the cursor, in click order, to pick from when entities overlap.
@@ -782,19 +972,23 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
 
     OverlayPainter painter(drawList, [&](Vector2 p) { return project(p, true); }, view.zoom, Theme().OverlayLineWidth);
     DrawGrid(editorService, view, imageScreenRect, painter);
+    ViewportTool* tool = ActiveTool();
     SpatialOverlayOptions overlays = overlays_;
-    overlays.navAreas = overlays.navAreas && !navMeshTool_.IsActive();
+    // A tool that draws nav areas itself would otherwise get a second, plainer copy underneath.
+    overlays.navAreas = overlays.navAreas && !(tool && tool->OwnsNavAreaOverlay());
     DrawSpatialOverlays(*world, editorService, overlays, painter);
-    if (auto* scene = editorService.GetViewportScene()) {
-        navMeshTool_.DrawOverlay(*world, editorService, scene->GetSystem<Systems::NavMeshSystem>(), painter);
-    }
-    if (layerDrawer_.PaintMode()) {
+
+    if (tool) {
+        const Vector2 mouseFb = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
         const ViewportInput preview{
-            .mouseWorld = Systems::RenderProjector::FramebufferToWorld(sceneService.ScreenToFramebuffer(Input::GetMousePosition()), view),
+            .mouseWorld = Systems::RenderProjector::FramebufferToWorld(mouseFb, view),
+            .mouseFb = mouseFb,
             .worldPerPixel = 1.0f / view.zoom,
             .hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows),
+            .imageScreenRect = imageScreenRect,
         };
-        prefabPainter_.DrawOverlay(editorService, preview, painter);
+        ToolContext context = MakeToolContext(sceneService, editorService, view, preview);
+        tool->DrawOverlay(context, painter);
     }
 
     // Selection highlight, sized via the entity's RenderableType::Bounds where it has one

@@ -12,10 +12,13 @@
 #include "Core/ComponentRegistry.h"
 #include "Core/Components.h"
 #include "Core/Entity.h"
+#include "Core/EntitySerializer.h"
 #include "Core/Log.h"
 #include "Core/Path.h"
 #include "Core/Prefab.h"
 #include "Core/PrefabInstance.h"
+#include "imgui.h"
+#include "Editor/Commands/EditorCommands.h"
 #include "Editor/PrefabEditing.h"
 #include "Interfaces/IAssetService.h"
 #include "Core/Scene.h"
@@ -71,6 +74,12 @@ Elysium::World* EditorService::GetWorld() const {
 void EditorService::SelectEntity(Entity entity, bool additive) {
     if (!additive) {
         selectedEntities_.clear();
+    } else if (IsSelected(entity)) {
+        // Ctrl-clicking something already selected takes it back out, which is the only way to
+        // correct a multi-selection without starting it over.
+        selectedEntities_.erase(std::remove(selectedEntities_.begin(), selectedEntities_.end(), entity),
+                                selectedEntities_.end());
+        return;
     }
     if (entity != INVALID_ENTITY && !IsSelected(entity)) {
         selectedEntities_.push_back(entity);
@@ -237,6 +246,16 @@ int EditorService::FindDocument(const std::string& fullPath) const {
 void EditorService::AddDocument(std::unique_ptr<EditorDocument> doc) {
     LOG_INFOF("Editor", "Opened %s", doc->fullPath.c_str());
     documents_.push_back(std::move(doc));
+
+    // Parallel entry, so bindings_ and documents_ stay index-aligned even for the documents
+    // (content panes) that have no world to listen to.
+    auto binding = std::make_unique<StableIdBinding>();
+    binding->document = documents_.back().get();
+    if (auto* world = documents_.back()->scene ? documents_.back()->scene->GetWorld() : nullptr) {
+        world->AddWorldListener(binding.get());
+    }
+    stableIdBindings_.push_back(std::move(binding));
+
     SetActiveDocument((int)documents_.size() - 1);
 }
 
@@ -341,6 +360,12 @@ void EditorService::CloseDocument(int index) {
     // Detach from the scene service before the document's scene is destroyed.
     int active = activeDocument_;
     SetActiveDocument(-1);
+    if (index < (int)stableIdBindings_.size()) {
+        if (auto* world = documents_[index]->scene ? documents_[index]->scene->GetWorld() : nullptr) {
+            world->RemoveWorldListener(stableIdBindings_[index].get());
+        }
+        stableIdBindings_.erase(stableIdBindings_.begin() + index);
+    }
     documents_.erase(documents_.begin() + index);
     // Closing the active tab moves to its neighbour, like any tabbed editor.
     if (active > index || (active == index && active >= (int)documents_.size())) active--;
@@ -353,31 +378,275 @@ bool EditorService::SaveActiveDocument() {
         LOG_ERROR("Editor", "Nothing open to save.");
         return false;
     }
-    if (doc->IsPrefab()) return SavePrefabDocument(*doc);
-    if (doc->IsScene()) return SaveScene(*doc->scene, doc->fullPath);
-    return false;
+    const bool saved = doc->IsPrefab()  ? SavePrefabDocument(*doc)
+                       : doc->IsScene() ? SaveScene(*doc->scene, doc->fullPath)
+                                        : false;
+    if (saved) doc->history.MarkSaved();
+    return saved;
 }
+
+// =============================================================================
+// Commands
+// =============================================================================
+
+std::optional<Elysium::CommandContext> EditorService::CommandCtx() {
+    auto* world = GetWorld();
+    if (!world) return std::nullopt;
+    return Elysium::CommandContext{*world, *this, registry_};
+}
+
+Elysium::CommandHistory* EditorService::GetHistory() {
+    auto* doc = ActiveDocument();
+    return doc && doc->scene ? &doc->history : nullptr;
+}
+
+void EditorService::Execute(std::unique_ptr<Elysium::EditorCommand> command) {
+    auto* history = GetHistory();
+    auto context = CommandCtx();
+    if (!history || !context || !command) return;
+    history->Execute(*context, std::move(command));
+}
+
+void EditorService::Undo() {
+    auto* history = GetHistory();
+    auto context = CommandCtx();
+    if (!history || !context || !history->CanUndo()) return;
+    history->Undo(*context);
+    PruneSelection();
+}
+
+void EditorService::Redo() {
+    auto* history = GetHistory();
+    auto context = CommandCtx();
+    if (!history || !context || !history->CanRedo()) return;
+    history->Redo(*context);
+    PruneSelection();
+}
+
+// The grouping calls are no-ops without a document rather than errors, so a caller can wrap a
+// batch unconditionally instead of guarding every one.
+void EditorService::BeginTransaction(const std::string& label) {
+    if (auto* history = GetHistory()) history->BeginTransaction(label);
+}
+
+void EditorService::EndTransaction() {
+    if (auto* history = GetHistory()) history->EndTransaction();
+}
+
+void EditorService::BeginGesture(const std::string& label) {
+    if (auto* history = GetHistory()) history->BeginGesture(label);
+}
+
+void EditorService::EndGesture() {
+    if (auto* history = GetHistory()) history->EndGesture();
+}
+
+void EditorService::PruneSelection() {
+    auto* world = GetWorld();
+    if (!world) return;
+    selectedEntities_.erase(
+        std::remove_if(selectedEntities_.begin(), selectedEntities_.end(),
+                       [world](Entity e) { return !world->IsAlive(e); }),
+        selectedEntities_.end());
+}
+
+// --- Stable entity references -------------------------------------------------------------
+
+uint64_t EditorService::StableIdOf(Entity entity) {
+    auto* doc = ActiveDocument();
+    if (!doc || entity == INVALID_ENTITY) return 0;
+
+    auto existing = doc->stableIdByEntity.find(entity);
+    if (existing != doc->stableIdByEntity.end()) return existing->second;
+
+    const uint64_t id = doc->nextStableId++;
+    doc->stableIdByEntity[entity] = id;
+    doc->entityByStableId[id] = entity;
+    return id;
+}
+
+Entity EditorService::EntityForStableId(uint64_t id) const {
+    auto* doc = ActiveDocument();
+    if (!doc || id == 0) return INVALID_ENTITY;
+    auto it = doc->entityByStableId.find(id);
+    return it == doc->entityByStableId.end() ? INVALID_ENTITY : it->second;
+}
+
+void EditorService::RebindStableId(uint64_t id, Entity entity) {
+    auto* doc = ActiveDocument();
+    if (!doc || id == 0) return;
+
+    // Drop whatever this id pointed at, and any id that entity already had, so the two maps
+    // stay exact inverses of each other.
+    auto previous = doc->entityByStableId.find(id);
+    if (previous != doc->entityByStableId.end()) doc->stableIdByEntity.erase(previous->second);
+
+    if (entity == INVALID_ENTITY) {
+        doc->entityByStableId.erase(id);
+        return;
+    }
+
+    auto stale = doc->stableIdByEntity.find(entity);
+    if (stale != doc->stableIdByEntity.end()) doc->entityByStableId.erase(stale->second);
+
+    doc->entityByStableId[id] = entity;
+    doc->stableIdByEntity[entity] = id;
+}
+
+void EditorService::StableIdBinding::OnEntityDestroyed(Entity entity) {
+    if (!document) return;
+    auto it = document->stableIdByEntity.find(entity);
+    if (it == document->stableIdByEntity.end()) return;
+    document->entityByStableId.erase(it->second);
+    document->stableIdByEntity.erase(it);
+}
+
+
+// =============================================================================
+// Clipboard
+// =============================================================================
+
+namespace {
+// The clipboard document: one <Subtree> per copied root, so a multi-selection pastes as a
+// group rather than as unrelated fragments.
+constexpr const char* kClipboardRoot = "ElysiumClipboard";
+
+// The roots of `selection`. An entity whose ancestor is also selected already travels inside
+// that ancestor's subtree, so copying it separately would duplicate it on paste.
+std::vector<Entity> TopLevelOf(Elysium::World& world, const std::vector<Entity>& selection) {
+    std::vector<Entity> roots;
+    for (Entity entity : selection) {
+        if (!world.IsAlive(entity)) continue;
+        bool covered = false;
+        for (Entity other : selection) {
+            if (other != entity && world.IsAncestorOf(other, entity)) { covered = true; break; }
+        }
+        if (!covered) roots.push_back(entity);
+    }
+    return roots;
+}
+
+Vector2 PositionOf(Elysium::World& world, Entity entity) {
+    if (!world.HasComponent<TransformComponent>(entity)) return {0.0f, 0.0f};
+    const auto& t = world.GetComponent<TransformComponent>(entity);
+    return { t.worldX, t.worldY };
+}
+}  // namespace
+
+void EditorService::CopySelection() {
+    auto* world = GetWorld();
+    if (!world || selectedEntities_.empty()) return;
+
+    const std::vector<Entity> roots = TopLevelOf(*world, selectedEntities_);
+    if (roots.empty()) return;
+
+    tinyxml2::XMLDocument doc;
+    tinyxml2::XMLElement* clipboard = doc.NewElement(kClipboardRoot);
+    doc.InsertFirstChild(clipboard);
+
+    // Each root's offset from the first one, so a paste keeps the arrangement instead of
+    // stacking everything on a single spot.
+    const Vector2 origin = PositionOf(*world, roots.front());
+
+    for (Entity root : roots) {
+        const std::string xml = EntityXml::SaveSubtree(*world, root);
+        if (xml.empty()) continue;
+
+        tinyxml2::XMLDocument parsed;
+        if (parsed.Parse(xml.c_str()) != tinyxml2::XML_SUCCESS || !parsed.RootElement()) continue;
+
+        tinyxml2::XMLNode* copied = parsed.RootElement()->DeepClone(&doc);
+        if (!copied) continue;
+        const Vector2 position = PositionOf(*world, root);
+        copied->ToElement()->SetAttribute("offsetX", position.x - origin.x);
+        copied->ToElement()->SetAttribute("offsetY", position.y - origin.y);
+        clipboard->InsertEndChild(copied);
+    }
+
+    tinyxml2::XMLPrinter printer;
+    doc.Print(&printer);
+    ImGui::SetClipboardText(printer.CStr());
+}
+
+void EditorService::CutSelection() {
+    auto* world = GetWorld();
+    if (!world || selectedEntities_.empty()) return;
+
+    CopySelection();
+    const std::vector<Entity> roots = TopLevelOf(*world, selectedEntities_);
+
+    BeginTransaction("Cut Entities");
+    for (Entity root : roots) DeleteEntity(root);
+    EndTransaction();
+}
+
+bool EditorService::CanPaste() const {
+    const char* text = ImGui::GetClipboardText();
+    return text && std::string(text).find(kClipboardRoot) != std::string::npos;
+}
+
+Entity EditorService::Paste(Vector2 at) {
+    auto* world = GetWorld();
+    const char* text = ImGui::GetClipboardText();
+    if (!world || !text) return INVALID_ENTITY;
+
+    tinyxml2::XMLDocument doc;
+    if (doc.Parse(text) != tinyxml2::XML_SUCCESS) return INVALID_ENTITY;
+    tinyxml2::XMLElement* clipboard = doc.RootElement();
+    if (!clipboard || std::string(clipboard->Name()) != kClipboardRoot) return INVALID_ENTITY;
+
+    const Vector2 anchor = SnapToGrid(at);
+    const std::string layer = GetActiveLayer();
+    Entity first = INVALID_ENTITY;
+    std::vector<Entity> pasted;
+
+    BeginTransaction("Paste");
+    for (tinyxml2::XMLElement* subtree = clipboard->FirstChildElement(); subtree;
+         subtree = subtree->NextSiblingElement()) {
+        if (!CanBeRoot(INVALID_ENTITY)) {
+            LOG_WARNING("Editor", "A prefab has a single root; paste into a scene instead.");
+            break;
+        }
+
+        tinyxml2::XMLPrinter printer;
+        subtree->Accept(&printer);
+
+        const Entity root = EntityXml::LoadSubtree(*world, printer.CStr(), INVALID_ENTITY, registry_);
+        if (root == INVALID_ENTITY) continue;
+
+        if (world->HasComponent<TransformComponent>(root)) {
+            auto& transform = world->GetComponent<TransformComponent>(root);
+            transform.localX = anchor.x + subtree->FloatAttribute("offsetX");
+            transform.localY = anchor.y + subtree->FloatAttribute("offsetY");
+            transform.worldX = transform.localX;
+            transform.worldY = transform.localY;
+        }
+        // Pasted entities join the layer being worked on rather than the one they were copied
+        // from: the active layer is where the user is looking.
+        if (!layer.empty()) {
+            if (world->HasComponent<LayerComponent>(root)) {
+                world->GetComponent<LayerComponent>(root).name = layer;
+            } else {
+                world->AddComponent<LayerComponent>(root, LayerComponent(layer));
+            }
+        }
+
+        RecordSpawn(root, "Paste");
+        pasted.push_back(root);
+        if (first == INVALID_ENTITY) first = root;
+    }
+    EndTransaction();
+
+    // Select what landed, so it can be dragged straight into place.
+    ClearSelection();
+    for (Entity entity : pasted) SelectEntity(entity, true);
+    return first;
+}
+
 
 // =============================================================================
 // Hierarchy edits
 // =============================================================================
-
-namespace {
-// Re-homes `entity` under `parent` (or makes it a root), whatever its ParentComponent said before.
-void Reparent(Elysium::World& world, Entity entity, Entity parent) {
-    if (world.HasComponent<ParentComponent>(entity)) {
-        auto& pc = world.GetComponent<ParentComponent>(entity);
-        if (pc.parent != INVALID_ENTITY) world.RemoveChild(pc.parent, entity);
-        if (parent == INVALID_ENTITY) {
-            world.RemoveComponent<ParentComponent>(entity);
-            return;
-        }
-        pc.parent = INVALID_ENTITY;
-        pc.targetName.clear();  // AddChild fills it with the new parent's name
-    }
-    if (parent != INVALID_ENTITY) world.AddChild(parent, entity);
-}
-}  // namespace
 
 Entity EditorService::DuplicateSubtree(Elysium::World& world, Entity entity, Entity newParent) {
     Entity copy = INVALID_ENTITY;
@@ -402,7 +671,7 @@ Entity EditorService::DuplicateSubtree(Elysium::World& world, Entity entity, Ent
         copy = world.CloneEntity(entity);
     }
 
-    Reparent(world, copy, newParent);
+    EditorOps::Reparent(world, copy, newParent);
 
     // Children, except a placement's own internals (the new placement brought its own).
     const std::vector<Entity> children(world.GetChildren(entity));
@@ -435,9 +704,59 @@ Entity EditorService::CreateEntity(Entity parent) {
         return INVALID_ENTITY;
     }
     Entity entity = world->CreateEntity();
-    if (parent != INVALID_ENTITY) world->AddChild(parent, entity);
+    if (parent != INVALID_ENTITY) {
+        world->AddChild(parent, entity);
+    } else if (const std::string& layer = GetActiveLayer(); !layer.empty()) {
+        // Root entities land on the layer being worked on. The layer drawer's focus is what
+        // the whole placement workflow is organised around, and an entity with no
+        // LayerComponent silently falls back to the default layer, which is rarely the one
+        // that was meant. Children inherit through GetEntityLayer, so they need none.
+        world->AddComponent<LayerComponent>(entity, LayerComponent(layer));
+    }
     SelectEntity(entity);
+    RecordSpawn(entity, "Create Entity");
     return entity;
+}
+
+void EditorService::RecordSpawn(Entity entity, const std::string& label) {
+    if (entity == INVALID_ENTITY) return;
+    auto context = CommandCtx();
+    if (!context) return;
+    Execute(std::make_unique<Elysium::SpawnCommand>(*context, entity, label));
+}
+
+void EditorService::Reparent(Entity entity, Entity parent) {
+    auto* world = GetWorld();
+    if (!world || entity == INVALID_ENTITY || entity == parent) return;
+    if (!world->IsAlive(entity)) return;
+    // Reparenting an entity under its own descendant would detach the whole branch from the
+    // world; World::AddChild has no cycle check of its own.
+    if (parent != INVALID_ENTITY && world->IsAncestorOf(entity, parent)) return;
+    if (parent == INVALID_ENTITY && !CanBeRoot(entity)) {
+        LOG_WARNING("Editor", "A prefab has a single root; keep the entity under it.");
+        return;
+    }
+    if (world->GetParent(entity) == parent) return;
+
+    auto context = CommandCtx();
+    if (!context) return;
+    Execute(std::make_unique<Elysium::ReparentCommand>(*context, entity, parent));
+}
+
+void EditorService::ReorderBefore(Entity entity, Entity sibling) {
+    auto* world = GetWorld();
+    if (!world || entity == INVALID_ENTITY || sibling == INVALID_ENTITY || entity == sibling) return;
+    auto context = CommandCtx();
+    if (!context) return;
+    Execute(std::make_unique<Elysium::ReorderCommand>(*context, entity, sibling, true));
+}
+
+void EditorService::ReorderAfter(Entity entity, Entity sibling) {
+    auto* world = GetWorld();
+    if (!world || entity == INVALID_ENTITY || sibling == INVALID_ENTITY || entity == sibling) return;
+    auto context = CommandCtx();
+    if (!context) return;
+    Execute(std::make_unique<Elysium::ReorderCommand>(*context, entity, sibling, false));
 }
 
 Entity EditorService::DuplicateEntity(Entity entity) {
@@ -458,6 +777,7 @@ Entity EditorService::DuplicateEntity(Entity entity) {
     // Next to the original in the Hierarchy (roots are listed in world order).
     world->MoveEntityAfter(copy, entity);
     SelectEntity(copy);
+    RecordSpawn(copy, "Duplicate Entity");
     return copy;
 }
 
@@ -472,13 +792,17 @@ void EditorService::DeleteEntity(Entity entity) {
         return;
     }
 
-    // Collect the whole subtree first; destroying mutates the child lists.
-    const std::vector<Entity> doomed = world->GetSubtree(entity);
-
-    for (auto it = doomed.rbegin(); it != doomed.rend(); ++it) {
-        selectedEntities_.erase(std::remove(selectedEntities_.begin(), selectedEntities_.end(), *it), selectedEntities_.end());
-        world->DestroyEntity(*it);
+    // Deselect here rather than inside the command: the selection is editor session state,
+    // not document state, so undoing the delete should bring the entity back without also
+    // re-selecting it.
+    for (Entity doomed : world->GetSubtree(entity)) {
+        selectedEntities_.erase(std::remove(selectedEntities_.begin(), selectedEntities_.end(), doomed),
+                                selectedEntities_.end());
     }
+
+    auto context = CommandCtx();
+    if (!context) return;
+    Execute(std::make_unique<Elysium::DeleteEntityCommand>(*context, entity));
 }
 
 // Saving a prefab refreshes every placement of it (direct or nested) in the other open
@@ -691,6 +1015,7 @@ Entity EditorService::InstantiatePrefab(const std::string& fullPath) {
         transform.localY = editorCamera_.position.y;
     }
     SelectEntity(root);
+    RecordSpawn(root, "Place Prefab");
     return root;
 }
 

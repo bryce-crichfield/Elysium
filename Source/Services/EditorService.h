@@ -2,10 +2,13 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include "Core/Entity.h"
+#include "Core/Event.h"
 #include "Core/ServiceLocator.h"
+#include "Core/World.h"  // IWorldListener; needs Entity.h and Event.h ahead of it
 #include "Interfaces/IEditorService.h"
 
 namespace Elysium {
@@ -52,9 +55,31 @@ class EditorService : public IEditorService {
     GridSettings& GetGrid() override;
     Vector2 SnapToGrid(Vector2 world) const override;
 
+    // Commands — see IEditorService. Applied immediately against the active document.
+    void Execute(std::unique_ptr<Elysium::EditorCommand> command) override;
+    Elysium::CommandHistory* GetHistory() override;
+    void Undo() override;
+    void Redo() override;
+    void BeginTransaction(const std::string& label) override;
+    void EndTransaction() override;
+    void BeginGesture(const std::string& label) override;
+    void EndGesture() override;
+
+    uint64_t StableIdOf(Entity entity) override;
+    Entity EntityForStableId(uint64_t id) const override;
+    void RebindStableId(uint64_t id, Entity entity) override;
+
+    void CopySelection() override;
+    void CutSelection() override;
+    Entity Paste(Vector2 at) override;
+    bool CanPaste() const override;
+
     Entity DuplicateEntity(Entity entity) override;
     void DeleteEntity(Entity entity) override;
     Entity CreateEntity(Entity parent = INVALID_ENTITY) override;
+    void Reparent(Entity entity, Entity parent) override;
+    void ReorderBefore(Entity entity, Entity sibling) override;
+    void ReorderAfter(Entity entity, Entity sibling) override;
     bool CanBeRoot(Entity entity) const override;
 
 
@@ -104,6 +129,26 @@ class EditorService : public IEditorService {
     // The active document's state, created on demand. Falls back to a scratch entry when no
     // document is open so callers never get a null.
     DocumentEditState& EditState() const;
+
+    // Keeps a document's stable-id bindings honest by unbinding an id the moment its entity is
+    // destroyed, by whatever route — a command, a prefab respawn, Unpack. Without this, a
+    // destroyed entity's index gets recycled and a command holding the old id would silently
+    // resolve to whatever unrelated entity now occupies that slot.
+    struct StableIdBinding : Elysium::IWorldListener {
+        EditorDocument* document = nullptr;
+        void OnEntityDestroyed(Entity entity) override;
+    };
+    // One per document, parallel to documents_ and torn down with it.
+    std::vector<std::unique_ptr<StableIdBinding>> stableIdBindings_;
+
+    // Builds the context commands act through. Null when the active tab has no world.
+    std::optional<Elysium::CommandContext> CommandCtx();
+    // Drops entities that no longer exist from the selection, after an undo or redo.
+    void PruneSelection();
+    // Records an entity the editor has just finished creating, so it can be undone. The work
+    // is already done by the time this runs — callers need the new Entity back to keep
+    // configuring it — which is why SpawnCommand's first Do() is deliberately a no-op.
+    void RecordSpawn(Entity entity, const std::string& label);
 
     std::vector<std::unique_ptr<EditorDocument>> documents_;
     int activeDocument_ = -1;

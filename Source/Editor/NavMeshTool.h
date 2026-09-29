@@ -4,44 +4,43 @@
 #include "Components/NavAreaComponent.h"
 #include "Core/Entity.h"
 #include "Core/MathTypes.h"
-#include "Editor/PolygonHandles.h"
+#include "Editor/Tools/ViewportTool.h"
 
 namespace Elysium {
 class World;
 class OverlayPainter;
 namespace Services { class IEditorService; }
-namespace Systems { class NavMeshSystem; }
 
-struct ViewportInput {
-    Vector2 mouseWorld;
-    float worldPerPixel = 1.0f;
-    bool hovered = false;
-    bool clicked = false;
-    bool rightClicked = false;
-};
-
-// Viewport navmesh mode: shows the bake and paints NavArea entities.
-class NavMeshTool {
+// Viewport navmesh mode: shows the bake and lays out NavArea entities.
+//
+// Laying out and reshaping are deliberately different tools. This one draws new areas and picks
+// or deletes existing ones; correcting an outline afterwards is the vertex tool's job, which
+// does the same thing for occluder footprints and would only have been duplicated here.
+class NavMeshTool : public ViewportTool {
 public:
-    bool IsActive() const { return active_; }
-    void SetActive(bool active);
+    const char* Name() const override { return "Navmesh"; }
+    const char* Icon() const override;
+    const char* Tooltip() const override { return "Navmesh (3) - lay out walkable, blocked and cost areas"; }
 
-    void DrawToolbar();
-    void DrawOverlay(World& world, Services::IEditorService& editor, const Systems::NavMeshSystem* nav, OverlayPainter& painter);
-    bool HandleInput(World& world, Services::IEditorService& editor, const ViewportInput& input);
+    // The generic nav-area overlay would draw underneath this tool's own.
+    bool OwnsNavAreaOverlay() const override { return true; }
+    const char* Unavailable(Services::IEditorService& editor, bool isScene) const override;
+
+    void OnActivate(Services::IEditorService& editor) override;
+    void OnDeactivate(Services::IEditorService& editor) override;
+
+    void DrawToolbar(Services::IEditorService& editor) override;
+    void DrawOverlay(ToolContext& context, OverlayPainter& painter) override;
+    bool HandleInput(ToolContext& context) override;
 
 private:
     void ClosePolygon(World& world, Services::IEditorService& editor);
     std::optional<Entity> AreaAt(World& world, Vector2 mouseWorld) const;
 
     static std::vector<Vector2> WorldPolygon(World& world, Entity area);
-    static void SetWorldPolygon(World& world, Entity area, const std::vector<Vector2>& worldPoints);
 
-    bool active_ = false;
     std::optional<NavAreaType> brush_;
     std::vector<Vector2> inProgress_;
-    PolygonHandles handles_;
-    Entity editing_ = INVALID_ENTITY;
 };
 
 }  // namespace Elysium
