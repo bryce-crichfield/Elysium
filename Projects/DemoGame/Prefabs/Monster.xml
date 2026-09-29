@@ -15,7 +15,7 @@
             </ScriptComponent>
             <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="" sequenceName=""/>
             <TeamComponent team="0"/>
-            <TransformComponent x="0" y="0" scaleX="0.33000001" scaleY="0.33000001"/>
+            <TransformComponent x="0" y="0" scaleX="0.66" scaleY="0.66"/>
         </Entity>
         <Entity id="1">
             <EllipseComponent radiusH="500" radiusV="250"/>

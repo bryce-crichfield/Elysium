@@ -10,5 +10,5 @@
         <Sequence name="southeast" indicies="7:*"/>
     </Sequences>
     <Sheet name="Run" path="Textures/Sprites/Knight/Knight_run_jog.png" normal="Textures/Sprites/Knight/Knight_run_jog_normal.png" rows="8" columns="10"/>
-    <Sheet name="Idle" path="Textures/Sprites/Knight/Knight_idle.png" normal="Textures/Sprites/Knight/Knight_idle_normal.png" rows="8" columns="25"/>
+    <Sheet name="Idle" path="Textures/Sprites/Knight/Knight_idle.png" normal="Textures/Sprites/Knight/Knight_idle_normal.png" rows="8" columns="13"/>
 </Sprite>

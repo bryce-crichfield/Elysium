@@ -57,7 +57,11 @@ vec3 SurfaceNormal(float sd, vec2 p, vec2 uv, vec4 color)
     {
         vec3 n = texture(e_NormalMap, TexUV(texel)).rgb * 2.0 - 1.0;
         if (uNormalGreenDown) n.y = -n.y;
-        return vec3(n.xy * mirror, n.z);
+        // Normalize: a normal map's texels are unit vectors, but any filtering between them
+        // is a linear blend, which shortens the result. Mip levels and a magnified or
+        // downscaled sheet both produce short vectors, and a short normal reads to the
+        // lighting pass as a dim surface.
+        return normalize(vec3(n.xy * mirror, n.z));
     }
     if (uBevel <= 0.0) return vec3(0.0, 0.0, 1.0);
     // Alpha rises inward, so its negated gradient points out of the silhouette.

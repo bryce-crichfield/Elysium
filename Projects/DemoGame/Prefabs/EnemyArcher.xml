@@ -19,7 +19,7 @@
                 <Script name="Scripts/Elysium/Unit.lua"/>
             </ScriptComponent>
             <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="Idle" sequenceName="south"/>
-            <TransformComponent x="0" y="0"/>
+            <TransformComponent x="0" y="0" scaleX="2" scaleY="2"/>
         </Entity>
     </Entities>
 </Prefab>

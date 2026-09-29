@@ -85,7 +85,7 @@
             <ScriptComponent/>
             <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="" sequenceName=""/>
             <TeamComponent team="0"/>
-            <TransformComponent x="-136.04587" y="43.048061" scaleX="0.33000001" scaleY="0.33000001"/>
+            <TransformComponent x="-136.04587" y="43.048061" scaleX="0.66" scaleY="0.66"/>
         </Entity>
         <Entity name="Monster1::Unit6::Unit::Light">
             <EllipseComponent radiusH="500" radiusV="250"/>

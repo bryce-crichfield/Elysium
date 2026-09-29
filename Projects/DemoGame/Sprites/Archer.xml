@@ -9,6 +9,6 @@
         <Sequence name="north" indicies="5:*"/>
         <Sequence name="northeast" indicies="4:*"/>
     </Sequences>
-    <Sheet name="Idle" path="Textures/Sprites/Archer/Archer_idle_bored.png" normal="Textures/Sprites/Archer/Archer_idle_bored_normal.png" rows="8" columns="31"/>
+    <Sheet name="Idle" path="Textures/Sprites/Archer/Archer_idle_bored.png" normal="Textures/Sprites/Archer/Archer_idle_bored_normal.png" rows="8" columns="16"/>
     <Sheet name="Run" path="Textures/Sprites/Archer/Archer_run.png" normal="Textures/Sprites/Archer/Archer_run_normal.png" rows="8" columns="9"/>
 </Sprite>
