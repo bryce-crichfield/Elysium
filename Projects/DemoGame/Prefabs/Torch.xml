@@ -1,0 +1,18 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <CircleComponent radius="5"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="194" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uEmission" type="float" value="0.500000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.800000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.326493 0.050000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Torch"/>
+            <TransformComponent x="-40.396248" y="26.148567"/>
+        </Entity>
+    </Entities>
+</Prefab>

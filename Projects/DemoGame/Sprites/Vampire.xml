@@ -1,0 +1,14 @@
+<Sprite name="Vampire" originX="0.52401549" originY="0.7769773">
+    <Sequences>
+        <Sequence name="south" indicies="0:*"/>
+        <Sequence name="southwest" indicies="1:*"/>
+        <Sequence name="west" indicies="2:*"/>
+        <Sequence name="northwest" indicies="3:*"/>
+        <Sequence name="north" indicies="4:*"/>
+        <Sequence name="northeast" indicies="5:*"/>
+        <Sequence name="east" indicies="6:*"/>
+        <Sequence name="southeast" indicies="7:*"/>
+    </Sequences>
+    <Sheet name="Run" path="Textures/Sprites/Vampire/Knight_run.png" normal="Textures/Sprites/Vampire/Knight_run_normal.png" rows="8" columns="9"/>
+    <Sheet name="Idle" path="Textures/Sprites/Vampire/Knight_idle_breathing.png" normal="Textures/Sprites/Vampire/Knight_idle_breathing_normal.png" rows="8" columns="30"/>
+</Sprite>

@@ -5,6 +5,7 @@
 #include "Core/System.h"
 #include "Editor/AssetStyle.h"
 #include "Editor/Widgets.h"
+#include "Interfaces/IEditorService.h"
 #include "Interfaces/ISceneService.h"
 
 namespace Elysium {
@@ -36,6 +37,7 @@ void SceneSettings::Draw(Scene& scene) {
     auto& service = services_.Get<ISceneService>();
     BeginKindSettings(AssetKind::Scene, "SceneSettings", service.GetSceneName(&scene) + " Settings");
     DrawProperties(service, scene);
+    DrawGrid();
     DrawLayers(scene);
     DrawSystems(scene);
     EndKindSettings();
@@ -60,6 +62,40 @@ void SceneSettings::DrawProperties(ISceneService& service, Scene& scene) {
     if (registration != service.GetSceneRegistry().end() && !registration->second.xmlPath.empty()) {
         ReadOnlyRow("Source", registration->second.xmlPath.c_str());
     }
+}
+
+void SceneSettings::DrawGrid() {
+    auto& grid = services_.Get<IEditorService>().GetGrid();
+
+    SectionHeader("Grid");
+    MutedText("Editing aid only — not saved with the scene");
+
+    static const char* kLattices[] = {"Square", "Isometric"};
+    EnumRow("Lattice", grid.lattice, kLattices, IM_ARRAYSIZE(kLattices));
+
+    PropertyLabel(grid.lattice == GridLattice::Isometric ? "Diamond Width" : "Cell Width");
+    ImGui::DragFloat("##gridWidth", &grid.width, 1.0f, 1.0f, 4096.0f, "%.0f");
+    PropertyLabel(grid.lattice == GridLattice::Isometric ? "Diamond Height" : "Cell Height");
+    ImGui::DragFloat("##gridHeight", &grid.height, 1.0f, 1.0f, 4096.0f, "%.0f");
+
+    // Subdividing beats resizing when you want half-tile placement but the same visible grid.
+    PropertyLabel("Subdivide");
+    static const char* kDivisors[] = {"1", "2", "4", "8"};
+    const int values[] = {1, 2, 4, 8};
+    int index = 0;
+    for (int i = 0; i < IM_ARRAYSIZE(values); ++i) {
+        if (values[i] == grid.divisor) index = i;
+    }
+    if (ImGui::Combo("##gridDivisor", &index, kDivisors, IM_ARRAYSIZE(kDivisors))) grid.divisor = values[index];
+
+    PropertyLabel("Snap");
+    ImGui::Checkbox("##gridSnap", &grid.snapEnabled);
+    PropertyLabel("Show");
+    ImGui::Checkbox("##gridShow", &grid.showGrid);
+
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "%.1f x %.1f", grid.Cell().x, grid.Cell().y);
+    ReadOnlyRow("Snaps to", buffer);
 }
 
 void SceneSettings::DrawLayers(Scene& scene) {

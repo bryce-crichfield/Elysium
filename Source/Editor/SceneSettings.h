@@ -20,6 +20,9 @@ public:
 
 private:
     void DrawProperties(Services::ISceneService& service, Scene& scene);
+    // The editing grid. Deliberately not part of SceneConfiguration: it's a tool setting, so it
+    // lives in IEditorService for the session and is never written to the scene file.
+    void DrawGrid();
     void DrawLayers(Scene& scene);
     void DrawSystems(Scene& scene);
     void DrawSystemParameters(System& system);

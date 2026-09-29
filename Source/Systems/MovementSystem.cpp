@@ -1,6 +1,7 @@
 #include "Systems/MovementSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Systems/SpatialSystem.h"
+#include "Systems/NavMeshSystem.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
@@ -16,22 +17,24 @@ static constexpr float STUCK_DIST_THRESHOLD    = 4.0f;
 static constexpr int   WAIT_MIN_MS             = 100;
 static constexpr int   WAIT_MAX_MS             = 400;
 static constexpr int   MAX_REPLAN_ATTEMPTS      = 5;
-static constexpr float WAYPOINT_ARRIVE_DIST     = 2.0f;
+static constexpr float WAYPOINT_ARRIVE_MIN      = 6.0f;   // px; grows with per-frame travel so we never overshoot-oscillate
+static constexpr float ARRIVE_SLOWDOWN_DIST     = 24.0f;  // ease into the final goal over this distance
 
 float MathLerp(float start, float end, float t) {
     return start + t * (end - start);
 }
 
 void MovementSystem::Update(float deltaTime) {
-    if (!spatialSystem_) {
-        spatialSystem_ = scene->GetSystem<SpatialSystem>();
-    }
+    if (!spatialSystem_) spatialSystem_ = scene->GetSystem<SpatialSystem>();
+    if (!navMesh_)       navMesh_       = scene->GetSystem<NavMeshSystem>();
 
     // Consume the MoveCommand queue.  
     while (!moveCommands_.empty()) {
         MoveCommand cmd = moveCommands_.front();
         moveCommands_.pop();
 
+        if (!world->HasComponent<TransformComponent>(cmd.entity) ||
+            !world->HasComponent<MovementComponent>(cmd.entity)) continue;  // not a mover
         auto& transform = world->GetComponent<TransformComponent>(cmd.entity);
         auto& mv = world->GetComponent<MovementComponent>(cmd.entity);
 
@@ -43,7 +46,12 @@ void MovementSystem::Update(float deltaTime) {
         mv.stuckCheckAccumMs = 0;
 
         // Perform A* pathfinding and set the result to mv.waypoints.
-        std::vector<Vector2> result = spatialSystem_->FindPath(Vector2{transform.worldX, transform.worldY}, cmd.target);
+        // NavMeshSystem (baked from prefab NavAreas + static colliders) is the pathfinding
+        // authority when the scene has one; SpatialSystem's tilemap grid is the fallback.
+        Vector2 from{transform.worldX, transform.worldY};
+        std::vector<Vector2> result;
+        if (navMesh_)            result = navMesh_->FindPath(from, cmd.target);
+        else if (spatialSystem_) result = spatialSystem_->FindPath(from, cmd.target);
         mv.waypoints = std::move(result);
 
         // If no path found, consider going Idle or just setting goal directly.
@@ -121,14 +129,24 @@ void MovementSystem::Update(float deltaTime) {
             }
 
             // --- WAYPOINT FOLLOWING ---
-            // Pop waypoints we've reached.
+            // Pop waypoints we've reached. The radius scales with how far we move per frame,
+            // otherwise a fast unit overshoots a 2px target and oscillates around it.
+            const float arriveDist = std::max(WAYPOINT_ARRIVE_MIN, kin.maxSpeed * deltaTime * 1.5f);
             while (mv.currentWaypointIndex < (int)mv.waypoints.size()) {
                 Vector2 wp = mv.waypoints[mv.currentWaypointIndex];
                 float dist = (currentPos - wp).Length();
-                if (dist < WAYPOINT_ARRIVE_DIST) {
+                if (dist < arriveDist) {
                     mv.currentWaypointIndex++;
                 } else {
                     break;
+                }
+            }
+            // Look ahead: if we can already see a later waypoint, steer for it. This re-pulls
+            // the string from where the unit actually is, so corners are rounded smoothly instead
+            // of walked to the exact cell centre and turned at.
+            if (navMesh_) {
+                for (int i = (int)mv.waypoints.size() - 1; i > mv.currentWaypointIndex; --i) {
+                    if (navMesh_->HasLineOfSight(currentPos, mv.waypoints[i])) { mv.currentWaypointIndex = i; break; }
                 }
             }
 
@@ -144,10 +162,16 @@ void MovementSystem::Update(float deltaTime) {
                 return;
             }
 
-            // Steer toward current waypoint.
+            // Steer toward current waypoint, easing in on the final one so we settle rather than overshoot.
             Vector2 wp = mv.waypoints[mv.currentWaypointIndex];
-            Vector2 dir = (wp - currentPos).Normalized();
-            kin.velocity = dir * kin.maxSpeed;
+            Vector2 toWp = wp - currentPos;
+            Vector2 dir = toWp.Normalized();
+            float speed = kin.maxSpeed;
+            const bool lastWaypoint = mv.currentWaypointIndex == (int)mv.waypoints.size() - 1;
+            if (lastWaypoint && toWp.Length() < ARRIVE_SLOWDOWN_DIST) {
+                speed = kin.maxSpeed * std::max(0.25f, toWp.Length() / ARRIVE_SLOWDOWN_DIST);
+            }
+            kin.velocity = dir * speed;
         }
     );
 

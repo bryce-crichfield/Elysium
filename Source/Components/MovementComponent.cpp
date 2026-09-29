@@ -5,6 +5,22 @@
 #include "imgui.h"
 
 namespace Elysium {
+    static const char* StateName(MovementState s) {
+        switch (s) {
+            case MovementState::Moving:  return "Moving";
+            case MovementState::Waiting: return "Waiting";
+            case MovementState::Idle:    return "Idle";
+        }
+        return "Idle";
+    }
+
+    void MovementComponent::SaveXml(const MovementComponent& c, XMLBuilder& builder) {
+        builder.AddElement("MovementComponent")
+            .SetAttribute("state", StateName(c.state))
+            .SetAttribute("goalX", c.goal.x)
+            .SetAttribute("goalY", c.goal.y);
+    }
+
     void MovementComponent::LoadXml(MovementComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         // state
         const char* stateStr = el->Attribute("state");

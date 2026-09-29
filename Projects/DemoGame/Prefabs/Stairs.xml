@@ -1,0 +1,15 @@
+<!-- Stairs: art only. Make them expensive to path over by painting a Cost area over them in the scene (viewport navmesh mode). -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <NameComponent name="Stairs"/>
+            <TransformComponent x="0" y="0"/>
+            <LayerComponent name="tile"/>
+            <RectangleComponent width="64" height="32" cornerRadius="0" originX="0.5" originY="0.5000"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/stairs.png"/>
+            </MaterialComponent>
+            <OccluderComponent footprint="0,-16 32,0 0,16 -32,0" height="0" isStatic="true" mode="None"/>
+        </Entity>
+    </Entities>
+</Prefab>

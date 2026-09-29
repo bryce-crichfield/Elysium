@@ -21,3 +21,6 @@
 #include "Components/ShaderComponent.h"
 #include "Components/MaterialComponent.h"
 #include "Components/PrefabInstanceComponent.h"
+#include "Components/ColliderComponent.h"
+#include "Components/OccluderComponent.h"
+#include "Components/NavAreaComponent.h"

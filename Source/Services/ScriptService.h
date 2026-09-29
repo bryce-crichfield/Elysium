@@ -4,6 +4,7 @@
 #include "Interfaces/IScriptService.h"
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include "Core/Entity.h"
 #include "Core/Event.h"
 #include "Core/Path.h"
@@ -56,6 +57,13 @@ private:
     // Active Instances per Scene Script
     // Key: Script Path -> Instance table
     std::unordered_map<Path, sol::table> sceneScriptInstances;
+
+    // Scene hooks already reported missing, so the warning is once per script rather than once
+    // per frame. Key: "<script path>:<hook>".
+    std::unordered_set<std::string> warnedMissingHooks_;
+    // Warns the first time `hook` is missing on a scene script; returns false so callers can
+    // `return WarnMissingSceneHook(...)` in place of a silent `return false`.
+    bool WarnMissingSceneHook(const Path& scriptPath, const char* hook);
 
     void InitLuaContext();
     void BindEntityAPI();

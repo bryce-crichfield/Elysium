@@ -7,6 +7,7 @@
 namespace Elysium::Systems {
 
 class SpatialSystem;
+class NavMeshSystem;
 
 struct MoveCommand {
     Entity entity;
@@ -16,7 +17,8 @@ struct MoveCommand {
 class MovementSystem : public System {
    private:
     std::queue<MoveCommand> moveCommands_;       // System will route entities towards these targets using pathfinding  
-    SpatialSystem* spatialSystem_ = nullptr;
+    SpatialSystem* spatialSystem_ = nullptr;   // legacy tilemap grid
+    NavMeshSystem* navMesh_ = nullptr;         // preferred when the scene has one
 
    public:
     MovementSystem(Context context) : System(context) {}

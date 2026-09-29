@@ -47,8 +47,9 @@ class HierarchyEditor : public Editor {
     void BeginCreatePrefab(Services::IEditorService& service, Entity entity);
     void DrawCreatePrefabDialog(Services::IEditorService& service);
 
-    // True when `entity` passes both the name search and the Lua filter.
-    bool PassesFilters(const World& world, Entity entity) const;
+    // True when `entity` passes the name search, the Lua filter, and the focused layer (set in
+    // the Viewport's layer drawer — empty means every layer).
+    bool PassesFilters(const Services::IEditorService& service, const World& world, Entity entity) const;
 
     bool showHierarchyView_ = true;
     bool showLuaFilter_ = false;

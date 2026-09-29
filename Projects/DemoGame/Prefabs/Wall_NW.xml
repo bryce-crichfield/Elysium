@@ -1,0 +1,20 @@
+<!-- Wall segment along one isometric tile edge (NW). Anchor = footprint centre; the Rectangle origin puts the footprint line on the anchor so RenderSorter's Y-sort matches the eye. Footprint and collider share one polygon; the occluder extrudes it 48px. 'Mode' is exposed so placements can pick FadeSelf / TintOccluded / None. -->
+<Prefab>
+    <Parameters>
+        <Parameter name="Mode" entity="0" component="OccluderComponent" field="mode"/>
+        <Parameter name="FadeAlpha" entity="0" component="OccluderComponent" field="fadeAlpha"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <NameComponent name="WallNW"/>
+            <TransformComponent x="0" y="0"/>
+            <LayerComponent name="entity"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.8000"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <ColliderComponent points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.4" tint="#5A8CFFFF"/>
+        </Entity>
+    </Entities>
+</Prefab>

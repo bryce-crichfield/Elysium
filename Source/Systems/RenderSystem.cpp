@@ -613,6 +613,11 @@ void RenderSorter::Build(World& world, Scene& scene, const std::vector<DrawComma
     std::stable_sort(layers_.begin(), layers_.end(), [](const SceneLayer& a, const SceneLayer& b) {
         return a.zIndex < b.zIndex;
     });
+    // The editor's hide/solo, applied to this local copy only — the scene's own SceneLayer
+    // flags are never touched, so hiding a layer to work on another can't be saved into the file.
+    for (auto& layer : layers_) {
+        if (hiddenLayerOverride_.contains(layer.name)) layer.isVisible = false;
+    }
 
     layerNameToIndex_.clear();
     layerNameToIndex_.reserve(layers_.size());

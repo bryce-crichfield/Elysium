@@ -29,6 +29,9 @@ namespace Elysium {
         static constexpr const char* XmlTag() { return "MovementComponent"; }
 
         static void LoadXml(MovementComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
+        // Persists only the authored state (state/goal); waypoints and stuck timers are runtime.
+        // Without a saver the prefab/scene savers silently drop the component on save.
+        static void SaveXml(const MovementComponent& c, XMLBuilder& builder);
         static void Inspect(MovementComponent& c, Entity e, ServiceLocator& services);
         static void BindLua(sol::usertype<MovementComponent>& ut);
         static void SetFromLua(MovementComponent& c, sol::object v);

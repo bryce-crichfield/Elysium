@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>  // TextEditor.h uses uint8_t/uint64_t without including it (GCC 16 no longer does transitively)
 #include <fstream>
 #include <sstream>
 

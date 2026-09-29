@@ -1,0 +1,14 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="tile"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/floor.png"/>
+            </MaterialComponent>
+            <NameComponent name="Floor"/>
+            <OccluderComponent footprint="0,-16 32,0 0,16 -32,0" height="0" isStatic="true" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="32" cornerRadius="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

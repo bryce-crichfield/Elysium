@@ -39,6 +39,31 @@ void PhysicsResponseSystem::Update(float deltaTime) {
         auto& transformA = world->GetComponent<TransformComponent>(a);
         auto& transformB = world->GetComponent<TransformComponent>(b);
 
+        // Split the push: if both dynamic, each takes half; if one static, dynamic takes all.
+        float aShare = aKin ? (bKin ? 0.5f : 1.0f) : 0.0f;
+        float bShare = bKin ? (aKin ? 0.5f : 1.0f) : 0.0f;
+
+        // A circle was involved, so CollisionSystem produced a real contact normal. Separate
+        // along it and cancel only the velocity heading into the surface — an axis-aligned push
+        // would shove two agents apart in screen y (isometric depth) no matter how they met.
+        const Contact* contact = collisionSystem->GetContact(a, b);
+        if (contact && contact->radial) {
+            const Vector2 n = contact->normal;  // pushes a away from b
+            auto separate = [&](Entity e, TransformComponent& transform, Vector2 push, float share) {
+                if (share <= 0.0f) return;
+                // world* is a cache TransformSystem overwrites next frame, so the correction is
+                // applied to local* (the delta is the same either way).
+                transform.localX += push.x * contact->depth * share;
+                transform.localY += push.y * contact->depth * share;
+                auto& kin = world->GetComponent<KinematicsComponent>(e);
+                float into = Dot(kin.velocity, push);
+                if (into < 0.0f) kin.velocity = kin.velocity - push * into;
+            };
+            separate(a, transformA, n, aShare);
+            separate(b, transformB, n * -1.0f, bShare);
+            continue;
+        }
+
         // Compute centers (position is entity anchor; collider offset shifts the AABB center)
         float centerAX = transformA.worldX + ca.offsetX;
         float centerAY = transformA.worldY + ca.offsetY;
@@ -54,10 +79,6 @@ void PhysicsResponseSystem::Update(float deltaTime) {
         // CollisionSystem uses CheckCollisionRecs which can produce near-zero overlap on edges;
         // a small guard avoids jitter on resting contacts.
         if (overlapX <= 0.0f || overlapY <= 0.0f) continue;
-
-        // Split the push: if both dynamic, each takes half; if one static, dynamic takes all.
-        float aShare = aKin ? (bKin ? 0.5f : 1.0f) : 0.0f;
-        float bShare = bKin ? (aKin ? 0.5f : 1.0f) : 0.0f;
 
         if (overlapX < overlapY) {
             // Minimum penetration is along X — push horizontally

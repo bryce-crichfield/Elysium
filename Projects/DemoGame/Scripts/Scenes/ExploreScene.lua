@@ -15,8 +15,9 @@ function ExploreScene:Initialize()
     self.portraitBar = PortraitBar.new()
     self.selection   = Selection.new(function(e) return HasComponent(e, "Kinematics") end)
 
-    local cam = GetEntityByName("CAMERA")
-    self.cameraEntity = (cam ~= 0) and cam or nil
+    -- GetEntityByName returns nil when there is no match; entity 0 is a real entity, so testing
+    -- against 0 would discard the first entity the scene loaded.
+    self.cameraEntity = GetEntityByName("CAMERA")
 
     Log("ExploreScene initialized")
 end
@@ -78,7 +79,7 @@ function ExploreScene:Render()
             {r=255, g=0, b=0, a=160}, "selection")
 
         local cursor = GetEntityByName("CURSOR")
-        if cursor and cursor ~= 0 then
+        if cursor then
             local pos = GetComponent(cursor, "Transform")
             if pos then pos.localX = cx; pos.localY = cy end
         end
@@ -114,6 +115,9 @@ function ExploreScene:OnEvent(event)
 			return true
         elseif event.key == KEY_I then
             ScenePush("InventoryScene")
+            return true
+        elseif event.key == KEY_P then
+            SceneReplace("PrefabScene")   -- tile-free prefab / navmesh / occlusion POC
             return true
         elseif event.key == KEY_1 then
             self.debugDraw = not self.debugDraw

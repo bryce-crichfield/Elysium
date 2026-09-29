@@ -22,6 +22,7 @@
 #include "Components/TransformComponent.h"
 #include "Systems/CollisionSystem.h"
 #include "Systems/MovementSystem.h"
+#include "Systems/NavMeshSystem.h"
 #include "Systems/RenderSystem.h"
 
 
@@ -283,6 +284,7 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("IsKeyPressed", [](int key) { return Input::IsKeyPressed(static_cast<Key>(key)); });
     lua.set_function("IsMouseButtonDown", [](int button) { return Input::IsMouseButtonDown(static_cast<MouseButton>(button)); });
     lua.set_function("IsMouseButtonPressed", [](int button) { return Input::IsMouseButtonPressed(static_cast<MouseButton>(button)); });
+    lua.set_function("GetMouseWheelMove", []() { return Input::GetMouseWheelMove(); });
     lua.set_function("GetMousePosition", [this]() {
         Vector2 m = this->_mousePosition; // Cached by SceneService from Input polling each frame
         return m;
@@ -354,13 +356,18 @@ void ScriptService::BindEntityAPI() {
         }
     });
 
-    // GetEntityByName
-    lua.set_function("GetEntityByName", [](const std::string& name) -> Entity {
+    // GetEntityByName: nil when there is no such entity.
+    //
+    // It used to return 0 for "not found", but ids start at 0, so the first entity a scene loads
+    // was indistinguishable from failure -- a scene whose camera was authored first lost all
+    // camera control. nil is also the safer sentinel in Lua, where 0 is truthy, so `if e then`
+    // guards silently passed on a miss.
+    lua.set_function("GetEntityByName", [this](const std::string& name) -> sol::object {
         auto* world = GetActiveWorld();
-        if (!world) return 0;
-        Entity entity;
-        if (world->GetEntityByName(name, &entity)) return entity;
-        return 0;
+        if (!world) return sol::nil;
+        Entity entity = INVALID_ENTITY;
+        if (!world->GetEntityByName(name, &entity)) return sol::nil;
+        return sol::make_object(lua, entity);
     });
 
     // FindEntitiesWithComponent - returns table of entities with given component
@@ -440,6 +447,33 @@ void ScriptService::BindEntityAPI() {
         if (!movementSystem) return;
 
         movementSystem->IssueMoveCommand(entity, {x, y});
+    });
+
+    // Navmesh queries — the scene-level walkability layer (NavMeshSystem).
+    lua.set_function("NavIsWalkable", [](float x, float y) -> bool {
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
+        if (!scene) return false;
+        auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>();
+        return nav && nav->IsWalkable({x, y});
+    });
+    lua.set_function("NavSetDebugDraw", [](bool enabled) {
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
+        if (!scene) return;
+        if (auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>()) nav->SetParameter("debugDraw", Value{enabled});
+    });
+    lua.set_function("NavFindPath", [this](float x1, float y1, float x2, float y2) -> sol::table {
+        sol::table result = lua.create_table();
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
+        if (!scene) return result;
+        auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>();
+        if (!nav) return result;
+        int i = 1;
+        for (const auto& p : nav->FindPath({x1, y1}, {x2, y2})) {
+            sol::table pt = lua.create_table();
+            pt["x"] = p.x; pt["y"] = p.y;
+            result[i++] = pt;
+        }
+        return result;
     });
 
     lua.set_function("GetCollisions", [this](Entity entity) -> sol::table {
@@ -717,6 +751,16 @@ sol::table ScriptService::GetSceneInstance(Path scriptPath, bool create) {
     return instance;
 }
 
+bool ScriptService::WarnMissingSceneHook(const Path& scriptPath, const char* hook) {
+    // Once per script/hook: these are called every frame, so an unconditional warning would bury
+    // the log. Silence here is what hid a scene script that was loading and initializing but
+    // never ticking.
+    if (warnedMissingHooks_.insert(std::string(scriptPath.c_str()) + ":" + hook).second) {
+        LOG_WARNINGF("ScriptService", "Scene script %s has no %s", scriptPath.c_str(), hook);
+    }
+    return false;
+}
+
 bool ScriptService::InitializeScene(Path scriptPath) {
     ProfileN("ScriptService InitializeScene");
     ProfileText(scriptPath.c_str());
@@ -724,14 +768,19 @@ bool ScriptService::InitializeScene(Path scriptPath) {
     if (!instance.valid()) return false;
 
     sol::function initFunc = instance["Initialize"];
-    if (initFunc.valid()) {
-        auto result = initFunc(instance);
-        if (!result.valid()) {
-            sol::error err = result;
-            LOG_ERRORF("ScriptService", "Error in scene %s:Initialize: %s", scriptPath.c_str(), err.what());
-            return false;
-        }
+    if (!initFunc.valid()) {
+        // A scene script with no Initialize is legal but almost always a mistake (a chunk that
+        // returned the wrong table, or a typo'd method name), and it used to succeed silently.
+        WarnMissingSceneHook(scriptPath, "Initialize");
+        return true;
     }
+    auto result = initFunc(instance);
+    if (!result.valid()) {
+        sol::error err = result;
+        LOG_ERRORF("ScriptService", "Error in scene %s:Initialize: %s", scriptPath.c_str(), err.what());
+        return false;
+    }
+    LOG_INFOF("ScriptService", "Scene script %s initialized", scriptPath.c_str());
     return true;
 }
 
@@ -739,10 +788,11 @@ bool ScriptService::UpdateScene(Path scriptPath, float deltaTime) {
     ProfileN("ScriptService UpdateScene");
     ProfileText(scriptPath.c_str());
     sol::table instance = GetSceneInstance(scriptPath, false);
-    if (!instance.valid()) return false;
+    if (!instance.valid()) return WarnMissingSceneHook(scriptPath, "instance (not initialized)");
 
     sol::function updateFunc = instance["Update"];
-    if (updateFunc.valid()) {
+    if (!updateFunc.valid()) return WarnMissingSceneHook(scriptPath, "Update");
+    {
         auto result = updateFunc(instance, deltaTime);
         if (!result.valid()) {
             sol::error err = result;
@@ -757,10 +807,11 @@ bool ScriptService::RenderScene(Path scriptPath) {
     ProfileN("ScriptService RenderScene");
     ProfileText(scriptPath.c_str());
     sol::table instance = GetSceneInstance(scriptPath, false);
-    if (!instance.valid()) return false;
+    if (!instance.valid()) return WarnMissingSceneHook(scriptPath, "instance (not initialized)");
 
     sol::function renderFunc = instance["Render"];
-    if (renderFunc.valid()) {
+    if (!renderFunc.valid()) return WarnMissingSceneHook(scriptPath, "Render");
+    {
         auto result = renderFunc(instance);
         if (!result.valid()) {
             sol::error err = result;

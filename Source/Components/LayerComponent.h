@@ -11,6 +11,10 @@ namespace Elysium {
         LayerComponent(const std::string& name = "default", bool isVisible = true);
 
         static constexpr const char* Name() { return "Layer"; }
+        // Which layer a prefab placement sits on is a scene-composition decision, like where it
+        // is — a painted wall goes on the layer being painted, not on whatever its prefab file
+        // happens to declare. So it is editable and saved per placement.
+        static constexpr bool PlacementOwned = true;
         static constexpr InspectorOrder Order = InspectorOrder::Layer;
         static constexpr const char* XmlTag() { return "LayerComponent"; }
 

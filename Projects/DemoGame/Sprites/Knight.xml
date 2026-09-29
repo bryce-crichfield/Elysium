@@ -1,14 +1,14 @@
-<Sprite name="Knight" originX="0.46317652" originY="0.78017932">
+<Sprite name="Knight" originX="0.5144093" originY="0.82500803">
     <Sequences>
-        <Sequence name="east" indicies="0:*"/>
-        <Sequence name="northeast" indicies="1:*"/>
-        <Sequence name="north" indicies="2:*"/>
+        <Sequence name="south" indicies="0:*"/>
+        <Sequence name="southwest" indicies="1:*"/>
+        <Sequence name="west" indicies="2:*"/>
         <Sequence name="northwest" indicies="3:*"/>
-        <Sequence name="west" indicies="4:*"/>
-        <Sequence name="southwest" indicies="5:*"/>
-        <Sequence name="south" indicies="6:*"/>
+        <Sequence name="north" indicies="4:*"/>
+        <Sequence name="northeast" indicies="5:*"/>
+        <Sequence name="east" indicies="6:*"/>
         <Sequence name="southeast" indicies="7:*"/>
     </Sequences>
-    <Sheet name="Walk" path="Textures/Sprites/Knight/Knight_run_jog.png" normal="Textures/Sprites/Knight/Knight_run_jog_normal.png" rows="8" columns="10"/>
-    <Sheet name="Knight_idle_stretch" path="Textures/Sprites/Knight/Knight_idle_stretch.png" normal="Textures/Sprites/Knight/Knight_idle_stretch_normal.png" rows="8" columns="138"/>
+    <Sheet name="Run" path="Textures/Sprites/Knight/Knight_run_jog.png" normal="Textures/Sprites/Knight/Knight_run_jog_normal.png" rows="8" columns="10"/>
+    <Sheet name="Idle" path="Textures/Sprites/Knight/Knight_idle.png" normal="Textures/Sprites/Knight/Knight_idle_normal.png" rows="8" columns="25"/>
 </Sprite>

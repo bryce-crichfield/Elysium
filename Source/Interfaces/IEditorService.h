@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <vector>
 #include "Core/AssetKind.h"
@@ -54,9 +55,64 @@ struct EditorDocument {
     bool HasWorld() const { return scene != nullptr; }
 };
 
+// Per-layer editing state, for the Viewport's layer drawer. All of it is editor session state:
+// it is keyed by document and never written to the scene file, so soloing a layer to work on it
+// can't be saved into the scene by accident.
+struct LayerEditState {
+    bool locked = false;  // entities on it can't be picked, dragged or deleted
+    bool solo = false;    // while any layer is soloed, only soloed layers draw
+    bool hidden = false;
+};
+
+enum class GridLattice { Square, Isometric };
+
+// The editing grid: what snapping lands on and what the viewport draws. Session state too —
+// edited on the Scene Settings screen but deliberately not part of SceneConfiguration, so it
+// never reaches the scene file.
+struct GridSettings {
+    bool snapEnabled = false;
+    bool showGrid = false;
+    GridLattice lattice = GridLattice::Isometric;
+    // One cell, in world units. Isometric treats these as the full diamond width/height.
+    float width = 64.0f;
+    float height = 32.0f;
+    // Snap to cell / divisor, so half- and quarter-cell placement doesn't need a resize.
+    int divisor = 1;
+
+    Vector2 Cell() const { return {width / (float)(divisor > 0 ? divisor : 1), height / (float)(divisor > 0 ? divisor : 1)}; }
+};
+
 class IEditorService : public IService {
    public:
     virtual Elysium::World* GetWorld() const = 0;
+
+    // --- Layers (active document) ------------------------------------------------------
+    // The layer being worked on: it filters the Hierarchy and receives painted prefabs.
+    // Empty means no layer is focused, and the Hierarchy shows everything.
+    virtual const std::string& GetActiveLayer() const = 0;
+    virtual void SetActiveLayer(const std::string& layer) = 0;
+
+    virtual LayerEditState& GetLayerState(const std::string& layer) = 0;
+
+    // Effective visibility and lock, with solo resolved: once any layer is soloed, every layer
+    // that isn't soloed counts as hidden.
+    virtual bool IsLayerHidden(const std::string& layer) const = 0;
+    virtual bool IsLayerLocked(const std::string& layer) const = 0;
+    // Every layer that should not draw this frame. RenderSorter applies this to its own copy
+    // of the layer list, so SceneLayer::isVisible in the scene is left alone.
+    virtual std::unordered_set<std::string> GetHiddenLayers() const = 0;
+
+    // The layer `entity` draws on — its LayerComponent, or its prefab placement root's, since a
+    // placement's layer belongs to the placement. Empty when it has none.
+    virtual std::string GetEntityLayer(Entity entity) const = 0;
+    // Whether `entity` is off-limits to editing because its layer is locked.
+    virtual bool IsEntityLocked(Entity entity) const = 0;
+
+    // --- Grid ---------------------------------------------------------------------------
+    virtual GridSettings& GetGrid() = 0;
+    const GridSettings& GetGrid() const { return const_cast<IEditorService*>(this)->GetGrid(); }
+    // `world` snapped to the grid, or unchanged when snapping is off.
+    virtual Vector2 SnapToGrid(Vector2 world) const = 0;
 
     virtual const std::vector<ComponentPlaceholder>& GetComponentPlaceholders() const = 0;
 

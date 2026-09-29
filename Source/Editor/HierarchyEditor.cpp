@@ -264,10 +264,20 @@ void HierarchyEditor::DrawCreatePrefabDialog(IEditorService& service) {
     ImGui::EndPopup();
 }
 
-bool HierarchyEditor::PassesFilters(const World& world, Entity entity) const {
+bool HierarchyEditor::PassesFilters(const IEditorService& service, const World& world, Entity entity) const {
     if (luaFilterActive_ &&
         std::find(filteredEntities_.begin(), filteredEntities_.end(), entity) == filteredEntities_.end())
         return false;
+    // The Viewport's layer drawer scopes the Hierarchy: focusing a layer shows only it, and a
+    // hidden (or non-soloed) layer's entities drop out of the list too, so what the tree lists
+    // matches what the viewport draws. GetEntityLayer resolves to the scene's default layer for
+    // entities without a LayerComponent, so every entity is on exactly one layer here.
+    const std::string layer = service.GetEntityLayer(entity);
+    if (!layer.empty()) {
+        const std::string& focused = service.GetActiveLayer();
+        if (!focused.empty() && layer != focused) return false;
+        if (service.IsLayerHidden(layer)) return false;
+    }
     return MatchesSearch(EntityLabel(world.GetEntityName(entity), entity), searchBuffer_);
 }
 
@@ -288,7 +298,7 @@ void HierarchyEditor::DrawEntityList(IEditorService& service) {
     ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, Theme().IdColumnWidth);
 
     for (Entity entity : world->GetLivingEntities()) {
-        if (PrefabInstances::IsInternal(*world, entity) || !PassesFilters(*world, entity)) continue;
+        if (PrefabInstances::IsInternal(*world, entity) || !PassesFilters(service, *world, entity)) continue;
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -485,7 +495,7 @@ void HierarchyEditor::DrawHierarchyTree(IEditorService& service) {
     // Build a snapshot of root entities so insertion-zone drops don't invalidate iteration.
     std::vector<Entity> roots;
     for (Entity entity : world->GetLivingEntities()) {
-        if (world->GetParent(entity) == INVALID_ENTITY && PassesFilters(*world, entity))
+        if (world->GetParent(entity) == INVALID_ENTITY && PassesFilters(service, *world, entity))
             roots.push_back(entity);
     }
 

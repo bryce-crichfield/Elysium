@@ -93,8 +93,15 @@ private:
     uint8_t defaultLayerIndex_ = 0;
     std::vector<RenderRecord> queue_;
     std::unordered_set<Entity> hiddenEntities_;
+    std::unordered_set<std::string> hiddenLayerOverride_;
     uint32_t nextCollectionOrder_ = 0;
     SortOptions sortOptions_;
+
+public:
+    // Editor only: layers to treat as invisible this frame, on top of each SceneLayer's own
+    // isVisible. Applied to the sorter's private copy of the layer list, so the editor's
+    // hide/solo never becomes scene data. Empty in play mode.
+    void SetHiddenLayerOverride(std::unordered_set<std::string> layers) { hiddenLayerOverride_ = std::move(layers); }
 };
 
 // Renders one layer's slice of a RenderSorter's queue: immediate-mode straight to the
@@ -191,6 +198,11 @@ public:
     // first camera's view rect (the red box the editor draws), or centered on the world
     // origin at 1:1 when the scene has no camera.
     void PlaceScreenInWorld(CameraView& view);
+
+    // Editor only: layers the layer drawer is hiding or soloing away. See the sorter's method.
+    void SetHiddenLayerOverride(std::unordered_set<std::string> layers) {
+        _sorter.SetHiddenLayerOverride(std::move(layers));
+    }
 
 protected:
     SystemParameters DefaultParameters() const override;

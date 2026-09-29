@@ -38,6 +38,20 @@ class EditorService : public IEditorService {
     // The free camera RenderSystem renders through while in AppMode::Editor.
     EditorCamera& GetEditorCamera() override { return editorCamera_; }
 
+    // Layers and grid — session state, keyed by document so switching tabs keeps each one's.
+    const std::string& GetActiveLayer() const override;
+    void SetActiveLayer(const std::string& layer) override;
+    LayerEditState& GetLayerState(const std::string& layer) override;
+    bool IsLayerHidden(const std::string& layer) const override;
+    bool IsLayerLocked(const std::string& layer) const override;
+    std::unordered_set<std::string> GetHiddenLayers() const override;
+    std::string GetEntityLayer(Entity entity) const override;
+    bool IsEntityLocked(Entity entity) const override;
+    // The layer an entity without a LayerComponent is drawn on.
+    std::string DefaultLayer() const;
+    GridSettings& GetGrid() override;
+    Vector2 SnapToGrid(Vector2 world) const override;
+
     Entity DuplicateEntity(Entity entity) override;
     void DeleteEntity(Entity entity) override;
     Entity CreateEntity(Entity parent = INVALID_ENTITY) override;
@@ -69,6 +83,27 @@ class EditorService : public IEditorService {
     bool openedEntryScene_ = false;
     // Layers/systems for prefab documents when no scene document is open (the entry scene).
     std::shared_ptr<Elysium::Scene> fallbackHost_;
+
+    // Per-document editing state. Keyed by the document's file path so it survives tab
+    // switches, and dropped with the document. None of it is persisted.
+    struct DocumentEditState {
+        std::string activeLayer;
+        std::unordered_map<std::string, LayerEditState> layers;
+        GridSettings grid;
+
+        // Recomputed rather than cached: GetLayerState hands out a mutable reference, so any
+        // cached count would go stale the moment a caller flips a flag through it.
+        bool AnySolo() const {
+            for (const auto& [name, layer] : layers) {
+                if (layer.solo) return true;
+            }
+            return false;
+        }
+    };
+    mutable std::unordered_map<std::string, DocumentEditState> editState_;
+    // The active document's state, created on demand. Falls back to a scratch entry when no
+    // document is open so callers never get a null.
+    DocumentEditState& EditState() const;
 
     std::vector<std::unique_ptr<EditorDocument>> documents_;
     int activeDocument_ = -1;

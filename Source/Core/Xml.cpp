@@ -2,6 +2,7 @@
 #include <tinyxml2.h>
 #include <cstdio>
 #include "Core/Log.h"
+#include "Core/Geometry.h"
 
 namespace Elysium {
 
@@ -12,6 +13,14 @@ std::string ColorToHex(Color color) {
     snprintf(hex, sizeof(hex), "#%02X%02X%02X%02X", color.r, color.g, color.b, color.a);
     return std::string(hex);
 }
+std::string ReadPolygonAttribute(tinyxml2::XMLElement* el, const char* name) {
+    if (const char* points = el->Attribute(name)) return points;
+    if (el->Attribute("diamondW") && el->Attribute("diamondH")) {
+        return FormatPointList(IsoDiamond(el->FloatAttribute("diamondW"), el->FloatAttribute("diamondH")));
+    }
+    return {};
+}
+
 Color ParseHexColor(const std::string& hex, Color defaultColor) {
     if (hex.empty() || hex[0] != '#')
         return defaultColor;

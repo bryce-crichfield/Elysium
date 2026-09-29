@@ -7,6 +7,10 @@
 #include <vector>
 #include "Core/Editor.h"
 #include "Core/Entity.h"
+#include "Editor/LayerDrawer.h"
+#include "Editor/NavMeshTool.h"
+#include "Editor/PrefabPainter.h"
+#include "Editor/SpatialOverlays.h"
 #include "Editor/AssetFileDialog.h"
 #include "Editor/ContentPane.h"
 #include "Editor/PrefabSettings.h"
@@ -82,8 +86,16 @@ class ViewportEditor : public Editor {
     // framebuffer image via ImGui's draw list. imageScreenRect is where the image sits on screen.
     void DrawViewportOverlays(Services::ISceneService& sceneService, Services::IEditorService& editorService,
                                const Systems::CameraView& view, Rectangle imageScreenRect);
+    // Draws the editing grid at the active document's spacing, clipped to what the viewport
+    // actually shows so the line count stays bounded however far you zoom out.
+    void DrawGrid(Services::IEditorService& editorService, const Systems::CameraView& view,
+                  Rectangle imageScreenRect, OverlayPainter& painter);
 
     GizmoMode gizmoMode_ = GizmoMode::Move;
+    SpatialOverlayOptions overlays_;
+    NavMeshTool navMeshTool_;
+    LayerDrawer layerDrawer_;
+    PrefabPainter prefabPainter_;
 
     // Click-cycling state: repeat-clicking the same spot advances through overlapping hits.
     Vector2 lastClickFbPos_ = { -1.0f, -1.0f };

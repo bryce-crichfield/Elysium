@@ -38,6 +38,10 @@ std::string ColorToHex(Color color);
 
 Color ParseHexColor(const std::string& hex, Color defaultColor = Colors::Blank);
 
+// A polygon attribute ("x,y x,y ..."), or the diamondW/diamondH shorthand for an isometric
+// diamond. Returns the point-list text, empty when neither is present.
+std::string ReadPolygonAttribute(tinyxml2::XMLElement* el, const char* name);
+
 
 template <typename Func>
 void VisitElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func) {
