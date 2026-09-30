@@ -1,6 +1,7 @@
 #include "Core/PrefabInstance.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <map>
 #include <set>
 
@@ -254,6 +255,48 @@ bool IsRoot(const World& world, Entity entity) {
 
 bool IsInternal(const World& world, Entity entity) {
     return world.HasComponent<PrefabInstanceComponent>(entity) && !IsRoot(world, entity);
+}
+
+void Reinstance(World* world, const std::vector<Entity>& entities) {
+    std::set<std::string> taken;
+    world->Query<PrefabInstanceComponent>([&](Entity, PrefabInstanceComponent& tag) { taken.insert(tag.instanceId); });
+
+    // Only the outermost placements are remapped; a nested instance's id carries its parent's as
+    // a prefix ("Outer1::Inner1"), so renaming the outer one carries the nested ones with it.
+    std::map<std::string, std::string> renamed;
+    for (Entity entity : entities) {
+        if (!IsRoot(*world, entity)) continue;
+        const std::string& old = world->GetComponent<PrefabInstanceComponent>(entity).instanceId;
+        if (old.empty() || renamed.count(old)) continue;
+
+        // Count up from the prefab's own name rather than the old id, so a copy of "Floor7" is
+        // "Floor12" and not "Floor71".
+        const std::string base = std::filesystem::path(world->GetComponent<PrefabInstanceComponent>(entity).src).stem().string();
+        std::string fresh;
+        for (int n = 1; fresh.empty() || taken.count(fresh); ++n) fresh = base + std::to_string(n);
+        taken.insert(fresh);
+        renamed[old] = fresh;
+    }
+    if (renamed.empty()) return;
+
+    // A prefix rewrite, so it reaches an entity's id, its name, and any nested instance under it.
+    auto rewrite = [](const std::string& value, const std::string& from, const std::string& to) {
+        if (value == from) return to;
+        if (value.rfind(from + "::", 0) == 0) return to + value.substr(from.size());
+        return value;
+    };
+
+    for (Entity entity : entities) {
+        if (!world->HasComponent<PrefabInstanceComponent>(entity)) continue;
+        auto& tag = world->GetComponent<PrefabInstanceComponent>(entity);
+        for (const auto& [from, to] : renamed) {
+            tag.instanceId = rewrite(tag.instanceId, from, to);
+            if (world->HasComponent<NameComponent>(entity)) {
+                auto& name = world->GetComponent<NameComponent>(entity).name;
+                name = rewrite(name, from, to);
+            }
+        }
+    }
 }
 
 Entity RootOf(const World& world, Entity entity) {

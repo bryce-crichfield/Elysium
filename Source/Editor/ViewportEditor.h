@@ -8,6 +8,7 @@
 #include "Core/Editor.h"
 #include "Core/Entity.h"
 #include "Editor/LayerDrawer.h"
+#include "Editor/ToolPanel.h"
 #include "Editor/SpatialOverlays.h"
 #include "Editor/Tools/ViewportTool.h"
 #include "Editor/AssetFileDialog.h"
@@ -49,10 +50,11 @@ class ViewportEditor : public Editor {
     void BeginNew();
 
    private:
-    enum class GizmoMode { Move, Rotate, Scale };
-
     void DrawDocumentTabs(Services::ISceneService& sceneService, Services::IEditorService& editor);
     void DrawToolbar(Services::IEditorService& editor, const Services::EditorDocument* document, ContentPane* pane);
+    // The strip under the viewport image: what is shown rather than what the mouse does. The panel
+    // toggles and the overlay switches live here, so the top toolbar is only ever about editing.
+    void DrawFooter(Services::IEditorService& editor, bool isSceneTab);
     // The rendered world of a scene or prefab tab (or the empty hint when nothing is open).
     void DrawWorld(Services::ISceneService& sceneService, Services::IEditorService& editorService);
     void Save(Services::IEditorService& editor, ContentPane* pane);
@@ -66,15 +68,20 @@ class ViewportEditor : public Editor {
     // The index of the tool with this Name(), or -1. Lets other panels ask for a tool by name
     // rather than by a position in the registry.
     int ToolIndex(const char* name) const;
-    // The tool buttons, and the active tool's own controls beside them.
+    // The tool buttons, and the active tool's status line beside them.
     void DrawToolButtons(Services::IEditorService& editor, bool isScene);
+    // Asks every tool once per frame why it cannot be used, into `unavailable_`. Unavailable() can
+    // be expensive (the vertex tool walks the selection and parses point lists), and it was being
+    // asked two or three times a frame per tool by the buttons, the force-switch check and the
+    // shortcut handler -- which could also disagree within one frame.
+    void RefreshToolAvailability(Services::IEditorService& editor, bool isScene);
     // Keys 1-4 pick a tool; Esc returns to Select.
     void HandleToolShortcuts(Services::IEditorService& editor, bool isScene);
     void HandleFileDialog(Services::IEditorService& editor);
     // The pane for a tab without a world, made on first use; drops those of closed tabs.
     ContentPane* PaneFor(Services::IEditorService& editor, const Services::EditorDocument& document);
-    // W/E/R pick the gizmo mode while the viewport is hovered and the scene is paused.
-    void HandleGizmoShortcuts(Services::ISceneService& sceneService);
+    // W/E/R pick the move, rotate and scale tools, as aliases for keys 2-4.
+    void HandleGizmoShortcuts(Services::IEditorService& editor);
 
     // Entities under the cursor, smallest-first, with locked layers dropped. Locked layers are
     // click-through so you can work on what sits behind them.
@@ -92,7 +99,7 @@ class ViewportEditor : public Editor {
     // `followers` are the other selected entities the drag carried along, recorded in the same
     // transaction so the whole multi-entity drag is one undo step.
     void RecordGizmoDrag(Services::IEditorService& editorService, Entity primary,
-                         const std::vector<Entity>& followers);
+                         const std::vector<Entity>& followers, GizmoMode mode);
 
     // Snaps the editor camera to the first real CameraComponent's transform/zoom the first
     // time a world becomes available, so scenes don't open centered on the origin.
@@ -105,8 +112,9 @@ class ViewportEditor : public Editor {
 
     // Draws and applies the transform gizmo on the single selected entity. Returns true while
     // the gizmo owns the mouse (hovered or dragging), so the click doesn't also re-pick.
+    // `mode` comes from the active tool: move, rotate and scale are tools, not a mode of one.
     bool HandleGizmo(Services::ISceneService& sceneService, Services::IEditorService& editorService,
-                     const Systems::CameraView& view, Rectangle imageScreenRect);
+                     const Systems::CameraView& view, Rectangle imageScreenRect, GizmoMode mode);
     void OpenPickMenu(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
     void DrawPickMenu(Services::IEditorService& editorService);
     void PlaceDroppedPrefab(Services::ISceneService& sceneService, Services::IEditorService& editorService,
@@ -121,13 +129,23 @@ class ViewportEditor : public Editor {
     void DrawGrid(Services::IEditorService& editorService, const Systems::CameraView& view,
                   Rectangle imageScreenRect, OverlayPainter& painter);
 
-    GizmoMode gizmoMode_ = GizmoMode::Move;
     SpatialOverlayOptions overlays_;
     LayerDrawer layerDrawer_;
+    ToolPanel toolPanel_;
 
-    // Index 0 is the select tool, which is the default and what everything falls back to.
+    // Named tool slots. Select is the default and what everything falls back to, and W/E/R are
+    // aliases for the three that carry a gizmo, so these indices are referred to by name rather
+    // than as bare numbers scattered through the file.
+    static constexpr int kSelectTool = 0;
+    static constexpr int kMoveTool = 1;
+    static constexpr int kRotateTool = 2;
+    static constexpr int kScaleTool = 3;
+
     std::vector<std::unique_ptr<ViewportTool>> tools_;
-    int activeTool_ = 0;
+    int activeTool_ = kSelectTool;
+    // Why each tool cannot be used this frame (null = it can), parallel to `tools_`. Filled by
+    // RefreshToolAvailability at the top of the toolbar, read by everything after it.
+    std::vector<const char*> unavailable_;
 
     // Editor camera pan drag state.
     bool isPanningCamera_ = false;

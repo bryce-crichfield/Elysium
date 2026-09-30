@@ -20,6 +20,22 @@ bool EditString(const char* id, std::string& value, bool multiline) {
     return changed;
 }
 
+// A dropdown over the field's named set. The value is the index, clamped so a stale one out of
+// range shows the first entry rather than reading past the list.
+bool EditChoice(const char* id, const FieldInfo& field, int& value) {
+    if (field.choices.empty()) return false;
+    if (value < 0 || value >= (int)field.choices.size()) value = 0;
+    if (!ImGui::BeginCombo(id, field.choices[value].c_str())) return false;
+    bool changed = false;
+    for (int i = 0; i < (int)field.choices.size(); i++) {
+        if (!ImGui::Selectable(field.choices[i].c_str(), i == value) || i == value) continue;
+        value = i;
+        changed = true;
+    }
+    ImGui::EndCombo();
+    return changed;
+}
+
 bool EditColor(const char* id, Color& color) {
     float rgba[4] = {color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f};
     if (!ImGui::ColorEdit4(id, rgba)) return false;
@@ -40,6 +56,7 @@ bool EditField(const char* id, const FieldInfo& field, void* value) {
         case FieldType::String: return EditString(id, *static_cast<std::string*>(value), false);
         case FieldType::Text: return EditString(id, *static_cast<std::string*>(value), true);
         case FieldType::Asset: return AssetField(id, field.asset, *static_cast<std::string*>(value));
+        case FieldType::Choice: return EditChoice(id, field, *static_cast<int*>(value));
     }
     return false;
 }
@@ -66,6 +83,7 @@ void FieldTypeBadge(const FieldInfo* field) {
             case FieldType::Color: icon = ICON_FA_PALETTE; name = "Color"; break;
             case FieldType::String: icon = ICON_FA_FONT; name = "String"; break;
             case FieldType::Text: icon = ICON_FA_ALIGN_LEFT; name = "Text"; break;
+            case FieldType::Choice: icon = ICON_FA_LIST; name = "Choice"; break;
             case FieldType::Asset: {
                 const AssetStyle style = StyleOf(field->asset);
                 icon = style.icon;
@@ -109,6 +127,7 @@ bool InspectFieldText(const char* id, const FieldInfo& field, std::string& text)
             text = v ? "true" : "false";
             return true;
         }
+        case FieldType::Choice:
         case FieldType::Int: {
             int v = std::atoi(text.c_str());
             if (!EditField(id, field, &v)) return false;

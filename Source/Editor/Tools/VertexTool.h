@@ -9,9 +9,14 @@
 
 namespace Elysium {
 
-// Reshapes the polygon of whichever polygon-bearing component is selected: a nav area's region
-// or an occluder's footprint. Until now a closed shape was final — you could lay one out and
-// never correct it.
+// Reshapes one kind of polygon on the selected entities: a nav area's region, an occluder's
+// footprint or a collider's outline. Until now a closed shape was final -- you could lay one out
+// and never correct it.
+//
+// The kind is a tool setting rather than "whatever the selection happens to carry", because an
+// entity can carry several: editing all of them at once drew three identically-coloured outlines
+// on top of each other with no way to tell which vertex belonged to what. One kind at a time, named
+// in the panel and in the status line.
 //
 // Drag a vertex to move it, click an edge to add one, right-click a vertex to remove it. Each
 // of those is one undo step; a drag is one step for the whole drag, not one per frame.
@@ -20,11 +25,19 @@ class VertexTool : public ViewportTool {
     const char* Name() const override { return "Vertices"; }
     const char* Icon() const override;
     const char* Tooltip() const override {
-        return "Edit vertices (4) - drag to move, click an edge to add, right-click a vertex to remove";
+        return "Edit vertices (5) - drag to move, click an edge to add, right-click a vertex to remove";
+    }
+
+    // Nothing to reshape without a polygon selected, so the tool stays unselectable until one
+    // is -- which in practice means after the navmesh tool picked a nav area.
+    const char* Unavailable(Services::IEditorService& editor, bool isScene) const override;
+
+    ToolParameters Parameters() override {
+        return {this, {Field("Shape", &VertexTool::shape_, "shape").Choices({"Nav area", "Occluder", "Collider"})}};
     }
 
     void OnDeactivate(Services::IEditorService& editor) override;
-    void DrawToolbar(Services::IEditorService& editor) override;
+    ToolStatus Status(Services::IEditorService& editor) const override;
     void DrawOverlay(ToolContext& context, OverlayPainter& painter) override;
     bool HandleInput(ToolContext& context) override;
 
@@ -38,11 +51,16 @@ class VertexTool : public ViewportTool {
         bool Valid() const { return entity != INVALID_ENTITY && world.size() >= 3; }
     };
 
-    // Every editable polygon on the selected entities.
-    static std::vector<Target> TargetsOf(ToolContext& context);
+    // The XML tag of the component `shape_` names.
+    const char* ShapeTag() const;
+    // The chosen kind of polygon on each selected entity that has one.
+    std::vector<Target> TargetsOf(ToolContext& context) const;
     // Writes `world` back onto the target and records the change against `before`.
     static void Commit(ToolContext& context, const Target& target, const std::vector<Vector2>& world,
                        const std::string& before, const char* label);
+
+    // Which polygon-bearing component to reshape, as an index into the Parameters() choices.
+    int shape_ = 0;
 
     // The polygon being dragged, and its serialized component as the drag found it.
     Entity dragEntity_ = INVALID_ENTITY;

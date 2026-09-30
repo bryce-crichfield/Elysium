@@ -50,6 +50,11 @@ bool IsInternal(const World& world, Entity entity);
 // The instance root `entity` belongs to, or `entity` itself if it isn't inside an instance.
 Entity RootOf(const World& world, Entity entity);
 
+// Gives the placements among `entities` fresh instance ids, renaming their entities to match.
+// A copy of a placement has to become a placement of its own: two placements sharing an id are
+// grouped into a single <PrefabInstance> on save, so one of them would simply disappear.
+void Reinstance(World* world, const std::vector<Entity>& entities);
+
 }  // namespace PrefabInstances
 
 }  // namespace Elysium

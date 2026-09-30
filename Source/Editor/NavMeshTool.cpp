@@ -19,7 +19,6 @@ using EditorStyle::Palette;
 namespace {
 
 constexpr float kClosePixels = 10.0f;
-constexpr float kDefaultCost = 3.0f;
 // Rects the cell overlay may emit in one frame. 4 verts each against ImGui's 16-bit indices
 // (65536 verts per draw list), leaving most of the budget for the rest of the overlay.
 constexpr int kMaxCellRects = 6000;
@@ -39,32 +38,22 @@ const char* NavMeshTool::Unavailable(Services::IEditorService&, bool isScene) co
 }
 
 void NavMeshTool::OnActivate(Services::IEditorService&) {
-    brush_.reset();
+    brushChoice_ = 0;
     inProgress_.clear();
 }
 
 void NavMeshTool::OnDeactivate(Services::IEditorService&) {
-    brush_.reset();
+    brushChoice_ = 0;
     inProgress_.clear();
 }
 
-void NavMeshTool::DrawToolbar(Services::IEditorService&) {
-    auto brushButton = [&](const char* icon, NavAreaType type, const char* tip) {
-        ImGui::SameLine();
-        if (ToggleIconButton(icon, brush_ == type, tip)) {
-            brush_ = (brush_ == type) ? std::nullopt : std::optional(type);
-            inProgress_.clear();
-        }
-    };
-    brushButton(ICON_FA_DRAW_POLYGON,   NavAreaType::Walkable, "Walkable region");
-    brushButton(ICON_FA_BAN,            NavAreaType::Blocked,  "Blocked area");
-    brushButton(ICON_FA_WEIGHT_HANGING, NavAreaType::Cost,     "Cost area");
-
-    ImGui::SameLine();
-    const char* hint = !brush_             ? "Click an area to select it, Delete removes it; the vertex tool reshapes it"
-                     : inProgress_.empty() ? "Click to lay vertices"
-                                           : "Right-click, Enter or the first vertex closes; Esc cancels";
-    ColoredText(Editor::Palette().TextMuted, hint);
+ToolStatus NavMeshTool::Status(Services::IEditorService&) const {
+    if (!Brush()) {
+        return {"Pick what to draw in the tool settings " ICON_FA_WRENCH
+                ", or click an area to select it (Delete removes it)"};
+    }
+    if (inProgress_.empty()) return {"Click to lay vertices", ToolStatusLevel::Working};
+    return {"Right-click, Enter or the first vertex closes; Esc cancels", ToolStatusLevel::Working};
 }
 
 std::vector<Vector2> NavMeshTool::WorldPolygon(World& world, Entity area) {
@@ -88,7 +77,8 @@ std::optional<Entity> NavMeshTool::AreaAt(World& world, Vector2 mouseWorld) cons
 void NavMeshTool::ClosePolygon(World& world, Services::IEditorService& editor) {
     std::vector<Vector2> points = std::move(inProgress_);
     inProgress_.clear();
-    if (points.size() < 3 || !brush_) return;
+    const std::optional<NavAreaType> brush = Brush();
+    if (points.size() < 3 || !brush) return;
 
     editor.BeginTransaction("Add Nav Area");
     Entity e = editor.CreateEntity();
@@ -99,8 +89,8 @@ void NavMeshTool::ClosePolygon(World& world, Services::IEditorService& editor) {
 
     const Vector2 centroid = Centroid(points);
     NavAreaComponent area;
-    area.type = ToString(*brush_);
-    area.cost = *brush_ == NavAreaType::Cost ? kDefaultCost : 1.0f;
+    area.type = ToString(*brush);
+    area.cost = *brush == NavAreaType::Cost ? cost_ : 1.0f;
     area.points = FormatPointList(TranslatePolygon(points, centroid * -1.0f));
 
     TransformComponent transform(centroid.x, centroid.y);
@@ -120,17 +110,24 @@ bool NavMeshTool::HandleInput(ToolContext& context) {
     const ViewportInput& in = context.input;
     const float closeRadius = kClosePixels * in.worldPerPixel;
 
+    // A brush change from the tool panel abandons whatever was half-laid: the vertices so far
+    // belong to the area type they were started under.
+    if (brushChoice_ != lastBrushChoice_) {
+        lastBrushChoice_ = brushChoice_;
+        inProgress_.clear();
+    }
+
     if (!in.hovered) return false;
 
     // Escape backs out one step at a time: the polygon being laid, then the brush. Only claimed
     // when there is something to cancel, so a third press still means "leave the tool".
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && (!inProgress_.empty() || brush_)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && (!inProgress_.empty() || Brush())) {
         if (!inProgress_.empty()) inProgress_.clear();
-        else brush_.reset();
+        else brushChoice_ = 0;
         return true;
     }
 
-    if (brush_) {
+    if (Brush()) {
         const bool nearStart = inProgress_.size() >= 3 && (inProgress_.front() - in.mouseWorld).Length() <= closeRadius;
         const bool close = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || in.rightClicked || (in.clicked && nearStart);
         if (close) { ClosePolygon(world, editor); return true; }
@@ -198,8 +195,8 @@ void NavMeshTool::DrawOverlay(ToolContext& context, OverlayPainter& painter) {
         painter.Polygon(polygon, color, selected ? 0.25f : 0.12f, selected ? painter.LineWidth() + 1.0f : 0.0f);
     });
 
-    if (!inProgress_.empty() && brush_) {
-        const ImVec4& color = NavAreaColor(*brush_);
+    if (!inProgress_.empty() && Brush()) {
+        const ImVec4& color = NavAreaColor(*Brush());
         painter.Polygon(inProgress_, color, 0.0f, 0.0f, false);
         for (const auto& p : inProgress_) painter.Circle(p, 3.0f, color, true);
         painter.Circle(inProgress_.front(), kClosePixels, color);

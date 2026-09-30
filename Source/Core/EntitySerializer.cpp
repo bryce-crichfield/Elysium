@@ -3,6 +3,7 @@
 #include <tinyxml2.h>
 #include <unordered_map>
 #include <vector>
+#include "Components/PrefabInstanceComponent.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
 
@@ -15,6 +16,39 @@ namespace {
 // and the adjacency together on load, so writing it too would mean two sources of truth for
 // the same link.
 constexpr const char* kHierarchyComponent = "Parent";
+
+// The placement tag travels as attributes on <Entity>, not as a component element.
+//
+// PrefabInstanceComponent has no XML saver on purpose: a scene writes placements as
+// <PrefabInstance> blocks, and a component tag would be a second, conflicting representation.
+// But that left the tag falling off anything that round-tripped through here -- so undoing a
+// delete, or redoing a placement, brought a prefab back as loose entities, and the next save
+// wrote them out flattened. Attributes keep it out of the component namespace entirely, so no
+// scene loader can ever pick them up, while a subtree still restores as the placement it was.
+constexpr const char* kPrefabSrc = "prefabSrc";
+constexpr const char* kPrefabOwnerDir = "prefabOwnerDir";
+constexpr const char* kPrefabInstanceId = "prefabInstanceId";
+constexpr const char* kPrefabLocalId = "prefabLocalId";
+
+void SavePlacementTag(tinyxml2::XMLElement* element, World& world, Entity entity) {
+    if (!world.HasComponent<PrefabInstanceComponent>(entity)) return;
+    const auto& tag = world.GetComponent<PrefabInstanceComponent>(entity);
+    element->SetAttribute(kPrefabSrc, tag.src.c_str());
+    element->SetAttribute(kPrefabOwnerDir, tag.ownerDir.c_str());
+    element->SetAttribute(kPrefabInstanceId, tag.instanceId.c_str());
+    element->SetAttribute(kPrefabLocalId, tag.localEntityId);
+}
+
+void LoadPlacementTag(tinyxml2::XMLElement* element, World& world, Entity entity) {
+    const char* instanceId = element->Attribute(kPrefabInstanceId);
+    if (!instanceId) return;
+    PrefabInstanceComponent tag;
+    tag.src = element->Attribute(kPrefabSrc) ? element->Attribute(kPrefabSrc) : "";
+    tag.ownerDir = element->Attribute(kPrefabOwnerDir) ? element->Attribute(kPrefabOwnerDir) : "";
+    tag.instanceId = instanceId;
+    tag.localEntityId = element->IntAttribute(kPrefabLocalId, -1);
+    world.AddComponent<PrefabInstanceComponent>(entity, tag);
+}
 
 std::string PrintElement(const tinyxml2::XMLElement* element) {
     tinyxml2::XMLPrinter printer;
@@ -75,6 +109,8 @@ std::string SaveSubtree(World& world, Entity root) {
         auto parentIndex = indexOf.find(parent);
         if (parentIndex != indexOf.end()) entityBuilder.SetAttribute("parent", parentIndex->second);
 
+        SavePlacementTag(entityBuilder.GetElement(), world, entity);
+
         for (const auto& [name, saver] : savers) {
             if (name == kHierarchyComponent) continue;
             saver(entityBuilder, &world, entity);
@@ -100,6 +136,8 @@ Entity LoadSubtree(World& world, const std::string& xml, Entity parent, ServiceL
     ForEachElement(docRoot, "Entity", [&](tinyxml2::XMLElement* xmlEntity) {
         const Entity entity = world.CreateEntity();
         created.push_back(entity);
+
+        LoadPlacementTag(xmlEntity, world, entity);
 
         ForEachChild(xmlEntity, [&](tinyxml2::XMLElement* component) {
             auto loader = loaders.find(component->Name());

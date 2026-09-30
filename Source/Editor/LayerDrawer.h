@@ -2,6 +2,8 @@
 
 #include <string>
 #include "Core/MathTypes.h"
+#include "Editor/ViewportPanel.h"
+#include "extras/IconsFontAwesome6.h"
 
 namespace Elysium {
 class Scene;
@@ -15,42 +17,25 @@ class IEditorService;
 // picked, dragged or deleted), solo (only soloed layers draw) and hidden.
 //
 // All of that state lives in IEditorService and is session-only, so none of it reaches the
-// scene file. The drawer also holds the paint brush's prefab, since the brush is a property of
-// what you're painting with, not of the scene.
+// scene file. The paint brush used to live here too; it is a tool setting, so it moved to the
+// tool panel with the rest of the paint tool's settings.
+//
+// The panel chrome (toggle button, anchoring, background, header) comes from ViewportPanel; this
+// supplies only the list.
 class LayerDrawer {
 public:
-    bool IsOpen() const { return open_; }
-    void SetOpen(bool open) { open_ = open; }
+    bool IsOpen() const { return panel_.IsOpen(); }
+    void SetOpen(bool open) { panel_.SetOpen(open); }
 
-    // The toolbar button that opens/closes it. Returns true if the state changed.
-    bool DrawToolbarButton();
+    void DrawToolbarButton(const char* unavailable = nullptr) { panel_.DrawToolbarButton(unavailable); }
 
-    // Draws the panel inside the viewport, anchored to the right edge of `imageScreenRect`.
-    // No-op while closed or when the document has no layers.
+    // Draws the drawer over `imageScreenRect`. No-op while closed.
     void Draw(Scene& scene, Services::IEditorService& editor, Rectangle imageScreenRect);
-
-    // The prefab the paint tool places, project-relative; empty when nothing is picked.
-    const std::string& BrushPrefab() const { return brushPrefab_; }
-
-    // The brush section's paint button is a *request*, not a state: the Viewport owns which tool
-    // is active, and a second copy of that here is exactly the kind of duplicated mode the tool
-    // registry exists to remove. Consumed once by whoever asks.
-    bool TakePaintToggleRequest() {
-        const bool requested = paintToggleRequested_;
-        paintToggleRequested_ = false;
-        return requested;
-    }
-    // Pushed in by the Viewport each frame so the section can show whether painting is on.
-    void SetPainting(bool painting) { painting_ = painting; }
 
 private:
     void DrawLayerRow(Scene& scene, Services::IEditorService& editor, const std::string& name, int zIndex);
-    void DrawBrushSection(Services::IEditorService& editor);
 
-    bool open_ = false;
-    bool painting_ = false;
-    bool paintToggleRequested_ = false;
-    std::string brushPrefab_;
+    ViewportPanel panel_{PanelEdge::Right, 260.0f, ICON_FA_LAYER_GROUP, "Layers"};
 };
 
 }  // namespace Elysium

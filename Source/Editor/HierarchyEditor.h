@@ -37,6 +37,26 @@ class HierarchyEditor : public Editor {
     void DrawHierarchyTree(Services::IEditorService& service);
     void DrawHierarchyNode(Services::IEditorService& service, Entity entity);
 
+    // --- Row selection --------------------------------------------------------------------
+    // Ctrl-click toggles one row; shift-click takes everything between the last row clicked and
+    // this one. A range is over *rows as displayed*, not entity ids or world order, so it means
+    // what the eye expects: collapsed subtrees and grouped placements count as the block they
+    // occupy, and a filtered-out entity is never caught in a range that looks like it skipped
+    // over it. So rows are recorded as they are drawn and the range is resolved at the end of the
+    // frame, once the list is complete -- the anchor may sit below the row that was clicked, and
+    // at click time that part of the list does not exist yet.
+    std::vector<Entity> visibleRows_;
+    Entity selectionAnchor_ = INVALID_ENTITY;
+    Entity pendingRangeTo_ = INVALID_ENTITY;
+    bool pendingRangeAdditive_ = false;
+
+    // Records `entity` as drawn at this point in the list. Every clickable row calls it.
+    void RecordRow(Entity entity);
+    // What a click on a row does, given the modifiers held.
+    void HandleRowClick(Services::IEditorService& service, Entity entity);
+    // Applies a deferred shift-click once visibleRows_ holds the whole list.
+    void ApplyPendingRange(Services::IEditorService& service);
+
     // --- Placement grouping ---------------------------------------------------------------
     // A dungeon floor is a hundred-odd identical Floor placements. Listed one per row they bury
     // the handful of entities that actually differ, and the layer filter is no help because they

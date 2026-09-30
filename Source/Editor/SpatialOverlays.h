@@ -20,7 +20,9 @@ const ImVec4& NavAreaColor(NavAreaType type);
 // layer the layer drawer hides are skipped, so hiding a layer hides its overlays with it.
 void DrawSpatialOverlays(World& world, Services::IEditorService& editor, const SpatialOverlayOptions& options, OverlayPainter& painter);
 
-// A toolbar button that opens the overlay checkboxes.
-void DrawOverlaysMenu(SpatialOverlayOptions& options);
+// The overlay toggles, one icon button each, for the viewport footer. Was a toolbar button that
+// opened a popup of three checkboxes -- two clicks and a menu to do what is really three switches,
+// and it sat among the tool buttons as if it were one.
+void DrawOverlayToggles(SpatialOverlayOptions& options);
 
 }  // namespace Elysium

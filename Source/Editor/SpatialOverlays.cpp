@@ -46,8 +46,8 @@ void DrawSpatialOverlays(World& world, Services::IEditorService& editor, const S
     world.Query<TransformComponent, OccluderComponent>([&](Entity e, auto&, auto& occluder) {
         if (!shown(e, options.occluders)) return;
         auto volume = Systems::ResolveOccluder(world, e);
-        const ImVec4& color = occluder.isStatic ? Editor::Palette().Warning : Editor::Palette().Success;
-        if (volume.height > 0.0f) painter.Polygon(volume.volume, Palette::WithAlpha(color, 0.35f));
+        const ImVec4 color = Palette::WithAlpha(Editor::Palette().Occluder, occluder.isStatic ? 1.0f : 0.6f);
+        if (volume.height > 0.0f) painter.Polygon(volume.volume, Palette::WithAlpha(color, color.w * 0.35f));
         painter.Polygon(volume.footprint, color);
     });
 
@@ -63,16 +63,21 @@ void DrawSpatialOverlays(World& world, Services::IEditorService& editor, const S
     }
 }
 
-void DrawOverlaysMenu(SpatialOverlayOptions& options) {
-    const bool any = options.colliders || options.occluders || options.navAreas;
-    if (ToggleIconButton(ICON_FA_LAYER_GROUP, any, "Overlays")) ImGui::OpenPopup("SpatialOverlays");
-    if (!ImGui::BeginPopup("SpatialOverlays")) return;
-    SectionHeader("Overlays");
-    ImGui::Checkbox("Colliders", &options.colliders);
-    ImGui::Checkbox("Occluders", &options.occluders);
-    ImGui::Checkbox("Nav areas", &options.navAreas);
+void DrawOverlayToggles(SpatialOverlayOptions& options) {
+    // Icon-only, like the rest of the footer: each is one switch, and the tooltip carries the name.
+    // Colliders get a shape rather than anything sprite-like, since a collider outline is not tied
+    // to the sprite it happens to sit under.
+    auto toggle = [](const char* icon, bool& value, const char* tooltip) {
+        if (ToggleIconButton(icon, value, tooltip)) value = !value;
+        ImGui::SameLine();
+    };
+    toggle(ICON_FA_SHAPES, options.colliders, "Show collider outlines");
+    toggle(ICON_FA_BUILDING, options.occluders, "Show occluder footprints and volumes");
+    toggle(ICON_FA_ROUTE, options.navAreas, "Show nav areas");
+    // The note is prose, not a control, so it sits past a rule like every other group.
+    ToolbarSeparator();
+    ImGui::AlignTextToFramePadding();
     MutedText("Selected entities always show theirs");
-    ImGui::EndPopup();
 }
 
 }  // namespace Elysium

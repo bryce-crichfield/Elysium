@@ -10,8 +10,8 @@
             <LayerComponent name="entity"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Texture" enabled="true" texture="Textures/Sprites/Knight/Knight_idle.png" normalMap="Textures/Sprites/Knight/Knight_idle_normal.png">
-                    <Uniform name="uSourceRect" type="vec4" value="1024.000000 0.000000 128.000000 128.000000"/>
                     <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
+                    <Uniform name="uSourceRect" type="vec4" value="128.000000 0.000000 128.000000 128.000000"/>
                 </Layer>
             </MaterialComponent>
             <MovementComponent state="Idle" goalX="0" goalY="0"/>
@@ -30,9 +30,9 @@
             <LayerComponent name="selection"/>
             <MaterialComponent padding="512" enabled="true">
                 <Layer material="Fire" enabled="true">
-                    <Uniform name="uRise" type="float" value="0.000000"/>
-                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
                     <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uRise" type="float" value="0.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="Selection"/>

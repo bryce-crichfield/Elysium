@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <memory>
+#include <string>
+#include "Components/ColliderComponent.h"
 #include "Components/NavAreaComponent.h"
 #include "Components/OccluderComponent.h"
 #include "Components/TransformComponent.h"
@@ -33,14 +35,23 @@ Vector2 OriginOf(World& world, Entity entity) {
     return {t.worldX, t.worldY};
 }
 
-// The polygon-bearing components this tool understands. Both are a local point list on an
-// entity with a transform, so both reshape identically; only the field differs.
+// The polygon-bearing components this tool understands, in the order the Shape parameter lists
+// them. Each is a local point list on an entity with a transform, so all three reshape
+// identically; only the field differs. kShapeLabels is what the UI calls them.
+const char* const kPolygonComponents[] = {NavAreaComponent::XmlTag(), OccluderComponent::XmlTag(),
+                                          ColliderComponent::XmlTag()};
+const char* const kShapeLabels[] = {"nav area", "occluder", "collider"};
+constexpr int kShapeCount = (int)(sizeof(kPolygonComponents) / sizeof(kPolygonComponents[0]));
+
 std::vector<Vector2> ReadPolygon(World& world, Entity entity, const std::string& tag) {
     if (tag == NavAreaComponent::XmlTag() && world.HasComponent<NavAreaComponent>(entity)) {
         return world.GetComponent<NavAreaComponent>(entity).LocalPolygon();
     }
     if (tag == OccluderComponent::XmlTag() && world.HasComponent<OccluderComponent>(entity)) {
         return world.GetComponent<OccluderComponent>(entity).LocalFootprint();
+    }
+    if (tag == ColliderComponent::XmlTag() && world.HasComponent<ColliderComponent>(entity)) {
+        return world.GetComponent<ColliderComponent>(entity).LocalPolygon();
     }
     return {};
 }
@@ -51,10 +62,15 @@ void WritePolygon(World& world, Entity entity, const std::string& tag, const std
         world.GetComponent<NavAreaComponent>(entity).points = text;
     } else if (tag == OccluderComponent::XmlTag() && world.HasComponent<OccluderComponent>(entity)) {
         world.GetComponent<OccluderComponent>(entity).footprint = text;
+    } else if (tag == ColliderComponent::XmlTag() && world.HasComponent<ColliderComponent>(entity)) {
+        auto& collider = world.GetComponent<ColliderComponent>(entity);
+        collider.points = text;
+        // A reshaped collider is a polygon collider, and its box has to follow, or the Auto shape
+        // and the broadphase bounds would still describe the outline you just replaced.
+        collider.shape = ToString(ColliderShape::Polygon);
+        collider.SyncBoxToPolygon();
     }
 }
-
-const char* const kPolygonComponents[] = {NavAreaComponent::XmlTag(), OccluderComponent::XmlTag()};
 
 // Index of the edge `point` is nearest to (the edge from result to result+1), when it is within
 // `radius` of it, plus where on that edge it lands.
@@ -91,30 +107,66 @@ EdgeHit NearestEdge(const std::vector<Vector2>& polygon, Vector2 point, float ra
 
 const char* VertexTool::Icon() const { return ICON_FA_VECTOR_SQUARE; }
 
+const char* VertexTool::Unavailable(Services::IEditorService& editor, bool isScene) const {
+    (void)isScene;  // an occluder or nav area is editable on a prefab tab too
+    World* world = editor.GetWorld();
+    if (!world) return "Open a scene or prefab to edit outlines";
+
+    // Deliberately any of the three kinds, not the chosen one: the choice lives in this tool's own
+    // panel, so gating on it would make the tool unselectable and the choice unreachable. A
+    // selection carrying no polygon of the chosen kind leaves the tool selectable and says so.
+    for (Entity entity : editor.GetSelectedEntities()) {
+        if (!world->IsAlive(entity)) continue;
+        for (const char* tag : kPolygonComponents) {
+            if (ReadPolygon(*world, entity, tag).size() >= 3) return nullptr;
+        }
+    }
+    return "Select a nav area, occluder or collider to reshape it";
+}
+
 void VertexTool::OnDeactivate(Services::IEditorService&) {
     handles_.End();
     dragEntity_ = INVALID_ENTITY;
 }
 
-void VertexTool::DrawToolbar(Services::IEditorService& editor) {
-    ImGui::SameLine();
-    // The tool works on what is selected, so say so when nothing is.
-    const bool empty = editor.GetSelectedEntities().empty();
-    ColoredText(Editor::Palette().TextMuted,
-                empty ? "Select a nav area or occluder to edit its outline"
-                      : "Drag a vertex, click an edge to add one, right-click a vertex to remove it");
+const char* VertexTool::ShapeTag() const {
+    return kPolygonComponents[shape_ >= 0 && shape_ < kShapeCount ? shape_ : 0];
 }
 
-std::vector<VertexTool::Target> VertexTool::TargetsOf(ToolContext& context) {
+ToolStatus VertexTool::Status(Services::IEditorService& editor) const {
+    World* world = editor.GetWorld();
+    if (!world) return {};
+
+    // Name what is actually being reshaped. Not knowing that was the confusing part: an entity can
+    // carry a nav area, an occluder and a collider at once, and three outlines in the same colour
+    // said nothing about which one a drag would move.
+    const char* label = kShapeLabels[shape_ >= 0 && shape_ < kShapeCount ? shape_ : 0];
+    const char* tag = ShapeTag();
+    int count = 0;
+    for (Entity entity : editor.GetSelectedEntities()) {
+        if (world->IsAlive(entity) && ReadPolygon(*world, entity, tag).size() >= 3) count++;
+    }
+
+    if (count == 0) {
+        return {std::string("The selection has no ") + label +
+                    " - pick another shape in the tool settings " ICON_FA_WRENCH,
+                ToolStatusLevel::Warning};
+    }
+    const std::string what = count == 1 ? std::string("1 ") + label : std::to_string(count) + " " + label + "s";
+    return {"Reshaping " + what + ": drag a vertex, click an edge to add one, right-click to remove",
+            ToolStatusLevel::Working};
+}
+
+std::vector<VertexTool::Target> VertexTool::TargetsOf(ToolContext& context) const {
+    // Only the chosen kind. Editing every polygon the selection carried meant a drag could land on
+    // a component you were not looking at.
+    const char* tag = ShapeTag();
     std::vector<Target> targets;
     for (Entity entity : context.editor.GetSelectedEntities()) {
         if (!context.world.IsAlive(entity)) continue;
-        const Vector2 origin = OriginOf(context.world, entity);
-        for (const char* tag : kPolygonComponents) {
-            std::vector<Vector2> local = ReadPolygon(context.world, entity, tag);
-            if (local.size() < 3) continue;
-            targets.push_back(Target{entity, tag, TranslatePolygon(local, origin)});
-        }
+        std::vector<Vector2> local = ReadPolygon(context.world, entity, tag);
+        if (local.size() < 3) continue;
+        targets.push_back(Target{entity, tag, TranslatePolygon(local, OriginOf(context.world, entity))});
     }
     return targets;
 }

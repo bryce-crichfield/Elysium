@@ -6,18 +6,30 @@
 
 namespace Elysium {
 
-// The default tool: pick entities, and drag a box to pick several.
+// The select family: pick entities, drag a box to pick several, and -- for the three that carry a
+// gizmo -- manipulate what is picked.
 //
-// Selection happens on mouse *release*, not on press, because a press is ambiguous — it might
-// be the start of a box drag. Clicking the same spot repeatedly cycles through overlapping
-// entities, which is how you reach something behind a floor tile.
+// One class instantiated four times rather than four classes, because picking is the whole tool
+// and the gizmo is the only difference. Move/Rotate/Scale were three buttons on the toolbar that
+// only did anything under Select; as tools they sit beside it, so "what does the mouse do" is
+// answered in one place instead of by a tool plus a separate mode.
+//
+// Selection happens on mouse *release*, not on press, because a press is ambiguous -- it might be
+// the start of a box drag. Clicking the same spot repeatedly cycles through overlapping entities,
+// which is how you reach something behind a floor tile.
 class SelectTool : public ViewportTool {
    public:
-    const char* Name() const override { return "Select"; }
-    const char* Icon() const override;
-    const char* Tooltip() const override { return "Select (1) - click to pick, drag to box-select"; }
+    // `gizmo` None is the plain select tool, which picks without a manipulator in the way.
+    explicit SelectTool(GizmoMode gizmo) : gizmo_(gizmo) {}
 
-    bool UsesGizmo() const override { return true; }
+    const char* Name() const override;
+    const char* Icon() const override;
+    const char* Tooltip() const override;
+
+    GizmoMode Gizmo() const override { return gizmo_; }
+    bool PicksEntities() const override { return true; }
+
+    ToolStatus Status(Services::IEditorService& editor) const override;
 
     void OnDeactivate(Services::IEditorService& editor) override;
 
@@ -27,6 +39,8 @@ class SelectTool : public ViewportTool {
    private:
     void PickAtCursor(ToolContext& context);
     void SelectInBox(ToolContext& context);
+
+    GizmoMode gizmo_;
 
     // Box drag state. `pressed_` spans press to release; `boxing_` turns on once the cursor has
     // travelled far enough that this is clearly a drag and not a click.

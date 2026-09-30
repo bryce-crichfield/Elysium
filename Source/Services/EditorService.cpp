@@ -72,6 +72,13 @@ Elysium::World* EditorService::GetWorld() const {
 }
 
 void EditorService::SelectEntity(Entity entity, bool additive) {
+    // A placement is opaque, so selecting anything inside one selects the placement instead. The
+    // pickers already resolved this themselves, one by one; doing it here makes it true of every
+    // caller, which is what keeps an instance's internals out of the Inspector for good.
+    if (auto* world = GetWorld(); world && entity != INVALID_ENTITY && world->IsAlive(entity)) {
+        entity = PrefabInstances::RootOf(*world, entity);
+    }
+
     if (!additive) {
         selectedEntities_.clear();
     } else if (IsSelected(entity)) {
@@ -611,8 +618,13 @@ Entity EditorService::Paste(Vector2 at) {
         tinyxml2::XMLPrinter printer;
         subtree->Accept(&printer);
 
-        const Entity root = EntityXml::LoadSubtree(*world, printer.CStr(), INVALID_ENTITY, registry_);
+        std::vector<Entity> created;
+        const Entity root = EntityXml::LoadSubtree(*world, printer.CStr(), INVALID_ENTITY, registry_, &created);
         if (root == INVALID_ENTITY) continue;
+
+        // A pasted placement is a new placement, so it needs an instance id of its own -- sharing
+        // the original's would merge the two into one <PrefabInstance> the next time this saves.
+        PrefabInstances::Reinstance(world, created);
 
         if (world->HasComponent<TransformComponent>(root)) {
             auto& transform = world->GetComponent<TransformComponent>(root);

@@ -1,6 +1,7 @@
 #include "Editor/Tools/PaintTool.h"
 
-#include "Editor/LayerDrawer.h"
+#include <string>
+
 #include "extras/IconsFontAwesome6.h"
 #include "Interfaces/IEditorService.h"
 #include "imgui.h"
@@ -10,14 +11,13 @@ namespace Elysium {
 const char* PaintTool::Icon() const { return ICON_FA_PAINT_ROLLER; }
 
 const char* PaintTool::Unavailable(Services::IEditorService& editor, bool isScene) const {
-    // Each reason gets its own message: a disabled button that doesn't say what is missing is
-    // just a dead button.
+    (void)editor;
+    // Only what you cannot fix from inside the tool belongs here, because Unavailable both
+    // disables the button and steps away from an active tool. The brush lives in this tool's own
+    // settings panel, which only shows while the tool is active -- gating on it made the tool
+    // impossible to select and its brush impossible to set. A missing brush or an unfocused
+    // layer leaves the tool selectable but inert, and says so in the toolbar instead.
     if (!isScene) return "Painting needs a scene's layers";
-    if (drawer_.BrushPrefab().empty()) return "Pick a prefab to paint in the layer drawer";
-
-    const std::string& layer = editor.GetActiveLayer();
-    if (layer.empty()) return "Focus a layer to paint onto";
-    if (editor.IsLayerLocked(layer)) return "The focused layer is locked";
     return nullptr;
 }
 
@@ -27,6 +27,20 @@ void PaintTool::OnDeactivate(Services::IEditorService& editor) {
         editor.EndGesture();
         stroking_ = false;
     }
+}
+
+ToolStatus PaintTool::Status(Services::IEditorService& editor) const {
+    // Everything that stops a stroke landing is said here rather than by disabling the tool, so the
+    // tool stays selectable while you go and fix it. Most specific thing first.
+    const std::string& layer = editor.GetActiveLayer();
+
+    if (brushPrefab_.empty()) return {"Pick a prefab in the tool settings " ICON_FA_WRENCH};
+    if (layer.empty()) return {"Focus a layer in the layer drawer to paint onto"};
+    if (editor.IsLayerLocked(layer)) return {layer + " is locked", ToolStatusLevel::Warning};
+    if (!editor.GetGrid().snapEnabled) {
+        return {"Painting onto " + layer + " (snap off - freehand)", ToolStatusLevel::Working};
+    }
+    return {"Painting onto " + layer, ToolStatusLevel::Working};
 }
 
 bool PaintTool::HandleInput(ToolContext& context) {
@@ -43,7 +57,7 @@ bool PaintTool::HandleInput(ToolContext& context) {
         stroking_ = false;
     }
 
-    return painter_.HandleInput(context.world, context.editor, context.input, drawer_.BrushPrefab());
+    return painter_.HandleInput(context.world, context.editor, context.input, brushPrefab_);
 }
 
 void PaintTool::DrawOverlay(ToolContext& context, OverlayPainter& painter) {

@@ -48,6 +48,12 @@ struct Palette {
     ImVec4 AxisX = Hex(0xE06C6C);
     ImVec4 AxisY = Hex(0x7CC68D);
 
+    // Occluders get a hue of their own. They used to borrow Warning/Success, which Selection also
+    // derives from -- a static occluder's footprint was the exact color of the selection marker, so
+    // the two read as one thing. Static vs dynamic is the same hue at different strength, because
+    // "this is an occluder" matters more at a glance than which kind it is.
+    ImVec4 Occluder = Hex(0xB48EE8);
+
     // Asset types: the color every view of an asset marks it with.
     ImVec4 AssetFolder  = Hex(0x8C9AAE);
     ImVec4 AssetScene   = Hex(0x5B9BD5);

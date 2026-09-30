@@ -29,7 +29,42 @@ Rectangle RectBetween(Vector2 a, Vector2 b) {
 
 }  // namespace
 
-const char* SelectTool::Icon() const { return ICON_FA_ARROW_POINTER; }
+const char* SelectTool::Name() const {
+    switch (gizmo_) {
+        case GizmoMode::Move: return "Move";
+        case GizmoMode::Rotate: return "Rotate";
+        case GizmoMode::Scale: return "Scale";
+        case GizmoMode::None: break;
+    }
+    return "Select";
+}
+
+const char* SelectTool::Icon() const {
+    switch (gizmo_) {
+        case GizmoMode::Move: return ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT;
+        case GizmoMode::Rotate: return ICON_FA_ROTATE;
+        case GizmoMode::Scale: return ICON_FA_UP_RIGHT_AND_DOWN_LEFT_FROM_CENTER;
+        case GizmoMode::None: break;
+    }
+    return ICON_FA_ARROW_POINTER;
+}
+
+const char* SelectTool::Tooltip() const {
+    switch (gizmo_) {
+        case GizmoMode::Move: return "Move (2, or W) - click to pick, drag the gizmo to move";
+        case GizmoMode::Rotate: return "Rotate (3, or E) - click to pick, drag the gizmo to rotate";
+        case GizmoMode::Scale: return "Scale (4, or R) - click to pick, drag the gizmo to scale";
+        case GizmoMode::None: break;
+    }
+    return "Select (1) - click to pick, drag to box-select";
+}
+
+ToolStatus SelectTool::Status(Services::IEditorService& editor) const {
+    // Only the gizmo tools have anything to say, and only that they have nothing to act on: the
+    // plain select tool is self-evident.
+    if (gizmo_ == GizmoMode::None || !editor.GetSelectedEntities().empty()) return {};
+    return {"Click an entity to pick it, then drag the gizmo"};
+}
 
 void SelectTool::OnDeactivate(Services::IEditorService&) {
     pressed_ = false;

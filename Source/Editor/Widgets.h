@@ -98,6 +98,27 @@ inline bool ToggleIconButton(const char* icon, bool active, const char* tooltip 
     return pressed;
 }
 
+// The one way a control says "not right now": always drawn, always greyed, and the reason --
+// never `tooltip` -- is what the hover says, so there is somewhere to read why. `unavailable`
+// null means it is usable.
+//
+// Every toolbar control that can be unusable goes through this. Hiding a control instead leaves
+// nothing to hover and reads as the button having moved; greying it without swapping the tooltip
+// leaves the user guessing, which is what the viewport toolbar used to do in three different ways
+// on one row.
+inline bool GatedToggleIconButton(const char* icon, bool active, const char* tooltip,
+                                  const char* unavailable) {
+    ImGui::BeginDisabled(unavailable != nullptr);
+    const bool pressed = ToggleIconButton(icon, active, unavailable ? nullptr : tooltip);
+    ImGui::EndDisabled();
+    // SetItemTooltip ignores a disabled item, so the reason needs an explicit hover test that
+    // opts into disabled items -- otherwise the greyed button would say nothing at all.
+    if (unavailable && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip("%s", unavailable);
+    }
+    return pressed && !unavailable;
+}
+
 // A button with the accent fill, for the one primary action in a toolbar.
 inline bool PrimaryButton(const char* label, const ImVec2& size = ImVec2(0, 0)) {
     ImGui::PushStyleColor(ImGuiCol_Button, Editor::Palette().Accent);
@@ -184,6 +205,26 @@ inline void EndSectionBody() {
     ImGui::Unindent(Editor::Theme().ItemInnerSpacing.x);
     ImGui::Spacing();
 }
+
+// The divider between groups of controls on a toolbar row, and the width it costs so a
+// right-aligned group can account for it.
+//
+// One idiom, because the bars used to space their groups with a bare `ItemSpacing.x * 3` and a
+// reader had to guess whether two adjacent buttons were related. A rule beats a wide gap: the
+// separator says "different kind of thing" where spacing only hints at it. ImGui's Separator()
+// is only vertical inside a menu bar, so this draws the rule itself.
+inline void ToolbarSeparator() {
+    const float gap = ImGui::GetStyle().ItemSpacing.x * 1.5f;
+    const float height = ImGui::GetFrameHeight();
+    ImGui::SameLine(0.0f, gap);
+    const ImVec2 at = ImGui::GetCursorScreenPos();
+    ImGui::GetWindowDrawList()->AddLine(ImVec2(at.x, at.y + height * 0.15f),
+                                        ImVec2(at.x, at.y + height * 0.85f),
+                                        ImGui::GetColorU32(ImGuiCol_Separator));
+    ImGui::Dummy(ImVec2(1.0f, height));
+    ImGui::SameLine(0.0f, gap);
+}
+inline float ToolbarSeparatorWidth() { return 1.0f + ImGui::GetStyle().ItemSpacing.x * 3.0f; }
 
 // Width of each of `count` buttons sharing the rest of the row.
 inline float SharedButtonWidth(int count) {

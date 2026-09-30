@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <initializer_list>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -29,7 +30,8 @@ namespace Elysium {
 // still call InspectFields) and typed prefab parameters. A field's `key` is its XML attribute,
 // the name prefab parameters and overrides address it by; a field without one is runtime
 // state, shown read-only and never exposed.
-enum class FieldType { Bool, Int, Float, Vector2, Color, String, Text, Asset };
+// Choice is an int member restricted to a named set, drawn as a dropdown rather than a drag.
+enum class FieldType { Bool, Int, Float, Vector2, Color, String, Text, Asset, Choice };
 
 struct FieldInfo {
     std::string label;
@@ -38,6 +40,7 @@ struct FieldInfo {
     AssetKind asset = AssetKind::Folder;  // for FieldType::Asset
     float speed = 1.0f, min = 0.0f, max = 0.0f;  // drag widgets; min == max means unbounded
     bool readOnly = false;
+    std::vector<std::string> choices;  // for FieldType::Choice; the value indexes this
     std::string section;  // a heading drawn before the first field of a new section
     std::function<void*(void*)> address;  // component -> field
 
@@ -47,6 +50,13 @@ struct FieldInfo {
     FieldInfo Section(const char* s) && { section = s; return std::move(*this); }
     FieldInfo Multiline() && { type = FieldType::Text; return std::move(*this); }
     FieldInfo Asset(AssetKind kind) && { type = FieldType::Asset; asset = kind; return std::move(*this); }
+    // Restricts an int field to a named set, drawn as a dropdown. The stored value is the index,
+    // so the labels can be reworded without touching saved data.
+    FieldInfo Choices(std::initializer_list<const char*> labels) && {
+        type = FieldType::Choice;
+        for (const char* label : labels) choices.emplace_back(label);
+        return std::move(*this);
+    }
 
     bool Serialized() const { return !key.empty(); }
 };

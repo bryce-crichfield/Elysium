@@ -3,11 +3,8 @@
 #include <algorithm>
 #include <vector>
 
-#include "Core/AssetKind.h"
 #include "Core/Editor.h"
 #include "Core/Scene.h"
-#include "Editor/AssetField.h"
-#include "Editor/AssetStyle.h"
 #include "Editor/Theme.h"
 #include "Editor/Widgets.h"
 #include "Interfaces/IEditorService.h"
@@ -19,8 +16,6 @@ using namespace Services;
 using EditorStyle::Palette;
 
 namespace {
-
-constexpr float kDrawerWidth = 260.0f;
 
 // A small square toggle that keeps its slot whatever the state, so the row's columns line up.
 bool RowToggle(const char* id, const char* onIcon, const char* offIcon, bool& value,
@@ -38,33 +33,22 @@ bool RowToggle(const char* id, const char* onIcon, const char* offIcon, bool& va
 
 }  // namespace
 
-bool LayerDrawer::DrawToolbarButton() {
-    if (!ToggleIconButton(ICON_FA_TABLE_CELLS, open_, "Layers")) return false;
-    open_ = !open_;
-    return true;
-}
-
 void LayerDrawer::Draw(Scene& scene, IEditorService& editor, Rectangle imageScreenRect) {
-    if (!open_) return;
+    panel_.Draw(imageScreenRect, "Layers", [&] {
+        // Top-down: highest z first, so the list reads the way the scene stacks on screen.
+        std::vector<const SceneLayer*> ordered;
+        auto& layers = scene.GetLayers();
+        ordered.reserve(layers.size());
+        for (const auto& layer : layers) ordered.push_back(&layer);
+        std::stable_sort(ordered.begin(), ordered.end(),
+                         [](const SceneLayer* a, const SceneLayer* b) { return a->zIndex > b->zIndex; });
 
-    auto& layers = scene.GetLayers();
-    if (layers.empty()) return;
-
-    // Top-down: highest z first, so the list reads the way the scene stacks on screen.
-    std::vector<const SceneLayer*> ordered;
-    ordered.reserve(layers.size());
-    for (const auto& layer : layers) ordered.push_back(&layer);
-    std::stable_sort(ordered.begin(), ordered.end(),
-                     [](const SceneLayer* a, const SceneLayer* b) { return a->zIndex > b->zIndex; });
-
-    const float width = std::min(kDrawerWidth, imageScreenRect.width);
-    // A child window takes its position from the cursor, not SetNextWindowPos, so park the cursor
-    // at the viewport image's right edge to anchor the drawer there.
-    ImGui::SetCursorScreenPos(ImVec2(imageScreenRect.x + imageScreenRect.width - width, imageScreenRect.y));
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, Palette::WithAlpha(Editor::Palette().Base, 0.94f));
-    if (ImGui::BeginChild("##LayerDrawer", ImVec2(width, imageScreenRect.height),
-                          ImGuiChildFlags_Borders, ImGuiWindowFlags_NoScrollbar)) {
-        SectionHeader("Layers");
+        // A scene with no layers used to close the drawer out from under you; it now says so,
+        // like every other empty panel in the editor.
+        if (ordered.empty()) {
+            EmptyState("This scene has no layers. Add one on the Settings screen.");
+            return;
+        }
 
         const bool anyFilter = !editor.GetActiveLayer().empty();
         if (anyFilter) {
@@ -76,17 +60,11 @@ void LayerDrawer::Draw(Scene& scene, IEditorService& editor, Rectangle imageScre
         }
         ImGui::Separator();
 
-        const float listHeight = ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing() * 5.0f;
-        if (ImGui::BeginChild("##LayerList", ImVec2(0, std::max(listHeight, ImGui::GetFrameHeight())))) {
+        if (ImGui::BeginChild("##LayerList", ImVec2(0, 0))) {
             for (const SceneLayer* layer : ordered) DrawLayerRow(scene, editor, layer->name, layer->zIndex);
         }
         ImGui::EndChild();
-
-        ImGui::Separator();
-        DrawBrushSection(editor);
-    }
-    ImGui::EndChild();
-    ImGui::PopStyleColor();
+    });
 }
 
 void LayerDrawer::DrawLayerRow(Scene& scene, IEditorService& editor, const std::string& name, int zIndex) {
@@ -126,33 +104,6 @@ void LayerDrawer::DrawLayerRow(Scene& scene, IEditorService& editor, const std::
               state.hidden ? "Show layer" : "Hide layer");
 
     ImGui::PopID();
-}
-
-void LayerDrawer::DrawBrushSection(IEditorService& editor) {
-    SectionHeader("Paint");
-
-    const std::string& active = editor.GetActiveLayer();
-    AssetField("##brush", AssetKind::Prefab, brushPrefab_);
-
-    const bool canPaint = !brushPrefab_.empty() && !active.empty() && !editor.IsLayerLocked(active);
-    ImGui::BeginDisabled(!canPaint);
-    if (ToggleIconButton(ICON_FA_PAINT_ROLLER, painting_, "Paint prefab (click to place, drag to fill)")) {
-        paintToggleRequested_ = true;
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-
-    // Say exactly what is missing rather than leaving a dead button.
-    if (brushPrefab_.empty())                  MutedText("Pick a prefab to paint");
-    else if (active.empty())                   MutedText("Focus a layer to paint onto");
-    else if (editor.IsLayerLocked(active))     ColoredText(Editor::Palette().Warning, "Layer is locked");
-    else if (painting_)                        ColoredText(Editor::Palette().Accent, ("Painting onto " + active).c_str());
-    else                                       MutedText(("Paints onto " + active).c_str());
-
-    GridSettings& grid = editor.GetGrid();
-    if (painting_ && !grid.snapEnabled) {
-        MutedText("Snap is off — placing freehand");
-    }
 }
 
 }  // namespace Elysium

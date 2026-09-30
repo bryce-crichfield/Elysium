@@ -117,10 +117,15 @@ void ApplyGizmoStyle(const EditorStyle::Palette& palette) {
 ViewportEditor::ViewportEditor(ServiceLocator& services) : Editor(services, Title) {
     // Order is the toolbar order and the 1-4 shortcuts. Select is first because it is the
     // default and what an unavailable tool falls back to.
-    tools_.push_back(std::make_unique<SelectTool>());
-    tools_.push_back(std::make_unique<PaintTool>(layerDrawer_));
-    tools_.push_back(std::make_unique<NavMeshTool>());
+    // Order is the number-key order, and the select family comes first: Select, then the three
+    // that add a gizmo to it, then the tools that own the mouse themselves.
+    tools_.push_back(std::make_unique<SelectTool>(GizmoMode::None));
+    tools_.push_back(std::make_unique<SelectTool>(GizmoMode::Move));
+    tools_.push_back(std::make_unique<SelectTool>(GizmoMode::Rotate));
+    tools_.push_back(std::make_unique<SelectTool>(GizmoMode::Scale));
     tools_.push_back(std::make_unique<VertexTool>());
+    tools_.push_back(std::make_unique<PaintTool>());
+    tools_.push_back(std::make_unique<NavMeshTool>());
 }
 
 ViewportTool* ViewportEditor::ActiveTool() {
@@ -139,35 +144,71 @@ void ViewportEditor::SetActiveTool(int index, IEditorService& editor) {
     if (auto* previous = ActiveTool()) previous->OnDeactivate(editor);
     activeTool_ = index;
     tools_[activeTool_]->OnActivate(editor);
+    // A tool with settings opens its panel, so picking the paint tool puts its brush in front of
+    // you rather than leaving you to find the panel that holds it.
+    if (!tools_[activeTool_]->Parameters().Empty()) toolPanel_.SetOpen(true);
+}
+
+void ViewportEditor::RefreshToolAvailability(IEditorService& editor, bool isScene) {
+    unavailable_.assign(tools_.size(), nullptr);
+    for (size_t i = 0; i < tools_.size(); i++) unavailable_[i] = tools_[i]->Unavailable(editor, isScene);
+
+    // A tool that has become unusable (the tab is a prefab, its selection went away) is stepped
+    // away from rather than left active and silently doing nothing. Note this is why Unavailable
+    // must never report something the tool's own panel is how you fix.
+    if (activeTool_ != kSelectTool && unavailable_[activeTool_]) SetActiveTool(kSelectTool, editor);
 }
 
 void ViewportEditor::DrawToolButtons(IEditorService& editor, bool isScene) {
-    // A tool that has become unusable (its layer got locked, the tab is a prefab) is stepped
-    // away from rather than left active and silently doing nothing.
-    if (auto* active = ActiveTool(); active && active->Unavailable(editor, isScene)) SetActiveTool(0, editor);
+    RefreshToolAvailability(editor, isScene);
 
+    // A rule between the select family and the tools that own the mouse themselves, so seven icons
+    // in a row read as two groups. Drawn off PicksEntities() rather than a hard-coded index, because
+    // that is the same property that decides who gets the right-click pick menu -- the grouping is
+    // the distinction, not a coincidence of ordering.
+    bool ruled = false;
     for (int i = 0; i < (int)tools_.size(); i++) {
         ViewportTool& tool = *tools_[i];
-        const char* why = tool.Unavailable(editor, isScene);
-
-        ImGui::SameLine();
-        ImGui::BeginDisabled(why != nullptr);
-        if (ToggleIconButton(tool.Icon(), activeTool_ == i, why ? why : tool.Tooltip())) SetActiveTool(i, editor);
-        ImGui::EndDisabled();
+        if (!tool.PicksEntities() && !ruled) {
+            ruled = true;
+            ToolbarSeparator();
+        } else {
+            ImGui::SameLine();
+        }
+        if (GatedToggleIconButton(tool.Icon(), activeTool_ == i, tool.Tooltip(), unavailable_[i])) {
+            SetActiveTool(i, editor);
+        }
     }
 
-    if (auto* active = ActiveTool()) active->DrawToolbar(editor);
+    // The active tool's status line, colored here rather than by the tool, so a hint from the paint
+    // tool and one from the navmesh tool read identically.
+    ViewportTool* active = ActiveTool();
+    if (!active) return;
+    const ToolStatus status = active->Status(editor);
+    if (status.text.empty()) return;
+
+    const auto& palette = Palette();
+    const ImVec4& color = status.level == ToolStatusLevel::Working ? palette.Accent
+                        : status.level == ToolStatusLevel::Warning ? palette.Warning
+                                                                  : palette.TextMuted;
+    ToolbarSeparator();
+    ImGui::AlignTextToFramePadding();
+    ColoredText(color, status.text.c_str());
 }
 
 void ViewportEditor::HandleToolShortcuts(IEditorService& editor, bool isScene) {
     if (ImGui::GetIO().WantTextInput) return;
 
-    for (int i = 0; i < (int)tools_.size() && i < 9; i++) {
+    // Availability was already refreshed by the toolbar, which draws before the world.
+    (void)isScene;
+    for (int i = 0; i < (int)tools_.size() && i < 9 && i < (int)unavailable_.size(); i++) {
         if (!ImGui::IsKeyPressed((ImGuiKey)(ImGuiKey_1 + i), false)) continue;
-        if (!tools_[i]->Unavailable(editor, isScene)) SetActiveTool(i, editor);
+        if (!unavailable_[i]) SetActiveTool(i, editor);
     }
     // Esc always lands on Select, so there is one key that reliably gets you out of a mode.
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && activeTool_ != 0) SetActiveTool(0, editor);
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && activeTool_ != kSelectTool) {
+        SetActiveTool(kSelectTool, editor);
+    }
 }
 
 void ViewportEditor::Draw() {
@@ -260,7 +301,10 @@ void ViewportEditor::HandleFileDialog(IEditorService& editor) {
 void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& editorService) {
     // The image runs edge to edge under the padded toolbar.
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::BeginChild("ViewportImage", ImVec2(0, 0), ImGuiChildFlags_None,
+    // Room left under the image for the footer, which is outside the image child so its clicks
+    // are never viewport clicks.
+    const float footerHeight = ImGui::GetFrameHeightWithSpacing();
+    ImGui::BeginChild("ViewportImage", ImVec2(0, -footerHeight), ImGuiChildFlags_None,
                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar();
 
@@ -325,10 +369,12 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& edit
         .imageScreenRect = imageScreenRect,
     };
 
-    // The gizmo comes first, and only for a tool that wants it: a paint stroke that also
+    // The gizmo comes first, and only for a tool that carries one: a paint stroke that also
     // dragged the last selection around would be unusable.
     ViewportTool* tool = ActiveTool();
-    const bool gizmoOwnsMouse = tool && tool->UsesGizmo() && HandleGizmo(sceneService, editorService, view, imageScreenRect);
+    const GizmoMode gizmo = tool ? tool->Gizmo() : GizmoMode::None;
+    const bool gizmoOwnsMouse =
+        gizmo != GizmoMode::None && HandleGizmo(sceneService, editorService, view, imageScreenRect, gizmo);
 
     bool toolConsumedClick = false;
     if (tool && !gizmoOwnsMouse && editorService.GetWorld()) {
@@ -339,13 +385,13 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& edit
     const bool canInteract = imageHovered && !gizmoOwnsMouse && !toolConsumedClick;
     if (canInteract || isPanningCamera_) HandleEditorCameraInput(sceneService, editorService, view, canInteract);
     if (canInteract) {
-        HandleGizmoShortcuts(sceneService);
+        HandleGizmoShortcuts(editorService);
         // After the tool, so a tool that uses Escape itself (cancelling a half-laid polygon)
         // gets it before Escape means "back to Select".
         const EditorDocument* shown = editorService.GetActiveDocumentInfo();
         HandleToolShortcuts(editorService, shown && shown->IsScene());
-        // The pick menu is the select tool's right-click; other tools use that button themselves.
-        if (imageRightClicked && tool && tool->UsesGizmo()) OpenPickMenu(sceneService, editorService, view);
+        // The pick menu belongs to the tools that pick; the others use right-click themselves.
+        if (imageRightClicked && tool && tool->PicksEntities()) OpenPickMenu(sceneService, editorService, view);
     }
     DrawPickMenu(editorService);
 
@@ -354,16 +400,13 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& edit
         const auto* document = editorService.GetActiveDocumentInfo();
         if (document && document->IsScene()) layerDrawer_.Draw(*scene, editorService, imageScreenRect);
     }
-
-    // The drawer's brush section shows whether painting is on and asks to toggle it; which tool
-    // is active is decided here and nowhere else.
-    const int paintTool = ToolIndex("Paint");
-    layerDrawer_.SetPainting(activeTool_ == paintTool);
-    if (layerDrawer_.TakePaintToggleRequest()) {
-        SetActiveTool(activeTool_ == paintTool ? 0 : paintTool, editorService);
-    }
+    // Opposite edge from the layer drawer, so both can be open at once.
+    toolPanel_.Draw(ActiveTool(), imageScreenRect);
 
     ImGui::EndChild();
+
+    const EditorDocument* footerDocument = editorService.GetActiveDocumentInfo();
+    DrawFooter(editorService, footerDocument && footerDocument->IsScene());
 }
 
 // One closeable tab per open document (scene or prefab), each its own copy loaded from disk.
@@ -407,80 +450,84 @@ void ViewportEditor::DrawDocumentTabs(ISceneService& sceneService, IEditorServic
 
 void ViewportEditor::DrawToolbar(IEditorService& editor, const EditorDocument* document, ContentPane* pane) {
     // No play/pause: the editor never simulates its documents, so nothing a simulation
-    // moved can be saved by mistake. Play mode (F2) runs the saved files instead.
-    const bool canSave = document && (document->HasWorld() || (pane && pane->CanSave()));
-    ImGui::BeginDisabled(!canSave);
-    if (IconButton(ICON_FA_FLOPPY_DISK, "Save (Ctrl+S)")) Save(editor, pane);
-    ImGui::EndDisabled();
-
+    // moved can be saved by mistake. Play mode (F2) runs the saved files instead. No Save button
+    // either -- File > Save and Ctrl+S already do it, and a row of icons should only carry the
+    // things that are specific to this viewport.
     if (pane) {
         pane->DrawToolbar();
         return;
     }
 
-    // A scene or prefab can swap its world for its settings (a scene's layers and systems,
-    // a prefab's parameters) and back.
+    // A scene or prefab can swap its world for its settings (a scene's layers and systems, a
+    // prefab's parameters) and back. One button, not two: it is a toggle, so it shows the sliders
+    // going in and a back arrow -- lit, like any other active toggle -- coming out. It is the only
+    // thing on this bar that is not about editing, hence the separator after it.
     const bool settings = document && document->HasWorld() && settingsOpen_.count(document->fullPath);
     if (document && document->HasWorld()) {
-        ImGui::SameLine();
-        const std::string back = std::string(ICON_FA_ARROW_LEFT "  Back to ") + StyleOf(document->kind).label;
-        if (settings ? ImGui::Button(back.c_str()) : ImGui::Button(ICON_FA_SLIDERS "  Settings")) {
+        const char* icon = settings ? ICON_FA_ARROW_LEFT : ICON_FA_SLIDERS;
+        const char* tooltip = settings ? "Back to the rendered view"
+                              : document->IsScene() ? "Settings - the scene's layers and systems"
+                                                    : "Settings - the prefab's parameters";
+        if (ToggleIconButton(icon, settings, tooltip)) {
             if (settings) settingsOpen_.erase(document->fullPath);
             else settingsOpen_.insert(document->fullPath);
         }
-        ItemTooltip(settings ? "Back to the rendered view"
-                             : document->IsScene() ? "The scene's layers and systems" : "The prefab's parameters");
     }
     if (settings) return;
 
-    // Tools first: which one is active decides what the rest of the toolbar even means.
+    // Tools next: which one is active decides what the rest of the toolbar even means.
     const bool isSceneTab = document && document->IsScene();
-    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
+    if (document && document->HasWorld()) ToolbarSeparator();
     DrawToolButtons(editor, isSceneTab);
 
-    // Gizmo mode, for the tool that uses the gizmo.
-    ImGui::BeginDisabled(ActiveTool() && !ActiveTool()->UsesGizmo());
-    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
-    if (ToggleIconButton(ICON_FA_ARROWS_UP_DOWN_LEFT_RIGHT, gizmoMode_ == GizmoMode::Move, "Move (W)")) gizmoMode_ = GizmoMode::Move;
-    ImGui::SameLine();
-    if (ToggleIconButton(ICON_FA_ROTATE, gizmoMode_ == GizmoMode::Rotate, "Rotate (E)")) gizmoMode_ = GizmoMode::Rotate;
-    ImGui::SameLine();
-    if (ToggleIconButton(ICON_FA_UP_RIGHT_AND_DOWN_LEFT_FROM_CENTER, gizmoMode_ == GizmoMode::Scale, "Scale (R)")) gizmoMode_ = GizmoMode::Scale;
-    ImGui::EndDisabled();
-
-    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
-    DrawOverlaysMenu(overlays_);
-
-    // Snap is the one grid control that belongs on the toolbar: it's toggled constantly while
-    // working, unlike the spacing, which is set once on the Scene Settings screen.
+    // Everything after the tool buttons is right-aligned, because the active tool's status line
+    // sits between them and is a different length for every tool and every state -- anything left
+    // floating after it moved around as you worked, which is what made the snap toggle feel loose.
+    //
+    // The focused layer used to be named here too. It read as a button -- it looked like one and did
+    // nothing when clicked -- and the layer drawer already shows which layer has focus, so it is gone.
     GridSettings& grid = editor.GetGrid();
-    ImGui::SameLine();
-    if (ToggleIconButton(ICON_FA_BORDER_ALL, grid.snapEnabled, "Snap to grid")) grid.snapEnabled = !grid.snapEnabled;
-    ImGui::SameLine();
-    if (ToggleIconButton(ICON_FA_TABLE_CELLS_LARGE, grid.showGrid, "Show grid")) grid.showGrid = !grid.showGrid;
-
-    // The layer drawer is scene-only; a prefab tab has no layer list.
-    if (!isSceneTab) layerDrawer_.SetOpen(false);
-    if (isSceneTab) {
-        ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
-        layerDrawer_.DrawToolbarButton();
-
-        const std::string& activeLayer = editor.GetActiveLayer();
-        if (!activeLayer.empty()) {
-            ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
-            ColoredText(Palette().Accent, (std::string(ICON_FA_LAYER_GROUP) + "  " + activeLayer).c_str());
-            ItemTooltip("Focused layer — the Hierarchy is filtered to it");
-        }
-    }
-
-    // Right side: editor camera readout and a reset back to the scene's camera.
     auto& camera = editor.GetEditorCamera();
     char readout[64];
     snprintf(readout, sizeof(readout), "%.0f, %.0f   %.0f%%", camera.position.x, camera.position.y, camera.zoom * 100.0f);
-    AlignRight(ImGui::CalcTextSize(readout).x + ButtonWidth(ICON_FA_CROSSHAIRS) + ImGui::GetStyle().ItemSpacing.x);
+
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    AlignRight(ButtonWidth(ICON_FA_BORDER_ALL) + ToolbarSeparatorWidth()
+               + ImGui::CalcTextSize(readout).x + spacing + ButtonWidth(ICON_FA_CROSSHAIRS));
+
+    // Snap is the one grid control that belongs up here: it changes what an edit does, not what you
+    // can see. Grid visibility is a display setting, so it went to the footer with the rest of them.
+    if (ToggleIconButton(ICON_FA_BORDER_ALL, grid.snapEnabled, "Snap to grid")) grid.snapEnabled = !grid.snapEnabled;
+
+    // Editor camera readout, and a reset back to the scene's camera.
+    ToolbarSeparator();
+    ImGui::AlignTextToFramePadding();
     ColoredText(Palette().TextMuted, readout);
     ImGui::SameLine();
     if (IconButton(ICON_FA_CROSSHAIRS, "Reset view to the scene camera")) camera.initialized = false;
+}
+
+
+// What is shown, as opposed to what the mouse does. Splitting the two is the point: the top bar had
+// grown the panel toggles, an overlays popup and the gizmo modes in among the tool buttons, so a row
+// that should answer "what am I editing with" also answered "what can I see".
+void ViewportEditor::DrawFooter(IEditorService& editor, bool isSceneTab) {
+    // Its own id scope. An ImGui button's id is its label, the footer shares a window with the
+    // toolbar, and icons repeat across the two by design -- the nav-area overlay toggle and the
+    // navmesh tool are both ICON_FA_ROUTE, and without this they are one widget fighting itself.
+    ImGui::PushID("ViewportFooter");
+    ViewportTool* tool = ActiveTool();
+    toolPanel_.DrawToolbarButton(tool && !tool->Parameters().Empty() ? nullptr : "This tool has no settings");
+    ImGui::SameLine();
+    layerDrawer_.DrawToolbarButton(isSceneTab ? nullptr : "A prefab has no layers");
+
+    // Panels on one side of the rule, what the viewport draws on the other.
+    ToolbarSeparator();
+    GridSettings& grid = editor.GetGrid();
+    if (ToggleIconButton(ICON_FA_TABLE_CELLS_LARGE, grid.showGrid, "Show grid")) grid.showGrid = !grid.showGrid;
+    ImGui::SameLine();
+    DrawOverlayToggles(overlays_);
+    ImGui::PopID();
 }
 
 void ViewportEditor::Save(IEditorService& editor, ContentPane* pane) {
@@ -514,12 +561,13 @@ std::unique_ptr<ContentPane> MakeContentPane(ServiceLocator& services, const Edi
     }
 }
 
-void ViewportEditor::HandleGizmoShortcuts(ISceneService& sceneService) {
-    // While simulating, these keys belong to the game.
+void ViewportEditor::HandleGizmoShortcuts(IEditorService& editor) {
+    // W/E/R survive as aliases for the move, rotate and scale tools -- the same keys as before,
+    // now selecting a tool rather than setting a mode on one.
     if (ImGui::GetIO().WantTextInput || ImGui::GetIO().KeyCtrl) return;
-    if (ImGui::IsKeyPressed(ImGuiKey_W, false)) gizmoMode_ = GizmoMode::Move;
-    if (ImGui::IsKeyPressed(ImGuiKey_E, false)) gizmoMode_ = GizmoMode::Rotate;
-    if (ImGui::IsKeyPressed(ImGuiKey_R, false)) gizmoMode_ = GizmoMode::Scale;
+    if (ImGui::IsKeyPressed(ImGuiKey_W, false)) SetActiveTool(kMoveTool, editor);
+    if (ImGui::IsKeyPressed(ImGuiKey_E, false)) SetActiveTool(kRotateTool, editor);
+    if (ImGui::IsKeyPressed(ImGuiKey_R, false)) SetActiveTool(kScaleTool, editor);
 }
 
 void ViewportEditor::InitializeEditorCameraIfNeeded(IEditorService& editorService) {
@@ -582,7 +630,7 @@ void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEdito
 }
 
 bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& editorService,
-                                 const CameraView& view, Rectangle imageScreenRect) {
+                                 const CameraView& view, Rectangle imageScreenRect, GizmoMode gizmo) {
     auto* world = editorService.GetWorld();
     const auto& selected = editorService.GetSelectedEntities();
     // The gizmo sits on the most recently selected entity and the rest of the selection follows
@@ -642,10 +690,10 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
     ImGuizmo::OPERATION operation = ImGuizmo::OPERATION(ImGuizmo::TRANSLATE_X | ImGuizmo::TRANSLATE_Y);
     ImGuizmo::MODE mode = ImGuizmo::WORLD;
     float snapValue = MoveSnap;
-    if (gizmoMode_ == GizmoMode::Rotate) {
+    if (gizmo == GizmoMode::Rotate) {
         operation = ImGuizmo::ROTATE_Z;
         snapValue = RotateSnap;
-    } else if (gizmoMode_ == GizmoMode::Scale) {
+    } else if (gizmo == GizmoMode::Scale) {
         operation = ImGuizmo::OPERATION(ImGuizmo::SCALE_X | ImGuizmo::SCALE_Y);
         mode = ImGuizmo::LOCAL;
         snapValue = ScaleSnap;
@@ -653,7 +701,7 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
     const float snap[3] = { snapValue, snapValue, snapValue };
     // Ctrl is the ad-hoc snap. A move is instead snapped to the editing grid below, since
     // ImGuizmo's snap is axis-aligned and an isometric lattice isn't.
-    const bool gridSnapsMove = gizmoMode_ == GizmoMode::Move && isWorldSpace && editorService.GetGrid().snapEnabled;
+    const bool gridSnapsMove = gizmo == GizmoMode::Move && isWorldSpace && editorService.GetGrid().snapEnabled;
     const bool snapping = ImGui::GetIO().KeyCtrl && !gridSnapsMove;
 
     if (ImGuizmo::Manipulate(identity.m, projection.m, operation, mode, matrix.m, nullptr, snapping ? snap : nullptr)) {
@@ -661,7 +709,7 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
         // Each mode writes back only what it edits, so a move never rewrites (and rounds)
         // the rotation or scale. Changes land in the local transform; TransformSystem
         // recomposes world next frame.
-        if (gizmoMode_ == GizmoMode::Move) {
+        if (gizmo == GizmoMode::Move) {
             Vector2 target = fromShown({ m[12], m[13] });
             if (gridSnapsMove) target = editorService.SnapToGrid(target);
             Vector2 local = target;
@@ -681,7 +729,7 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
             }
             t.localX = local.x;
             t.localY = local.y;
-        } else if (gizmoMode_ == GizmoMode::Rotate) {
+        } else if (gizmo == GizmoMode::Rotate) {
             // World rotation is parent + local, so the world delta is the local delta.
             const float newRotation = atan2f(m[1], m[0]) / DegToRad;
             t.localRotation += WrapDegrees(newRotation - t.worldRotation);
@@ -703,10 +751,10 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
 
         for (Entity follower : followers) {
             auto& other = world->GetComponent<TransformComponent>(follower);
-            if (gizmoMode_ == GizmoMode::Move) {
+            if (gizmo == GizmoMode::Move) {
                 other.localX += deltaX;
                 other.localY += deltaY;
-            } else if (gizmoMode_ == GizmoMode::Rotate) {
+            } else if (gizmo == GizmoMode::Rotate) {
                 other.localRotation += deltaRotation;
             } else {
                 other.localScaleX *= ratioX;
@@ -715,12 +763,12 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
         }
     }
 
-    RecordGizmoDrag(editorService, entity, followers);
+    RecordGizmoDrag(editorService, entity, followers, gizmo);
     return ImGuizmo::IsOver() || ImGuizmo::IsUsing();
 }
 
 void ViewportEditor::RecordGizmoDrag(IEditorService& editorService, Entity primary,
-                                     const std::vector<Entity>& followers) {
+                                     const std::vector<Entity>& followers, GizmoMode mode) {
     // The gizmo writes the transform directly on every frame of a drag, and ImGuizmo exposes no
     // drag-begin or drag-end of its own. Rather than record each frame and merge them, watch the
     // edge of IsUsing() and snapshot once at each end: the entry is then exactly the drag.
@@ -744,17 +792,19 @@ void ViewportEditor::RecordGizmoDrag(IEditorService& editorService, Entity prima
     gizmoDragEntities_.clear();
     gizmoDragBefore_.clear();
 
+    // GizmoMode::None is 0, and a drag only ever happens under one of the other three.
     static constexpr const char* labels[] = { "Move Entity", "Rotate Entity", "Scale Entity" };
+    const char* label = labels[std::clamp((int)mode - 1, 0, 2)];
 
     // One transaction, so dragging six walls is one Ctrl+Z rather than six.
-    editorService.BeginTransaction(labels[(int)gizmoMode_]);
+    editorService.BeginTransaction(label);
     for (size_t i = 0; i < dragged.size() && i < before.size(); i++) {
         if (!world->IsAlive(dragged[i])) continue;
         std::string after = EntityXml::SaveComponent(*world, dragged[i], tag);
         if (after == before[i]) continue;  // a click on the gizmo that moved nothing
         editorService.Execute(std::make_unique<ComponentEditCommand>(
             EntityRef{ editorService.StableIdOf(dragged[i]) }, tag, before[i], std::move(after),
-            labels[(int)gizmoMode_]));
+            label));
     }
     editorService.EndTransaction();
 }

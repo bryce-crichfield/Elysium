@@ -60,194 +60,6 @@
             <NavAreaComponent points="-46.7864,7.6839 16.0508,-23.7347 46.1034,-9.39142 -15.3678,25.4423" type="Blocked" cost="1"/>
             <TransformComponent x="143.27362" y="312.19873"/>
         </Entity>
-        <Entity name="Knight3">
-            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
-            <KinematicsComponent friction="5" maxSpeed="140"/>
-            <LayerComponent name="entity"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Vampire/Knight_idle_breathing.png" normalMap="Textures/Sprites/Vampire/Knight_idle_breathing_normal.png">
-                    <Uniform name="uSourceRect" type="vec4" value="1664.000000 0.000000 128.000000 128.000000"/>
-                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
-                </Layer>
-            </MaterialComponent>
-            <MovementComponent state="Idle" goalX="0" goalY="0"/>
-            <NameComponent name="Knight3"/>
-            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
-            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.52401549" originY="0.7769773"/>
-            <ScriptComponent>
-                <Script name="Scripts/Elysium/Unit.lua"/>
-            </ScriptComponent>
-            <SpriteComponent spriteName="Sprites/Vampire.xml" sheetName="Idle" sequenceName="south"/>
-            <TeamComponent team="0"/>
-            <TransformComponent x="42.304615" y="215.5298" scaleX="0.66000003" scaleY="0.66000003"/>
-        </Entity>
-        <Entity name="Knight3::Light">
-            <EllipseComponent radiusH="48" radiusV="24"/>
-            <LayerComponent name="shadow"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Falloff" enabled="true">
-                    <Uniform name="uHardness" type="float" value="-0.300000"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Knight3::Light"/>
-            <ParentComponent target="Knight3"/>
-            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
-        </Entity>
-        <Entity name="Knight3::Selection">
-            <EllipseComponent radiusH="30" radiusV="15"/>
-            <LayerComponent name="selection"/>
-            <MaterialComponent padding="512" enabled="true">
-                <Layer material="Fire" enabled="true">
-                    <Uniform name="uRise" type="float" value="0.000000"/>
-                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
-                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Knight3::Selection"/>
-            <ParentComponent target="Knight3"/>
-            <TransformComponent x="0" y="0"/>
-        </Entity>
-        <Entity name="Knight2">
-            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
-            <KinematicsComponent friction="5" maxSpeed="140"/>
-            <LayerComponent name="entity"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png" normalMap="Textures/Sprites/Archer/Archer_idle_bored_normal.png">
-                    <Uniform name="uSourceRect" type="vec4" value="1024.000000 128.000000 128.000000 128.000000"/>
-                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
-                </Layer>
-            </MaterialComponent>
-            <MovementComponent state="Idle" goalX="0" goalY="0"/>
-            <NameComponent name="Knight2"/>
-            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
-            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
-            <ScriptComponent>
-                <Script name="Scripts/Elysium/Unit.lua"/>
-            </ScriptComponent>
-            <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="Idle" sequenceName="south"/>
-            <TeamComponent team="0"/>
-            <TransformComponent x="263.20358" y="211.21133" scaleX="0.66000003" scaleY="0.66000003"/>
-        </Entity>
-        <Entity name="Knight2::Light">
-            <EllipseComponent radiusH="48" radiusV="24"/>
-            <LayerComponent name="shadow"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Falloff" enabled="true">
-                    <Uniform name="uHardness" type="float" value="-0.300000"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Knight2::Light"/>
-            <ParentComponent target="Knight2"/>
-            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
-        </Entity>
-        <Entity name="Knight2::Selection">
-            <EllipseComponent radiusH="30" radiusV="15"/>
-            <LayerComponent name="selection"/>
-            <MaterialComponent padding="512" enabled="true">
-                <Layer material="Fire" enabled="true">
-                    <Uniform name="uRise" type="float" value="0.000000"/>
-                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
-                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Knight2::Selection"/>
-            <ParentComponent target="Knight2"/>
-            <TransformComponent x="0" y="0"/>
-        </Entity>
-        <Entity name="Knight2">
-            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
-            <KinematicsComponent friction="5" maxSpeed="140"/>
-            <LayerComponent name="entity"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png" normalMap="Textures/Sprites/Archer/Archer_idle_bored_normal.png">
-                    <Uniform name="uSourceRect" type="vec4" value="1024.000000 128.000000 128.000000 128.000000"/>
-                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
-                </Layer>
-            </MaterialComponent>
-            <MovementComponent state="Idle" goalX="0" goalY="0"/>
-            <NameComponent name="Knight2"/>
-            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
-            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
-            <ScriptComponent>
-                <Script name="Scripts/Elysium/Unit.lua"/>
-            </ScriptComponent>
-            <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="Idle" sequenceName="south"/>
-            <TeamComponent team="0"/>
-            <TransformComponent x="58.615738" y="42.146763" scaleX="0.66000003" scaleY="0.66000003"/>
-        </Entity>
-        <Entity name="Knight2::Light">
-            <EllipseComponent radiusH="48" radiusV="24"/>
-            <LayerComponent name="shadow"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Falloff" enabled="true">
-                    <Uniform name="uHardness" type="float" value="-0.300000"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Knight2::Light"/>
-            <ParentComponent target="Knight2"/>
-            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
-        </Entity>
-        <Entity name="Knight2::Selection">
-            <EllipseComponent radiusH="30" radiusV="15"/>
-            <LayerComponent name="selection"/>
-            <MaterialComponent padding="512" enabled="true">
-                <Layer material="Fire" enabled="true">
-                    <Uniform name="uRise" type="float" value="0.000000"/>
-                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
-                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Knight2::Selection"/>
-            <ParentComponent target="Knight2"/>
-            <TransformComponent x="0" y="0"/>
-        </Entity>
-        <Entity name="Knight2">
-            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
-            <KinematicsComponent friction="5" maxSpeed="140"/>
-            <LayerComponent name="entity"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png" normalMap="Textures/Sprites/Archer/Archer_idle_bored_normal.png">
-                    <Uniform name="uSourceRect" type="vec4" value="1024.000000 128.000000 128.000000 128.000000"/>
-                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
-                </Layer>
-            </MaterialComponent>
-            <MovementComponent state="Idle" goalX="0" goalY="0"/>
-            <NameComponent name="Knight2"/>
-            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
-            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
-            <ScriptComponent>
-                <Script name="Scripts/Elysium/Unit.lua"/>
-            </ScriptComponent>
-            <SpriteComponent spriteName="Sprites/Archer.xml" sheetName="Idle" sequenceName="south"/>
-            <TeamComponent team="0"/>
-            <TransformComponent x="-105.8442" y="145.4272" scaleX="0.66000003" scaleY="0.66000003"/>
-        </Entity>
-        <Entity name="Knight2::Light">
-            <EllipseComponent radiusH="48" radiusV="24"/>
-            <LayerComponent name="shadow"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Falloff" enabled="true">
-                    <Uniform name="uHardness" type="float" value="-0.300000"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Knight2::Light"/>
-            <ParentComponent target="Knight2"/>
-            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
-        </Entity>
-        <Entity name="Knight2::Selection">
-            <EllipseComponent radiusH="30" radiusV="15"/>
-            <LayerComponent name="selection"/>
-            <MaterialComponent padding="512" enabled="true">
-                <Layer material="Fire" enabled="true">
-                    <Uniform name="uRise" type="float" value="0.000000"/>
-                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
-                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Knight2::Selection"/>
-            <ParentComponent target="Knight2"/>
-            <TransformComponent x="0" y="0"/>
-        </Entity>
         <Entity name="WallRight_5">
             <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
             <LayerComponent name="entity"/>
@@ -259,37 +71,16 @@
             <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
             <TransformComponent x="192" y="224"/>
         </Entity>
-        <Entity name="WallRight_5">
-            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
-            <LayerComponent name="entity"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
-            </MaterialComponent>
-            <NameComponent name="WallRight_5"/>
-            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
-            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
-            <TransformComponent x="256" y="192"/>
-        </Entity>
-        <Entity name="Wall_NE7">
+        <Entity name="WallBack_7">
             <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
             <LayerComponent name="entity"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
             </MaterialComponent>
-            <NameComponent name="Wall_NE7"/>
+            <NameComponent name="WallBack_7"/>
             <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
             <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
-            <TransformComponent x="64" y="256"/>
-        </Entity>
-        <Entity name="Floor121">
-            <LayerComponent name="tile"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/floor.png"/>
-            </MaterialComponent>
-            <NameComponent name="Floor121"/>
-            <OccluderComponent footprint="0,-16 32,0 0,16 -32,0" height="0" isStatic="true" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
-            <RectangleComponent width="64" height="32" cornerRadius="0"/>
-            <TransformComponent x="448" y="160"/>
+            <TransformComponent x="96" y="-48"/>
         </Entity>
         <Entity name="WallBack_7">
             <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
@@ -302,16 +93,27 @@
             <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
             <TransformComponent x="32" y="-80"/>
         </Entity>
-        <Entity name="WallBack_7">
+        <Entity name="Wall_NE7">
             <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
             <LayerComponent name="entity"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_ne.png"/>
             </MaterialComponent>
-            <NameComponent name="WallBack_7"/>
+            <NameComponent name="Wall_NE7"/>
             <OccluderComponent footprint="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
             <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
-            <TransformComponent x="96" y="-48"/>
+            <TransformComponent x="64" y="256"/>
+        </Entity>
+        <Entity name="WallRight_5">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/wall_nw.png"/>
+            </MaterialComponent>
+            <NameComponent name="WallRight_5"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="48" isStatic="true" mode="FadeSelf" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="64" height="80" cornerRadius="0" originX="0.5" originY="0.80000001"/>
+            <TransformComponent x="256" y="192"/>
         </Entity>
         <Entity name="WallBack_7">
             <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-30.2111,-19.5777 33.7889,12.4223 30.2111,19.5777 -33.7889,-12.4223"/>
@@ -552,8 +354,8 @@
         <Override entity="0" component="TransformComponent" field="y" value="240"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor125">
-        <Override entity="0" component="TransformComponent" field="x" value="320"/>
-        <Override entity="0" component="TransformComponent" field="y" value="256"/>
+        <Override entity="0" component="TransformComponent" field="x" value="448"/>
+        <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor126">
         <Override entity="0" component="TransformComponent" field="x" value="288"/>
@@ -584,8 +386,8 @@
         <Override entity="0" component="TransformComponent" field="y" value="352"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor132">
-        <Override entity="0" component="TransformComponent" field="x" value="96"/>
-        <Override entity="0" component="TransformComponent" field="y" value="368"/>
+        <Override entity="0" component="TransformComponent" field="x" value="160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="304"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor133">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
@@ -600,8 +402,8 @@
         <Override entity="0" component="TransformComponent" field="y" value="336"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor136">
-        <Override entity="0" component="TransformComponent" field="x" value="64"/>
-        <Override entity="0" component="TransformComponent" field="y" value="384"/>
+        <Override entity="0" component="TransformComponent" field="x" value="128"/>
+        <Override entity="0" component="TransformComponent" field="y" value="320"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Floor.xml" id="Floor137">
         <Override entity="0" component="TransformComponent" field="x" value="224"/>
@@ -1446,8 +1248,12 @@
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Knight.xml" id="Knight1">
-        <Override entity="0" component="TransformComponent" field="x" value="-128"/>
-        <Override entity="0" component="TransformComponent" field="y" value="32"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-67.292091"/>
+        <Override entity="0" component="TransformComponent" field="y" value="35.101463"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Knight.xml" id="Knight2">
+        <Override entity="0" component="TransformComponent" field="x" value="-206.93362"/>
+        <Override entity="0" component="TransformComponent" field="y" value="88.980232"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar_A">
         <Override entity="0" component="TransformComponent" field="x" value="-32"/>

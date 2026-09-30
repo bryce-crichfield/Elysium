@@ -30,12 +30,10 @@ Entity AcceptEntityDrop(ImGuiDragDropFlags flags = 0) {
     return payload ? *(const Entity*)payload->Data : INVALID_ENTITY;
 }
 
-// Ctrl or Shift extends the selection instead of replacing it. The selection has always been
-// a list rather than a single entity; until now no panel offered a way to build one.
-bool AdditivePick() {
-    const ImGuiIO& io = ImGui::GetIO();
-    return io.KeyCtrl || io.KeyShift;
-}
+// Ctrl toggles a row in or out of the selection; Shift takes the range from the last clicked
+// row to this one. They used to both mean "extend", which made a range impossible to express.
+bool TogglePick() { return ImGui::GetIO().KeyCtrl; }
+bool RangePick() { return ImGui::GetIO().KeyShift; }
 
 constexpr const char* kSingleRootTip = "A prefab has a single root: create entities under it";
 }  // namespace
@@ -65,8 +63,10 @@ void HierarchyEditor::Draw() {
                 DrawEntityList(service);
 
             // Clicking empty space deselects; right-clicking it offers entity creation.
-            if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                 service.ClearSelection();
+                selectionAnchor_ = INVALID_ENTITY;  // nothing to range from once the slate is clean
+            }
             if (ImGui::BeginPopupContextWindow("HierarchyContextMenu",
                                                ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
                 DrawCreateEntityMenu(service);
@@ -298,8 +298,51 @@ static std::string HierarchyLabel(const World& world, Entity entity) {
     return label;
 }
 
+void HierarchyEditor::RecordRow(Entity entity) {
+    visibleRows_.push_back(entity);
+}
+
+void HierarchyEditor::HandleRowClick(IEditorService& service, Entity entity) {
+    // A range is resolved after drawing, so only remember the intent here. Without an anchor
+    // there is nothing to range from, and shift behaves like a plain click.
+    if (RangePick() && selectionAnchor_ != INVALID_ENTITY && selectionAnchor_ != entity) {
+        pendingRangeTo_ = entity;
+        pendingRangeAdditive_ = TogglePick();
+        return;
+    }
+
+    service.SelectEntity(entity, TogglePick());
+    // The anchor follows the last plain or ctrl-click, so a shift-click always measures from the
+    // row you last touched -- and it stays put across repeated shift-clicks, which is what lets
+    // you resize a range by shift-clicking again instead of starting it over.
+    selectionAnchor_ = entity;
+}
+
+void HierarchyEditor::ApplyPendingRange(IEditorService& service) {
+    const Entity to = pendingRangeTo_;
+    pendingRangeTo_ = INVALID_ENTITY;
+    if (to == INVALID_ENTITY) return;
+
+    auto from = std::find(visibleRows_.begin(), visibleRows_.end(), selectionAnchor_);
+    auto until = std::find(visibleRows_.begin(), visibleRows_.end(), to);
+    // An anchor that has been filtered out of the list, or collapsed out of sight, can't bound a
+    // range. Select the clicked row alone and make it the new anchor rather than guessing.
+    if (from == visibleRows_.end() || until == visibleRows_.end()) {
+        service.SelectEntity(to, pendingRangeAdditive_);
+        selectionAnchor_ = to;
+        return;
+    }
+    if (from > until) std::swap(from, until);
+
+    if (!pendingRangeAdditive_) service.ClearSelection();
+    for (auto it = from; it <= until; ++it) {
+        if (!service.IsSelected(*it)) service.SelectEntity(*it, true);
+    }
+}
+
 void HierarchyEditor::DrawEntityList(IEditorService& service) {
     auto* world = service.GetWorld();
+    visibleRows_.clear();
 
     if (!ImGui::BeginTable("Entities", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_PadOuterX)) return;
     ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
@@ -310,11 +353,18 @@ void HierarchyEditor::DrawEntityList(IEditorService& service) {
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
+        RecordRow(entity);
         ImGui::PushID((int)entity);
-        const std::string label = HierarchyLabel(*world, entity);
+        // Same icon and color as the tree: a placement is a green box wherever it appears. The flat
+        // list used to draw a bare name, so searching made prefabs indistinguishable from entities.
+        const bool isPrefab = PrefabInstances::IsRoot(*world, entity);
+        const std::string label = std::string(isPrefab ? ICON_FA_BOX : ICON_FA_CUBE) + "  " + HierarchyLabel(*world, entity);
+        if (isPrefab) ImGui::PushStyleColor(ImGuiCol_Text, Palette().AssetPrefab);
         if (ImGui::Selectable(label.c_str(), service.IsSelected(entity), ImGuiSelectableFlags_SpanAllColumns)) {
-            service.SelectEntity(entity, AdditivePick());
+            HandleRowClick(service, entity);
         }
+        if (isPrefab) ImGui::PopStyleColor();
+        if (isPrefab) ItemTooltip(("Prefab: " + world->GetComponent<PrefabInstanceComponent>(entity).src).c_str());
         DrawEntityContextMenu(service, entity);
         ImGui::PopID();
 
@@ -322,6 +372,7 @@ void HierarchyEditor::DrawEntityList(IEditorService& service) {
         ImGui::TextDisabled("%zu", entity);
     }
     ImGui::EndTable();
+    ApplyPendingRange(service);
 }
 
 void HierarchyEditor::DrawCreateEntityMenu(IEditorService& service) {
@@ -417,6 +468,7 @@ void HierarchyEditor::DrawInsertionZone(IEditorService& service, Entity parent, 
 
 void HierarchyEditor::DrawHierarchyNode(IEditorService& service, Entity entity) {
     auto* world = service.GetWorld();
+    RecordRow(entity);
 
     // Copy children now — insertion zones can mutate childrenMap_ mid-frame.
     // A placed prefab is a black box: its own entities are hidden, only entities parented
@@ -446,7 +498,7 @@ void HierarchyEditor::DrawHierarchyNode(IEditorService& service, Entity entity) 
     if (isPrefab) ItemTooltip(("Prefab: " + world->GetComponent<PrefabInstanceComponent>(entity).src).c_str());
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
-        service.SelectEntity(entity, AdditivePick());
+        HandleRowClick(service, entity);
     if (isPrefab && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         DeferOpenPrefab(service, *world, entity);
 
@@ -547,12 +599,31 @@ void HierarchyEditor::DrawGroupNode(IEditorService& service, const RootRow& row)
                  " - click to select all of them, expand to reach one")
                     .c_str());
 
+    // A collapsed group is one row standing for all its members, so a range that crosses it takes
+    // the whole block. Open, its members are rows of their own and record themselves.
+    if (!open) {
+        for (Entity member : row.members) RecordRow(member);
+    }
+
     // Selecting the group selects every placement in it, which is what turns "retint every wall"
     // into one Inspector edit instead of fourteen.
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-        if (!AdditivePick()) service.ClearSelection();
-        for (Entity member : row.members) {
-            if (!service.IsSelected(member)) service.SelectEntity(member, true);
+        if (RangePick() && selectionAnchor_ != INVALID_ENTITY) {
+            // Range to the far end of the block, so the whole group is included either way.
+            HandleRowClick(service, row.members.back());
+        } else if (!TogglePick()) {
+            service.ClearSelection();
+            for (Entity member : row.members) service.SelectEntity(member, true);
+            selectionAnchor_ = row.members.front();
+        } else {
+            // Ctrl-click toggles the group as a unit: one that is already fully selected comes back
+            // out, which is the only way to drop it again without rebuilding the whole selection.
+            const bool all = std::all_of(row.members.begin(), row.members.end(),
+                                         [&](Entity e) { return service.IsSelected(e); });
+            for (Entity member : row.members) {
+                if (all == service.IsSelected(member)) service.SelectEntity(member, true);
+            }
+            selectionAnchor_ = row.members.front();
         }
     }
 
@@ -568,6 +639,7 @@ void HierarchyEditor::DrawGroupNode(IEditorService& service, const RootRow& row)
 void HierarchyEditor::DrawHierarchyTree(IEditorService& service) {
     // A snapshot, so insertion-zone drops don't invalidate iteration.
     const std::vector<RootRow> rows = BuildRootRows(service);
+    visibleRows_.clear();
 
     for (const RootRow& row : rows) {
         // Insertion zone before each row: drop here to reorder at root level or unparent. A
@@ -579,6 +651,7 @@ void HierarchyEditor::DrawHierarchyTree(IEditorService& service) {
     }
     // Zone after the last row.
     DrawInsertionZone(service, INVALID_ENTITY, INVALID_ENTITY);
+    ApplyPendingRange(service);
 }
 
 }  // namespace Elysium
