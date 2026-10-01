@@ -17,6 +17,7 @@ namespace Elysium {
         std::string footprint;
         float height = 0.0f;
         bool isStatic = true;
+        bool castsShadow = true;    // blocks lit layers' light (see LightGather.fs)
         std::string mode = "FadeSelf";
         float fadeAlpha = 0.4f;
         Color tint = {90, 140, 255, 255};

@@ -4,7 +4,7 @@
         <Entity id="0">
             <NameComponent name="Pillar"/>
             <TransformComponent x="0" y="0"/>
-            <LayerComponent name="entity"/>
+            <LayerComponent name="entity" hideInFog="true"/>
             <RectangleComponent width="32" height="56" cornerRadius="0" originX="0.5" originY="0.8570"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Texture" enabled="true" texture="Textures/Prefabs/pillar.png"/>

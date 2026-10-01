@@ -57,6 +57,12 @@ void SceneLayer::LoadXml(SceneLayer& layer, tinyxml2::XMLElement* el) {
     layer.lightHeight = el->FloatAttribute("lightHeight", layer.lightHeight);
     layer.lightStrength = el->FloatAttribute("lightStrength", layer.lightStrength);
     layer.lightBands = el->IntAttribute("lightBands", 0);
+    layer.shadows = el->BoolAttribute("shadows", layer.shadows);
+    layer.pointLights = el->BoolAttribute("pointLights", layer.pointLights);
+    layer.shadowBias = el->FloatAttribute("shadowBias", layer.shadowBias);
+    layer.fogOfWar = el->FloatAttribute("fogOfWar", layer.fogOfWar);
+    if (const char* fog = el->Attribute("fogColor")) layer.fogColor = ParseHexColor(fog, layer.fogColor);
+    layer.lightDebug = el->IntAttribute("lightDebug", 0);  // read for testing, never saved
     layer.outline = el->FloatAttribute("outline", 0.0f);
     if (const char* outlineColor = el->Attribute("outlineColor")) layer.outlineColor = ParseHexColor(outlineColor, layer.outlineColor);
 

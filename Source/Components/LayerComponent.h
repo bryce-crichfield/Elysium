@@ -7,6 +7,9 @@ namespace Elysium {
     struct LayerComponent {
         std::string name = "default";
         bool isVisible = true;
+        // Hidden while no vision light (LightComponent::vision) can see it: see VisibilitySystem.
+        bool hideInFog = false;
+        bool inFog = false;     // runtime: VisibilitySystem's verdict, never saved
 
         LayerComponent(const std::string& name = "default", bool isVisible = true);
 

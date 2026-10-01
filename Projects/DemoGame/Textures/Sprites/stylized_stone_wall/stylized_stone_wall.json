@@ -1,0 +1,22 @@
+{
+  "frameWidth": 256,
+  "frameHeight": 256,
+  "directions": 1,
+  "clockwise": true,
+  "layout": "rowPerDirection",
+  "lightingBaked": false,
+  "normalSpace": "view",
+  "normalConvention": "+x right, +y up, +z toward viewer",
+  "clips": [
+    {
+      "name": "static",
+      "image": "stylized_stone_wall.png",
+      "normalMap": "stylized_stone_wall_normal.png",
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "columns": 1,
+      "rows": 1
+    }
+  ]
+}

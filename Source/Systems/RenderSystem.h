@@ -6,6 +6,7 @@
 #include "Core/Renderable.h"
 #include "Core/Graphics.h"
 #include "Core/Framebuffer.h"
+#include "Core/ShadowAtlas.h"
 #include <span>
 #include <unordered_map>
 #include <unordered_set>
@@ -109,6 +110,41 @@ public:
 // lit (albedo/normal/emission buffers, lit by the layer's own emission).
 class RenderCompositor {
 public:
+    // What lit layers' shadows are made of: every OccluderComponent that casts one, its
+    // footprint in world space extruded `height` up. Handed over once per frame by
+    // RenderSystem, which can walk the world mutably (ResolveOccluder needs to).
+    struct ShadowCaster {
+        std::vector<Vector2> footprint;
+        float height = 0.0f;
+        Entity owner = INVALID_ENTITY;  // a light on this entity ignores this caster
+    };
+    // The line an entity stands on, for the height pass: through its footprint's centre,
+    // along its long axis (a wall's run; flat for anything roughly round). Entities with
+    // no occluder stand on a flat line through their position.
+    struct GroundLine {
+        Vector2 anchor;
+        float slope = 0.0f;  // dy/dx
+        bool flat = false;   // lies on the ground (a floor tile) rather than standing on it
+    };
+    // A LightComponent, already placed in the 3D world (see WorldTo3D in RenderSystem.cpp)
+    // and flickered for this frame. color is premultiplied by intensity.
+    struct PointLight {
+        Vector3 position;
+        Vector3 color;
+        float radius = 1.0f;
+        bool vision = false;            // also clears the fog of war where it can see
+        Entity owner = INVALID_ENTITY;
+    };
+    void SetOccluders(std::vector<ShadowCaster> casters, std::unordered_map<Entity, GroundLine> groundLines) {
+        shadowCasters_ = std::move(casters);
+        groundLines_ = std::move(groundLines);
+        shadowAtlasDirty_ = true;
+    }
+    void SetLights(std::vector<PointLight> lights) {
+        lights_ = std::move(lights);
+        shadowAtlasDirty_ = true;
+    }
+
     void RenderLayer(RenderContext& ctx, const CameraView& view,
                       const SceneLayer& layer, std::span<const RenderRecord> records);
 
@@ -122,9 +158,11 @@ private:
                           const SceneLayer& layer, std::span<const RenderRecord> records);
     void RenderComposited(RenderContext& ctx, const CameraView& view,
                            const SceneLayer& layer, std::span<const RenderRecord> records);
-    // A lit layer: its records drawn three times, as albedo (the usual draw), normals and
-    // emission (material entities only; see Sdf/Main.glsl), then combined onto the frame
-    // through Shaders/Lighting.fs, where the emission lights its surroundings.
+    // A lit layer: its records drawn four times, as albedo (the usual draw), normals,
+    // emission and height above the ground (material entities only; see Sdf/Main.glsl).
+    // The emission is moved down to where it stands on the ground, gathered across the
+    // ground through the occluder field (LightGather.fs), and combined onto the frame
+    // through Shaders/Lighting.fs, each pixel lit by what reaches its ground point.
     void RenderLit(RenderContext& ctx, const CameraView& view,
                    const SceneLayer& layer, std::span<const RenderRecord> records);
     // Walks the layer's records in order, grouping the contiguous run each entity produced
@@ -151,6 +189,13 @@ private:
     // geometry + the layer's material. Records without geometry render normally.
     void RenderMaterialEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records);
 
+    // Rasterizes the shadow casters' footprints over the ground grid (origin/size, world;
+    // gridWidth x gridHeight texels) into occluderMask_, then jump-floods them into the
+    // nearest-occluder field. Returns the buffer holding the field. With `shadows` off,
+    // both come out empty.
+    const Framebuffer& BuildOccluderField(RenderContext& ctx, Shader& flood, Vector2 origin, Vector2 size,
+                                          int gridWidth, int gridHeight, bool shadows);
+
     Shader* GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material);
     Shader* GetShader(Services::IAssetService& assets, const Path& path);
     static void PushBlend(RenderContext& ctx, SceneLayerBlend blend);
@@ -163,10 +208,27 @@ private:
     // Low resolution, HDR: the light gathered from the emission, and where it comes from.
     Framebuffer lightBuffer_{1, 1, true};
     Framebuffer directionBuffer_{1, 1, true};
+    // Full resolution, HDR: how far above its ground line each pixel is drawn, world units.
+    Framebuffer heightBuffer_{1, 1, true};
+    // The ground grid (half the layer's resolution, plus a margin): occluder footprints
+    // (r = height / 2040), their jump-flood field (ping-pong), and the emission moved down
+    // to the ground it stands on.
+    Framebuffer occluderMask_;
+    Framebuffer floodA_{1, 1, true};
+    Framebuffer floodB_{1, 1, true};
+    Framebuffer groundEmission_{1, 1, true};
+    std::vector<ShadowCaster> shadowCasters_;
+    std::unordered_map<Entity, GroundLine> groundLines_;
+    // Point lights (SceneLayer::pointLights): shared by every lit layer, so their shadow
+    // atlas is rendered once a frame, by the first lit layer that needs it.
+    std::vector<PointLight> lights_;
+    ShadowAtlas shadowAtlas_;
+    bool shadowAtlasDirty_ = true;
+    void RenderShadowAtlas(RenderContext& ctx);
 
-    // Which surface RenderRecords is drawing. Only Color draws everything; Normal and
-    // Emission draw material entities alone (through their @Normal/@Emission shaders).
-    enum class SurfaceOutput { Color, Normal, Emission };
+    // Which surface RenderRecords is drawing. Only Color draws everything; Normal, Emission
+    // and Height draw material entities alone (through their @Normal/@Emission/@Height shaders).
+    enum class SurfaceOutput { Color, Normal, Emission, Height };
     SurfaceOutput output_ = SurfaceOutput::Color;
     // One retained buffer per shaded entity, resized when its bounds change. Kept across
     // frames because allocating a render texture per entity per frame is not viable.
@@ -210,6 +272,8 @@ protected:
 
 private:
     void FindCameras();
+    // Hands the compositor this frame's shadow casters and ground lines.
+    void CollectOccluders();
     CameraView MakeCameraView(Entity cameraEntity);
     void RenderView(RenderContext& ctx, const CameraView& view);
 
@@ -217,6 +281,10 @@ private:
     std::vector<DrawCommand> _drawCommands;
     RenderSorter _sorter;
     RenderCompositor _compositor;
+    // Per light, how far it has faded in (1) or out (0) as it comes into sight or goes into
+    // the fog, so it eases instead of popping.
+    std::unordered_map<Entity, float> lightFade_;
+    double lightFadeTime_ = 0.0;
 };
 
 }  // namespace Elysium::Systems

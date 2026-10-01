@@ -54,6 +54,22 @@ struct SceneLayer {
     int lightBands = 0;                     // > 0: quantize each light into that many steps (cel)
     float outline = 0.0f;                   // ink lines at silhouettes and normal creases, 0..1
     Color outlineColor{20, 16, 24, 255};
+    // Occluders (OccluderComponent footprints) block the light: rays stop at walls, and
+    // anything shorter than lightHeight casts a shadow that ends. Off: light passes through.
+    bool shadows = true;
+    // Light from LightComponents instead of the layer's emission: each pixel is placed in
+    // the 3D world (its ground point and height), lit by every point light that reaches it,
+    // and shadowed by occluder footprints extruded to their height (cube shadow maps).
+    // Emission still glows, it just doesn't light anything. Shared by every such layer.
+    bool pointLights = false;
+    float shadowBias = 12.0f;               // world units a pixel is lifted off its surface before the shadow test
+    // Point lights only: how far what no vision light (LightComponent::vision) can see fades
+    // to fogColor. 0 off, 1 hidden.
+    float fogOfWar = 0.0f;
+    Color fogColor{6, 6, 12, 255};
+    // Shows one of the lighting buffers instead of the lit layer (not saved): 1 the
+    // occluder field, 2 the height buffer, 3 the gathered light, 4 ground emission.
+    int lightDebug = 0;
 
     static constexpr const char* XmlTag() { return "SceneLayer"; }
 

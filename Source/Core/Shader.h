@@ -55,6 +55,12 @@ class Shader {
     // backend flushes its batch. No-op for a name the compiler optimized out.
     void SetTexture(const std::string& name, unsigned int textureId);
 
+    // Binds a texture straight to texture unit `unit` for a sampler2D uniform, for draws
+    // that need more samplers than the backend's batch tracks (raylib: 4, units 1-4). Use
+    // units 8 and up, which the backend never touches; the binding stays until rebound.
+    // Call while this shader is pushed, like SetTexture.
+    void SetTextureUnit(const std::string& name, unsigned int textureId, int unit);
+
     const std::vector<ShaderUniform>& GetUniforms() const { return uniforms_; }
 
     // Opaque pointer to the backend handle (a raylib ::Shader*), for RenderContext's

@@ -1,0 +1,6 @@
+<Sprite name="stylized_stone_wall_ne" originX="0.5" originY="0.713027" pixelsPerUnit="66.5403">
+    <Sequences>
+        <Sequence name="default" indicies="0:*"/>
+    </Sequences>
+    <Sheet name="stylized_stone_wall_ne" path="Textures/Sprites/stylized_stone_wall_ne/stylized_stone_wall_ne.png" normal="Textures/Sprites/stylized_stone_wall_ne/stylized_stone_wall_ne_normal.png" rows="1" columns="1"/>
+</Sprite>

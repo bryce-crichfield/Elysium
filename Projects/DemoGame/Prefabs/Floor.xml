@@ -3,12 +3,14 @@
         <Entity id="0">
             <LayerComponent name="tile"/>
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/floor.png"/>
+                <Layer material="Texture" enabled="true" texture="Textures/Floor/StoneFloor.png" normalMap="Textures/Floor/StoneFloor_normal.png">
+                    <Uniform name="uTint" type="vec4" value="0.750000 0.750000 0.750000 1.050000"/>
+                </Layer>
             </MaterialComponent>
             <NameComponent name="Floor"/>
-            <OccluderComponent footprint="0,-16 32,0 0,16 -32,0" height="0" isStatic="true" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
-            <RectangleComponent width="64" height="32" cornerRadius="0"/>
-            <TransformComponent x="0" y="0"/>
+            <OccluderComponent footprint="0.0932007,-66.8723 133.258,0.340643 -0.0869999,69.3555 -134.333,0.16045" height="0" isStatic="true" castsShadow="true" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <RectangleComponent width="256" height="256" cornerRadius="0"/>
+            <TransformComponent x="0" y="0" scaleX="1.1" scaleY="1.1"/>
         </Entity>
     </Entities>
 </Prefab>

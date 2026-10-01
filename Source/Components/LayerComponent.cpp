@@ -12,24 +12,29 @@ namespace Elysium {
         const char* name = el->Attribute("name");
         c.name = name ? name : "default";
         c.isVisible = el->BoolAttribute("visible", true);
+        c.hideInFog = el->BoolAttribute("hideInFog", c.hideInFog);
     }
 
     void LayerComponent::SaveXml(const LayerComponent& c, XMLBuilder& builder) {
         auto b = builder.AddElement("LayerComponent")
             .SetAttribute("name", c.name.c_str());
         if (!c.isVisible) b.SetAttribute("visible", false);
+        if (c.hideInFog) b.SetAttribute("hideInFog", true);
     }
 
     FieldList LayerComponent::Fields() {
         return {
             Field("Name", &LayerComponent::name, "name"),
             Field("Visible", &LayerComponent::isVisible, "visible"),
+            Field("Hide in Fog", &LayerComponent::hideInFog, "hideInFog"),
         };
     }
 
     void LayerComponent::BindLua(sol::usertype<LayerComponent>& ut) {
         ut["name"]      = &LayerComponent::name;
         ut["isVisible"] = &LayerComponent::isVisible;
+        ut["hideInFog"] = &LayerComponent::hideInFog;
+        ut["inFog"]     = &LayerComponent::inFog;
     }
 
     void LayerComponent::SetFromLua(LayerComponent& c, sol::object v) {

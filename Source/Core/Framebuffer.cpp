@@ -77,6 +77,15 @@ void Framebuffer::GenerateMipmaps() {
     rlTextureParameters(textureId_, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_FILTER_LINEAR);
 }
 
+void Framebuffer::SetLinearFilter(bool linear) {
+    if (textureId_ == 0) return;
+    const int filter = linear ? RL_TEXTURE_FILTER_LINEAR : RL_TEXTURE_FILTER_NEAREST;
+    rlTextureParameters(textureId_, RL_TEXTURE_MIN_FILTER, filter);
+    rlTextureParameters(textureId_, RL_TEXTURE_MAG_FILTER, filter);
+    rlTextureParameters(textureId_, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_CLAMP);
+    rlTextureParameters(textureId_, RL_TEXTURE_WRAP_T, RL_TEXTURE_WRAP_CLAMP);
+}
+
 void Framebuffer::Resize(int width, int height) {
     if (id_ != 0 && width_ == width && height_ == height) return;
     *this = Framebuffer(width, height, hdr_);

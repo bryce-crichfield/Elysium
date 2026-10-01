@@ -6,6 +6,9 @@ uniform vec3 uGlowColor; // default: 1.0 0.42 0.05
 uniform float uGlowRadius; // default: 14
 uniform float uIntensity; // default: 1.2
 uniform float uRise; // default: 0.8
+// How much the fire fills the shape it burns around: 0 leaves the inside hollow (a burning
+// outline), 1 fills it with the white-hot core.
+uniform float uInteriorFade; // default: 0
 
 float Flicker(float angle, float time)
 {
@@ -32,7 +35,8 @@ vec4 Shade(float sd, vec2 p, vec2 uv)
 
     float pulse = 0.85 + 0.15 * sin(e_Time * 2.2);
     vec3 color = mix(uGlowColor, vec3(1.0, 0.93, 0.7), core);
-    float alpha = clamp(glow * uIntensity * pulse, 0.0, 1.0) * (1.0 - Coverage(sd));
+    float interior = clamp(uInteriorFade, 0.0, 1.0);
+    float alpha = clamp(glow * uIntensity * pulse, 0.0, 1.0) * mix(1.0 - Coverage(sd), 1.0, interior);
     return vec4(color, alpha);
 }
 

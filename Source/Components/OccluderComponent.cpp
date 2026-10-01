@@ -29,6 +29,7 @@ namespace Elysium {
         c.footprint = ReadPolygonAttribute(el, "footprint");
         c.height    = el->FloatAttribute("height", c.height);
         c.isStatic  = el->BoolAttribute("isStatic", c.isStatic);
+        c.castsShadow = el->BoolAttribute("castsShadow", c.castsShadow);
         c.fadeAlpha = el->FloatAttribute("fadeAlpha", c.fadeAlpha);
         if (const char* mode = el->Attribute("mode")) c.mode = mode;
         if (const char* tint = el->Attribute("tint")) c.tint = ParseHexColor(tint, c.tint);
@@ -39,6 +40,7 @@ namespace Elysium {
             .SetAttribute("footprint", c.footprint.c_str())
             .SetAttribute("height", c.height)
             .SetAttribute("isStatic", c.isStatic)
+            .SetAttribute("castsShadow", c.castsShadow)
             .SetAttribute("mode", c.mode.c_str())
             .SetAttribute("fadeAlpha", c.fadeAlpha)
             .SetAttribute("tint", ColorToHex(c.tint).c_str());
@@ -49,6 +51,7 @@ namespace Elysium {
             Field("Footprint", &OccluderComponent::footprint, "footprint"),
             Field("Height", &OccluderComponent::height, "height").Range(0.0f, 2000.0f),
             Field("Is Static", &OccluderComponent::isStatic, "isStatic"),
+            Field("Casts Shadow", &OccluderComponent::castsShadow, "castsShadow"),
             Field("Mode", &OccluderComponent::mode, "mode").Section("Effect"),
             Field("Fade Alpha", &OccluderComponent::fadeAlpha, "fadeAlpha").Speed(0.01f).Range(0.0f, 1.0f),
             Field("Tint", &OccluderComponent::tint, "tint"),
@@ -59,6 +62,7 @@ namespace Elysium {
         ut["footprint"] = &OccluderComponent::footprint;
         ut["height"]    = &OccluderComponent::height;
         ut["isStatic"]  = &OccluderComponent::isStatic;
+        ut["castsShadow"] = &OccluderComponent::castsShadow;
         ut["mode"]      = &OccluderComponent::mode;
         ut["fadeAlpha"] = &OccluderComponent::fadeAlpha;
     }
@@ -69,6 +73,7 @@ namespace Elysium {
         if (t["footprint"].valid()) c.footprint = t["footprint"].get<std::string>();
         if (t["height"].valid())    c.height    = t["height"];
         if (t["isStatic"].valid())  c.isStatic  = t["isStatic"];
+        if (t["castsShadow"].valid()) c.castsShadow = t["castsShadow"];
         if (t["mode"].valid())      c.mode      = t["mode"].get<std::string>();
         if (t["fadeAlpha"].valid()) c.fadeAlpha = t["fadeAlpha"];
     }

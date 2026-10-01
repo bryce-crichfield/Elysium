@@ -31,6 +31,9 @@ class Framebuffer {
     // trilinearly, for shaders that read it blurred (textureLod).
     void GenerateMipmaps();
 
+    // Samples the color texture bilinearly (true) or nearest (false, the default).
+    void SetLinearFilter(bool linear);
+
     // Destroys and recreates the backend object at the new size. No-op if already that size.
     void Resize(int width, int height);
     bool IsHdr() const { return hdr_; }

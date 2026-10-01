@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include "Services/LogService.h"
 #include "raylib.h"
+#include "rlgl.h"
 
 namespace Elysium {
 
@@ -137,6 +138,19 @@ void Shader::SetTexture(const std::string& name, unsigned int textureId) {
     ::Texture2D texture{};
     texture.id = textureId;
     ::SetShaderValueTexture(native_->shader, it->second, texture);
+}
+
+void Shader::SetTextureUnit(const std::string& name, unsigned int textureId, int unit) {
+    if (!native_ || native_->shader.id == 0 || textureId == 0) return;
+    auto it = native_->locations.find(name);
+    if (it == native_->locations.end()) {
+        it = native_->locations.emplace(name, ::GetShaderLocation(native_->shader, name.c_str())).first;
+    }
+    if (it->second == -1) return;
+    ::SetShaderValue(native_->shader, it->second, &unit, SHADER_UNIFORM_INT);
+    rlActiveTextureSlot(unit);
+    rlEnableTexture(textureId);
+    rlActiveTextureSlot(0);
 }
 
 }  // namespace Elysium

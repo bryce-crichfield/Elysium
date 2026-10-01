@@ -76,12 +76,13 @@ inline void KindSectionHeader(AssetKind kind, const char* label) {
 }
 
 // A document's settings screen (scene or prefab), washed in its kind's color under a solid
-// banner "<icon>  <title>". Pair with EndKindSettings.
+// banner "<icon>  <title>". The banner stays put; what follows scrolls in a child of its own
+// beneath it. Pair with EndKindSettings.
 inline void BeginKindSettings(AssetKind kind, const char* id, const std::string& title) {
     const AssetStyle style = StyleOf(kind);
     const auto& palette = Editor::Palette();
     ImGui::PushStyleColor(ImGuiCol_ChildBg, palette.WithAlpha(style.color, 0.10f));
-    ImGui::BeginChild(id, ImVec2(0, 0), ImGuiChildFlags_AlwaysUseWindowPadding);
+    ImGui::BeginChild(id, ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleColor();
 
     const ImGuiStyle& imStyle = ImGui::GetStyle();
@@ -89,12 +90,19 @@ inline void BeginKindSettings(AssetKind kind, const char* id, const std::string&
     const float height = ImGui::GetFrameHeight() + imStyle.FramePadding.y * 2.0f;
     ImGui::GetWindowDrawList()->AddRectFilled(windowPos, ImVec2(windowPos.x + ImGui::GetWindowWidth(), windowPos.y + height),
                                               palette.ToU32(style.color));
-    ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, windowPos.y + (height - ImGui::GetTextLineHeight()) * 0.5f));
+    ImGui::SetCursorScreenPos(ImVec2(windowPos.x + imStyle.WindowPadding.x, windowPos.y + (height - ImGui::GetTextLineHeight()) * 0.5f));
     ImGui::PushStyleColor(ImGuiCol_Text, palette.TextOnAccent);
     ImGui::Text("%s  %s", style.icon, title.c_str());
     ImGui::PopStyleColor();
-    ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, windowPos.y + height + imStyle.ItemSpacing.y));
+
+    ImGui::SetCursorScreenPos(ImVec2(windowPos.x, windowPos.y + height));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
+    ImGui::BeginChild("##body", ImVec2(0, 0), ImGuiChildFlags_AlwaysUseWindowPadding);
+    ImGui::PopStyleColor();
 }
-inline void EndKindSettings() { ImGui::EndChild(); }
+inline void EndKindSettings() {
+    ImGui::EndChild();
+    ImGui::EndChild();
+}
 
 }  // namespace Elysium

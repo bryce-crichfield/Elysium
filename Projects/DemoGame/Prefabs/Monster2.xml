@@ -1,7 +1,7 @@
 <Prefab>
     <Entities>
         <Entity id="0">
-            <LayerComponent name="entity"/>
+            <LayerComponent name="entity" hideInFog="true"/>
             <NameComponent name="Brazer1"/>
             <TransformComponent x="-78.05275" y="33.086239" scaleX="0.050000001" scaleY="0.050000001"/>
         </Entity>

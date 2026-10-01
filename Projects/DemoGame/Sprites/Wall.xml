@@ -1,0 +1,7 @@
+<Sprite name="Wall" originX="0.5" originY="0.5">
+    <Sequences>
+        <Sequence name="NorthEast" indicies="1:0"/>
+        <Sequence name="SouthEast" indicies="3:*"/>
+    </Sequences>
+    <Sheet name="StoneWall" path="Textures/Wall/StoneWall.png" normal="Textures/Floor/StoneFloor_normal.png" rows="8" columns="1"/>
+</Sprite>

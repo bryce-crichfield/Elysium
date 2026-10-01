@@ -1,0 +1,13 @@
+<Sprite name="StoneStairs" originX="0.5" originY="0.741949" pixelsPerUnit="33.111">
+    <Sequences>
+        <Sequence name="south" indicies="0:*"/>
+        <Sequence name="southwest" indicies="1:*"/>
+        <Sequence name="west" indicies="2:*"/>
+        <Sequence name="northwest" indicies="3:*"/>
+        <Sequence name="north" indicies="4:*"/>
+        <Sequence name="northeast" indicies="5:*"/>
+        <Sequence name="east" indicies="6:*"/>
+        <Sequence name="southeast" indicies="7:*"/>
+    </Sequences>
+    <Sheet name="StoneStairs" path="Textures/Sprites/StoneStairs/StoneStairs.png" normal="Textures/Sprites/StoneStairs/StoneStairs_normal.png" rows="8" columns="1"/>
+</Sprite>

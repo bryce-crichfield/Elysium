@@ -73,6 +73,11 @@ void SaveLayers(XMLBuilder& builder, const Scene& scene) {
                 .SetAttribute("lightHeight", layer.lightHeight)
                 .SetAttribute("lightStrength", layer.lightStrength)
                 .SetAttribute("lightBands", layer.lightBands)
+                .SetAttribute("shadows", layer.shadows)
+                .SetAttribute("pointLights", layer.pointLights)
+                .SetAttribute("shadowBias", layer.shadowBias)
+                .SetAttribute("fogOfWar", layer.fogOfWar)
+                .SetAttribute("fogColor", ColorToHex(layer.fogColor).c_str())
                 .SetAttribute("outline", layer.outline)
                 .SetAttribute("outlineColor", ColorToHex(layer.outlineColor).c_str());
         }

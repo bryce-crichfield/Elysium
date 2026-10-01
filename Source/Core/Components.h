@@ -23,4 +23,5 @@
 #include "Components/PrefabInstanceComponent.h"
 #include "Components/ColliderComponent.h"
 #include "Components/OccluderComponent.h"
+#include "Components/LightComponent.h"
 #include "Components/NavAreaComponent.h"

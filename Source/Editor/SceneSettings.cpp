@@ -178,6 +178,25 @@ void SceneSettings::DrawLayers(Scene& scene) {
                 ItemTooltip("How far above the layer glowing pixels sit. Lower rakes across normal maps");
                 PropertyLabel("Strength");
                 ImGui::DragFloat("##lightStrength", &layer.lightStrength, 0.01f, 0.0f, 20.0f, "%.2f");
+                PropertyLabel("Shadows");
+                ImGui::Checkbox("##shadows", &layer.shadows);
+                ItemTooltip("Occluder footprints block light. Shorter than Height: the shadow ends");
+                PropertyLabel("Point Lights");
+                ImGui::Checkbox("##pointLights", &layer.pointLights);
+                ItemTooltip("Lit by Light components in 3D, with shadows from occluders, instead of by emission");
+                if (layer.pointLights) {
+                    PropertyLabel("Shadow Bias");
+                    ImGui::DragFloat("##shadowBias", &layer.shadowBias, 0.1f, 0.0f, 64.0f, "%.1f");
+                    ItemTooltip("How far a pixel lifts off its own surface before testing shadows. Too low: walls shadow themselves");
+                    PropertyLabel("Fog of War");
+                    ImGui::SliderFloat("##fogOfWar", &layer.fogOfWar, 0.0f, 1.0f, "%.2f");
+                    ItemTooltip("How far what no Vision light can see fades into the fog color. 0: off");
+                    if (layer.fogOfWar > 0.0f) colorRow("Fog Color", "##fogColor", layer.fogColor);
+                }
+                PropertyLabel("Debug View");
+                const char* debugViews[] = {"Off", "Occluder Field", "Height", "Light", "Ground Emission", "3D Position", "Light Only"};
+                ImGui::Combo("##lightDebug", &layer.lightDebug, debugViews, IM_ARRAYSIZE(debugViews));
+                ItemTooltip("Show one of the lighting buffers in place of the layer (not saved)");
                 PropertyLabel("Bands");
                 ImGui::SliderInt("##lightBands", &layer.lightBands, 0, 8, layer.lightBands == 0 ? "Smooth" : "%d");
                 ItemTooltip("Quantize light into steps for a cel-shaded look");
