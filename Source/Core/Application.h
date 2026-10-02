@@ -11,7 +11,7 @@
 
 namespace Elysium {
 
-class EditorUI;
+class EditorApplication;
 
 enum class AppMode { Play, Editor };
 
@@ -76,7 +76,7 @@ class Application {
     Window window_;
 
     ServiceLocator serviceLocator_;
-    std::unique_ptr<EditorUI> editor_;  // the in-engine editor
+    std::unique_ptr<EditorApplication> editor_;  // the in-engine editor
 
     AppMode mode_ = AppMode::Play;
 

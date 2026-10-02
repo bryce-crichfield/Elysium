@@ -1,4 +1,4 @@
-#include "Editor/EditorService.h"
+#include "Editor/EditorApplication.h"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -19,6 +19,8 @@
 #include "Core/PrefabInstance.h"
 #include "imgui.h"
 #include "Editor/Commands/EditorCommands.h"
+#include "Editor/Editor.h"
+#include "Editor/EditorUI.h"
 #include "Editor/Inspectors/Inspector.h"
 #include "Editor/PrefabEditing.h"
 #include "Editor/Style/Theme.h"
@@ -27,18 +29,38 @@
 #include "Core/World.h"
 #include "Interfaces/ISceneService.h"
 
-namespace Elysium::Services {
+namespace Elysium {
 
-EditorService::EditorService(ServiceLocator& registry) : registry_(registry) {}
+using namespace Services;
 
-void EditorService::Initialize() {
+EditorApplication::EditorApplication(ServiceLocator& services)
+    : registry_(services), ui_(std::make_unique<EditorUI>(*this)) {}
+
+EditorApplication::~EditorApplication() = default;
+
+ServiceLocator& ServicesOf(EditorApplication& editor) { return editor.GetServices(); }
+
+Editor::Editor(EditorApplication& editor, const std::string& name)
+    : editor_(editor), services_(editor.GetServices()), name_(name) {}
+
+void EditorApplication::Initialize(const ApplicationConfig& config) {
     RegisterComponentTypes();
+    ui_->Initialize(config);
 }
 
-void EditorService::Shutdown() {
+void EditorApplication::Draw(AppMode mode) {
+    ui_->Draw(mode);
 }
 
-void EditorService::RegisterComponentTypes() {
+void EditorApplication::OnModeChanged(AppMode mode) {
+    ui_->OnModeChanged(mode);
+}
+
+void EditorApplication::Shutdown() {
+    ui_->Shutdown();
+}
+
+void EditorApplication::RegisterComponentTypes() {
     InspectorRegistry inspectors;
     RegisterComponentInspectors(inspectors);
 
@@ -51,15 +73,15 @@ void EditorService::RegisterComponentTypes() {
 
         ComponentPlaceholder placeholder;
         placeholder.name = name;
-        placeholder.drawFunc = [draw = inspector->draw, this](Entity e, Elysium::World* w) {
-            draw(*w, e, registry_);
+        placeholder.drawFunc = [draw = inspector->draw, this](Entity e, World* w) {
+            draw(*w, e, *this);
         };
 
         if (auto* access = ComponentRegistry::Instance().GetLuaAccess(name)) {
-            placeholder.hasComponentFunc = [access](Entity e, Elysium::World* w) { return access->has(w, e); };
-            placeholder.addComponentFunc = [access](Entity e, Elysium::World* w) { access->add(w, e); };
-            placeholder.removeComponentFunc = [access](Entity e, Elysium::World* w) { access->remove(w, e); };
-            placeholder.resetComponentFunc = [access](Entity e, Elysium::World* w) {
+            placeholder.hasComponentFunc = [access](Entity e, World* w) { return access->has(w, e); };
+            placeholder.addComponentFunc = [access](Entity e, World* w) { access->add(w, e); };
+            placeholder.removeComponentFunc = [access](Entity e, World* w) { access->remove(w, e); };
+            placeholder.resetComponentFunc = [access](Entity e, World* w) {
                 access->remove(w, e);
                 access->add(w, e);
             };
@@ -75,12 +97,12 @@ void EditorService::RegisterComponentTypes() {
     });
 }
 
-Elysium::World* EditorService::GetWorld() const {
+World* EditorApplication::GetWorld() const {
     auto* doc = ActiveDocument();
     return doc && doc->scene ? doc->scene->GetWorld() : nullptr;
 }
 
-void EditorService::SelectEntity(Entity entity, bool additive) {
+void EditorApplication::SelectEntity(Entity entity, bool additive) {
     // A placement is opaque, so selecting anything inside one selects the placement instead. The
     // pickers already resolved this themselves, one by one; doing it here makes it true of every
     // caller, which is what keeps an instance's internals out of the Inspector for good.
@@ -102,34 +124,34 @@ void EditorService::SelectEntity(Entity entity, bool additive) {
     }
 }
 
-void EditorService::ClearSelection() {
+void EditorApplication::ClearSelection() {
     selectedEntities_.clear();
 }
 
-bool EditorService::IsSelected(Entity entity) const {
+bool EditorApplication::IsSelected(Entity entity) const {
     return std::find(selectedEntities_.begin(), selectedEntities_.end(), entity) != selectedEntities_.end();
 }
 
 // --- Layers and grid --------------------------------------------------------------------
 
-EditorService::DocumentEditState& EditorService::EditState() const {
+EditorApplication::DocumentEditState& EditorApplication::EditState() const {
     auto* doc = ActiveDocument();
     // "" is the scratch entry used when no document is open, so every accessor stays total.
     return editState_[doc ? doc->fullPath : std::string()];
 }
 
-const std::string& EditorService::GetActiveLayer() const { return EditState().activeLayer; }
+const std::string& EditorApplication::GetActiveLayer() const { return EditState().activeLayer; }
 
-void EditorService::SetActiveLayer(const std::string& layer) { EditState().activeLayer = layer; }
+void EditorApplication::SetActiveLayer(const std::string& layer) { EditState().activeLayer = layer; }
 
-LayerEditState& EditorService::GetLayerState(const std::string& layer) {
+LayerEditState& EditorApplication::GetLayerState(const std::string& layer) {
     auto& state = EditState();
     auto [it, inserted] = state.layers.try_emplace(layer);
     if (inserted) return it->second;
     return it->second;
 }
 
-bool EditorService::IsLayerHidden(const std::string& layer) const {
+bool EditorApplication::IsLayerHidden(const std::string& layer) const {
     auto& state = EditState();
     auto it = state.layers.find(layer);
     const bool solo = it != state.layers.end() && it->second.solo;
@@ -138,15 +160,15 @@ bool EditorService::IsLayerHidden(const std::string& layer) const {
     return it != state.layers.end() && it->second.hidden;
 }
 
-bool EditorService::IsLayerLocked(const std::string& layer) const {
+bool EditorApplication::IsLayerLocked(const std::string& layer) const {
     auto& state = EditState();
     auto it = state.layers.find(layer);
     return it != state.layers.end() && it->second.locked;
 }
 
-std::unordered_set<std::string> EditorService::GetHiddenLayers() const {
+std::unordered_set<std::string> EditorApplication::GetHiddenLayers() const {
     std::unordered_set<std::string> hidden;
-    auto* scene = const_cast<EditorService*>(this)->GetViewportScene();
+    auto* scene = const_cast<EditorApplication*>(this)->GetViewportScene();
     if (!scene) return hidden;
     for (const auto& layer : scene->GetLayers()) {
         if (IsLayerHidden(layer.name)) hidden.insert(layer.name);
@@ -154,7 +176,7 @@ std::unordered_set<std::string> EditorService::GetHiddenLayers() const {
     return hidden;
 }
 
-std::string EditorService::GetEntityLayer(Entity entity) const {
+std::string EditorApplication::GetEntityLayer(Entity entity) const {
     auto* world = GetWorld();
     if (!world || entity == INVALID_ENTITY || !world->IsAlive(entity)) return {};
     if (world->HasComponent<LayerComponent>(entity)) {
@@ -173,8 +195,8 @@ std::string EditorService::GetEntityLayer(Entity entity) const {
 // What RenderSorter draws a LayerComponent-less entity on: "default" if the scene has it,
 // otherwise the bottom layer. Returning it from GetEntityLayer keeps every entity on exactly
 // one layer, so hiding/locking/filtering a layer is total rather than leaking strays.
-std::string EditorService::DefaultLayer() const {
-    auto* scene = const_cast<EditorService*>(this)->GetViewportScene();
+std::string EditorApplication::DefaultLayer() const {
+    auto* scene = const_cast<EditorApplication*>(this)->GetViewportScene();
     if (!scene) return {};
     const auto& layers = scene->GetLayers();
     if (layers.empty()) return {};
@@ -184,14 +206,14 @@ std::string EditorService::DefaultLayer() const {
     return layers.front().name;
 }
 
-bool EditorService::IsEntityLocked(Entity entity) const {
+bool EditorApplication::IsEntityLocked(Entity entity) const {
     const std::string layer = GetEntityLayer(entity);
     return !layer.empty() && IsLayerLocked(layer);
 }
 
-GridSettings& EditorService::GetGrid() { return EditState().grid; }
+GridSettings& EditorApplication::GetGrid() { return EditState().grid; }
 
-Vector2 EditorService::SnapToGrid(Vector2 world) const {
+Vector2 EditorApplication::SnapToGrid(Vector2 world) const {
     const GridSettings& grid = EditState().grid;
     if (!grid.snapEnabled) return world;
     const Vector2 cell = grid.Cell();
@@ -214,7 +236,7 @@ Vector2 EditorService::SnapToGrid(Vector2 world) const {
     return {(a + b) * halfW, (a - b) * halfH};
 }
 
-void EditorService::Update(float deltaTime) {
+void EditorApplication::Update(float deltaTime) {
     Profile;
 
     // The editor starts on the project's entry scene, as its own copy.
@@ -244,28 +266,28 @@ void EditorService::Update(float deltaTime) {
 // Documents
 // =============================================================================
 
-EditorDocument* EditorService::ActiveDocument() const {
+EditorDocument* EditorApplication::ActiveDocument() const {
     return activeDocument_ >= 0 && activeDocument_ < (int)documents_.size() ? documents_[activeDocument_].get() : nullptr;
 }
 
-Elysium::Scene* EditorService::GetViewportScene() {
+Scene* EditorApplication::GetViewportScene() {
     auto* doc = ActiveDocument();
     return doc ? doc->scene.get() : nullptr;
 }
 
-std::string EditorService::ActiveOwnerDir() const {
+std::string EditorApplication::ActiveOwnerDir() const {
     auto* doc = ActiveDocument();
     return doc ? DirectoryOf(doc->fullPath) : "";
 }
 
-int EditorService::FindDocument(const std::string& fullPath) const {
+int EditorApplication::FindDocument(const std::string& fullPath) const {
     for (size_t i = 0; i < documents_.size(); ++i) {
         if (SamePath(documents_[i]->fullPath, fullPath)) return (int)i;
     }
     return -1;
 }
 
-void EditorService::AddDocument(std::unique_ptr<EditorDocument> doc) {
+void EditorApplication::AddDocument(std::unique_ptr<EditorDocument> doc) {
     LOG_INFOF("Editor", "Opened %s", doc->fullPath.c_str());
     documents_.push_back(std::move(doc));
 
@@ -281,7 +303,7 @@ void EditorService::AddDocument(std::unique_ptr<EditorDocument> doc) {
     SetActiveDocument((int)documents_.size() - 1);
 }
 
-const Elysium::Scene* EditorService::HostScene() {
+const Scene* EditorApplication::HostScene() {
     for (const auto& doc : documents_) {
         if (doc->IsScene()) return doc->scene.get();
     }
@@ -290,13 +312,13 @@ const Elysium::Scene* EditorService::HostScene() {
         auto& scenes = registry_.Get<ISceneService>();
         auto it = scenes.GetSceneRegistry().find(scenes.GetEntryScene());
         if (it == scenes.GetSceneRegistry().end()) return nullptr;
-        fallbackHost_ = std::make_shared<Elysium::Scene>(registry_);
+        fallbackHost_ = std::make_shared<Scene>(registry_);
         LoadScene(*fallbackHost_, it->second.xmlPath);
     }
     return fallbackHost_.get();
 }
 
-void EditorService::OpenScene(const std::string& sceneName) {
+void EditorApplication::OpenScene(const std::string& sceneName) {
     auto& scenes = registry_.Get<ISceneService>();
     auto it = scenes.GetSceneRegistry().find(sceneName);
     if (it == scenes.GetSceneRegistry().end() || it->second.xmlPath.empty()) {
@@ -312,12 +334,12 @@ void EditorService::OpenScene(const std::string& sceneName) {
     doc->kind = AssetKind::Scene;
     doc->fullPath = it->second.xmlPath;
     doc->title = sceneName;
-    doc->scene = std::shared_ptr<Elysium::Scene>(it->second.factory(registry_));
+    doc->scene = std::shared_ptr<Scene>(it->second.factory(registry_));
     if (!LoadScene(*doc->scene, doc->fullPath)) return;
     AddDocument(std::move(doc));
 }
 
-void EditorService::OpenAsset(const std::string& fullPath) {
+void EditorApplication::OpenAsset(const std::string& fullPath) {
     const std::optional<AssetKind> kind = AssetKindOf(Path::FromFullPath(fullPath).GetRelativePath());
     if (!kind || *kind == AssetKind::Folder || *kind == AssetKind::Sound) return;
     if (*kind == AssetKind::Prefab) return OpenPrefab(fullPath);
@@ -341,7 +363,7 @@ void EditorService::OpenAsset(const std::string& fullPath) {
     AddDocument(std::move(doc));
 }
 
-void EditorService::OpenPrefab(const std::string& fullPath) {
+void EditorApplication::OpenPrefab(const std::string& fullPath) {
     if (int open = FindDocument(fullPath); open >= 0) {
         SetActiveDocument(open);
         return;
@@ -355,12 +377,12 @@ void EditorService::OpenPrefab(const std::string& fullPath) {
     doc->fullPath = fullPath;
     doc->title = DirectoryOf(fullPath).empty() ? fullPath : fullPath.substr(DirectoryOf(fullPath).size());
     doc->parameters = prefab->GetParameters();
-    doc->scene = std::make_shared<Elysium::Scene>(registry_);
+    doc->scene = std::make_shared<Scene>(registry_);
 
     // Borrow a scene's layers and systems, so the prefab's entities find their layers and are
     // drawn in the right space. But a preview, not the scene's look: each layer is drawn plain,
     // without its lighting, fog, compositing or blending.
-    if (const Elysium::Scene* host = HostScene()) {
+    if (const Scene* host = HostScene()) {
         doc->scene->CopySetupFrom(*host, false);
         for (SceneLayer& layer : doc->scene->GetLayers()) {
             layer.isVisible = true;
@@ -380,7 +402,7 @@ void EditorService::OpenPrefab(const std::string& fullPath) {
     AddDocument(std::move(doc));
 }
 
-void EditorService::SetActiveDocument(int index) {
+void EditorApplication::SetActiveDocument(int index) {
     if (index < -1 || index >= (int)documents_.size()) index = -1;
     if (index != activeDocument_) ClearSelection();
     activeDocument_ = index;
@@ -388,7 +410,7 @@ void EditorService::SetActiveDocument(int index) {
     registry_.Get<ISceneService>().SetEditorScene(doc ? doc->scene.get() : nullptr);
 }
 
-void EditorService::CloseDocument(int index) {
+void EditorApplication::CloseDocument(int index) {
     if (index < 0 || index >= (int)documents_.size()) return;
     // Detach from the scene service before the document's scene is destroyed.
     int active = activeDocument_;
@@ -405,7 +427,7 @@ void EditorService::CloseDocument(int index) {
     SetActiveDocument(active);
 }
 
-bool EditorService::SaveActiveDocument() {
+bool EditorApplication::SaveActiveDocument() {
     auto* doc = ActiveDocument();
     if (!doc) {
         LOG_ERROR("Editor", "Nothing open to save.");
@@ -422,25 +444,25 @@ bool EditorService::SaveActiveDocument() {
 // Commands
 // =============================================================================
 
-std::optional<Elysium::CommandContext> EditorService::CommandCtx() {
+std::optional<CommandContext> EditorApplication::CommandCtx() {
     auto* world = GetWorld();
     if (!world) return std::nullopt;
-    return Elysium::CommandContext{*world, *this, registry_};
+    return CommandContext{*world, *this, registry_};
 }
 
-Elysium::CommandHistory* EditorService::GetHistory() {
+CommandHistory* EditorApplication::GetHistory() {
     auto* doc = ActiveDocument();
     return doc && doc->scene ? &doc->history : nullptr;
 }
 
-void EditorService::Execute(std::unique_ptr<Elysium::EditorCommand> command) {
+void EditorApplication::Execute(std::unique_ptr<EditorCommand> command) {
     auto* history = GetHistory();
     auto context = CommandCtx();
     if (!history || !context || !command) return;
     history->Execute(*context, std::move(command));
 }
 
-void EditorService::Undo() {
+void EditorApplication::Undo() {
     auto* history = GetHistory();
     auto context = CommandCtx();
     if (!history || !context || !history->CanUndo()) return;
@@ -448,7 +470,7 @@ void EditorService::Undo() {
     PruneSelection();
 }
 
-void EditorService::Redo() {
+void EditorApplication::Redo() {
     auto* history = GetHistory();
     auto context = CommandCtx();
     if (!history || !context || !history->CanRedo()) return;
@@ -458,23 +480,23 @@ void EditorService::Redo() {
 
 // The grouping calls are no-ops without a document rather than errors, so a caller can wrap a
 // batch unconditionally instead of guarding every one.
-void EditorService::BeginTransaction(const std::string& label) {
+void EditorApplication::BeginTransaction(const std::string& label) {
     if (auto* history = GetHistory()) history->BeginTransaction(label);
 }
 
-void EditorService::EndTransaction() {
+void EditorApplication::EndTransaction() {
     if (auto* history = GetHistory()) history->EndTransaction();
 }
 
-void EditorService::BeginGesture(const std::string& label) {
+void EditorApplication::BeginGesture(const std::string& label) {
     if (auto* history = GetHistory()) history->BeginGesture(label);
 }
 
-void EditorService::EndGesture() {
+void EditorApplication::EndGesture() {
     if (auto* history = GetHistory()) history->EndGesture();
 }
 
-void EditorService::PruneSelection() {
+void EditorApplication::PruneSelection() {
     auto* world = GetWorld();
     if (!world) return;
     selectedEntities_.erase(
@@ -485,7 +507,7 @@ void EditorService::PruneSelection() {
 
 // --- Stable entity references -------------------------------------------------------------
 
-uint64_t EditorService::StableIdOf(Entity entity) {
+uint64_t EditorApplication::StableIdOf(Entity entity) {
     auto* doc = ActiveDocument();
     if (!doc || entity == INVALID_ENTITY) return 0;
 
@@ -498,14 +520,14 @@ uint64_t EditorService::StableIdOf(Entity entity) {
     return id;
 }
 
-Entity EditorService::EntityForStableId(uint64_t id) const {
+Entity EditorApplication::EntityForStableId(uint64_t id) const {
     auto* doc = ActiveDocument();
     if (!doc || id == 0) return INVALID_ENTITY;
     auto it = doc->entityByStableId.find(id);
     return it == doc->entityByStableId.end() ? INVALID_ENTITY : it->second;
 }
 
-void EditorService::RebindStableId(uint64_t id, Entity entity) {
+void EditorApplication::RebindStableId(uint64_t id, Entity entity) {
     auto* doc = ActiveDocument();
     if (!doc || id == 0) return;
 
@@ -526,7 +548,7 @@ void EditorService::RebindStableId(uint64_t id, Entity entity) {
     doc->stableIdByEntity[entity] = id;
 }
 
-void EditorService::StableIdBinding::OnEntityDestroyed(Entity entity) {
+void EditorApplication::StableIdBinding::OnEntityDestroyed(Entity entity) {
     if (!document) return;
     auto it = document->stableIdByEntity.find(entity);
     if (it == document->stableIdByEntity.end()) return;
@@ -546,7 +568,7 @@ constexpr const char* kClipboardRoot = "ElysiumClipboard";
 
 // The roots of `selection`. An entity whose ancestor is also selected already travels inside
 // that ancestor's subtree, so copying it separately would duplicate it on paste.
-std::vector<Entity> TopLevelOf(Elysium::World& world, const std::vector<Entity>& selection) {
+std::vector<Entity> TopLevelOf(World& world, const std::vector<Entity>& selection) {
     std::vector<Entity> roots;
     for (Entity entity : selection) {
         if (!world.IsAlive(entity)) continue;
@@ -559,14 +581,14 @@ std::vector<Entity> TopLevelOf(Elysium::World& world, const std::vector<Entity>&
     return roots;
 }
 
-Vector2 PositionOf(Elysium::World& world, Entity entity) {
+Vector2 PositionOf(World& world, Entity entity) {
     if (!world.HasComponent<TransformComponent>(entity)) return {0.0f, 0.0f};
     const auto& t = world.GetComponent<TransformComponent>(entity);
     return { t.worldX, t.worldY };
 }
 }  // namespace
 
-void EditorService::CopySelection() {
+void EditorApplication::CopySelection() {
     auto* world = GetWorld();
     if (!world || selectedEntities_.empty()) return;
 
@@ -601,7 +623,7 @@ void EditorService::CopySelection() {
     ImGui::SetClipboardText(printer.CStr());
 }
 
-void EditorService::CutSelection() {
+void EditorApplication::CutSelection() {
     auto* world = GetWorld();
     if (!world || selectedEntities_.empty()) return;
 
@@ -613,12 +635,12 @@ void EditorService::CutSelection() {
     EndTransaction();
 }
 
-bool EditorService::CanPaste() const {
+bool EditorApplication::CanPaste() const {
     const char* text = ImGui::GetClipboardText();
     return text && std::string(text).find(kClipboardRoot) != std::string::npos;
 }
 
-Entity EditorService::Paste(Vector2 at) {
+Entity EditorApplication::Paste(Vector2 at) {
     auto* world = GetWorld();
     const char* text = ImGui::GetClipboardText();
     if (!world || !text) return INVALID_ENTITY;
@@ -686,7 +708,7 @@ Entity EditorService::Paste(Vector2 at) {
 // Hierarchy edits
 // =============================================================================
 
-Entity EditorService::DuplicateSubtree(Elysium::World& world, Entity entity, Entity newParent) {
+Entity EditorApplication::DuplicateSubtree(World& world, Entity entity, Entity newParent) {
     Entity copy = INVALID_ENTITY;
 
     if (PrefabInstances::IsRoot(world, entity)) {
@@ -719,7 +741,7 @@ Entity EditorService::DuplicateSubtree(Elysium::World& world, Entity entity, Ent
     return copy;
 }
 
-Entity EditorService::PrefabRoot() const {
+Entity EditorApplication::PrefabRoot() const {
     auto* doc = ActiveDocument();
     if (!doc || !doc->IsPrefab()) return INVALID_ENTITY;
     auto* world = doc->scene->GetWorld();
@@ -729,12 +751,12 @@ Entity EditorService::PrefabRoot() const {
     return INVALID_ENTITY;
 }
 
-bool EditorService::CanBeRoot(Entity entity) const {
+bool EditorApplication::CanBeRoot(Entity entity) const {
     const Entity root = PrefabRoot();
     return root == INVALID_ENTITY || root == entity;
 }
 
-Entity EditorService::CreateEntity(Entity parent) {
+Entity EditorApplication::CreateEntity(Entity parent) {
     auto* world = GetWorld();
     if (!world) return INVALID_ENTITY;
     if (parent == INVALID_ENTITY && !CanBeRoot(INVALID_ENTITY)) {
@@ -756,14 +778,14 @@ Entity EditorService::CreateEntity(Entity parent) {
     return entity;
 }
 
-void EditorService::RecordSpawn(Entity entity, const std::string& label) {
+void EditorApplication::RecordSpawn(Entity entity, const std::string& label) {
     if (entity == INVALID_ENTITY) return;
     auto context = CommandCtx();
     if (!context) return;
-    Execute(std::make_unique<Elysium::SpawnCommand>(*context, entity, label));
+    Execute(std::make_unique<SpawnCommand>(*context, entity, label));
 }
 
-void EditorService::Reparent(Entity entity, Entity parent) {
+void EditorApplication::Reparent(Entity entity, Entity parent) {
     auto* world = GetWorld();
     if (!world || entity == INVALID_ENTITY || entity == parent) return;
     if (!world->IsAlive(entity)) return;
@@ -778,26 +800,26 @@ void EditorService::Reparent(Entity entity, Entity parent) {
 
     auto context = CommandCtx();
     if (!context) return;
-    Execute(std::make_unique<Elysium::ReparentCommand>(*context, entity, parent));
+    Execute(std::make_unique<ReparentCommand>(*context, entity, parent));
 }
 
-void EditorService::ReorderBefore(Entity entity, Entity sibling) {
+void EditorApplication::ReorderBefore(Entity entity, Entity sibling) {
     auto* world = GetWorld();
     if (!world || entity == INVALID_ENTITY || sibling == INVALID_ENTITY || entity == sibling) return;
     auto context = CommandCtx();
     if (!context) return;
-    Execute(std::make_unique<Elysium::ReorderCommand>(*context, entity, sibling, true));
+    Execute(std::make_unique<ReorderCommand>(*context, entity, sibling, true));
 }
 
-void EditorService::ReorderAfter(Entity entity, Entity sibling) {
+void EditorApplication::ReorderAfter(Entity entity, Entity sibling) {
     auto* world = GetWorld();
     if (!world || entity == INVALID_ENTITY || sibling == INVALID_ENTITY || entity == sibling) return;
     auto context = CommandCtx();
     if (!context) return;
-    Execute(std::make_unique<Elysium::ReorderCommand>(*context, entity, sibling, false));
+    Execute(std::make_unique<ReorderCommand>(*context, entity, sibling, false));
 }
 
-Entity EditorService::DuplicateEntity(Entity entity) {
+Entity EditorApplication::DuplicateEntity(Entity entity) {
     auto* world = GetWorld();
     if (!world || entity == INVALID_ENTITY) return INVALID_ENTITY;
     entity = PrefabInstances::RootOf(*world, entity);
@@ -819,7 +841,7 @@ Entity EditorService::DuplicateEntity(Entity entity) {
     return copy;
 }
 
-void EditorService::DeleteEntity(Entity entity) {
+void EditorApplication::DeleteEntity(Entity entity) {
     auto* world = GetWorld();
     if (!world || entity == INVALID_ENTITY) return;
     // Already gone (e.g. a descendant of an entity deleted earlier in the same batch).
@@ -840,13 +862,13 @@ void EditorService::DeleteEntity(Entity entity) {
 
     auto context = CommandCtx();
     if (!context) return;
-    Execute(std::make_unique<Elysium::DeleteEntityCommand>(*context, entity));
+    Execute(std::make_unique<DeleteEntityCommand>(*context, entity));
 }
 
 // Saving a prefab refreshes every placement of it (direct or nested) in the other open
 // documents, so edits show up everywhere without reloading scenes. Placements
 // are snapshotted before the file changes, since their overrides are diffs against it.
-bool EditorService::SavePrefabDocument(EditorDocument& doc) {
+bool EditorApplication::SavePrefabDocument(EditorDocument& doc) {
     auto& assets = registry_.Get<IAssetService>();
     std::unordered_map<std::string, bool> dependsMemo;
     PrefabInstances::Filter affected = [&](const PrefabInstanceComponent& tag) {
@@ -860,11 +882,11 @@ bool EditorService::SavePrefabDocument(EditorDocument& doc) {
     };
 
     struct Pending {
-        Elysium::World* world;
+        World* world;
         std::unique_ptr<tinyxml2::XMLDocument> snapshot;
     };
     std::vector<Pending> pending;
-    auto snapshot = [&](Elysium::Scene* scene) {
+    auto snapshot = [&](Scene* scene) {
         if (!scene) return;
         pending.push_back({scene->GetWorld(), PrefabEditing::Snapshot(scene->GetWorld(), registry_, scene, affected)});
     };
@@ -872,7 +894,7 @@ bool EditorService::SavePrefabDocument(EditorDocument& doc) {
         if (other.get() != &doc) snapshot(other->scene.get());
     }
 
-    const Elysium::Scene* host = HostScene();
+    const Scene* host = HostScene();
     const bool ok = PrefabEditing::SaveFile(doc.scene->GetWorld(), doc.fullPath, doc.localIds, doc.parameters, registry_,
                                             host ? host : doc.scene.get());
     LOG_INFOF("Editor", "%s prefab %s", ok ? "Saved" : "Failed to save", doc.fullPath.c_str());
@@ -931,7 +953,7 @@ const char* StarterText(AssetKind kind, const std::string& name) {
 }
 }  // namespace
 
-bool EditorService::CreateAsset(AssetKind kind, const std::string& fullPath) {
+bool EditorApplication::CreateAsset(AssetKind kind, const std::string& fullPath) {
     namespace fs = std::filesystem;
     std::error_code ec;
     if (fs::exists(fullPath, ec)) {
@@ -943,8 +965,8 @@ bool EditorService::CreateAsset(AssetKind kind, const std::string& fullPath) {
     bool ok = false;
     if (kind == AssetKind::Scene) {
         // An empty scene with the layers and systems of the scene prefabs borrow from.
-        Elysium::Scene scene(registry_);
-        if (const Elysium::Scene* host = HostScene()) scene.CopySetupFrom(*host, false);
+        Scene scene(registry_);
+        if (const Scene* host = HostScene()) scene.CopySetupFrom(*host, false);
         ok = SaveScene(scene, fullPath);
         if (ok) registry_.Get<ISceneService>().RegisterScene(fullPath);
     } else if (const char* text = StarterText(kind, fs::path(fullPath).stem().string())) {
@@ -959,7 +981,7 @@ bool EditorService::CreateAsset(AssetKind kind, const std::string& fullPath) {
     return true;
 }
 
-bool EditorService::SaveActiveDocumentAs(const std::string& fullPath) {
+bool EditorApplication::SaveActiveDocumentAs(const std::string& fullPath) {
     auto* doc = ActiveDocument();
     if (!doc || !doc->HasWorld()) return false;
     bool ok = false;
@@ -968,7 +990,7 @@ bool EditorService::SaveActiveDocumentAs(const std::string& fullPath) {
         if (ok) registry_.Get<ISceneService>().RegisterScene(fullPath);
     } else {
         std::unordered_map<Entity, int> localIds = doc->localIds;  // the original keeps its own
-        const Elysium::Scene* host = HostScene();
+        const Scene* host = HostScene();
         ok = PrefabEditing::SaveFile(doc->scene->GetWorld(), fullPath, localIds, doc->parameters, registry_,
                                      host ? host : doc->scene.get());
     }
@@ -977,7 +999,7 @@ bool EditorService::SaveActiveDocumentAs(const std::string& fullPath) {
     return ok;
 }
 
-void EditorService::ReplaceActiveDocument(const std::string& fullPath) {
+void EditorApplication::ReplaceActiveDocument(const std::string& fullPath) {
     const int old = activeDocument_;
     OpenAsset(fullPath);
     // The new tab opened at the end; take the old one's place.
@@ -991,7 +1013,7 @@ void EditorService::ReplaceActiveDocument(const std::string& fullPath) {
     }
 }
 
-bool EditorService::CreatePrefabFromEntity(Entity entity, const std::string& fullPath) {
+bool EditorApplication::CreatePrefabFromEntity(Entity entity, const std::string& fullPath) {
     auto* world = GetWorld();
     if (!world || entity == INVALID_ENTITY) return false;
     if (std::filesystem::exists(fullPath)) {
@@ -1028,7 +1050,7 @@ bool EditorService::CreatePrefabFromEntity(Entity entity, const std::string& ful
     return true;
 }
 
-Entity EditorService::InstantiatePrefab(const std::string& fullPath) {
+Entity EditorApplication::InstantiatePrefab(const std::string& fullPath) {
     auto* world = GetWorld();
     if (!world) return INVALID_ENTITY;
 
@@ -1057,4 +1079,4 @@ Entity EditorService::InstantiatePrefab(const std::string& fullPath) {
     return root;
 }
 
-}  // namespace Elysium::Services
+}  // namespace Elysium

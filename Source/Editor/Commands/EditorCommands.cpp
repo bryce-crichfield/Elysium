@@ -5,7 +5,7 @@
 #include "Core/Components/ParentComponent.h"
 #include "Core/EntitySerializer.h"
 #include "Core/World.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 
 namespace Elysium {
 

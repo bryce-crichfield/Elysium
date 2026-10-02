@@ -9,10 +9,7 @@
 
 namespace Elysium {
 class World;
-}
-
-namespace Elysium::Services {
-class IEditorService;
+class EditorApplication;
 }
 
 namespace Elysium {
@@ -23,7 +20,7 @@ class HierarchyEditor : public Editor {
    public:
     static constexpr const char* Title = "Hierarchy";
 
-    explicit HierarchyEditor(ServiceLocator& services);
+    explicit HierarchyEditor(EditorApplication& editor);
 
     void Draw() override;
 
@@ -31,11 +28,11 @@ class HierarchyEditor : public Editor {
     // Structural edits (duplicate/delete) chosen while drawing, applied once drawing is done.
     std::function<void()> pendingAction_;
 
-    void DrawToolbar(Services::IEditorService& service);
+    void DrawToolbar(EditorApplication& editor);
     void DrawLuaFilter();
-    void DrawEntityList(Services::IEditorService& service);
-    void DrawHierarchyTree(Services::IEditorService& service);
-    void DrawHierarchyNode(Services::IEditorService& service, Entity entity);
+    void DrawEntityList(EditorApplication& editor);
+    void DrawHierarchyTree(EditorApplication& editor);
+    void DrawHierarchyNode(EditorApplication& editor, Entity entity);
 
     // --- Row selection --------------------------------------------------------------------
     // Ctrl-click toggles one row; shift-click takes everything between the last row clicked and
@@ -53,9 +50,9 @@ class HierarchyEditor : public Editor {
     // Records `entity` as drawn at this point in the list. Every clickable row calls it.
     void RecordRow(Entity entity);
     // What a click on a row does, given the modifiers held.
-    void HandleRowClick(Services::IEditorService& service, Entity entity);
+    void HandleRowClick(EditorApplication& editor, Entity entity);
     // Applies a deferred shift-click once visibleRows_ holds the whole list.
-    void ApplyPendingRange(Services::IEditorService& service);
+    void ApplyPendingRange(EditorApplication& editor);
 
     // --- Placement grouping ---------------------------------------------------------------
     // A dungeon floor is a hundred-odd identical Floor placements. Listed one per row they bury
@@ -71,22 +68,22 @@ class HierarchyEditor : public Editor {
         std::vector<Entity> members;
     };
     // Root entities as rows, in world order, with groupable placements merged.
-    std::vector<RootRow> BuildRootRows(Services::IEditorService& service) const;
-    void DrawGroupNode(Services::IEditorService& service, const RootRow& row);
+    std::vector<RootRow> BuildRootRows(EditorApplication& editor) const;
+    void DrawGroupNode(EditorApplication& editor, const RootRow& row);
     // Renders a thin drop zone used for reordering and reparenting via drag-and-drop.
     // parent: the entity whose childrenMap_ will receive the drop (INVALID_ENTITY = root level).
     // beforeSibling: the sibling to insert before; INVALID_ENTITY = append at end.
-    void DrawInsertionZone(Services::IEditorService& service, Entity parent, Entity beforeSibling);
-    void DrawEntityContextMenu(Services::IEditorService& service, Entity entity);
-    void DrawCreateEntityMenu(Services::IEditorService& service);
-    void DeferOpenPrefab(Services::IEditorService& service, const World& world, Entity entity);
+    void DrawInsertionZone(EditorApplication& editor, Entity parent, Entity beforeSibling);
+    void DrawEntityContextMenu(EditorApplication& editor, Entity entity);
+    void DrawCreateEntityMenu(EditorApplication& editor);
+    void DeferOpenPrefab(EditorApplication& editor, const World& world, Entity entity);
     // "Pack Prefab" dialog: name + folder for a new prefab made from an entity's subtree.
-    void BeginCreatePrefab(Services::IEditorService& service, Entity entity);
-    void DrawCreatePrefabDialog(Services::IEditorService& service);
+    void BeginCreatePrefab(EditorApplication& editor, Entity entity);
+    void DrawCreatePrefabDialog(EditorApplication& editor);
 
     // True when `entity` passes the name search, the Lua filter, and the focused layer (set in
     // the Viewport's layer drawer — empty means every layer).
-    bool PassesFilters(const Services::IEditorService& service, const World& world, Entity entity) const;
+    bool PassesFilters(const EditorApplication& editor, const World& world, Entity entity) const;
 
     bool showHierarchyView_ = true;
     bool showLuaFilter_ = false;

@@ -9,7 +9,7 @@
 #include "Editor/Viewport/SpatialOverlays.h"
 #include "Editor/Style/Theme.h"
 #include "Editor/Widgets/Widgets.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "Systems/NavMeshSystem.h"
 #include "Core/World3D.h"
 #include <cmath>
@@ -29,21 +29,21 @@ constexpr int kMaxCellRects = 6000;
 
 const char* NavMeshTool::Icon() const { return ICON_FA_ROUTE; }
 
-const char* NavMeshTool::Unavailable(Services::IEditorService&, bool isScene) const {
+const char* NavMeshTool::Unavailable(EditorApplication&, bool isScene) const {
     return isScene ? nullptr : "Navmesh editing needs a scene";
 }
 
-void NavMeshTool::OnActivate(Services::IEditorService&) {
+void NavMeshTool::OnActivate(EditorApplication&) {
     brushChoice_ = 0;
     inProgress_.clear();
 }
 
-void NavMeshTool::OnDeactivate(Services::IEditorService&) {
+void NavMeshTool::OnDeactivate(EditorApplication&) {
     brushChoice_ = 0;
     inProgress_.clear();
 }
 
-ToolStatus NavMeshTool::Status(Services::IEditorService&) const {
+ToolStatus NavMeshTool::Status(EditorApplication&) const {
     if (!Brush()) {
         return {"Pick what to draw in the tool settings " ICON_FA_WRENCH
                 ", or click an area to select it (Delete removes it)"};
@@ -70,7 +70,7 @@ std::optional<Entity> NavMeshTool::AreaAt(World& world, Vector2 mouseWorld) cons
     return hit;
 }
 
-void NavMeshTool::ClosePolygon(World& world, Services::IEditorService& editor) {
+void NavMeshTool::ClosePolygon(World& world, EditorApplication& editor) {
     Polygon points(std::move(inProgress_));
     inProgress_.clear();
     const std::optional<NavAreaType> brush = Brush();
@@ -102,7 +102,7 @@ void NavMeshTool::ClosePolygon(World& world, Services::IEditorService& editor) {
 
 bool NavMeshTool::HandleInput(ToolContext& context) {
     World& world = context.world;
-    Services::IEditorService& editor = context.editor;
+    EditorApplication& editor = context.editor;
     const ViewportInput& in = context.input;
     const float closeRadius = kClosePixels * in.worldPerPixel;
 
@@ -148,7 +148,7 @@ bool NavMeshTool::HandleInput(ToolContext& context) {
 
 void NavMeshTool::DrawOverlay(ToolContext& context, OverlayPainter& painter) {
     World& world = context.world;
-    Services::IEditorService& editor = context.editor;
+    EditorApplication& editor = context.editor;
     const Systems::NavMeshSystem* nav = context.nav;
 
     if (nav && nav->Width() > 0) {

@@ -10,18 +10,20 @@
 #include "Core/World.h"
 #include "Editor/Style/AssetStyle.h"
 #include "Editor/Widgets/Widgets.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 
 namespace Elysium {
 
 using namespace Services;
 
+PrefabSettings::PrefabSettings(EditorApplication& editor) : editor_(editor), services_(editor.GetServices()) {}
+
 void PrefabSettings::Draw(EditorDocument& doc) {
     Profile;
 
-    auto& service = services_.Get<IEditorService>();
+    auto& editor = editor_;
     World* world = doc.scene->GetWorld();
-    const auto& selection = service.GetSelectedEntities();
+    const auto& selection = editor.GetSelectedEntities();
     const Entity selected = selection.empty() ? INVALID_ENTITY : selection.back();
 
     BeginKindSettings(AssetKind::Prefab, "PrefabSettings", doc.title + " Settings");
@@ -59,7 +61,7 @@ void PrefabSettings::Draw(EditorDocument& doc) {
         ImGui::AlignTextToFramePadding();
         ColoredText(target == INVALID_ENTITY ? Editor::Palette().Error : Editor::Palette().TextMuted, targetLabel.c_str());
         if (target == INVALID_ENTITY) ItemTooltip("Target entity no longer exists");
-        else if (ImGui::IsItemClicked()) service.SelectEntity(target);
+        else if (ImGui::IsItemClicked()) editor.SelectEntity(target);
 
         AlignRight(ButtonWidth(ICON_FA_TRASH_CAN));
         if (IconButton(ICON_FA_TRASH_CAN, "Remove parameter")) toRemove = i;

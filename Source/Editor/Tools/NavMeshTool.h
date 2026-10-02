@@ -9,7 +9,7 @@
 namespace Elysium {
 class World;
 class OverlayPainter;
-namespace Services { class IEditorService; }
+class EditorApplication;
 
 // Viewport navmesh mode: shows the bake and lays out NavArea entities.
 //
@@ -24,10 +24,10 @@ public:
 
     // The generic nav-area overlay would draw underneath this tool's own.
     bool OwnsNavAreaOverlay() const override { return true; }
-    const char* Unavailable(Services::IEditorService& editor, bool isScene) const override;
+    const char* Unavailable(EditorApplication& editor, bool isScene) const override;
 
-    void OnActivate(Services::IEditorService& editor) override;
-    void OnDeactivate(Services::IEditorService& editor) override;
+    void OnActivate(EditorApplication& editor) override;
+    void OnDeactivate(EditorApplication& editor) override;
 
     ToolParameters Parameters() override {
         return {this,
@@ -36,12 +36,12 @@ public:
                  Field("Cost", &NavMeshTool::cost_, "cost").Range(1.0f, 10.0f).Speed(0.1f)}};
     }
 
-    ToolStatus Status(Services::IEditorService& editor) const override;
+    ToolStatus Status(EditorApplication& editor) const override;
     void DrawOverlay(ToolContext& context, OverlayPainter& painter) override;
     bool HandleInput(ToolContext& context) override;
 
 private:
-    void ClosePolygon(World& world, Services::IEditorService& editor);
+    void ClosePolygon(World& world, EditorApplication& editor);
     std::optional<Entity> AreaAt(World& world, Vector2 mouseWorld) const;
 
     static Polygon WorldPolygon(World& world, Entity area);

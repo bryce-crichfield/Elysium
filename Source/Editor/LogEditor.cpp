@@ -21,7 +21,7 @@ constexpr LevelInfo kLevels[] = {
 };
 }  // namespace
 
-LogEditor::LogEditor(ServiceLocator& services) : Editor(services, Title) {
+LogEditor::LogEditor(EditorApplication& editor) : Editor(editor, Title) {
     for (const auto& info : kLevels) levelFilters_[info.level] = true;
 }
 

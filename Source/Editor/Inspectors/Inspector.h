@@ -11,7 +11,11 @@
 
 namespace Elysium {
 
+class EditorApplication;
 class ServiceLocator;
+
+// EditorApplication::GetServices, without this header needing all of EditorApplication.h.
+ServiceLocator& ServicesOf(EditorApplication& editor);
 
 // Where a component's section sits in the Inspector, top to bottom: what the entity is,
 // where it is, what it looks like, how it behaves. Ties sort by name.
@@ -31,7 +35,7 @@ enum class InspectorOrder : int {
 };
 
 // Draws one component's section of the Inspector; nothing for an entity without it.
-using Inspector = std::function<void(World&, Entity, ServiceLocator&)>;
+using Inspector = std::function<void(World&, Entity, EditorApplication&)>;
 
 // The component inspectors, by component type. Components know nothing about the editor: each
 // one's inspector is registered here, by the editor (RegisterComponentInspectors), and the
@@ -43,12 +47,23 @@ public:
         InspectorOrder order = InspectorOrder::Other;
     };
 
-    // A hand-written inspector over the live component.
+    // A hand-written inspector over the live component, for one that needs the editor's
+    // session (the documents, selection) as well as the engine's services.
+    template <typename T>
+    void Register(InspectorOrder order, void (*inspect)(T&, Entity, EditorApplication&)) {
+        entries_[std::type_index(typeid(T))] = Entry{
+            [inspect](World& world, Entity e, EditorApplication& editor) {
+                if (world.HasComponent<T>(e)) inspect(world.GetComponent<T>(e), e, editor);
+            },
+            order};
+    }
+
+    // A hand-written inspector that needs only the engine's services.
     template <typename T>
     void Register(InspectorOrder order, void (*inspect)(T&, Entity, ServiceLocator&)) {
         entries_[std::type_index(typeid(T))] = Entry{
-            [inspect](World& world, Entity e, ServiceLocator& services) {
-                if (world.HasComponent<T>(e)) inspect(world.GetComponent<T>(e), e, services);
+            [inspect](World& world, Entity e, EditorApplication& editor) {
+                if (world.HasComponent<T>(e)) inspect(world.GetComponent<T>(e), e, ServicesOf(editor));
             },
             order};
     }
@@ -57,7 +72,7 @@ public:
     template <Reflected T>
     void Register(InspectorOrder order) {
         entries_[std::type_index(typeid(T))] = Entry{
-            [fields = T::Fields()](World& world, Entity e, ServiceLocator&) {
+            [fields = T::Fields()](World& world, Entity e, EditorApplication&) {
                 if (world.HasComponent<T>(e)) InspectFields(&world.GetComponent<T>(e), fields);
             },
             order};

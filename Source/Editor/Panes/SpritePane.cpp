@@ -15,7 +15,7 @@
 #include "Editor/Panes/ContentPane.h"
 #include "Editor/Widgets/Widgets.h"
 #include "Interfaces/IAssetService.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 
 namespace Elysium {
 
@@ -69,7 +69,7 @@ struct Frames {
 // and the playback above it loops that sequence, where clicking sets the sprite's origin.
 class SpritePane : public ContentPane {
    public:
-    SpritePane(ServiceLocator& services, const Services::EditorDocument& document)
+    SpritePane(ServiceLocator& services, const EditorDocument& document)
         : services_(services), fullPath_(document.fullPath) {
         Load();
         if (!animations_.empty()) selectedAnimation_ = 0;
@@ -480,7 +480,7 @@ class SpritePane : public ContentPane {
 
 }  // namespace
 
-std::unique_ptr<ContentPane> MakeSpritePane(ServiceLocator& services, const Services::EditorDocument& document) {
+std::unique_ptr<ContentPane> MakeSpritePane(ServiceLocator& services, const EditorDocument& document) {
     return std::make_unique<SpritePane>(services, document);
 }
 

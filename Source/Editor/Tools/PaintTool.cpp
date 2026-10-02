@@ -3,14 +3,14 @@
 #include <string>
 
 #include "extras/IconsFontAwesome6.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "imgui.h"
 
 namespace Elysium {
 
 const char* PaintTool::Icon() const { return ICON_FA_PAINT_ROLLER; }
 
-const char* PaintTool::Unavailable(Services::IEditorService& editor, bool isScene) const {
+const char* PaintTool::Unavailable(EditorApplication& editor, bool isScene) const {
     (void)editor;
     // Only what you cannot fix from inside the tool belongs here, because Unavailable both
     // disables the button and steps away from an active tool. The brush lives in this tool's own
@@ -21,7 +21,7 @@ const char* PaintTool::Unavailable(Services::IEditorService& editor, bool isScen
     return nullptr;
 }
 
-void PaintTool::OnDeactivate(Services::IEditorService& editor) {
+void PaintTool::OnDeactivate(EditorApplication& editor) {
     painter_.EndStroke();
     if (stroking_) {
         editor.EndGesture();
@@ -29,7 +29,7 @@ void PaintTool::OnDeactivate(Services::IEditorService& editor) {
     }
 }
 
-ToolStatus PaintTool::Status(Services::IEditorService& editor) const {
+ToolStatus PaintTool::Status(EditorApplication& editor) const {
     // Everything that stops a stroke landing is said here rather than by disabling the tool, so the
     // tool stays selectable while you go and fix it. Most specific thing first.
     const std::string& layer = editor.GetActiveLayer();

@@ -11,7 +11,7 @@ namespace Elysium {
 
 class World;
 
-// The raw hierarchy edits, recording nothing. Commands call these directly; the service's
+// The raw hierarchy edits, recording nothing. Commands call these directly; EditorApplication's
 // Reparent/ReorderBefore/ReorderAfter record a command which then lands back here. Keeping the
 // two apart is what stops a command's Do() from recording another copy of itself.
 namespace EditorOps {

@@ -3,31 +3,33 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <string>
 #include <vector>
+#include "Core/Application.h"
 #include "Core/AssetKind.h"
-#include "Editor/Commands/CommandHistory.h"
-#include "Editor/Commands/EditorCommand.h"
 #include "Core/Entity.h"
+#include "Core/Event.h"
 #include "Core/MathTypes.h"
 #include "Core/Prefab.h"
-#include "Interfaces/IService.h"
+#include "Core/ServiceLocator.h"
+#include "Core/World.h"  // IWorldListener; needs Entity.h and Event.h ahead of it
+#include "Editor/Commands/CommandHistory.h"
+#include "Editor/Commands/EditorCommand.h"
 
 namespace Elysium {
-class World;
-class Scene;
-}  // namespace Elysium
 
-namespace Elysium::Services {
+class Scene;
+class EditorUI;
 
 struct ComponentPlaceholder {
-    std::function<void(Entity, Elysium::World*)> drawFunc;
-    std::function<bool(Entity, Elysium::World*)> hasComponentFunc;
-    std::function<void(Entity, Elysium::World*)> addComponentFunc;
-    std::function<void(Entity, Elysium::World*)> removeComponentFunc;
-    std::function<void(Entity, Elysium::World*)> resetComponentFunc;
+    std::function<void(Entity, World*)> drawFunc;
+    std::function<bool(Entity, World*)> hasComponentFunc;
+    std::function<void(Entity, World*)> addComponentFunc;
+    std::function<void(Entity, World*)> removeComponentFunc;
+    std::function<void(Entity, World*)> resetComponentFunc;
     std::string name;
 };
 
@@ -51,14 +53,14 @@ struct EditorDocument {
     AssetKind kind = AssetKind::Prefab;
     std::string fullPath;
     std::string title;
-    std::shared_ptr<Elysium::Scene> scene;  // scenes and prefabs only
+    std::shared_ptr<Scene> scene;  // scenes and prefabs only
     // Prefab only:
     std::unordered_map<Entity, int> localIds;     // entity -> <Entity id> in the file
-    std::vector<Elysium::PrefabParameter> parameters;
+    std::vector<PrefabParameter> parameters;
 
     // Undo/redo for this tab, so each open scene has its own history and closing the tab
     // discards it. Scenes and prefabs only; a content pane has nothing to undo through here.
-    Elysium::CommandHistory history;
+    CommandHistory history;
 
     // Stable entity references for the history. `Entity` is a recycled index with no
     // generation counter (Core/Entity.h), so a command holding one could address a different
@@ -101,37 +103,59 @@ struct GridSettings {
     Vector2 Cell() const { return {width / (float)(divisor > 0 ? divisor : 1), height / (float)(divisor > 0 ? divisor : 1)}; }
 };
 
-class IEditorService : public IService {
+// The in-engine editor. Application owns one and drives it: Initialize once the engine's
+// services are up, Update and Draw every frame, OnModeChanged on F1/F2, Shutdown last. It is
+// not an engine service: nothing outside Editor/ sees it, and the editor's panels, tools and
+// commands are handed it directly.
+//
+// It holds the editing session (the open documents, each scene or prefab its own Scene and
+// never the game's; selection; undo; clipboard; layer and grid state; the editor camera) and
+// owns its UI, EditorUI (ImGui, the panels, menus and dock layout).
+class EditorApplication {
    public:
-    virtual Elysium::World* GetWorld() const = 0;
+    explicit EditorApplication(ServiceLocator& services);
+    ~EditorApplication();
+
+    void Initialize(const ApplicationConfig& config);
+    void Update(float deltaTime);
+    void Draw(AppMode mode);
+    void OnModeChanged(AppMode mode);
+    void Shutdown();
+
+    // The engine's services, for editor code that needs the scenes, assets or scripts.
+    ServiceLocator& GetServices() { return registry_; }
+
+    World* GetWorld() const;
 
     // --- Layers (active document) ------------------------------------------------------
     // The layer being worked on: it filters the Hierarchy and receives painted prefabs.
     // Empty means no layer is focused, and the Hierarchy shows everything.
-    virtual const std::string& GetActiveLayer() const = 0;
-    virtual void SetActiveLayer(const std::string& layer) = 0;
+    const std::string& GetActiveLayer() const;
+    void SetActiveLayer(const std::string& layer);
 
-    virtual LayerEditState& GetLayerState(const std::string& layer) = 0;
+    LayerEditState& GetLayerState(const std::string& layer);
 
     // Effective visibility and lock, with solo resolved: once any layer is soloed, every layer
     // that isn't soloed counts as hidden.
-    virtual bool IsLayerHidden(const std::string& layer) const = 0;
-    virtual bool IsLayerLocked(const std::string& layer) const = 0;
+    bool IsLayerHidden(const std::string& layer) const;
+    bool IsLayerLocked(const std::string& layer) const;
     // Every layer that should not draw this frame. RenderSorter applies this to its own copy
     // of the layer list, so SceneLayer::isVisible in the scene is left alone.
-    virtual std::unordered_set<std::string> GetHiddenLayers() const = 0;
+    std::unordered_set<std::string> GetHiddenLayers() const;
 
     // The layer `entity` draws on — its LayerComponent, or its prefab placement root's, since a
     // placement's layer belongs to the placement. Empty when it has none.
-    virtual std::string GetEntityLayer(Entity entity) const = 0;
+    std::string GetEntityLayer(Entity entity) const;
     // Whether `entity` is off-limits to editing because its layer is locked.
-    virtual bool IsEntityLocked(Entity entity) const = 0;
+    bool IsEntityLocked(Entity entity) const;
+    // The layer an entity without a LayerComponent is drawn on.
+    std::string DefaultLayer() const;
 
     // --- Grid ---------------------------------------------------------------------------
-    virtual GridSettings& GetGrid() = 0;
-    const GridSettings& GetGrid() const { return const_cast<IEditorService*>(this)->GetGrid(); }
+    GridSettings& GetGrid();
+    const GridSettings& GetGrid() const { return const_cast<EditorApplication*>(this)->GetGrid(); }
     // `world` snapped to the grid, or unchanged when snapping is off.
-    virtual Vector2 SnapToGrid(Vector2 world) const = 0;
+    Vector2 SnapToGrid(Vector2 world) const;
 
     // --- Commands -----------------------------------------------------------------------
     // Every mutation the editor makes to a document's world should go through here, so that it
@@ -140,99 +164,166 @@ class IEditorService : public IService {
     //
     // Commands apply immediately. Callers that mutate while iterating the entities they are
     // drawing must defer the call themselves (see HierarchyEditor's pendingAction_).
-    virtual void Execute(std::unique_ptr<Elysium::EditorCommand> command) = 0;
+    void Execute(std::unique_ptr<EditorCommand> command);
     // The active document's history, or null when the active tab has no world.
-    virtual Elysium::CommandHistory* GetHistory() = 0;
-    virtual void Undo() = 0;
-    virtual void Redo() = 0;
+    CommandHistory* GetHistory();
+    void Undo();
+    void Redo();
     // Group several commands into one undo step. Nestable; forwarded to the active history, and
     // silently ignored when there is no document, so callers need no null check.
-    virtual void BeginTransaction(const std::string& label) = 0;
-    virtual void EndTransaction() = 0;
+    void BeginTransaction(const std::string& label);
+    void EndTransaction();
     // A transaction that also merges repeats of the same edit, for a continuous drag.
-    virtual void BeginGesture(const std::string& label) = 0;
-    virtual void EndGesture() = 0;
+    void BeginGesture(const std::string& label);
+    void EndGesture();
 
     // --- Stable entity references -------------------------------------------------------
     // See EditorDocument. Commands store the id, never the Entity.
     // Assigns one on first use; 0 for INVALID_ENTITY.
-    virtual uint64_t StableIdOf(Entity entity) = 0;
+    uint64_t StableIdOf(Entity entity);
     // The entity `id` currently refers to, or INVALID_ENTITY if it refers to nothing (because
     // an undo destroyed it, or the document was reloaded).
-    virtual Entity EntityForStableId(uint64_t id) const = 0;
+    Entity EntityForStableId(uint64_t id) const;
     // Points `id` at `entity`, for a command that has just recreated what it destroyed.
     // INVALID_ENTITY unbinds it.
-    virtual void RebindStableId(uint64_t id, Entity entity) = 0;
+    void RebindStableId(uint64_t id, Entity entity);
 
-    virtual const std::vector<ComponentPlaceholder>& GetComponentPlaceholders() const = 0;
+    const std::vector<ComponentPlaceholder>& GetComponentPlaceholders() const { return componentPlaceholders; }
 
     // --- Clipboard ----------------------------------------------------------------------
     // Entities are copied as serialized XML onto the *system* clipboard, so a copy carries
     // between open documents and between running instances of the editor, and survives a
     // reload. Cut is a copy and a delete in one undo step.
-    virtual void CopySelection() = 0;
-    virtual void CutSelection() = 0;
+    void CopySelection();
+    void CutSelection();
     // Pastes the clipboard with its first root at `at` (grid-snapped), the rest keeping their
     // offsets from it, onto the active layer. Returns the first pasted root.
-    virtual Entity Paste(Vector2 at) = 0;
-    virtual bool CanPaste() const = 0;
+    Entity Paste(Vector2 at);
+    bool CanPaste() const;
 
-    virtual const std::vector<Entity>& GetSelectedEntities() const = 0;
-    virtual void SelectEntity(Entity entity, bool additive = false) = 0;
-    virtual void ClearSelection() = 0;
-    virtual bool IsSelected(Entity entity) const = 0;
+    const std::vector<Entity>& GetSelectedEntities() const { return selectedEntities_; }
+    void SelectEntity(Entity entity, bool additive = false);
+    void ClearSelection();
+    bool IsSelected(Entity entity) const;
 
-    virtual EditorCamera& GetEditorCamera() = 0;
+    EditorCamera& GetEditorCamera() { return editorCamera_; }
 
     // Hierarchy-aware edits on the viewport world. Duplicate copies the whole subtree next to
     // the original (a placed prefab becomes a new placement with the same overrides) and
     // returns the copy's root; Delete removes the entity and everything under it.
-    virtual Entity DuplicateEntity(Entity entity) = 0;
-    virtual void DeleteEntity(Entity entity) = 0;
+    Entity DuplicateEntity(Entity entity);
+    void DeleteEntity(Entity entity);
     // Creates an entity under `parent`, or at root level. Returns INVALID_ENTITY if refused.
-    virtual Entity CreateEntity(Entity parent = INVALID_ENTITY) = 0;
+    Entity CreateEntity(Entity parent = INVALID_ENTITY);
     // Hierarchy edits, so the Hierarchy panel's drag-and-drop is undoable like everything else.
     // Reparent to INVALID_ENTITY detaches to root level. Both reorders move `entity` to sit
     // beside `sibling` under the same parent.
-    virtual void Reparent(Entity entity, Entity parent) = 0;
-    virtual void ReorderBefore(Entity entity, Entity sibling) = 0;
-    virtual void ReorderAfter(Entity entity, Entity sibling) = 0;
+    void Reparent(Entity entity, Entity parent);
+    void ReorderBefore(Entity entity, Entity sibling);
+    void ReorderAfter(Entity entity, Entity sibling);
     // Whether `entity` (INVALID_ENTITY: a new one) may sit at root level in the active
     // document. A prefab has exactly one root, so there it's only the existing root.
-    virtual bool CanBeRoot(Entity entity) const = 0;
+    bool CanBeRoot(Entity entity) const;
 
     // The scene the viewport shows and edits: the active document's. Null when nothing (or
     // an asset without a world) is open.
-    virtual Elysium::Scene* GetViewportScene() = 0;
+    Scene* GetViewportScene();
 
     // Documents (viewport tabs). Index -1 means none.
     // Opens the asset at `fullPath` in a tab, by its kind (see AssetKindOf); sounds can't be.
-    virtual void OpenAsset(const std::string& fullPath) = 0;
-    virtual void OpenScene(const std::string& sceneName) = 0;
-    virtual void OpenPrefab(const std::string& fullPath) = 0;
-    virtual const std::vector<std::unique_ptr<EditorDocument>>& GetDocuments() const = 0;
-    virtual int GetActiveDocument() const = 0;
-    virtual void SetActiveDocument(int index) = 0;
-    virtual void CloseDocument(int index) = 0;
+    void OpenAsset(const std::string& fullPath);
+    void OpenScene(const std::string& sceneName);
+    void OpenPrefab(const std::string& fullPath);
+    const std::vector<std::unique_ptr<EditorDocument>>& GetDocuments() const { return documents_; }
+    int GetActiveDocument() const { return activeDocument_; }
+    void SetActiveDocument(int index);
+    void CloseDocument(int index);
     const EditorDocument* GetActiveDocumentInfo() const {
         const int index = GetActiveDocument();
         return index >= 0 ? GetDocuments()[index].get() : nullptr;
     }
     // Saves the active scene or prefab back to its file (other kinds save from their pane).
-    virtual bool SaveActiveDocument() = 0;
+    bool SaveActiveDocument();
     // Places a prefab into the active tab's world at the editor camera. Returns the root entity.
-    virtual Entity InstantiatePrefab(const std::string& fullPath) = 0;
+    Entity InstantiatePrefab(const std::string& fullPath);
     // Writes a starter file of `kind` at `fullPath` and opens it. Sounds and textures can't
     // be made here. False if the file exists or can't be written.
-    virtual bool CreateAsset(AssetKind kind, const std::string& fullPath) = 0;
+    bool CreateAsset(AssetKind kind, const std::string& fullPath);
     // Writes the active scene or prefab to `fullPath` and opens that in the tab's place.
     // Other kinds are written by their content pane, which then calls ReplaceActiveDocument.
-    virtual bool SaveActiveDocumentAs(const std::string& fullPath) = 0;
+    bool SaveActiveDocumentAs(const std::string& fullPath);
     // Opens the asset at `fullPath` in place of the active tab.
-    virtual void ReplaceActiveDocument(const std::string& fullPath) = 0;
+    void ReplaceActiveDocument(const std::string& fullPath);
     // Packs `entity` and its subtree (in the active tab) into a new prefab at `fullPath` and
     // replaces them with a placement of it. False if the file exists or fails.
-    virtual bool CreatePrefabFromEntity(Entity entity, const std::string& fullPath) = 0;
+    bool CreatePrefabFromEntity(Entity entity, const std::string& fullPath);
+   private:
+    ServiceLocator& registry_;
+    std::unique_ptr<EditorUI> ui_;
+
+    std::vector<ComponentPlaceholder> componentPlaceholders;
+    std::vector<Entity> selectedEntities_;
+    EditorCamera editorCamera_;
+    bool openedEntryScene_ = false;
+    // Layers/systems for prefab documents when no scene document is open (the entry scene).
+    std::shared_ptr<Scene> fallbackHost_;
+
+    // Per-document editing state. Keyed by the document's file path so it survives tab
+    // switches, and dropped with the document. None of it is persisted.
+    struct DocumentEditState {
+        std::string activeLayer;
+        std::unordered_map<std::string, LayerEditState> layers;
+        GridSettings grid;
+
+        // Recomputed rather than cached: GetLayerState hands out a mutable reference, so any
+        // cached count would go stale the moment a caller flips a flag through it.
+        bool AnySolo() const {
+            for (const auto& [name, layer] : layers) {
+                if (layer.solo) return true;
+            }
+            return false;
+        }
+    };
+    mutable std::unordered_map<std::string, DocumentEditState> editState_;
+    // The active document's state, created on demand. Falls back to a scratch entry when no
+    // document is open so callers never get a null.
+    DocumentEditState& EditState() const;
+
+    // Keeps a document's stable-id bindings honest by unbinding an id the moment its entity is
+    // destroyed, by whatever route — a command, a prefab respawn, Unpack. Without this, a
+    // destroyed entity's index gets recycled and a command holding the old id would silently
+    // resolve to whatever unrelated entity now occupies that slot.
+    struct StableIdBinding : IWorldListener {
+        EditorDocument* document = nullptr;
+        void OnEntityDestroyed(Entity entity) override;
+    };
+    // One per document, parallel to documents_ and torn down with it.
+    std::vector<std::unique_ptr<StableIdBinding>> stableIdBindings_;
+
+    // Builds the context commands act through. Null when the active tab has no world.
+    std::optional<CommandContext> CommandCtx();
+    // Drops entities that no longer exist from the selection, after an undo or redo.
+    void PruneSelection();
+    // Records an entity the editor has just finished creating, so it can be undone. The work
+    // is already done by the time this runs — callers need the new Entity back to keep
+    // configuring it — which is why SpawnCommand's first Do() is deliberately a no-op.
+    void RecordSpawn(Entity entity, const std::string& label);
+
+    std::vector<std::unique_ptr<EditorDocument>> documents_;
+    int activeDocument_ = -1;
+    EditorDocument* ActiveDocument() const;
+    int FindDocument(const std::string& fullPath) const;
+    void AddDocument(std::unique_ptr<EditorDocument> doc);
+    // The scene prefab documents take their layers and systems from.
+    const Scene* HostScene();
+    // The active prefab document's root entity, if it has one.
+    Entity PrefabRoot() const;
+    bool SavePrefabDocument(EditorDocument& doc);
+    Entity DuplicateSubtree(World& world, Entity entity, Entity newParent);
+    // Directory of the file the active tab saves to, for relative prefab paths.
+    std::string ActiveOwnerDir() const;
+
+    void RegisterComponentTypes();
 };
 
-}  // namespace Elysium::Services
+}  // namespace Elysium

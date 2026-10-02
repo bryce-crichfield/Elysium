@@ -16,7 +16,7 @@ class NetworkEditor : public Editor {
    public:
     static constexpr const char* Title = "Network";
 
-    explicit NetworkEditor(ServiceLocator& services);
+    explicit NetworkEditor(EditorApplication& editor);
 
     void Draw() override;
     // Opened from the View menu as a modal dialog rather than living in the dock layout.

@@ -20,7 +20,7 @@ class LogEditor : public Editor {
    public:
     static constexpr const char* Title = "Console";
 
-    explicit LogEditor(ServiceLocator& services);
+    explicit LogEditor(EditorApplication& editor);
 
     void Draw() override;
 

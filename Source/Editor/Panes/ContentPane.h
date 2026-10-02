@@ -7,9 +7,7 @@
 
 namespace Elysium {
 
-namespace Services {
 struct EditorDocument;
-}
 
 // What the Viewport shows for an open asset that has no world (scripts, shaders, textures,
 // sprites): one per open tab, created when the tab first shows and kept until it closes.
@@ -30,12 +28,12 @@ class ContentPane {
 };
 
 // The pane for `document`'s kind, or null if it has none.
-std::unique_ptr<ContentPane> MakeContentPane(ServiceLocator& services, const Services::EditorDocument& document);
+std::unique_ptr<ContentPane> MakeContentPane(ServiceLocator& services, const EditorDocument& document);
 
 // Each kind's pane, in its own file.
-std::unique_ptr<ContentPane> MakeCodePane(ServiceLocator& services, const Services::EditorDocument& document);
-std::unique_ptr<ContentPane> MakeTexturePane(ServiceLocator& services, const Services::EditorDocument& document);
-std::unique_ptr<ContentPane> MakeSpritePane(ServiceLocator& services, const Services::EditorDocument& document);
-std::unique_ptr<ContentPane> MakeModelPane(ServiceLocator& services, const Services::EditorDocument& document);
+std::unique_ptr<ContentPane> MakeCodePane(ServiceLocator& services, const EditorDocument& document);
+std::unique_ptr<ContentPane> MakeTexturePane(ServiceLocator& services, const EditorDocument& document);
+std::unique_ptr<ContentPane> MakeSpritePane(ServiceLocator& services, const EditorDocument& document);
+std::unique_ptr<ContentPane> MakeModelPane(ServiceLocator& services, const EditorDocument& document);
 
 }  // namespace Elysium

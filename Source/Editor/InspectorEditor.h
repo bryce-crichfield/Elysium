@@ -7,8 +7,8 @@
 #include "Editor/Editor.h"
 #include "Core/Entity.h"
 
-namespace Elysium::Services {
-class IEditorService;
+namespace Elysium {
+class EditorApplication;
 struct ComponentPlaceholder;
 }
 
@@ -20,18 +20,18 @@ class InspectorEditor : public Editor {
    public:
     static constexpr const char* Title = "Inspector";
 
-    explicit InspectorEditor(ServiceLocator& services);
+    explicit InspectorEditor(EditorApplication& editor);
 
     void Draw() override;
 
    private:
-    void DrawHeader(Services::IEditorService& service, Entity entity);
-    void DrawComponent(Services::IEditorService& service, Entity entity, const Services::ComponentPlaceholder& placeholder, bool removable = true);
-    void DrawAddComponent(Services::IEditorService& service, Entity entity);
+    void DrawHeader(EditorApplication& editor, Entity entity);
+    void DrawComponent(EditorApplication& editor, Entity entity, const ComponentPlaceholder& placeholder, bool removable = true);
+    void DrawAddComponent(EditorApplication& editor, Entity entity);
 
     // The Inspector shows a single "primary" entity — the most recently selected one.
-    // Multi-select is tracked by EditorService but has no dedicated UI yet.
-    static Entity GetPrimarySelection(Services::IEditorService& service);
+    // Multi-select is tracked by EditorApplication but has no dedicated UI yet.
+    static Entity GetPrimarySelection(EditorApplication& editor);
 
     // --- Undo recording -----------------------------------------------------------------
     // Component UI writes straight into the live component — every component's Inspect does,
@@ -51,10 +51,10 @@ class InspectorEditor : public Editor {
     };
 
     // Diffs `component` (an XML tag) on `entity` across `draw`, queueing an edit if it changed.
-    void DrawDiffed(Services::IEditorService& service, Entity entity, const std::string& componentName,
+    void DrawDiffed(EditorApplication& editor, Entity entity, const std::string& componentName,
                     const std::string& label, const std::function<void()>& draw);
     // Executes what the frame collected, opening or closing the drag gesture around it.
-    void FlushEdits(Services::IEditorService& service);
+    void FlushEdits(EditorApplication& editor);
 
     std::vector<PendingEdit> pendingEdits_;
     // Held open while a widget in this panel is, so one drag is one undo step.

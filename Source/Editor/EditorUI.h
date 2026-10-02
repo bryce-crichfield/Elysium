@@ -4,16 +4,15 @@
 #include <vector>
 
 #include "Core/Application.h"
-#include "Core/ServiceLocator.h"
 #include "Editor/Editor.h"
 
 namespace Elysium {
 
-// The in-engine editor's UI, driven by the Application: owns ImGui and the panels, and
-// draws the menu bar and dock layout in Editor mode.
+// The in-engine editor's UI, owned by EditorApplication: ImGui and the panels, and the menu
+// bar and dock layout in Editor mode.
 class EditorUI {
    public:
-    explicit EditorUI(ServiceLocator& services);
+    explicit EditorUI(EditorApplication& editor);
 
     void Initialize(const ApplicationConfig& config);
     void Draw(AppMode mode);
@@ -33,7 +32,7 @@ class EditorUI {
     void BuildDockLayout();
     void ReloadFonts();
 
-    ServiceLocator& services_;
+    EditorApplication& editor_;
     ApplicationConfig config_;
     std::vector<std::unique_ptr<Editor>> editors_;
 

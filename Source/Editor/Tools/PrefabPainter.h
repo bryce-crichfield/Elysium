@@ -9,9 +9,7 @@
 namespace Elysium {
 class World;
 class OverlayPainter;
-namespace Services {
-class IEditorService;
-}
+class EditorApplication;
 
 // Paints prefab placements onto the active layer at grid positions — the tool that makes walls
 // and floors just prefabs on a layer rather than a tile map.
@@ -23,18 +21,18 @@ class IEditorService;
 class PrefabPainter {
 public:
     // Returns true when it consumed the input, so the viewport doesn't also pick or pan.
-    bool HandleInput(World& world, Services::IEditorService& editor, const ViewportInput& input,
+    bool HandleInput(World& world, EditorApplication& editor, const ViewportInput& input,
                      const std::string& prefabPath);
 
     // The brush preview: the cell about to be painted, at the snapped position.
-    void DrawOverlay(Services::IEditorService& editor, const ViewportInput& input, OverlayPainter& painter) const;
+    void DrawOverlay(EditorApplication& editor, const ViewportInput& input, OverlayPainter& painter) const;
 
     // Call when paint mode turns off, so a new stroke doesn't inherit the old one's history.
     void EndStroke() { painted_.clear(); stroking_ = false; }
 
 private:
     // A placement of `prefabPath` already on `layer` within half a cell of `world`.
-    Entity PlacementAt(World& world, Services::IEditorService& editor, Vector2 world_, const std::string& layer,
+    Entity PlacementAt(World& world, EditorApplication& editor, Vector2 world_, const std::string& layer,
                        const std::string& prefabPath, Vector2 tolerance) const;
 
     // Cells painted during the current drag, so one stroke never double-places.

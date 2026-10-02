@@ -12,7 +12,7 @@
 #include "Core/World.h"
 #include "Editor/Viewport/OverlayPainter.h"
 #include "Editor/Style/Theme.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -44,7 +44,7 @@ std::vector<Vector2> CellOutline(Vector2 center, const GridSettings& grid) {
 
 }  // namespace
 
-Entity PrefabPainter::PlacementAt(World& world, IEditorService& editor, Vector2 at, const std::string& layer,
+Entity PrefabPainter::PlacementAt(World& world, EditorApplication& editor, Vector2 at, const std::string& layer,
                                   const std::string& prefabPath, Vector2 tolerance) const {
     // Empty prefabPath matches any placement (erasing); otherwise compare resolved full paths,
     // since a placement stores its src relative to whichever file places it.
@@ -62,7 +62,7 @@ Entity PrefabPainter::PlacementAt(World& world, IEditorService& editor, Vector2 
     return found;
 }
 
-bool PrefabPainter::HandleInput(World& world, IEditorService& editor, const ViewportInput& in,
+bool PrefabPainter::HandleInput(World& world, EditorApplication& editor, const ViewportInput& in,
                                const std::string& prefabPath) {
     if (!in.hovered || prefabPath.empty()) return false;
 
@@ -132,7 +132,7 @@ bool PrefabPainter::HandleInput(World& world, IEditorService& editor, const View
     return true;
 }
 
-void PrefabPainter::DrawOverlay(IEditorService& editor, const ViewportInput& in, OverlayPainter& painter) const {
+void PrefabPainter::DrawOverlay(EditorApplication& editor, const ViewportInput& in, OverlayPainter& painter) const {
     if (!in.hovered) return;
     const std::string& layer = editor.GetActiveLayer();
     if (layer.empty()) return;

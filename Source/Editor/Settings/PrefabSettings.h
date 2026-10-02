@@ -4,19 +4,19 @@
 
 namespace Elysium {
 
-namespace Services {
+class EditorApplication;
 struct EditorDocument;
-}
 
 // A prefab tab's settings, shown in the Viewport in place of the rendered prefab: its
 // exposed parameters. Adding one takes a field of the entity selected in the Hierarchy.
 class PrefabSettings {
 public:
-    explicit PrefabSettings(ServiceLocator& services) : services_(services) {}
+    explicit PrefabSettings(EditorApplication& editor);
 
-    void Draw(Services::EditorDocument& document);
+    void Draw(EditorDocument& document);
 
 private:
+    EditorApplication& editor_;
     ServiceLocator& services_;
 };
 

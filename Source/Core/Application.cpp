@@ -8,8 +8,7 @@
 #include "Services/ApplicationService.h"
 #include "Services/Services.h"
 #include "Core/Input.h"
-#include "Editor/EditorService.h"
-#include "Editor/EditorUI.h"
+#include "Editor/EditorApplication.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;
@@ -101,8 +100,6 @@ bool Application::Initialize(const std::string& configPath) {
         std::make_unique<TaskService>(serviceLocator_));
     serviceLocator_.Register<Services::AssetService, Services::IAssetService>(
         std::make_unique<Services::AssetService>(serviceLocator_));
-    serviceLocator_.Register<Services::EditorService, Services::IEditorService>(
-        std::make_unique<Services::EditorService>(serviceLocator_));
     serviceLocator_.Register<Services::SceneService, Services::ISceneService>(
         std::make_unique<Services::SceneService>(serviceLocator_));
     serviceLocator_.Register<Services::ScriptService, Services::IScriptService>(
@@ -124,7 +121,7 @@ bool Application::Initialize(const std::string& configPath) {
         service->Initialize();
     }
 
-    editor_ = std::make_unique<EditorUI>(serviceLocator_);
+    editor_ = std::make_unique<EditorApplication>(serviceLocator_);
     editor_->Initialize(config_);
 
     initialized_ = true;
@@ -183,6 +180,7 @@ void Application::Update(float deltaTime) {
     for (auto service : serviceLocator_.GetAllServices()) {
         service->Update(deltaTime);
     }
+    if (editor_) editor_->Update(deltaTime);
 
 }
 

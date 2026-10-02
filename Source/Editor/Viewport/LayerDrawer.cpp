@@ -7,7 +7,7 @@
 #include "Core/Scene.h"
 #include "Editor/Style/Theme.h"
 #include "Editor/Widgets/Widgets.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -33,7 +33,7 @@ bool RowToggle(const char* id, const char* onIcon, const char* offIcon, bool& va
 
 }  // namespace
 
-void LayerDrawer::Draw(Scene& scene, IEditorService& editor, Rectangle imageScreenRect) {
+void LayerDrawer::Draw(Scene& scene, EditorApplication& editor, Rectangle imageScreenRect) {
     panel_.Draw(imageScreenRect, "Layers", [&] {
         // Top-down: highest z first, so the list reads the way the scene stacks on screen.
         std::vector<const SceneLayer*> ordered;
@@ -67,7 +67,7 @@ void LayerDrawer::Draw(Scene& scene, IEditorService& editor, Rectangle imageScre
     });
 }
 
-void LayerDrawer::DrawLayerRow(Scene& scene, IEditorService& editor, const std::string& name, int zIndex) {
+void LayerDrawer::DrawLayerRow(Scene& scene, EditorApplication& editor, const std::string& name, int zIndex) {
     ImGui::PushID(name.c_str());
 
     LayerEditState& state = editor.GetLayerState(name);

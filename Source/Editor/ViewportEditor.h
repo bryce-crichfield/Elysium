@@ -20,12 +20,12 @@
 namespace Elysium {
 class World;
 class Scene;
+class EditorApplication;
+struct EditorDocument;
 }  // namespace Elysium
 
 namespace Elysium::Services {
 class ISceneService;
-class IEditorService;
-struct EditorDocument;
 }  // namespace Elysium::Services
 
 namespace Elysium {
@@ -39,7 +39,7 @@ class ViewportEditor : public Editor {
    public:
     static constexpr const char* Title = "Viewport";
 
-    explicit ViewportEditor(ServiceLocator& services);
+    explicit ViewportEditor(EditorApplication& editor);
 
     void Draw() override;
 
@@ -50,60 +50,60 @@ class ViewportEditor : public Editor {
     void BeginNew();
 
    private:
-    void DrawDocumentTabs(Services::ISceneService& sceneService, Services::IEditorService& editor);
-    void DrawToolbar(Services::IEditorService& editor, const Services::EditorDocument* document, ContentPane* pane);
+    void DrawDocumentTabs(Services::ISceneService& sceneService, EditorApplication& editor);
+    void DrawToolbar(EditorApplication& editor, const EditorDocument* document, ContentPane* pane);
     // The strip under the viewport image: what is shown rather than what the mouse does. The panel
     // toggles and the overlay switches live here, so the top toolbar is only ever about editing.
-    void DrawFooter(Services::IEditorService& editor, bool isSceneTab);
+    void DrawFooter(EditorApplication& editor, bool isSceneTab);
     // The rendered world of a scene or prefab tab (or the empty hint when nothing is open).
-    void DrawWorld(Services::ISceneService& sceneService, Services::IEditorService& editorService);
-    void Save(Services::IEditorService& editor, ContentPane* pane);
+    void DrawWorld(Services::ISceneService& sceneService, EditorApplication& editor);
+    void Save(EditorApplication& editor, ContentPane* pane);
 
     // --- Tools ---------------------------------------------------------------------------
     // Exactly one tool owns the viewport's left mouse button. Before this, paint mode and
     // navmesh mode were independent toggles that each had to remember to switch the other off,
     // and every new mode meant another branch in the input chain.
     ViewportTool* ActiveTool();
-    void SetActiveTool(int index, Services::IEditorService& editor);
+    void SetActiveTool(int index, EditorApplication& editor);
     // The index of the tool with this Name(), or -1. Lets other panels ask for a tool by name
     // rather than by a position in the registry.
     int ToolIndex(const char* name) const;
     // The tool buttons, and the active tool's status line beside them.
-    void DrawToolButtons(Services::IEditorService& editor, bool isScene);
+    void DrawToolButtons(EditorApplication& editor, bool isScene);
     // Asks every tool once per frame why it cannot be used, into `unavailable_`. Unavailable() can
     // be expensive (the vertex tool walks the selection and parses point lists), and it was being
     // asked two or three times a frame per tool by the buttons, the force-switch check and the
     // shortcut handler -- which could also disagree within one frame.
-    void RefreshToolAvailability(Services::IEditorService& editor, bool isScene);
+    void RefreshToolAvailability(EditorApplication& editor, bool isScene);
     // Keys 1-4 pick a tool; Esc returns to Select.
-    void HandleToolShortcuts(Services::IEditorService& editor, bool isScene);
-    void HandleFileDialog(Services::IEditorService& editor);
+    void HandleToolShortcuts(EditorApplication& editor, bool isScene);
+    void HandleFileDialog(EditorApplication& editor);
     // The pane for a tab without a world, made on first use; drops those of closed tabs.
-    ContentPane* PaneFor(Services::IEditorService& editor, const Services::EditorDocument& document);
+    ContentPane* PaneFor(EditorApplication& editor, const EditorDocument& document);
     // W/E/R pick the move, rotate and scale tools, as aliases for keys 2-4.
-    void HandleGizmoShortcuts(Services::IEditorService& editor);
+    void HandleGizmoShortcuts(EditorApplication& editor);
 
     // Entities under the cursor, smallest-first, with locked layers dropped. Locked layers are
     // click-through so you can work on what sits behind them.
-    std::vector<Entity> PickAt(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+    std::vector<Entity> PickAt(Services::ISceneService& sceneService, EditorApplication& editor,
                                const Systems::CameraView& view, Vector2 fbPos) const;
     // Entities whose rendered bounds overlap a world rectangle, for the select tool's box drag.
-    std::vector<Entity> PickInRect(Services::IEditorService& editorService, Rectangle worldRect) const;
+    std::vector<Entity> PickInRect(EditorApplication& editor, Rectangle worldRect) const;
     // Bundles the frame's mouse state with the picking and projection the active tool may need,
     // so a tool never has to know about RenderSystem or the editor camera.
-    ToolContext MakeToolContext(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+    ToolContext MakeToolContext(Services::ISceneService& sceneService, EditorApplication& editor,
                                 const Systems::CameraView& view, const ViewportInput& input);
 
     // Turns a gizmo drag into one undo entry. ImGuizmo has no drag-begin or drag-end, so this
     // watches the edge of IsUsing() and snapshots the transform at each end of the drag.
     // `followers` are the other selected entities the drag carried along, recorded in the same
     // transaction so the whole multi-entity drag is one undo step.
-    void RecordGizmoDrag(Services::IEditorService& editorService, Entity primary,
+    void RecordGizmoDrag(EditorApplication& editor, Entity primary,
                          const std::vector<Entity>& followers, GizmoMode mode);
 
     // Snaps the editor camera to the first real CameraComponent's transform/zoom the first
     // time a world becomes available, so scenes don't open centered on the origin.
-    void InitializeEditorCameraIfNeeded(Services::IEditorService& editorService);
+    void InitializeEditorCameraIfNeeded(EditorApplication& editor);
 
     // Middle-mouse-drag pan + scroll-wheel zoom (anchored under the cursor) for the free
     // editor camera. Pans and zooms only start while `hovered`.
@@ -111,28 +111,28 @@ class ViewportEditor : public Editor {
     // camera sees them. Clicking an axis eases the camera round to look from that side (up:
     // from above), the dot under it back to the default view; dragging it orbits. Returns true
     // while it has the mouse.
-    bool DrawOrientationWidget(Services::IEditorService& editorService, const Systems::CameraView& view, Rectangle imageScreenRect);
+    bool DrawOrientationWidget(EditorApplication& editor, const Systems::CameraView& view, Rectangle imageScreenRect);
 
-    void HandleEditorCameraInput(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+    void HandleEditorCameraInput(Services::ISceneService& sceneService, EditorApplication& editor,
                                  const Systems::CameraView& view, bool hovered);
 
     // Draws and applies the transform gizmo on the single selected entity. Returns true while
     // the gizmo owns the mouse (hovered or dragging), so the click doesn't also re-pick.
     // `mode` comes from the active tool: move, rotate and scale are tools, not a mode of one.
-    bool HandleGizmo(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+    bool HandleGizmo(Services::ISceneService& sceneService, EditorApplication& editor,
                      const Systems::CameraView& view, Rectangle imageScreenRect, GizmoMode mode);
-    void OpenPickMenu(Services::ISceneService& sceneService, Services::IEditorService& editorService, const Systems::CameraView& view);
-    void DrawPickMenu(Services::IEditorService& editorService);
-    void PlaceDroppedPrefab(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+    void OpenPickMenu(Services::ISceneService& sceneService, EditorApplication& editor, const Systems::CameraView& view);
+    void DrawPickMenu(EditorApplication& editor);
+    void PlaceDroppedPrefab(Services::ISceneService& sceneService, EditorApplication& editor,
                             const Systems::CameraView& view, const std::string& relativePath);
 
     // Editor-only chrome (origin axes, camera bounds, selection outline), drawn over the
     // framebuffer image via ImGui's draw list. imageScreenRect is where the image sits on screen.
-    void DrawViewportOverlays(Services::ISceneService& sceneService, Services::IEditorService& editorService,
+    void DrawViewportOverlays(Services::ISceneService& sceneService, EditorApplication& editor,
                                const Systems::CameraView& view, Rectangle imageScreenRect);
     // Draws the editing grid at the active document's spacing, clipped to what the viewport
     // actually shows so the line count stays bounded however far you zoom out.
-    void DrawGrid(Services::IEditorService& editorService, const Systems::CameraView& view,
+    void DrawGrid(EditorApplication& editor, const Systems::CameraView& view,
                   Rectangle imageScreenRect, OverlayPainter& painter);
 
     SpatialOverlayOptions overlays_;
@@ -183,8 +183,8 @@ class ViewportEditor : public Editor {
     std::unordered_map<std::string, std::unique_ptr<ContentPane>> panes_;
     // Scene and prefab tabs showing their settings instead of the world, by file.
     std::set<std::string> settingsOpen_;
-    SceneSettings sceneSettings_{services_};
-    PrefabSettings prefabSettings_{services_};
+    SceneSettings sceneSettings_{editor_};
+    PrefabSettings prefabSettings_{editor_};
     AssetFileDialog fileDialog_;
 };
 

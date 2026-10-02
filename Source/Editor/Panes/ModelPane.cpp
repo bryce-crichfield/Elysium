@@ -7,7 +7,7 @@
 #include "Editor/Panes/ContentPane.h"
 #include "Editor/Widgets/Widgets.h"
 #include "Interfaces/IAssetService.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
@@ -61,7 +61,7 @@ void main()
 // it by hand. Nothing to edit, so nothing to save.
 class ModelPane : public ContentPane {
    public:
-    ModelPane(ServiceLocator& services, const Services::EditorDocument& document)
+    ModelPane(ServiceLocator& services, const EditorDocument& document)
         : services_(services), fullPath_(document.fullPath), path_(Path::FromFullPath(document.fullPath)) {
         services_.Get<Services::IAssetService>().LoadAsset<Model>(path_);
     }
@@ -170,7 +170,7 @@ class ModelPane : public ContentPane {
 
 }  // namespace
 
-std::unique_ptr<ContentPane> MakeModelPane(ServiceLocator& services, const Services::EditorDocument& document) {
+std::unique_ptr<ContentPane> MakeModelPane(ServiceLocator& services, const EditorDocument& document) {
     return std::make_unique<ModelPane>(services, document);
 }
 

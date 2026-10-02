@@ -7,7 +7,7 @@
 #include "Editor/Panes/ContentPane.h"
 #include "Editor/Widgets/Widgets.h"
 #include "Interfaces/IAssetService.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 
 namespace Elysium {
 
@@ -17,7 +17,7 @@ namespace {
 // to the pane or at a chosen zoom. Nothing to edit, so nothing to save.
 class TexturePane : public ContentPane {
    public:
-    TexturePane(ServiceLocator& services, const Services::EditorDocument& document)
+    TexturePane(ServiceLocator& services, const EditorDocument& document)
         : services_(services), fullPath_(document.fullPath), path_(Path::FromFullPath(document.fullPath)) {
         services_.Get<Services::IAssetService>().LoadAsset<Texture>(path_);
     }
@@ -97,7 +97,7 @@ class TexturePane : public ContentPane {
 
 }  // namespace
 
-std::unique_ptr<ContentPane> MakeTexturePane(ServiceLocator& services, const Services::EditorDocument& document) {
+std::unique_ptr<ContentPane> MakeTexturePane(ServiceLocator& services, const EditorDocument& document) {
     return std::make_unique<TexturePane>(services, document);
 }
 

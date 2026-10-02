@@ -12,9 +12,7 @@ namespace Elysium {
 class OverlayPainter;
 class World;
 
-namespace Services {
-class IEditorService;
-}
+class EditorApplication;
 namespace Systems {
 class NavMeshSystem;
 }
@@ -37,7 +35,7 @@ struct ViewportInput {
 // keeps a tool from needing to know about RenderSystem or the editor camera at all.
 struct ToolContext {
     World& world;
-    Services::IEditorService& editor;
+    EditorApplication& editor;
     ViewportInput input;
 
     // Entities under the cursor, smallest-first, with locked layers already dropped. Not free
@@ -96,7 +94,7 @@ class ViewportTool {
     // its toolbar button and its tooltip, and a tool that becomes unusable while active is
     // switched away from. One mechanism for every reason a tool might not apply, rather than a
     // scattering of special cases.
-    virtual const char* Unavailable(Services::IEditorService& editor, bool isScene) const {
+    virtual const char* Unavailable(EditorApplication& editor, bool isScene) const {
         (void)editor;
         (void)isScene;
         return nullptr;
@@ -113,8 +111,8 @@ class ViewportTool {
     // double-draw them underneath.
     virtual bool OwnsNavAreaOverlay() const { return false; }
 
-    virtual void OnActivate(Services::IEditorService& editor) { (void)editor; }
-    virtual void OnDeactivate(Services::IEditorService& editor) { (void)editor; }
+    virtual void OnActivate(EditorApplication& editor) { (void)editor; }
+    virtual void OnDeactivate(EditorApplication& editor) { (void)editor; }
 
     // This tool's settings, drawn by the Tool Panel. Reuses component reflection rather than
     // inventing a third parameter system: a FieldInfo already carries the label, the type, and
@@ -133,7 +131,7 @@ class ViewportTool {
     // navmesh tool grew a whole brush picker there, so "a tool declares its settings and writes no
     // UI" was not actually true. Settings go in Parameters(), a status line comes back from here,
     // and no tool touches ImGui.
-    virtual ToolStatus Status(Services::IEditorService& editor) const {
+    virtual ToolStatus Status(EditorApplication& editor) const {
         (void)editor;
         return {};
     }

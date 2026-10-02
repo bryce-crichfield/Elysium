@@ -1,6 +1,7 @@
 #include "Editor/EditorUI.h"
 
 #include "Editor/AssetEditor.h"
+#include "Editor/EditorApplication.h"
 #include "Editor/HierarchyEditor.h"
 #include "Editor/InspectorEditor.h"
 #include "Editor/LogEditor.h"
@@ -8,21 +9,20 @@
 #include "Editor/Style/Theme.h"
 #include "Editor/ViewportEditor.h"
 #include "Interfaces/IApplicationService.h"
-#include "Interfaces/IEditorService.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "rlImGui.h"
 
 namespace Elysium {
 
-EditorUI::EditorUI(ServiceLocator& services) : services_(services) {
+EditorUI::EditorUI(EditorApplication& editor) : editor_(editor) {
     // Registration order is tab order within each dock node.
-    editors_.push_back(std::make_unique<HierarchyEditor>(services_));
-    editors_.push_back(std::make_unique<InspectorEditor>(services_));
-    editors_.push_back(std::make_unique<ViewportEditor>(services_));
-    editors_.push_back(std::make_unique<AssetEditor>(services_));
-    editors_.push_back(std::make_unique<LogEditor>(services_));
-    editors_.push_back(std::make_unique<NetworkEditor>(services_));
+    editors_.push_back(std::make_unique<HierarchyEditor>(editor_));
+    editors_.push_back(std::make_unique<InspectorEditor>(editor_));
+    editors_.push_back(std::make_unique<ViewportEditor>(editor_));
+    editors_.push_back(std::make_unique<AssetEditor>(editor_));
+    editors_.push_back(std::make_unique<LogEditor>(editor_));
+    editors_.push_back(std::make_unique<NetworkEditor>(editor_));
 }
 
 void EditorUI::Initialize(const ApplicationConfig& config) {
@@ -70,7 +70,7 @@ void EditorUI::DrawMenuBar(AppMode mode) {
     // File acts on the asset open in the Viewport.
     if (ImGui::BeginMenu("File")) {
         ViewportEditor* viewport = GetEditor<ViewportEditor>();
-        const bool hasDocument = services_.Get<Services::IEditorService>().GetActiveDocumentInfo() != nullptr;
+        const bool hasDocument = editor_.GetActiveDocumentInfo() != nullptr;
         if (ImGui::MenuItem(ICON_FA_FILE_CIRCLE_PLUS "  New...", "Ctrl+N", false, viewport)) viewport->BeginNew();
         ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_FLOPPY_DISK "  Save", "Ctrl+S", false, viewport && hasDocument)) viewport->SaveActive();
@@ -79,7 +79,7 @@ void EditorUI::DrawMenuBar(AppMode mode) {
     }
 
     // Edit acts on the active tab's command history, so each open scene undoes its own work.
-    auto& editor = services_.Get<Services::IEditorService>();
+    auto& editor = editor_;
     if (ImGui::BeginMenu("Edit")) {
         Elysium::CommandHistory* history = editor.GetHistory();
         const char* undoing = history ? history->UndoLabel() : nullptr;
@@ -136,7 +136,7 @@ void EditorUI::DrawMenuBar(AppMode mode) {
     }
 
     if (ImGui::BeginMenu("Mode")) {
-        auto& app = services_.Get<Services::IApplicationService>();
+        auto& app = editor_.GetServices().Get<Services::IApplicationService>();
         if (ImGui::MenuItem("Editor", "F1", mode == AppMode::Editor)) app.SetMode(AppMode::Editor);
         if (ImGui::MenuItem("Play", "F2", mode == AppMode::Play)) app.SetMode(AppMode::Play);
         ImGui::EndMenu();

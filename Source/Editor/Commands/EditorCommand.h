@@ -7,13 +7,11 @@ namespace Elysium {
 class ServiceLocator;
 class World;
 
-namespace Services {
-class IEditorService;
-}
+class EditorApplication;
 
 // A handle to an entity that stays meaningful across undo cycles, unlike `Entity` itself
 // (a recycled index with no generation counter). Resolve it through
-// IEditorService::EntityForStableId every time you need the live id; never cache the result,
+// EditorApplication::EntityForStableId every time you need the live id; never cache the result,
 // since an undo can rebind it to a newly created entity.
 struct EntityRef {
     uint64_t id = 0;
@@ -26,7 +24,7 @@ struct EntityRef {
 // data (entity references and serialized component XML) and are handed the world to act on.
 struct CommandContext {
     World& world;
-    Services::IEditorService& editor;
+    EditorApplication& editor;
     ServiceLocator& services;
 };
 

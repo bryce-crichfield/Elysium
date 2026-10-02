@@ -15,7 +15,7 @@
 #include "Editor/Style/Theme.h"
 #include "Editor/Widgets/Widgets.h"
 #include "extras/IconsFontAwesome6.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -81,7 +81,7 @@ std::optional<EdgeHit> NearestEdge(const Polygon& polygon, Vector2 point, float 
 
 const char* VertexTool::Icon() const { return ICON_FA_VECTOR_SQUARE; }
 
-const char* VertexTool::Unavailable(Services::IEditorService& editor, bool isScene) const {
+const char* VertexTool::Unavailable(EditorApplication& editor, bool isScene) const {
     (void)isScene;  // a nav area or collider is editable on a prefab tab too
     World* world = editor.GetWorld();
     if (!world) return "Open a scene or prefab to edit outlines";
@@ -98,7 +98,7 @@ const char* VertexTool::Unavailable(Services::IEditorService& editor, bool isSce
     return "Select a nav area or collider to reshape it";
 }
 
-void VertexTool::OnDeactivate(Services::IEditorService&) {
+void VertexTool::OnDeactivate(EditorApplication&) {
     handles_.End();
     dragEntity_ = INVALID_ENTITY;
 }
@@ -107,7 +107,7 @@ const char* VertexTool::ShapeTag() const {
     return kPolygonComponents[shape_ >= 0 && shape_ < kShapeCount ? shape_ : 0];
 }
 
-ToolStatus VertexTool::Status(Services::IEditorService& editor) const {
+ToolStatus VertexTool::Status(EditorApplication& editor) const {
     World* world = editor.GetWorld();
     if (!world) return {};
 

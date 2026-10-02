@@ -31,14 +31,14 @@ class VertexTool : public ViewportTool {
 
     // Nothing to reshape without a polygon selected, so the tool stays unselectable until one
     // is -- which in practice means after the navmesh tool picked a nav area.
-    const char* Unavailable(Services::IEditorService& editor, bool isScene) const override;
+    const char* Unavailable(EditorApplication& editor, bool isScene) const override;
 
     ToolParameters Parameters() override {
         return {this, {Field("Shape", &VertexTool::shape_, "shape").Choices({"Nav area", "Collider"})}};
     }
 
-    void OnDeactivate(Services::IEditorService& editor) override;
-    ToolStatus Status(Services::IEditorService& editor) const override;
+    void OnDeactivate(EditorApplication& editor) override;
+    ToolStatus Status(EditorApplication& editor) const override;
     void DrawOverlay(ToolContext& context, OverlayPainter& painter) override;
     bool HandleInput(ToolContext& context) override;
 

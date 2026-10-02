@@ -9,7 +9,7 @@
 #include "Editor/Panes/ContentPane.h"
 #include "Editor/Widgets/Widgets.h"
 #include "Interfaces/IAssetService.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "Interfaces/IScriptService.h"
 
 namespace Elysium {
@@ -23,7 +23,7 @@ constexpr float kMaxFontSize = 64.0f;
 // to disk and hot-reloaded if the engine has it loaded.
 class CodePane : public ContentPane {
    public:
-    CodePane(ServiceLocator& services, const Services::EditorDocument& document)
+    CodePane(ServiceLocator& services, const EditorDocument& document)
         : services_(services), fullPath_(document.fullPath), isScript_(document.kind == AssetKind::Script) {
         editor_.SetLanguageDefinition(isScript_ ? TextEditor::LanguageDefinition::Lua() : TextEditor::LanguageDefinition::GLSL());
         std::ifstream file(fullPath_, std::ios::binary);
@@ -102,7 +102,7 @@ class CodePane : public ContentPane {
 
 }  // namespace
 
-std::unique_ptr<ContentPane> MakeCodePane(ServiceLocator& services, const Services::EditorDocument& document) {
+std::unique_ptr<ContentPane> MakeCodePane(ServiceLocator& services, const EditorDocument& document) {
     return std::make_unique<CodePane>(services, document);
 }
 

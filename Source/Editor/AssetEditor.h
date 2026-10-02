@@ -29,7 +29,7 @@ class AssetEditor : public Editor {
 public:
     static constexpr const char* Title = "Assets";
 
-    explicit AssetEditor(ServiceLocator& services);
+    explicit AssetEditor(EditorApplication& editor);
     void Draw() override;
 
 private:

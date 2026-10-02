@@ -19,14 +19,14 @@ class PaintTool : public ViewportTool {
     const char* Icon() const override;
     const char* Tooltip() const override { return "Paint prefabs (6) - click to place, drag to fill, Alt or right-click erases"; }
 
-    const char* Unavailable(Services::IEditorService& editor, bool isScene) const override;
+    const char* Unavailable(EditorApplication& editor, bool isScene) const override;
 
     ToolParameters Parameters() override {
         return {this, {Field("Prefab", &PaintTool::brushPrefab_, "prefab").Asset(AssetKind::Prefab)}};
     }
 
-    void OnDeactivate(Services::IEditorService& editor) override;
-    ToolStatus Status(Services::IEditorService& editor) const override;
+    void OnDeactivate(EditorApplication& editor) override;
+    ToolStatus Status(EditorApplication& editor) const override;
 
     void DrawOverlay(ToolContext& context, OverlayPainter& painter) override;
     bool HandleInput(ToolContext& context) override;

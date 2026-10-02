@@ -5,12 +5,14 @@
 #include "Core/System.h"
 #include "Editor/Style/AssetStyle.h"
 #include "Editor/Widgets/Widgets.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "Interfaces/ISceneService.h"
 
 namespace Elysium {
 
 using namespace Services;
+
+SceneSettings::SceneSettings(EditorApplication& editor) : editor_(editor), services_(editor.GetServices()) {}
 
 namespace {
 // An eye toggle at the right edge of the header just drawn.
@@ -65,7 +67,7 @@ void SceneSettings::DrawProperties(ISceneService& service, Scene& scene) {
 }
 
 void SceneSettings::DrawGrid() {
-    auto& grid = services_.Get<IEditorService>().GetGrid();
+    auto& grid = editor_.GetGrid();
 
     SectionHeader("Grid");
     MutedText("Editing aid only — not saved with the scene");

@@ -10,13 +10,13 @@
 #include "Editor/PrefabEditing.h"
 #include "Editor/Widgets/Widgets.h"
 #include "Interfaces/IAssetService.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "imgui.h"
 
 namespace Elysium {
 
-void InspectPrefabInstance(PrefabInstanceComponent& c, Entity e, ServiceLocator& services) {
-    auto& editor = services.Get<Services::IEditorService>();
+void InspectPrefabInstance(PrefabInstanceComponent& c, Entity e, EditorApplication& editor) {
+    ServiceLocator& services = editor.GetServices();
 
     ReadOnlyRow("Source", c.src.c_str());
     ReadOnlyRow("Instance", c.instanceId.c_str());

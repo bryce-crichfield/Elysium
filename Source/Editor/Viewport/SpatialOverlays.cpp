@@ -7,7 +7,7 @@
 #include "Editor/Viewport/OverlayPainter.h"
 #include "Editor/Style/Theme.h"
 #include "Editor/Widgets/Widgets.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 
 namespace Elysium {
 
@@ -22,7 +22,7 @@ const ImVec4& NavAreaColor(NavAreaType type) {
     return Editor::Palette().Success;
 }
 
-void DrawSpatialOverlays(World& world, Services::IEditorService& editor, const SpatialOverlayOptions& options, OverlayPainter& painter) {
+void DrawSpatialOverlays(World& world, EditorApplication& editor, const SpatialOverlayOptions& options, OverlayPainter& painter) {
     const auto& selectedList = editor.GetSelectedEntities();
     const std::unordered_set<Entity> selected(selectedList.begin(), selectedList.end());
     // A hidden layer hides its overlays too — otherwise hiding a layer still leaves its collider

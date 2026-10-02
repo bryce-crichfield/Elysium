@@ -8,6 +8,7 @@
 
 namespace Elysium {
 
+class EditorApplication;
 class ServiceLocator;
 class Shader;
 struct BoundsComponent;
@@ -28,7 +29,7 @@ void InspectMaterial(MaterialComponent& c, Entity e, ServiceLocator& services);
 void InspectMovement(MovementComponent& c, Entity e, ServiceLocator& services);
 void InspectParent(ParentComponent& c, Entity e, ServiceLocator& services);
 void InspectPolygon(PolygonComponent& c, Entity e, ServiceLocator& services);
-void InspectPrefabInstance(PrefabInstanceComponent& c, Entity e, ServiceLocator& services);
+void InspectPrefabInstance(PrefabInstanceComponent& c, Entity e, EditorApplication& editor);
 void InspectScript(ScriptComponent& c, Entity e, ServiceLocator& services);
 void InspectShader(ShaderComponent& c, Entity e, ServiceLocator& services);
 void InspectSprite(SpriteComponent& c, Entity e, ServiceLocator& services);

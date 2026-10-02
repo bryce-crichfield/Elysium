@@ -10,7 +10,7 @@ namespace Elysium {
 using namespace Services;
 using namespace Generated;
 
-NetworkEditor::NetworkEditor(ServiceLocator& services) : Editor(services, Title) {}
+NetworkEditor::NetworkEditor(EditorApplication& editor) : Editor(editor, Title) {}
 
 void NetworkEditor::Draw() {
     Profile;

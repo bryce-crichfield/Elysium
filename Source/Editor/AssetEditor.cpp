@@ -11,7 +11,7 @@
 #include "Editor/Widgets/Widgets.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include <tinyxml2.h>
 #include "Interfaces/ITaskService.h"
 #include "Core/Path.h"
@@ -23,7 +23,7 @@ namespace Elysium {
 namespace fs = std::filesystem;
 using namespace Services;
 
-AssetEditor::AssetEditor(ServiceLocator& services) : Editor(services, Title) {}
+AssetEditor::AssetEditor(EditorApplication& editor) : Editor(editor, Title) {}
 
 namespace {
 
@@ -224,7 +224,7 @@ void AssetEditor::Draw() {
             ImGui::EndChild();
 
             if (const auto result = createDialog_.Draw()) {
-                services_.Get<IEditorService>().CreateAsset(result->kind, result->fullPath);
+                editor_.CreateAsset(result->kind, result->fullPath);
                 lastRefreshTime_ = -1e9;  // rescan now so the new file shows up
             }
         }
@@ -416,7 +416,7 @@ void AssetEditor::DrawList(const std::vector<const DiskFile*>& files, const Load
 
 void AssetEditor::Open(const DiskFile& file) {
     if (file.kind == AssetKind::Folder) NavigateTo(file.relativePath);
-    else services_.Get<IEditorService>().OpenAsset(Path(file.relativePath).GetFullPath());
+    else editor_.OpenAsset(Path(file.relativePath).GetFullPath());
 }
 
 void AssetEditor::HandleItem(const DiskFile& file, IAsset* asset, bool clicked, bool doubleClicked) {
@@ -436,7 +436,7 @@ void AssetEditor::HandleItem(const DiskFile& file, IAsset* asset, bool clicked, 
     const Path path(file.relativePath);
     if (file.kind != AssetKind::Sound && ImGui::MenuItem(ICON_FA_PEN_TO_SQUARE "  Open")) Open(file);
     if (file.kind == AssetKind::Prefab) {
-        auto& editor = services_.Get<IEditorService>();
+        auto& editor = editor_;
         ImGui::BeginDisabled(!editor.GetWorld());
         if (ImGui::MenuItem(ICON_FA_CUBE "  Place in Viewport")) editor.InstantiatePrefab(path.GetFullPath());
         ImGui::EndDisabled();

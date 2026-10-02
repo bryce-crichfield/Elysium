@@ -29,9 +29,9 @@ class SelectTool : public ViewportTool {
     GizmoMode Gizmo() const override { return gizmo_; }
     bool PicksEntities() const override { return true; }
 
-    ToolStatus Status(Services::IEditorService& editor) const override;
+    ToolStatus Status(EditorApplication& editor) const override;
 
-    void OnDeactivate(Services::IEditorService& editor) override;
+    void OnDeactivate(EditorApplication& editor) override;
 
     void DrawOverlay(ToolContext& context, OverlayPainter& painter) override;
     bool HandleInput(ToolContext& context) override;

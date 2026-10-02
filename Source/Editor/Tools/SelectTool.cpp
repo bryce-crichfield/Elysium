@@ -5,7 +5,7 @@
 #include "Editor/Viewport/OverlayPainter.h"
 #include "Editor/Style/Theme.h"
 #include "extras/IconsFontAwesome6.h"
-#include "Interfaces/IEditorService.h"
+#include "Editor/EditorApplication.h"
 #include "imgui.h"
 
 namespace Elysium {
@@ -59,14 +59,14 @@ const char* SelectTool::Tooltip() const {
     return "Select (1) - click to pick, drag to box-select";
 }
 
-ToolStatus SelectTool::Status(Services::IEditorService& editor) const {
+ToolStatus SelectTool::Status(EditorApplication& editor) const {
     // Only the gizmo tools have anything to say, and only that they have nothing to act on: the
     // plain select tool is self-evident.
     if (gizmo_ == GizmoMode::None || !editor.GetSelectedEntities().empty()) return {};
     return {"Click an entity to pick it, then drag the gizmo"};
 }
 
-void SelectTool::OnDeactivate(Services::IEditorService&) {
+void SelectTool::OnDeactivate(EditorApplication&) {
     pressed_ = false;
     boxing_ = false;
 }

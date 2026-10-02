@@ -8,7 +8,7 @@
 namespace Elysium {
 
 // Undo/redo for one editor document. Every editor mutation is expected to arrive here through
-// IEditorService::Execute rather than reaching into the World, which is what makes the whole
+// EditorApplication::Execute rather than reaching into the World, which is what makes the whole
 // history trustworthy: an operation that bypasses it doesn't just miss undo, it leaves the
 // stack describing a world that no longer exists.
 //
