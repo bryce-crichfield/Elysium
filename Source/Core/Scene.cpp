@@ -19,12 +19,13 @@
 
 namespace Elysium {
 
-static SceneLayerSpace ParseSceneLayerSpace(const char* str) {
-    if (!str) return SceneLayerSpace::World2D;
-    std::string s = str;
+// "World2D" (and the older "World") was the flat 2D world, which is now a World3D layer lying on
+// the ground: it draws the same, as seen by the default camera.
+static SceneLayerSpace ParseSceneLayerSpace(const char* str, bool& ground) {
+    const std::string s = str ? str : "World3D";
     if (s == "Screen" || s == "Screen2D") return SceneLayerSpace::Screen2D;
-    if (s == "World3D") return SceneLayerSpace::World3D;
-    return SceneLayerSpace::World2D;
+    if (s == "World2D" || s == "World") ground = true;
+    return SceneLayerSpace::World3D;
 }
 
 static SceneLayerBlend ParseSceneLayerBlend(const char* str) {
@@ -42,7 +43,8 @@ void SceneLayer::LoadXml(SceneLayer& layer, tinyxml2::XMLElement* el) {
     layer.opacity = el->FloatAttribute("opacity", 1.0f);
     layer.isVisible = el->BoolAttribute("isVisible", true);
     layer.isComposited = el->BoolAttribute("isComposited", false);
-    layer.space = ParseSceneLayerSpace(el->Attribute("space"));
+    layer.ground = el->BoolAttribute("ground", false);
+    layer.space = ParseSceneLayerSpace(el->Attribute("space"), layer.ground);
 
     // Support both "blend" (shorthand) and "layerBlend" attributes
     const char* layerBlendAttr = el->Attribute("layerBlend");
@@ -52,20 +54,11 @@ void SceneLayer::LoadXml(SceneLayer& layer, tinyxml2::XMLElement* el) {
     const char* compositeBlendAttr = el->Attribute("compositeBlend");
     layer.compositeBlend = ParseSceneLayerBlend(compositeBlendAttr);
 
-    layer.isLit = el->BoolAttribute("lit", false);
     if (const char* lightAmbient = el->Attribute("lightAmbient")) layer.lightAmbient = ParseHexColor(lightAmbient, layer.lightAmbient);
-    layer.lightReach = el->FloatAttribute("lightReach", layer.lightReach);
-    layer.lightHeight = el->FloatAttribute("lightHeight", layer.lightHeight);
-    layer.lightStrength = el->FloatAttribute("lightStrength", layer.lightStrength);
-    layer.lightBands = el->IntAttribute("lightBands", 0);
     layer.shadows = el->BoolAttribute("shadows", layer.shadows);
-    layer.pointLights = el->BoolAttribute("pointLights", layer.pointLights);
     layer.shadowBias = el->FloatAttribute("shadowBias", layer.shadowBias);
     layer.fogOfWar = el->FloatAttribute("fogOfWar", layer.fogOfWar);
     if (const char* fog = el->Attribute("fogColor")) layer.fogColor = ParseHexColor(fog, layer.fogColor);
-    layer.lightDebug = el->IntAttribute("lightDebug", 0);  // read for testing, never saved
-    layer.outline = el->FloatAttribute("outline", 0.0f);
-    if (const char* outlineColor = el->Attribute("outlineColor")) layer.outlineColor = ParseHexColor(outlineColor, layer.outlineColor);
 
     // Parse ambient color
     const char* ambientStr = el->Attribute("ambient");

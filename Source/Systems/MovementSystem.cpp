@@ -1,6 +1,5 @@
 #include "Systems/MovementSystem.h"
 #include "Core/SystemRegistry.h"
-#include "Systems/SpatialSystem.h"
 #include "Systems/NavMeshSystem.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
@@ -25,7 +24,6 @@ float MathLerp(float start, float end, float t) {
 }
 
 void MovementSystem::Update(float deltaTime) {
-    if (!spatialSystem_) spatialSystem_ = scene->GetSystem<SpatialSystem>();
     if (!navMesh_)       navMesh_       = scene->GetSystem<NavMeshSystem>();
 
     // Consume the MoveCommand queue.  
@@ -47,11 +45,10 @@ void MovementSystem::Update(float deltaTime) {
 
         // Perform A* pathfinding and set the result to mv.waypoints.
         // NavMeshSystem (baked from prefab NavAreas + static colliders) is the pathfinding
-        // authority when the scene has one; SpatialSystem's tilemap grid is the fallback.
+        // authority; without one, no path.
         Vector2 from{transform.worldX, transform.worldY};
         std::vector<Vector2> result;
-        if (navMesh_)            result = navMesh_->FindPath(from, cmd.target);
-        else if (spatialSystem_) result = spatialSystem_->FindPath(from, cmd.target);
+        if (navMesh_)            result = navMesh_->FindPath(from, cmd.target, transform.worldZ);
         mv.waypoints = std::move(result);
 
         // If no path found, consider going Idle or just setting goal directly.
@@ -146,7 +143,7 @@ void MovementSystem::Update(float deltaTime) {
             // of walked to the exact cell centre and turned at.
             if (navMesh_) {
                 for (int i = (int)mv.waypoints.size() - 1; i > mv.currentWaypointIndex; --i) {
-                    if (navMesh_->HasLineOfSight(currentPos, mv.waypoints[i])) { mv.currentWaypointIndex = i; break; }
+                    if (navMesh_->HasLineOfSight(currentPos, mv.waypoints[i], transform.worldZ)) { mv.currentWaypointIndex = i; break; }
                 }
             }
 

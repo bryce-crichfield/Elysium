@@ -101,19 +101,18 @@ class ViewportEditor : public Editor {
     void RecordGizmoDrag(Services::IEditorService& editorService, Entity primary,
                          const std::vector<Entity>& followers, GizmoMode mode);
 
-    // World3D entities' height handle: a vertical arrow above the move gizmo that drags
-    // Transform z (the selection follows by the same delta). `anchor` is where the entity
-    // draws, in ImGui screen pixels; `pixelsPerUnit` the screen pixels per unit of height.
-    // Returns true while it owns the mouse.
-    bool HandleHeightHandle(World& world, Entity entity, const std::vector<Entity>& followers,
-                            Vector2 anchor, float pixelsPerUnit, bool snap);
-
     // Snaps the editor camera to the first real CameraComponent's transform/zoom the first
     // time a world becomes available, so scenes don't open centered on the origin.
     void InitializeEditorCameraIfNeeded(Services::IEditorService& editorService);
 
     // Middle-mouse-drag pan + scroll-wheel zoom (anchored under the cursor) for the free
     // editor camera. Pans and zooms only start while `hovered`.
+    // The orientation widget in the image's top-right corner: the world axes as the editor
+    // camera sees them. Clicking an axis eases the camera round to look from that side (up:
+    // from above), the dot under it back to the default view; dragging it orbits. Returns true
+    // while it has the mouse.
+    bool DrawOrientationWidget(Services::IEditorService& editorService, const Systems::CameraView& view, Rectangle imageScreenRect);
+
     void HandleEditorCameraInput(Services::ISceneService& sceneService, Services::IEditorService& editorService,
                                  const Systems::CameraView& view, bool hovered);
 
@@ -156,15 +155,16 @@ class ViewportEditor : public Editor {
 
     // Editor camera pan drag state.
     bool isPanningCamera_ = false;
+    // Editor camera orbit drag (Alt + left drag, or a drag on the orientation widget).
+    bool isOrbitingCamera_ = false;
+    // The footer's lightbulb: off draws every layer unlit (editor only, never saved).
+    bool lightingOn_ = true;
 
     // The entities being dragged by the gizmo and each one's transform as the drag found it,
     // parallel arrays. Empty when no drag is in progress.
     std::vector<Entity> gizmoDragEntities_;
     std::vector<std::string> gizmoDragBefore_;
     // Height handle drag: the mouse y and the primary's z when it began.
-    bool heightDragging_ = false;
-    float heightDragMouseY_ = 0.0f;
-    float heightDragStartZ_ = 0.0f;
 
     // Tracks world changes (e.g. loading a different scene) so the editor camera re-snaps
     // to the new scene's first camera instead of staying pointed at the old one.

@@ -10,7 +10,6 @@
                 <Layer material="Texture" enabled="true" texture="Textures/Prefabs/pillar.png"/>
             </MaterialComponent>
             <ColliderComponent points="0,-6 12,0 0,6 -12,0"/>
-            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="44" isStatic="true" mode="FadeSelf" fadeAlpha="0.35"/>
         </Entity>
     </Entities>
 </Prefab>

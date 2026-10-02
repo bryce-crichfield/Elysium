@@ -13,7 +13,6 @@
 #include "Core/Components.h"
 #include "Core/Path.h"
 #include "Core/PrefabInstance.h"
-#include "Systems/SpatialSystem.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;
@@ -87,80 +86,6 @@ void LoadLayers(XMLElement* root, Scene& scene) {
         });
 
         scene.SetConfiguration(config);
-    });
-}
-
-void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& outTileHeight, bool& outIsIsometric) {
-    VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
-        struct TileDef {
-            std::string tileName;
-            std::string variantName = "default";
-            std::string layerName = "tile";
-        };
-        std::unordered_map<int, TileDef> tileDefinitions;
-        std::vector<int> tilemask;
-        int tilemapWidth = tilemap->IntAttribute("width", 0);
-        float tileWidth = tilemap->FloatAttribute("tileWidth", 32.0f);
-        float tileHeight = tilemap->FloatAttribute("tileHeight", 32.0f);
-        bool isIsometric = tilemap->BoolAttribute("isIsometric", false);
-
-        outTileWidth = tileWidth;
-        outTileHeight = tileHeight;
-        outIsIsometric = isIsometric;
-
-        VisitElement(tilemap, "Tilemask", [&](XMLElement* xmlTileMask) {
-            const char* textContent = xmlTileMask->GetText();
-            if (textContent) {
-                std::string content(textContent);
-                size_t start = content.find_first_not_of(" \t\n\r");
-                size_t end = content.find_last_not_of(" \t\n\r");
-                if (start != std::string::npos && end != std::string::npos) {
-                    content = content.substr(start, end - start + 1);
-                    std::istringstream iss(content);
-                    std::string token;
-                    while (iss >> token) {
-                        tilemask.push_back(std::stoi(token));
-                    }
-                }
-            }
-        });
-
-        VisitElement(tilemap, "TileDefinitions", [&](XMLElement* xmlTileDefinitions) {
-            ForEachElement(xmlTileDefinitions, "TileDefinition", [&](XMLElement* xmlTileDefinition) {
-                int id = xmlTileDefinition->IntAttribute("id", 0);
-                TileDef def;
-                def.tileName    = xmlTileDefinition->Attribute("tile")    ? xmlTileDefinition->Attribute("tile")    : "";
-                def.variantName = xmlTileDefinition->Attribute("variant") ? xmlTileDefinition->Attribute("variant") : "default";
-                def.layerName   = xmlTileDefinition->Attribute("layer")   ? xmlTileDefinition->Attribute("layer")   : "tile";
-                tileDefinitions[id] = std::move(def);
-            });
-        });
-
-        // Create a container entity for all tiles
-        Entity tilemapParent = world->CreateEntity();
-        world->AddComponent<NameComponent>(tilemapParent, NameComponent("Tilemap"));
-        world->AddComponent<TransformComponent>(tilemapParent, TransformComponent(0, 0));
-
-        for (size_t i = 0; i < tilemask.size(); i++) {
-            int id = tilemask[i];
-            auto defIt = tileDefinitions.find(id);
-            if (defIt == tileDefinitions.end()) continue;
-
-            int tileX = (int)(i % tilemapWidth);
-            int tileY = (int)(i / tilemapWidth);
-            int worldX = isIsometric ? (tileX - tileY) * (int)(tileWidth  / 2) : tileX * (int)tileWidth;
-            int worldY = isIsometric ? (tileX + tileY) * (int)(tileHeight / 2) : tileY * (int)tileHeight;
-
-            const TileDef& def = defIt->second;
-
-            auto entity = world->CreateEntity();
-            world->AddComponent<TransformComponent>(entity, TransformComponent(worldX, worldY));
-            world->AddComponent<NameComponent>(entity, NameComponent(std::string("Tile_") + std::to_string(i)));
-            world->AddComponent<LayerComponent>(entity, LayerComponent(def.layerName));
-            world->AddComponent<TileComponent>(entity, TileComponent(def.tileName, def.variantName, isIsometric, tileWidth, tileHeight));
-            world->AddComponent<ParentComponent>(entity, ParentComponent(tilemapParent, "Tilemap"));
-            world->AddChild(tilemapParent, entity);
-        }
     });
 }
 
@@ -242,32 +167,11 @@ bool LoadScene(Scene& scene, const std::string& path) {
 
     World* world_ = scene.GetWorld();
 
-    // Tilemap properties for position calculation
-    float tileWidth = TILE_WIDTH;
-    float tileHeight = TILE_HEIGHT;
-    bool isIsometric = false;
-
     LoadLayers(root, scene);
-    LoadTilemap(root, world_, tileWidth, tileHeight, isIsometric);
     LoadEntities(root, world_, scene.GetServices());
     PrefabInstances::Load(root, world_, DirectoryOf(path), scene.GetServices());
     ResolveHierarchy(world_);
     LoadSystems(root, scene);
-
-    // Wire tilemap dimensions into SpatialSystem now that it exists.
-    // We also need the tilemap width/height in grid cells, not world units.
-    {
-        int tilemapGridW = 0, tilemapGridH = 0;
-        VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
-            tilemapGridW = tilemap->IntAttribute("width",  0);
-            tilemapGridH = tilemap->IntAttribute("height", 0);
-        });
-        if (tilemapGridW > 0 && tilemapGridH > 0) {
-            if (auto* spatial = scene.GetSystem<Elysium::Systems::SpatialSystem>()) {
-                spatial->BuildGrid(tilemapGridW, tilemapGridH, tileWidth, tileHeight, isIsometric);
-            }
-        }
-    }
 
     VisitElement(root, "SceneScript", [&](XMLElement* el) {
         const char* path = el->Attribute("path");

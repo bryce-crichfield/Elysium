@@ -107,7 +107,7 @@ void SceneSettings::DrawLayers(Scene& scene) {
         return;
     }
 
-    static const char* spaceNames[] = {"World", "Screen", "World 3D"};  // SceneLayerSpace order
+    static const char* spaceNames[] = {"World", "Screen"};  // SceneLayerSpace order
     static const char* blendNames[] = {"Normal", "Additive", "Multiply"};
 
     bool needsSort = false;
@@ -136,6 +136,11 @@ void SceneSettings::DrawLayers(Scene& scene) {
             }
 
             EnumRow("Space", layer.space, spaceNames, IM_ARRAYSIZE(spaceNames));
+            if (layer.space == SceneLayerSpace::World3D) {
+                PropertyLabel("Ground");
+                ImGui::Checkbox("##ground", &layer.ground);
+                ItemTooltip("Lies flat on the ground (selection rings, shadows, markers) instead of standing in the world");
+            }
             EnumRow("Blend", layer.layerBlend, blendNames, IM_ARRAYSIZE(blendNames));
             EnumRow("Composite", layer.compositeBlend, blendNames, IM_ARRAYSIZE(blendNames));
 
@@ -155,11 +160,8 @@ void SceneSettings::DrawLayers(Scene& scene) {
             }
             ItemTooltip("What an offscreen layer is cleared to before drawing");
 
-            SectionHeader("Lighting");
-            PropertyLabel("Lit");
-            ImGui::Checkbox("##lit", &layer.isLit);
-            ItemTooltip("Shade this layer: glowing materials light what's around them, by its normal maps");
-            if (layer.isLit) {
+            if (layer.IsLit()) {
+                SectionHeader("Lighting");
                 auto colorRow = [](const char* label, const char* id, Color& color) {
                     PropertyLabel(label);
                     float rgba[4] = {color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f};
@@ -169,41 +171,19 @@ void SceneSettings::DrawLayers(Scene& scene) {
                     }
                 };
                 colorRow("Ambient Light", "##lightAmbient", layer.lightAmbient);
-                ItemTooltip("Light everywhere on the layer. White looks unlit");
-                PropertyLabel("Reach");
-                ImGui::DragFloat("##lightReach", &layer.lightReach, 1.0f, 1.0f, 4000.0f, "%.0f");
-                ItemTooltip("How far a glowing material's light carries, in world units");
-                PropertyLabel("Height");
-                ImGui::DragFloat("##lightHeight", &layer.lightHeight, 0.5f, 1.0f, 1000.0f, "%.0f");
-                ItemTooltip("How far above the layer glowing pixels sit. Lower rakes across normal maps");
-                PropertyLabel("Strength");
-                ImGui::DragFloat("##lightStrength", &layer.lightStrength, 0.01f, 0.0f, 20.0f, "%.2f");
+                ItemTooltip("Light everywhere, before any Light component. White looks unlit");
                 PropertyLabel("Shadows");
                 ImGui::Checkbox("##shadows", &layer.shadows);
-                ItemTooltip("Occluder footprints block light. Shorter than Height: the shadow ends");
-                PropertyLabel("Point Lights");
-                ImGui::Checkbox("##pointLights", &layer.pointLights);
-                ItemTooltip("Lit by Light components in 3D, with shadows from occluders, instead of by emission");
-                if (layer.pointLights) {
+                ItemTooltip("Models cast shadows from the lights");
+                if (layer.shadows) {
                     PropertyLabel("Shadow Bias");
                     ImGui::DragFloat("##shadowBias", &layer.shadowBias, 0.1f, 0.0f, 64.0f, "%.1f");
-                    ItemTooltip("How far a pixel lifts off its own surface before testing shadows. Too low: walls shadow themselves");
-                    PropertyLabel("Fog of War");
-                    ImGui::SliderFloat("##fogOfWar", &layer.fogOfWar, 0.0f, 1.0f, "%.2f");
-                    ItemTooltip("How far what no Vision light can see fades into the fog color. 0: off");
-                    if (layer.fogOfWar > 0.0f) colorRow("Fog Color", "##fogColor", layer.fogColor);
+                    ItemTooltip("How far a point lifts off its own surface before testing shadows. Too low: walls shadow themselves");
                 }
-                PropertyLabel("Debug View");
-                const char* debugViews[] = {"Off", "Occluder Field", "Height", "Light", "Ground Emission", "3D Position", "Light Only"};
-                ImGui::Combo("##lightDebug", &layer.lightDebug, debugViews, IM_ARRAYSIZE(debugViews));
-                ItemTooltip("Show one of the lighting buffers in place of the layer (not saved)");
-                PropertyLabel("Bands");
-                ImGui::SliderInt("##lightBands", &layer.lightBands, 0, 8, layer.lightBands == 0 ? "Smooth" : "%d");
-                ItemTooltip("Quantize light into steps for a cel-shaded look");
-                PropertyLabel("Outline");
-                ImGui::SliderFloat("##outline", &layer.outline, 0.0f, 1.0f, "%.2f");
-                ItemTooltip("Ink lines at silhouettes and creases in the normals");
-                if (layer.outline > 0.0f) colorRow("Outline Color", "##outlineColor", layer.outlineColor);
+                PropertyLabel("Fog of War");
+                ImGui::SliderFloat("##fogOfWar", &layer.fogOfWar, 0.0f, 1.0f, "%.2f");
+                ItemTooltip("How far what no Vision light can see fades into the fog color. 0: off");
+                if (layer.fogOfWar > 0.0f) colorRow("Fog Color", "##fogColor", layer.fogColor);
             }
             EndSectionBody();
         }

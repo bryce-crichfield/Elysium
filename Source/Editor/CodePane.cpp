@@ -35,14 +35,13 @@ class CodePane : public ContentPane {
 
     void DrawToolbar() override {
         if (isScript_) {
-            ImGui::SameLine();
             if (IconButton(ICON_FA_PLAY, "Run the buffer as a Lua chunk")) {
                 services_.Get<Services::IScriptService>().ExecuteString(editor_.GetText());
                 SetStatus("Ran the buffer");
             }
         }
         if (!status_.empty()) {
-            ImGui::SameLine();
+            if (isScript_) ImGui::SameLine();
             ImGui::AlignTextToFramePadding();
             ColoredText(statusIsError_ ? Editor::Palette().Error : Editor::Palette().TextMuted, status_.c_str());
         }

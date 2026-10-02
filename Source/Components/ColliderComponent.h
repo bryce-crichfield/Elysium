@@ -29,10 +29,22 @@ namespace Elysium {
         // Measured along x. In an isometric scene the reach along y is radius / isoRatio, so
         // the circle stays a circle on the ground instead of an ellipse twice as deep.
         float radius = 0.0f;
+        // How high it stands, above its entity's z: from `bottom` to `top`. With top <= bottom
+        // (the default) it has no height range and blocks at every height, as a 2D collider did.
+        // Two colliders only touch when their ranges overlap, so a flier passes over a low wall,
+        // and the navmesh only carves the floors it actually stands in the way on.
+        float bottom = 0.0f;
+        float top = 0.0f;
 
         ColliderComponent() = default;
         ColliderComponent(float w, float h, float ox = 0.0f, float oy = 0.0f)
             : width(w), height(h), offsetX(ox), offsetY(oy), isTrigger(false) {}
+
+        // The heights it occupies with its entity at height `z`.
+        void HeightRange(float z, float& low, float& high) const {
+            if (top > bottom) { low = z + bottom; high = z + top; }
+            else { low = -1e30f; high = 1e30f; }
+        }
 
         // Get the world-space rectangle given entity position
         Rectangle GetRect(float posX, float posY) const {

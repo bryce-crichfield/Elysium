@@ -25,6 +25,7 @@
 #include "Components/ParentComponent.h"
 #include "Components/TransformComponent.h"
 #include "Components/LayerComponent.h"
+#include "Components/ModelComponent.h"
 #include "Core/Scene.h"
 #include "Core/World3D.h"
 #include <cstdio>
@@ -38,6 +39,7 @@
 #include "Systems/RenderSystem.h"
 #include "Core/Input.h"
 #include "Core/MathTypes.h"
+#include <limits>
 
 namespace Elysium {
 
@@ -55,21 +57,79 @@ struct Matrix4 {
     float m[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };
 
-// The orthographic projection of what `view` shows. World y grows downward, so the top of
-// the screen is the smaller y.
+// The orthographic projection of what `view` shows, for gizmo space (ground x, ground y,
+// height): through the editor camera's orbit (World3D::View) to clip space. Depth is scaled down
+// only to stay inside the clip range; the gizmo just needs it invertible.
 Matrix4 ViewProjection(const CameraView& view) {
-    const float halfW = view.viewport.width * 0.5f / view.zoom;
-    const float halfH = view.viewport.height * 0.5f / view.zoom;
-    const float left = view.position.x - halfW, right = view.position.x + halfW;
-    const float top = view.position.y - halfH, bottom = view.position.y + halfH;
+    const World3D::View v = Systems::RenderProjector::View3D(view);
+    const float sx = 2.0f / view.viewport.width, sy = -2.0f / view.viewport.height, sz = -1.0e-5f;
     Matrix4 p;
-    p.m[0] = 2.0f / (right - left);
-    p.m[5] = 2.0f / (top - bottom);
-    p.m[10] = -1.0f;
-    p.m[12] = -(right + left) / (right - left);
-    p.m[13] = -(top + bottom) / (top - bottom);
+    auto row = [&](int r, const float* coeffs, float scale, float offset) {
+        p.m[0 + r] = coeffs[0] * scale;                          // ground x
+        p.m[4 + r] = coeffs[2] * World3D::kGroundDepth * scale;  // ground y
+        p.m[8 + r] = coeffs[1] * scale;                          // height
+        p.m[12 + r] = coeffs[3] * scale + offset;
+    };
+    row(0, v.rowX, sx, -1.0f);
+    row(1, v.rowY, sy, 1.0f);
+    row(2, v.rowDepth, sz, 0.0f);
+    p.m[3] = p.m[7] = p.m[11] = 0.0f;
+    p.m[15] = 1.0f;
     return p;
 }
+
+// The Move gizmo works in true 3D (GL: x, up, ground depth), where the iso picture's ground is
+// square, so its arrows run straight and a drag along one stays on it. ImGuizmo needs the real
+// camera for that: it drags an arrow on the plane through it that faces the camera, which it
+// takes from the view matrix. ImGuizmo casts its ray from clip depth 0 to 1, starting at the end
+// nearer the eye, and mirrors a plane hit behind that start (fabsf), which made the gizmo leap
+// for anything nearer the camera than the start. So the eye sits kEyeBack in front of `at` (the
+// gizmo, GL space), clip 0 is the eye and clip 1 is as far behind it: whatever is being dragged
+// is always well inside.
+void MoveGizmoCamera(const CameraView& view, Vector3 at, Matrix4& viewMatrix, Matrix4& projection) {
+    const World3D::View v = Systems::RenderProjector::View3D(view);
+    constexpr float kEyeBack = 1.0e4f;
+    const float halfW = view.viewport.width * 0.5f, halfH = view.viewport.height * 0.5f;
+    for (int i = 0; i < 3; ++i) {
+        viewMatrix.m[i * 4 + 0] = v.rowX[i] / v.zoom;
+        viewMatrix.m[i * 4 + 1] = -v.rowY[i] / v.zoom;
+        viewMatrix.m[i * 4 + 2] = v.rowDepth[i] / v.zoom;
+        viewMatrix.m[i * 4 + 3] = 0.0f;
+    }
+    const float atDepth = v.rowDepth[0] * at.x + v.rowDepth[1] * at.y + v.rowDepth[2] * at.z;
+    viewMatrix.m[12] = (v.rowX[3] - halfW) / v.zoom;
+    viewMatrix.m[13] = -(v.rowY[3] - halfH) / v.zoom;
+    viewMatrix.m[14] = -atDepth / v.zoom - kEyeBack;
+    viewMatrix.m[15] = 1.0f;
+
+    projection = Matrix4{};
+    projection.m[0] = v.zoom / halfW;
+    projection.m[5] = v.zoom / halfH;
+    projection.m[10] = -0.5f / kEyeBack;  // view z 0..-2*kEyeBack -> clip 0..1
+    projection.m[14] = 0.0f;
+    projection.m[15] = 1.0f;
+}
+
+// The grid's two lattice steps on the ground (2D world units): the diamond's edges for an
+// isometric grid, the cell's sides for a square one.
+void GridAxes(const GridSettings& grid, Vector2& a, Vector2& b) {
+    const Vector2 cell = grid.Cell();
+    if (grid.lattice == GridLattice::Isometric) {
+        a = {cell.x * 0.5f, cell.y * 0.5f};
+        b = {cell.x * 0.5f, -cell.y * 0.5f};
+    } else {
+        a = {cell.x, 0.0f};
+        b = {0.0f, cell.y};
+    }
+}
+
+// `p` in lattice coordinates (multiples of a and b), and back.
+Vector2 ToLattice(Vector2 p, Vector2 a, Vector2 b) {
+    const float det = a.x * b.y - a.y * b.x;
+    if (std::fabs(det) < 1e-6f) return p;
+    return {(p.x * b.y - p.y * b.x) / det, (a.x * p.y - a.y * p.x) / det};
+}
+Vector2 FromLattice(Vector2 l, Vector2 a, Vector2 b) { return {l.x * a.x + l.y * b.x, l.x * a.y + l.y * b.y}; }
 
 // Same composition as TransformSystem: translate * rotate * scale.
 Matrix4 EntityMatrix(Vector2 position, float rotationDegrees, float scaleX, float scaleY) {
@@ -100,6 +160,48 @@ std::vector<Entity> PickTargets(const World& world, Systems::RenderSystem& rende
     }
     std::stable_sort(targets.begin(), targets.end(), [&](Entity a, Entity b) { return area(a) < area(b); });
     return targets;
+}
+
+// With the editor camera turned, a World3D entity isn't drawn on the ground plane: a model is
+// its box seen from the camera, anything else a screen-facing card at its anchor (its topmost
+// ancestor with a Transform, see RenderSystem's Render3D). The framebuffer rect it covers, or
+// nothing for an entity on the ground plane. `bounds` is its 2D (default view) bounds.
+std::optional<Rectangle> TurnedOutline(const World& world, IEditorService& editorService, Entity entity,
+                                       const CameraView& view, Rectangle bounds) {
+    auto* scene = editorService.GetViewportScene();
+    if (!scene || !world.HasComponent<LayerComponent>(entity)) return std::nullopt;
+    const SceneLayer* layer = scene->GetLayer(world.GetComponent<LayerComponent>(entity).name);
+    if (!layer || layer->space != SceneLayerSpace::World3D) return std::nullopt;
+    const World3D::View v = Systems::RenderProjector::View3D(view);
+
+    float minX = 1e30f, minY = 1e30f, maxX = -1e30f, maxY = -1e30f;
+    auto add = [&](Vector2 p) {
+        minX = std::min(minX, p.x); maxX = std::max(maxX, p.x);
+        minY = std::min(minY, p.y); maxY = std::max(maxY, p.y);
+    };
+    if (world.HasComponent<ModelComponent>(entity) && world.HasComponent<TransformComponent>(entity)) {
+        const auto& component = world.GetComponent<ModelComponent>(entity);
+        if (!component.loaded || !component.loaded->native) return std::nullopt;
+        Vector3 lo, hi;
+        World3D::ModelBounds(World3D::ModelMatrix(world.GetComponent<TransformComponent>(entity), component, *component.loaded),
+                             *component.loaded, lo, hi);
+        for (int corner = 0; corner < 8; ++corner) {
+            const Vector3 p = v.Project({corner & 1 ? hi.x : lo.x, corner & 2 ? hi.y : lo.y, corner & 4 ? hi.z : lo.z});
+            add({p.x, p.y});
+        }
+    } else {
+        Entity anchor = entity;
+        while (world.GetParent(anchor) != INVALID_ENTITY && world.HasComponent<TransformComponent>(world.GetParent(anchor))) {
+            anchor = world.GetParent(anchor);
+        }
+        if (!world.HasComponent<TransformComponent>(anchor)) return std::nullopt;
+        const auto& t = world.GetComponent<TransformComponent>(anchor);
+        const Vector2 at = v.WorldToFramebuffer(t.worldX, t.worldY, t.worldZ);
+        // The card is drawn 1:1 around its anchor's ground position.
+        add({at.x + (bounds.x - t.worldX) * v.zoom, at.y + (bounds.y - t.worldY) * v.zoom});
+        add({at.x + (bounds.x + bounds.width - t.worldX) * v.zoom, at.y + (bounds.y + bounds.height - t.worldY) * v.zoom});
+    }
+    return Rectangle{minX, minY, maxX - minX, maxY - minY};
 }
 
 float WrapDegrees(float degrees) {
@@ -348,12 +450,15 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& edit
         editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
         Rectangle{0, 0, (float)fb.Width(), (float)fb.Height()}
     };
+    view.yaw = editorCam.yaw;
+    view.pitch = editorCam.pitch;
     if (auto* scene = editorService.GetViewportScene()) {
         if (auto* renderSystem = scene->GetSystem<Systems::RenderSystem>()) {
             renderSystem->PlaceScreenInWorld(view);
             // The layer drawer's hide/solo, re-pushed every frame. The sorter applies it to its
             // own copy of the layer list, so the scene's SceneLayer flags stay untouched.
             renderSystem->SetHiddenLayerOverride(editorService.GetHiddenLayers());
+            renderSystem->SetUnlitOverride(!lightingOn_);
         }
     }
 
@@ -375,19 +480,24 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& edit
 
     // The gizmo comes first, and only for a tool that carries one: a paint stroke that also
     // dragged the last selection around would be unusable.
+    // The camera's own controls come before anything that edits: the orientation widget, and Alt
+    // with the left button, which orbits instead of clicking.
+    const bool widgetOwnsMouse = editorService.GetViewportScene() && DrawOrientationWidget(editorService, view, imageScreenRect);
+    const bool cameraOwnsMouse = widgetOwnsMouse || isOrbitingCamera_ || (imageHovered && ImGui::GetIO().KeyAlt);
+
     ViewportTool* tool = ActiveTool();
     const GizmoMode gizmo = tool ? tool->Gizmo() : GizmoMode::None;
-    const bool gizmoOwnsMouse =
+    const bool gizmoOwnsMouse = !cameraOwnsMouse &&
         gizmo != GizmoMode::None && HandleGizmo(sceneService, editorService, view, imageScreenRect, gizmo);
 
     bool toolConsumedClick = false;
-    if (tool && !gizmoOwnsMouse && editorService.GetWorld()) {
+    if (tool && !gizmoOwnsMouse && !cameraOwnsMouse && editorService.GetWorld()) {
         ToolContext context = MakeToolContext(sceneService, editorService, view, input);
         toolConsumedClick = tool->HandleInput(context);
     }
 
-    const bool canInteract = imageHovered && !gizmoOwnsMouse && !toolConsumedClick;
-    if (canInteract || isPanningCamera_) HandleEditorCameraInput(sceneService, editorService, view, canInteract);
+    const bool canInteract = imageHovered && !gizmoOwnsMouse && !toolConsumedClick && !widgetOwnsMouse;
+    HandleEditorCameraInput(sceneService, editorService, view, canInteract);
     if (canInteract) {
         HandleGizmoShortcuts(editorService);
         // After the tool, so a tool that uses Escape itself (cancelling a half-laid polygon)
@@ -530,6 +640,10 @@ void ViewportEditor::DrawFooter(IEditorService& editor, bool isSceneTab) {
     GridSettings& grid = editor.GetGrid();
     if (ToggleIconButton(ICON_FA_TABLE_CELLS_LARGE, grid.showGrid, "Show grid")) grid.showGrid = !grid.showGrid;
     ImGui::SameLine();
+    if (ToggleIconButton(ICON_FA_LIGHTBULB, lightingOn_, lightingOn_ ? "Lighting (on)" : "Lighting (off: drawn fully lit)")) {
+        lightingOn_ = !lightingOn_;
+    }
+    ImGui::SameLine();
     DrawOverlayToggles(overlays_);
     ImGui::PopID();
 }
@@ -601,37 +715,167 @@ void ViewportEditor::InitializeEditorCameraIfNeeded(IEditorService& editorServic
 void ViewportEditor::HandleEditorCameraInput(ISceneService& sceneService, IEditorService& editorService,
                                              const CameraView& view, bool hovered) {
     auto& cam = editorService.GetEditorCamera();
+    // The view as the camera is now (this frame's earlier input may have moved it), so every
+    // change below keeps what's under the cursor exactly there.
+    auto current = [&] {
+        CameraView now = view;
+        now.position = cam.position;
+        now.zoom = cam.zoom != 0.0f ? cam.zoom : 1.0f;
+        now.yaw = cam.yaw;
+        now.pitch = cam.pitch;
+        return now;
+    };
 
-    if (hovered && Input::IsMouseButtonPressed(MouseButton::Middle)) {
-        isPanningCamera_ = true;
+    if (hovered && Input::IsMouseButtonPressed(MouseButton::Middle)) isPanningCamera_ = true;
+    if (!Input::IsMouseButtonDown(MouseButton::Middle)) isPanningCamera_ = false;
+    if (hovered && ImGui::GetIO().KeyAlt && Input::IsMouseButtonPressed(MouseButton::Left)) isOrbitingCamera_ = true;
+    if (!Input::IsMouseButtonDown(MouseButton::Left)) isOrbitingCamera_ = false;
+
+    // Not on the press itself: its delta is wherever the mouse was before.
+    if (isOrbitingCamera_ && !Input::IsMouseButtonPressed(MouseButton::Left)) {
+        // About the ground point at the middle of the view, which the orbit keeps fixed.
+        const Vector2 delta = Input::GetMouseDelta();
+        cam.yaw += delta.x * 0.4f;
+        cam.pitch = std::clamp(cam.pitch + delta.y * 0.3f, 10.0f, 89.0f);
+        cam.targetYaw = cam.yaw;
+        cam.targetPitch = cam.pitch;
+    } else {
+        // Ease toward the orientation widget's last snap.
+        const float step = std::min(1.0f, ImGui::GetIO().DeltaTime * 10.0f);
+        auto ease = [&](float& value, float target) {
+            value += (target - value) * step;
+            if (std::fabs(target - value) < 0.05f) value = target;
+        };
+        ease(cam.yaw, cam.targetYaw);
+        ease(cam.pitch, cam.targetPitch);
     }
-    if (!Input::IsMouseButtonDown(MouseButton::Middle)) {
-        isPanningCamera_ = false;
+    // Once settled, back into -180..180 (the same view), so the default view is exactly yaw 0.
+    if (cam.yaw == cam.targetYaw && std::fabs(cam.yaw) > 180.0f) {
+        cam.yaw = cam.targetYaw = WrapDegrees(cam.yaw);
     }
 
     if (isPanningCamera_) {
-        Vector2 delta = Input::GetMouseDelta();
-        float zoom = cam.zoom != 0.0f ? cam.zoom : 1.0f;
-        cam.position.x -= delta.x / zoom;
-        cam.position.y -= delta.y / zoom;
+        // The ground under the cursor follows it.
+        const CameraView now = current();
+        const Vector2 mouse = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
+        const Vector2 delta = Input::GetMouseDelta();
+        const Vector2 to = Systems::RenderProjector::FramebufferToWorld(mouse, now);
+        const Vector2 from = Systems::RenderProjector::FramebufferToWorld({mouse.x - delta.x, mouse.y - delta.y}, now);
+        cam.position.x -= to.x - from.x;
+        cam.position.y -= to.y - from.y;
         return;
     }
 
     float wheel = hovered ? Input::GetMouseWheelMove() : 0.0f;
     if (wheel != 0.0f) {
-        // Find the world point under the cursor before changing zoom, then re-solve the
-        // camera position so that same world point stays under the cursor.
-        Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
-        Vector2 worldUnderMouse = Systems::RenderProjector::FramebufferToWorld(mouseFbPos, view);
-
-        float factor = 1.0f + wheel * 0.1f;
-        float newZoom = std::clamp(cam.zoom * factor, 0.1f, 10.0f);
-        cam.zoom = newZoom;
-
-        Vector2 viewportCenter = { view.viewport.width * 0.5f, view.viewport.height * 0.5f };
-        cam.position.x = worldUnderMouse.x - (mouseFbPos.x - viewportCenter.x) / newZoom;
-        cam.position.y = worldUnderMouse.y - (mouseFbPos.y - viewportCenter.y) / newZoom;
+        // The ground point under the cursor before the zoom, then move the camera so the
+        // same point is under it after.
+        const Vector2 mouseFbPos = sceneService.ScreenToFramebuffer(Input::GetMousePosition());
+        const Vector2 before = Systems::RenderProjector::FramebufferToWorld(mouseFbPos, current());
+        cam.zoom = std::clamp(cam.zoom * (1.0f + wheel * 0.1f), 0.1f, 10.0f);
+        const Vector2 after = Systems::RenderProjector::FramebufferToWorld(mouseFbPos, current());
+        cam.position.x += before.x - after.x;
+        cam.position.y += before.y - after.y;
     }
+}
+
+bool ViewportEditor::DrawOrientationWidget(IEditorService& editorService, const CameraView& view, Rectangle imageScreenRect) {
+    auto& cam = editorService.GetEditorCamera();
+    constexpr float kRadius = 40.0f, kBall = 9.0f, kMargin = 14.0f;
+    const float right = imageScreenRect.x + imageScreenRect.width - (layerDrawer_.IsOpen() ? 260.0f : 0.0f);
+    const ImVec2 center{right - kMargin - kRadius - kBall, imageScreenRect.y + kMargin + kRadius + kBall};
+    const ImVec2 home{center.x, center.y + kRadius + kBall + 14.0f};
+
+    // Each axis as the camera sees it: its GL direction through the view's rotation, on screen
+    // and in depth. Ground x is GL x, ground y is GL z, up is GL y.
+    const World3D::View v = Systems::RenderProjector::View3D(view);
+    struct Axis {
+        Vector3 gl;
+        const char* label;
+        ImVec4 color;
+        float yaw;    // the yaw that looks from this side, or NaN to keep the yaw
+        float pitch;  // the pitch to ease to, or NaN for a ball that can't be clicked
+        ImVec2 at{};
+        float depth = 0.0f;
+    };
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    // Looking from a side keeps the tilt, unless it's from above, which comes back to default.
+    const float sidePitch = cam.targetPitch > 80.0f ? World3D::kDefaultPitch : cam.targetPitch;
+    Axis axes[] = {
+        {{1, 0, 0}, "X", Palette().AxisX, -90.0f, sidePitch},
+        {{-1, 0, 0}, "", Palette().AxisX, 90.0f, sidePitch},
+        {{0, 0, 1}, "Y", Palette().AxisY, 0.0f, sidePitch},
+        {{0, 0, -1}, "", Palette().AxisY, 180.0f, sidePitch},
+        {{0, 1, 0}, "Z", Palette().Accent, nan, 89.0f},
+        {{0, -1, 0}, "", Palette().Accent, nan, nan},
+    };
+    for (Axis& axis : axes) {
+        const float sx = (v.rowX[0] * axis.gl.x + v.rowX[1] * axis.gl.y + v.rowX[2] * axis.gl.z) / v.zoom;
+        const float sy = (v.rowY[0] * axis.gl.x + v.rowY[1] * axis.gl.y + v.rowY[2] * axis.gl.z) / v.zoom;
+        axis.depth = (v.rowDepth[0] * axis.gl.x + v.rowDepth[1] * axis.gl.y + v.rowDepth[2] * axis.gl.z) / v.zoom;
+        axis.at = {center.x + sx * kRadius, center.y + sy * kRadius};
+    }
+
+    const ImVec2 mouse = ImGui::GetMousePos();
+    auto within = [&](ImVec2 p, float r) { return (mouse.x - p.x) * (mouse.x - p.x) + (mouse.y - p.y) * (mouse.y - p.y) <= r * r; };
+    const bool overWidget = ImGui::IsWindowHovered() && within(center, kRadius + kBall + 2.0f);
+    const bool overHome = ImGui::IsWindowHovered() && within(home, 7.0f);
+
+    // The nearest clickable ball under the mouse.
+    int hot = -1;
+    for (int i = 0; i < 6; ++i) {
+        if (!overWidget || std::isnan(axes[i].pitch) || !within(axes[i].at, kBall + 4.0f)) continue;
+        if (hot < 0 || axes[i].depth > axes[hot].depth) hot = i;
+    }
+
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    if (overWidget || isOrbitingCamera_) {
+        draw->AddCircleFilled(center, kRadius + kBall + 2.0f, Palette().ToU32(Palette().WithAlpha(Palette().Base, 0.55f)));
+    }
+    int order[6] = {0, 1, 2, 3, 4, 5};
+    std::sort(order, order + 6, [&](int a, int b) { return axes[a].depth < axes[b].depth; });
+    for (int i : order) {
+        const Axis& axis = axes[i];
+        const bool positive = axis.label[0] != 0;
+        // Axes pointing away from the camera are dimmer.
+        const float shade = axis.depth < -0.01f ? 0.6f : 1.0f;
+        ImVec4 color = axis.color;
+        color.x *= shade; color.y *= shade; color.z *= shade;
+        if (positive) draw->AddLine(center, axis.at, Palette().ToU32(color), 2.0f);
+        const ImVec4 fill = i == hot ? Palette().Selection : positive ? color : Palette().WithAlpha(color, 0.45f);
+        draw->AddCircleFilled(axis.at, positive ? kBall : kBall * 0.7f, Palette().ToU32(fill));
+        if (positive) {
+            const ImVec2 size = ImGui::CalcTextSize(axis.label);
+            draw->AddText({axis.at.x - size.x * 0.5f, axis.at.y - size.y * 0.5f}, IM_COL32(15, 15, 20, 255), axis.label);
+        }
+    }
+    const ImVec4 homeColor = overHome ? Palette().Selection : Palette().TextMuted;
+    draw->AddCircle(home, 5.0f, Palette().ToU32(homeColor), 0, 1.5f);
+    if (!view.IsDefaultOrientation() || overHome) draw->AddCircleFilled(home, 2.5f, Palette().ToU32(homeColor));
+
+    if (overHome) {
+        ImGui::SetTooltip("Default view");
+    } else if (hot >= 0) {
+        ImGui::SetTooltip(axes[hot].gl.y > 0.0f ? "View from above" : "View from this side");
+    } else if (overWidget && !isOrbitingCamera_) {
+        ImGui::SetTooltip("Drag to orbit (or Alt + drag in the viewport)");
+    }
+
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        if (overHome) {
+            // The whole turn nearest the current yaw, so it doesn't spin back round.
+            cam.targetYaw = cam.yaw - WrapDegrees(cam.yaw);
+            cam.targetPitch = World3D::kDefaultPitch;
+            return true;
+        }
+        if (hot >= 0) {
+            if (!std::isnan(axes[hot].yaw)) cam.targetYaw = cam.yaw + WrapDegrees(axes[hot].yaw - cam.yaw);
+            cam.targetPitch = axes[hot].pitch;
+            return true;
+        }
+        if (overWidget) isOrbitingCamera_ = true;  // a drag on the widget orbits
+    }
+    return overWidget || overHome || isOrbitingCamera_;
 }
 
 bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& editorService,
@@ -672,27 +916,49 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
     const float screenScale = view.screenScale != 0.0f ? view.screenScale : 1.0f;
     auto& t = world->GetComponent<TransformComponent>(entity);
 
-    // On a World3D layer an entity at height z draws z * cos30 higher; the gizmo sits there.
+    // On a World3D layer the gizmo is 3D: it sits at the entity's height and drags it (z) too.
     bool is3D = false;
     if (isWorldSpace && world->HasComponent<LayerComponent>(entity) && editorService.GetViewportScene()) {
         const SceneLayer* layer = editorService.GetViewportScene()->GetLayer(world->GetComponent<LayerComponent>(entity).name);
         is3D = layer && layer->space == SceneLayerSpace::World3D;
     }
-    const float lift = is3D ? t.worldZ * World3D::kPitchCos : 0.0f;
     auto toShown = [&](Vector2 p) {
-        return isWorldSpace ? Vector2{ p.x, p.y - lift } : Vector2{ view.screenOrigin.x + p.x * screenScale, view.screenOrigin.y + p.y * screenScale };
+        return isWorldSpace ? p : Vector2{ view.screenOrigin.x + p.x * screenScale, view.screenOrigin.y + p.y * screenScale };
     };
     auto fromShown = [&](Vector2 p) {
-        return isWorldSpace ? Vector2{ p.x, p.y + lift } : Vector2{ (p.x - view.screenOrigin.x) / screenScale, (p.y - view.screenOrigin.y) / screenScale };
+        return isWorldSpace ? p : Vector2{ (p.x - view.screenOrigin.x) / screenScale, (p.y - view.screenOrigin.y) / screenScale };
     };
 
     // The primary's local transform before the manipulation, so whatever delta it ends up
     // receiving can be handed on to the followers.
-    const float wasX = t.localX, wasY = t.localY, wasRotation = t.localRotation;
+    const float wasX = t.localX, wasY = t.localY, wasZ = t.localZ, wasRotation = t.localRotation;
     const float wasScaleX = t.localScaleX, wasScaleY = t.localScaleY;
     Matrix4 matrix = EntityMatrix(toShown({ t.worldX, t.worldY }), t.worldRotation, t.worldScaleX, t.worldScaleY);
-    const Matrix4 identity;
-    const Matrix4 projection = ViewProjection(view);
+    if (is3D) matrix.m[14] = t.worldZ;
+    Matrix4 viewMatrix;
+    Matrix4 projection = ViewProjection(view);
+
+    // Moving a world entity: the gizmo in GL space, its arrows along the grid's lattice (an
+    // isometric grid's tile rows), so dragging one walks the entity along a row of tiles.
+    const bool moveIn3D = gizmo == GizmoMode::Move && isWorldSpace;
+    Vector2 latticeA, latticeB;
+    GridAxes(editorService.GetGrid(), latticeA, latticeB);
+    if (moveIn3D) {
+
+        auto glAxis = [](Vector2 ground) {
+            const Vector3 gl = World3D::ToGL(ground.x, ground.y, 0.0f);
+            const float length = std::sqrt(gl.x * gl.x + gl.z * gl.z);
+            return length > 0.0f ? Vector3{gl.x / length, 0.0f, gl.z / length} : Vector3{1.0f, 0.0f, 0.0f};
+        };
+        const Vector3 ax = glAxis(latticeA), ay = glAxis(latticeB);
+        const Vector3 at = World3D::ToGL(t.worldX, t.worldY, t.worldZ);
+        matrix = Matrix4{};
+        matrix.m[0] = ax.x; matrix.m[1] = ax.y; matrix.m[2] = ax.z;
+        matrix.m[4] = ay.x; matrix.m[5] = ay.y; matrix.m[6] = ay.z;
+        matrix.m[8] = 0.0f; matrix.m[9] = 1.0f; matrix.m[10] = 0.0f;  // height
+        matrix.m[12] = at.x; matrix.m[13] = at.y; matrix.m[14] = at.z;
+        MoveGizmoCamera(view, at, viewMatrix, projection);
+    }
 
     ApplyGizmoStyle(Palette());
     ImGuizmo::SetOrthographic(true);
@@ -700,8 +966,9 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
     ImGuizmo::SetDrawlist();
     ImGuizmo::SetRect(imageScreenRect.x, imageScreenRect.y, imageScreenRect.width, imageScreenRect.height);
 
-    ImGuizmo::OPERATION operation = ImGuizmo::OPERATION(ImGuizmo::TRANSLATE_X | ImGuizmo::TRANSLATE_Y);
-    ImGuizmo::MODE mode = ImGuizmo::WORLD;
+    ImGuizmo::OPERATION operation = ImGuizmo::OPERATION(ImGuizmo::TRANSLATE_X | ImGuizmo::TRANSLATE_Y |
+                                                        (is3D ? ImGuizmo::TRANSLATE_Z : 0));
+    ImGuizmo::MODE mode = moveIn3D ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
     float snapValue = MoveSnap;
     if (gizmo == GizmoMode::Rotate) {
         operation = ImGuizmo::ROTATE_Z;
@@ -717,14 +984,29 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
     const bool gridSnapsMove = gizmo == GizmoMode::Move && isWorldSpace && editorService.GetGrid().snapEnabled;
     const bool snapping = ImGui::GetIO().KeyCtrl && !gridSnapsMove;
 
-    if (ImGuizmo::Manipulate(identity.m, projection.m, operation, mode, matrix.m, nullptr, snapping ? snap : nullptr)) {
+    if (ImGuizmo::Manipulate(viewMatrix.m, projection.m, operation, mode, matrix.m, nullptr, snapping ? snap : nullptr)) {
         const float* m = matrix.m;
         // Each mode writes back only what it edits, so a move never rewrites (and rounds)
         // the rotation or scale. Changes land in the local transform; TransformSystem
         // recomposes world next frame.
         if (gizmo == GizmoMode::Move) {
             Vector2 target = fromShown({ m[12], m[13] });
-            if (gridSnapsMove) target = editorService.SnapToGrid(target);
+            float targetZ = m[14];
+            if (moveIn3D) {
+                target = {m[12], m[14] / World3D::kGroundDepth};
+                targetZ = m[13];
+            }
+            if (gridSnapsMove) {
+                // Snap only the lattice coordinates the drag changed: dragging along one row
+                // leaves the entity's place across it alone, even if that's off the grid.
+                const Vector2 was = ToLattice({t.worldX, t.worldY}, latticeA, latticeB);
+                Vector2 now = ToLattice(target, latticeA, latticeB);
+                if (std::fabs(now.x - was.x) > 1e-3f) now.x = std::round(now.x);
+                else now.x = was.x;
+                if (std::fabs(now.y - was.y) > 1e-3f) now.y = std::round(now.y);
+                else now.y = was.y;
+                target = FromLattice(now, latticeA, latticeB);
+            }
             Vector2 local = target;
             if (world->HasComponent<ParentComponent>(entity)) {
                 Entity parent = world->GetComponent<ParentComponent>(entity).parent;
@@ -742,6 +1024,8 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
             }
             t.localX = local.x;
             t.localY = local.y;
+            // Height is parent + local, so the world delta is the local delta.
+            if (is3D) t.localZ += targetZ - t.worldZ;
         } else if (gizmo == GizmoMode::Rotate) {
             // World rotation is parent + local, so the world delta is the local delta.
             const float newRotation = atan2f(m[1], m[0]) / DegToRad;
@@ -757,7 +1041,7 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
         // Hand the primary's delta to the rest of the selection. Position goes across as an
         // offset and scale as a ratio, so each entity keeps its own arrangement instead of being
         // snapped onto the one the gizmo happens to be on.
-        const float deltaX = t.localX - wasX, deltaY = t.localY - wasY;
+        const float deltaX = t.localX - wasX, deltaY = t.localY - wasY, deltaZ = t.localZ - wasZ;
         const float deltaRotation = t.localRotation - wasRotation;
         const float ratioX = wasScaleX != 0.0f ? t.localScaleX / wasScaleX : 1.0f;
         const float ratioY = wasScaleY != 0.0f ? t.localScaleY / wasScaleY : 1.0f;
@@ -767,6 +1051,7 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
             if (gizmo == GizmoMode::Move) {
                 other.localX += deltaX;
                 other.localY += deltaY;
+                other.localZ += deltaZ;
             } else if (gizmo == GizmoMode::Rotate) {
                 other.localRotation += deltaRotation;
             } else {
@@ -776,65 +1061,8 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
         }
     }
 
-    // World3D: a height handle beside the move arrows.
-    bool heightOwnsMouse = false;
-    if (is3D && gizmo == GizmoMode::Move && !ImGuizmo::IsUsing()) {
-        auto toScreen = [&](Vector2 w) {
-            const float* p = projection.m;
-            const float x = p[0] * w.x + p[4] * w.y + p[12], y = p[1] * w.x + p[5] * w.y + p[13];
-            const float wc = p[3] * w.x + p[7] * w.y + p[15];
-            return Vector2{ imageScreenRect.x + (x / wc * 0.5f + 0.5f) * imageScreenRect.width,
-                            imageScreenRect.y + (0.5f - y / wc * 0.5f) * imageScreenRect.height };
-        };
-        const Vector2 shown = toShown({ t.worldX, t.worldY });
-        const Vector2 anchor = toScreen(shown);
-        const float pixelsPerUnit = std::fabs(toScreen({ shown.x, shown.y + 1.0f }).y - anchor.y) * World3D::kPitchCos;
-        heightOwnsMouse = HandleHeightHandle(*world, entity, followers, anchor, pixelsPerUnit, ImGui::GetIO().KeyCtrl);
-    } else {
-        heightDragging_ = false;
-    }
-
     RecordGizmoDrag(editorService, entity, followers, gizmo);
-    return ImGuizmo::IsOver() || ImGuizmo::IsUsing() || heightOwnsMouse;
-}
-
-bool ViewportEditor::HandleHeightHandle(World& world, Entity entity, const std::vector<Entity>& followers,
-                                        Vector2 anchor, float pixelsPerUnit, bool snap) {
-    // Beside the move arrows (which point right and up from the anchor), so neither hides the other.
-    constexpr float kOffset = -22.0f, kLength = 70.0f, kGrab = 7.0f;
-    const ImVec2 base{ anchor.x + kOffset, anchor.y };
-    const ImVec2 tip{ base.x, base.y - kLength };
-    const ImVec2 mouse = ImGui::GetMousePos();
-    const bool hovered = std::fabs(mouse.x - base.x) <= kGrab && mouse.y >= tip.y - kGrab && mouse.y <= base.y;
-
-    auto& t = world.GetComponent<TransformComponent>(entity);
-    if (hovered && !heightDragging_ && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()) {
-        heightDragging_ = true;
-        heightDragMouseY_ = mouse.y;
-        heightDragStartZ_ = t.localZ;
-    }
-    if (heightDragging_ && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) heightDragging_ = false;
-    if (heightDragging_ && pixelsPerUnit > 0.0f) {
-        float z = heightDragStartZ_ + (heightDragMouseY_ - mouse.y) / pixelsPerUnit;
-        if (snap) z = std::round(z / 8.0f) * 8.0f;
-        const float delta = z - t.localZ;
-        t.localZ = z;
-        for (Entity follower : followers) world.GetComponent<TransformComponent>(follower).localZ += delta;
-    }
-
-    const bool active = hovered || heightDragging_;
-    const ImU32 color = active ? IM_COL32(255, 220, 90, 255) : IM_COL32(90, 200, 255, 255);
-    ImDrawList* draw = ImGui::GetWindowDrawList();
-    draw->AddLine(base, ImVec2{ tip.x, tip.y + 10.0f }, color, active ? 3.0f : 2.0f);
-    draw->AddTriangleFilled(tip, ImVec2{ tip.x - 6.0f, tip.y + 12.0f }, ImVec2{ tip.x + 6.0f, tip.y + 12.0f }, color);
-    draw->AddCircleFilled(base, 3.0f, color);
-    if (active) {
-        char label[32];
-        std::snprintf(label, sizeof(label), "z %.1f", t.localZ);
-        draw->AddText(ImVec2{ tip.x + 9.0f, tip.y }, color, label);
-    }
-    if (active) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-    return active;
+    return ImGuizmo::IsOver() || ImGuizmo::IsUsing();
 }
 
 void ViewportEditor::RecordGizmoDrag(IEditorService& editorService, Entity primary,
@@ -843,7 +1071,7 @@ void ViewportEditor::RecordGizmoDrag(IEditorService& editorService, Entity prima
     // drag-begin or drag-end of its own. Rather than record each frame and merge them, watch the
     // edge of IsUsing() and snapshot once at each end: the entry is then exactly the drag.
     auto* world = editorService.GetWorld();
-    const bool dragging = ImGuizmo::IsUsing() || heightDragging_;
+    const bool dragging = ImGuizmo::IsUsing();
     const std::string tag = ComponentRegistry::Instance().GetXmlTag(TransformComponent::Name());
 
     if (dragging && gizmoDragEntities_.empty()) {
@@ -909,11 +1137,15 @@ void ViewportEditor::DrawGrid(IEditorService& editorService, const CameraView& v
     const Vector2 cell = grid.Cell();
     if (cell.x <= 0.0f || cell.y <= 0.0f) return;
 
-    // The world rect the viewport currently shows.
-    const Vector2 topLeft = Systems::RenderProjector::FramebufferToWorld({0.0f, 0.0f}, view);
-    const Vector2 bottomRight = Systems::RenderProjector::FramebufferToWorld({view.viewport.width, view.viewport.height}, view);
-    const float minX = std::min(topLeft.x, bottomRight.x), maxX = std::max(topLeft.x, bottomRight.x);
-    const float minY = std::min(topLeft.y, bottomRight.y), maxY = std::max(topLeft.y, bottomRight.y);
+    // The world rect around the ground the viewport currently shows (its corners, which an
+    // orbiting camera turns).
+    float minX = 1e30f, maxX = -1e30f, minY = 1e30f, maxY = -1e30f;
+    for (Vector2 corner : {Vector2{0.0f, 0.0f}, Vector2{view.viewport.width, 0.0f}, Vector2{0.0f, view.viewport.height},
+                           Vector2{view.viewport.width, view.viewport.height}}) {
+        const Vector2 ground = Systems::RenderProjector::FramebufferToWorld(corner, view);
+        minX = std::min(minX, ground.x); maxX = std::max(maxX, ground.x);
+        minY = std::min(minY, ground.y); maxY = std::max(maxY, ground.y);
+    }
 
     const ImVec4 color = Palette().WithAlpha(Palette().Border, 0.55f);
 
@@ -1067,6 +1299,14 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
         return Vector2{ imageScreenRect.x + fbPos.x, imageScreenRect.y + fbPos.y };
     };
 
+    // A world rectangle, as the camera shows it (a turned camera turns it).
+    auto drawQuad = [&](Rectangle r, bool isWorldSpace, ImU32 color) {
+        const Vector2 a = project({r.x, r.y}, isWorldSpace), b = project({r.x + r.width, r.y}, isWorldSpace);
+        const Vector2 c = project({r.x + r.width, r.y + r.height}, isWorldSpace), d = project({r.x, r.y + r.height}, isWorldSpace);
+        const ImVec2 points[4] = {{a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {d.x, d.y}};
+        drawList->AddPolyline(points, 4, color, ImDrawFlags_Closed, Theme().OverlayLineWidth);
+    };
+
     // Origin axes — always a world-space concept.
     constexpr float kAxisExtent = 1'000'000.0f;
     Vector2 xStart = project({-kAxisExtent, 0.0f}, true);
@@ -1085,9 +1325,7 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
         float zoom = camera.zoom != 0.0f ? camera.zoom : 1.0f;
         float halfW = (camera.viewport.width  * 0.5f) / zoom;
         float halfH = (camera.viewport.height * 0.5f) / zoom;
-        Vector2 tl = project({t.worldX - halfW, t.worldY - halfH}, true);
-        Vector2 br = project({t.worldX + halfW, t.worldY + halfH}, true);
-        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), cameraGizmoColor, 0.0f, 0, Theme().OverlayLineWidth);
+        drawQuad({t.worldX - halfW, t.worldY - halfH, halfW * 2.0f, halfH * 2.0f}, true, cameraGizmoColor);
     });
 
     OverlayPainter painter(drawList, [&](Vector2 p) { return project(p, true); }, view.zoom, Theme().OverlayLineWidth);
@@ -1125,9 +1363,16 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, IEditorSe
                                  Theme().SelectionFallback * 2.0f, Theme().SelectionFallback * 2.0f };
         }
         if (!bounds) continue;
-        Vector2 tl = project({ bounds->x, bounds->y }, info.isWorldSpace);
-        Vector2 br = project({ bounds->x + bounds->width, bounds->y + bounds->height }, info.isWorldSpace);
-        drawList->AddRect(ImVec2(tl.x, tl.y), ImVec2(br.x, br.y), selectionColor, 0.0f, 0, Theme().OverlayLineWidth);
+        if (info.isWorldSpace && !view.IsDefaultOrientation()) {
+            // A turned camera: outline where the entity is actually drawn.
+            if (auto drawn = TurnedOutline(*world, editorService, entity, view, *bounds)) {
+                drawList->AddRect(ImVec2(imageScreenRect.x + drawn->x, imageScreenRect.y + drawn->y),
+                                  ImVec2(imageScreenRect.x + drawn->x + drawn->width, imageScreenRect.y + drawn->y + drawn->height),
+                                  selectionColor, 0.0f, 0, Theme().OverlayLineWidth);
+                continue;
+            }
+        }
+        drawQuad(*bounds, info.isWorldSpace, selectionColor);
     }
 
     drawList->PopClipRect();

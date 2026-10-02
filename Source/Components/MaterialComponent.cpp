@@ -47,8 +47,6 @@ namespace Elysium {
                 .SetAttribute("material", layer.material.c_str())
                 .SetAttribute("enabled", layer.enabled);
             if (!layer.texturePath.empty()) layerEl.SetAttribute("texture", layer.texturePath.c_str());
-            if (!layer.normalMapPath.empty()) layerEl.SetAttribute("normalMap", layer.normalMapPath.c_str());
-            if (!layer.emissionMapPath.empty()) layerEl.SetAttribute("emissionMap", layer.emissionMapPath.c_str());
             SaveUniformOverrides(layerEl, layer.overrides);
         }
     }
@@ -65,11 +63,7 @@ namespace Elysium {
             if (const char* material = layerEl->Attribute("material")) layer.material = material;
             layer.enabled = layerEl->BoolAttribute("enabled", true);
             if (const char* texture = layerEl->Attribute("texture")) layer.texturePath = texture;
-            if (const char* normal = layerEl->Attribute("normalMap")) layer.normalMapPath = normal;
-            if (const char* emission = layerEl->Attribute("emissionMap")) layer.emissionMapPath = emission;
-            for (const std::string* path : {&layer.texturePath, &layer.normalMapPath, &layer.emissionMapPath}) {
-                if (!path->empty()) assetService.LoadAsset<Texture>(Path(*path));
-            }
+            if (!layer.texturePath.empty()) assetService.LoadAsset<Texture>(Path(layer.texturePath));
             LoadUniformOverrides(layerEl, layer.overrides);
             c.layers.push_back(std::move(layer));
         }
@@ -122,12 +116,6 @@ namespace Elysium {
                 if (layer.material == "Texture") {
                     if (AssetFieldRow("Texture", AssetKind::Texture, layer.texturePath) && !layer.texturePath.empty()) {
                         assetService.LoadAsset<Texture>(Path(layer.texturePath));
-                    }
-                    if (AssetFieldRow("Normal Map", AssetKind::Texture, layer.normalMapPath) && !layer.normalMapPath.empty()) {
-                        assetService.LoadAsset<Texture>(Path(layer.normalMapPath));
-                    }
-                    if (AssetFieldRow("Emission Map", AssetKind::Texture, layer.emissionMapPath) && !layer.emissionMapPath.empty()) {
-                        assetService.LoadAsset<Texture>(Path(layer.emissionMapPath));
                     }
                 }
 
@@ -215,8 +203,6 @@ namespace Elysium {
         layerType["material"] = sol::readonly_property([](MaterialLayer& l) { return l.material; });
         layerType["enabled"] = &MaterialLayer::enabled;
         layerType["texture"] = &MaterialLayer::texturePath;
-        layerType["normalMap"] = &MaterialLayer::normalMapPath;
-        layerType["emissionMap"] = &MaterialLayer::emissionMapPath;
         layerType["Set"] = [](MaterialLayer& l, const std::string& name, sol::object v) {
             if (std::optional<Value> value = ValueFromLua(v)) l.overrides[name] = *value;
         };

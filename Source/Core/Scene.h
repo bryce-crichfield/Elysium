@@ -12,18 +12,14 @@
 #include "Core/Xml.h"
 namespace Elysium {
 
-// Constants
-constexpr float TILE_WIDTH = 32.0f;
-constexpr float TILE_HEIGHT = 32.0f;
-
 class ServiceLocator;
 
 enum class SceneLayerSpace {
-    World2D,
-    Screen2D,
-    // The 2D world's ground in true 3D (Core/World3D.h): models with depth, and everything
-    // else as upright cards facing the camera. Drawn through the same camera as World2D.
+    // The world, in 3D (Core/World3D.h): models with depth, and everything else as upright
+    // cards facing the camera, or lying on the ground (SceneLayer::ground).
     World3D,
+    // The game screen, in its own pixels: UI.
+    Screen2D,
 };
 
 enum class SceneLayerBlend {
@@ -39,40 +35,31 @@ struct SceneLayer {
     bool isComposited = false;      // If composited, the layer will render to a render target instead of immediately to the framebuffer
     float opacity = 1.0f;
 
-    SceneLayerSpace space = SceneLayerSpace::World2D;
+    SceneLayerSpace space = SceneLayerSpace::World3D;
+    // World3D: what isn't a model lies flat on the ground (selection rings, shadow blobs, move
+    // markers) instead of standing up as a card. Its position is a point in the ground picture,
+    // as the default camera sees it (see Core/World3D.h), drawn in layer order, without depth.
+    bool ground = false;
     SceneLayerBlend layerBlend = SceneLayerBlend::Normal;      // how objects in this layer are blended when rendered with respect to each other
     SceneLayerBlend compositeBlend = SceneLayerBlend::Normal;  // how this layer is blended when composited onto the framebuffer
 
-    Color ambient{0, 0, 0, 0};
+    Color ambient{0, 0, 0, 0};  // composited layers: what the layer's buffer is cleared to
 
-    // Lighting (see RenderCompositor::RenderLit). A lit layer is drawn three times, into
-    // albedo, normal and emission buffers. Its light is the ambient plus its own emission:
-    // every glowing pixel (a Fire, a Glow, an emissive map) lights the surfaces around it
-    // as if hovering lightHeight above the layer, out to lightReach.
-    bool isLit = false;
-    Color lightAmbient{96, 96, 112, 255};   // light everywhere, before any emitter
-    float lightReach = 300.0f;              // world units an emitter's light carries
-    float lightHeight = 24.0f;              // world units emitters sit above what they light
-    float lightStrength = 8.0f;
-    int lightBands = 0;                     // > 0: quantize each light into that many steps (cel)
-    float outline = 0.0f;                   // ink lines at silhouettes and normal creases, 0..1
-    Color outlineColor{20, 16, 24, 255};
-    // Occluders (OccluderComponent footprints) block the light: rays stop at walls, and
-    // anything shorter than lightHeight casts a shadow that ends. Off: light passes through.
-    bool shadows = true;
-    // Light from LightComponents instead of the layer's emission: each pixel is placed in
-    // the 3D world (its ground point and height), lit by every point light that reaches it,
-    // and shadowed by occluder footprints extruded to their height (cube shadow maps).
-    // Emission still glows, it just doesn't light anything. Shared by every such layer.
-    bool pointLights = false;
-    float shadowBias = 12.0f;               // world units a pixel is lifted off its surface before the shadow test
-    // Point lights only: how far what no vision light (LightComponent::vision) can see fades
-    // to fogColor. 0 off, 1 hidden.
+    // Lighting, for World3D layers' models and cards (RenderCompositor::Render3D): the ambient,
+    // plus every LightComponent in reach, shadowed by the models.
+    Color lightAmbient{96, 96, 112, 255};   // light everywhere, before any light
+    bool shadows = true;                    // the models cast shadows
+    float shadowBias = 12.0f;               // world units a point is lifted off its surface before the shadow test
+    // How far what no vision light (LightComponent::vision) can see fades to fogColor. 0 off,
+    // 1 hidden.
     float fogOfWar = 0.0f;
     Color fogColor{6, 6, 12, 255};
-    // Shows one of the lighting buffers instead of the lit layer (not saved): 1 the
-    // occluder field, 2 the height buffer, 3 the gathered light, 4 ground emission.
-    int lightDebug = 0;
+    // The editor's lighting switch is off (not saved): drawn as if fully lit, with no lights,
+    // shadows or fog. Set on the render sorter's copy only, see RenderSorter.
+    bool unlit = false;
+
+    // Whether this layer is lit (a World3D layer standing in the world, not lying on the ground).
+    bool IsLit() const { return space == SceneLayerSpace::World3D && !ground; }
 
     static constexpr const char* XmlTag() { return "SceneLayer"; }
 

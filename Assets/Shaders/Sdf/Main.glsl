@@ -1,24 +1,3 @@
-// Defaults for the lit-layer hooks a material didn't define.
-#ifndef HAS_SURFACE_NORMAL
-vec3 SurfaceNormal(float sd, vec2 p, vec2 uv, vec4 color) { return vec3(0.0, 0.0, 1.0); }
-#endif
-#ifndef HAS_SURFACE_EMISSION
-vec3 SurfaceEmission(float sd, vec2 p, vec2 uv, vec4 color) { return vec3(0.0); }
-#endif
-
-#if defined(E_OUTPUT_Height)
-// The height pass (see RenderCompositor::RenderLit). Where this pixel is in the world:
-// the quad's first corner plus its two edges, which fragTexCoord spans 0..1. The shape
-// stands on a ground line through e_GroundAnchor (its footprint's centre) with slope
-// e_GroundSlope (dy/dx, along a wall's footprint; 0 for anything round).
-uniform vec2 e_QuadCorner;
-uniform vec2 e_QuadAxisU;
-uniform vec2 e_QuadAxisV;
-uniform vec2 e_GroundAnchor;
-uniform float e_GroundSlope;
-uniform float e_GroundFlat;     // 1: lies on the ground (a floor tile), height 0 everywhere
-#endif
-
 void main()
 {
     vec2 p = (fragTexCoord - 0.5) * e_QuadSize;
@@ -39,34 +18,5 @@ void main()
         color.a *= smoothstep(0.0, band, min(toQuadEdge.x, toQuadEdge.y));
     }
 
-    // One of four surfaces, per the E_OUTPUT_ define ShaderAsset prepends: lit layers draw
-    // everything three times (RenderCompositor::RenderLit). Alpha is the coverage in all
-    // three, so a sprite drawn over another hides its normals and glow too.
-#if defined(E_OUTPUT_Normal)
-  #if defined(SURFACE_NO_NORMAL)
-    finalColor = vec4(0.0);
-  #else
-    vec3 n = SurfaceNormal(sd, p, uv, color);
-    // Quad frame -> screen: mirror by the scale's signs, then rotate. The draw rotation
-    // turns clockwise on a y-down screen, which is the reverse in these y-up normals.
-    n.xy *= e_NormalXform.zw;
-    vec2 c = e_NormalXform.xy;
-    n.xy = vec2(n.x * c.x + n.y * c.y, -n.x * c.y + n.y * c.x);
-    finalColor = vec4(normalize(n) * 0.5 + 0.5, color.a * colDiffuse.a * fragColor.a);
-  #endif
-#elif defined(E_OUTPUT_Height)
-    // How far above its ground line this pixel stands, in world units (y-down, so the
-    // ground is below). Opaque writes only: a half-covered glow must not lift the floor.
-    if (color.a * colDiffuse.a * fragColor.a < 0.5) discard;
-    vec2 world = e_QuadCorner + fragTexCoord.x * e_QuadAxisU + fragTexCoord.y * e_QuadAxisV;
-    float groundY = e_GroundAnchor.y + e_GroundSlope * (world.x - e_GroundAnchor.x);
-    // r: height; g: the ground line's slope; b: 1 for a surface standing on it (a wall, a
-    // unit), 0 for one lying on the ground. Lighting.fs rebuilds the 3D point and normal.
-    bool lying = e_GroundFlat > 0.5;
-    finalColor = vec4(lying ? 0.0 : max(groundY - world.y, 0.0), e_GroundSlope, lying ? 0.0 : 1.0, 1.0);
-#elif defined(E_OUTPUT_Emission)
-    finalColor = vec4(SurfaceEmission(sd, p, uv, color), color.a * colDiffuse.a * fragColor.a);
-#else
     finalColor = color * colDiffuse * fragColor;
-#endif
 }

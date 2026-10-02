@@ -1,7 +1,6 @@
 #include "Editor/SpatialOverlays.h"
 #include <unordered_set>
 #include "Components/ColliderComponent.h"
-#include "Components/OccluderComponent.h"
 #include "Components/TransformComponent.h"
 #include "Core/Geometry.h"
 #include "Core/World.h"
@@ -9,7 +8,6 @@
 #include "Editor/Theme.h"
 #include "Editor/Widgets.h"
 #include "Interfaces/IEditorService.h"
-#include "Systems/OcclusionSystem.h"
 
 namespace Elysium {
 
@@ -28,7 +26,7 @@ void DrawSpatialOverlays(World& world, Services::IEditorService& editor, const S
     const auto& selectedList = editor.GetSelectedEntities();
     const std::unordered_set<Entity> selected(selectedList.begin(), selectedList.end());
     // A hidden layer hides its overlays too — otherwise hiding a layer still leaves its collider
-    // and occluder wireframes cluttering the viewport. Selection still wins, so you can inspect
+    // wireframes cluttering the viewport. Selection still wins, so you can inspect
     // something you picked before hiding its layer.
     auto shown = [&](Entity e, bool option) {
         if (selected.contains(e)) return true;
@@ -41,14 +39,6 @@ void DrawSpatialOverlays(World& world, Services::IEditorService& editor, const S
         auto polygon = area.LocalPolygon();
         if (polygon.empty()) return;
         painter.Polygon(TranslatePolygon(polygon, {t.worldX, t.worldY}), Palette::WithAlpha(NavAreaColor(area.Type()), 0.7f), 0.14f);
-    });
-
-    world.Query<TransformComponent, OccluderComponent>([&](Entity e, auto&, auto& occluder) {
-        if (!shown(e, options.occluders)) return;
-        auto volume = Systems::ResolveOccluder(world, e);
-        const ImVec4 color = Palette::WithAlpha(Editor::Palette().Occluder, occluder.isStatic ? 1.0f : 0.6f);
-        if (volume.height > 0.0f) painter.Polygon(volume.volume, Palette::WithAlpha(color, color.w * 0.35f));
-        painter.Polygon(volume.footprint, color);
     });
 
     world.Query<TransformComponent, ColliderComponent>([&](Entity e, auto& t, auto& collider) {
@@ -72,7 +62,6 @@ void DrawOverlayToggles(SpatialOverlayOptions& options) {
         ImGui::SameLine();
     };
     toggle(ICON_FA_SHAPES, options.colliders, "Show collider outlines");
-    toggle(ICON_FA_BUILDING, options.occluders, "Show occluder footprints and volumes");
     toggle(ICON_FA_ROUTE, options.navAreas, "Show nav areas");
     // The note is prose, not a control, so it sits past a rule like every other group.
     ToolbarSeparator();

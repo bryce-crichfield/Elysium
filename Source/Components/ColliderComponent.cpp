@@ -65,6 +65,8 @@ namespace Elysium {
         if (el->Attribute("isTrigger")) c.isTrigger = el->BoolAttribute("isTrigger");
         if (el->Attribute("shape")) c.shape = el->Attribute("shape");
         if (el->Attribute("radius")) c.radius = el->FloatAttribute("radius");
+        if (el->Attribute("bottom")) c.bottom = el->FloatAttribute("bottom");
+        if (el->Attribute("top")) c.top = el->FloatAttribute("top");
         c.points = ReadPolygonAttribute(el, "points");
         c.SyncBoxToPolygon();
     }
@@ -79,6 +81,8 @@ namespace Elysium {
         if (!c.points.empty()) b.SetAttribute("points", c.points.c_str());
         if (c.shape != "Auto") b.SetAttribute("shape", c.shape.c_str());
         if (c.radius > 0.0f) b.SetAttribute("radius", c.radius);
+        if (c.bottom != 0.0f) b.SetAttribute("bottom", c.bottom);
+        if (c.top != 0.0f) b.SetAttribute("top", c.top);
     }
 
     FieldList ColliderComponent::Fields() {
@@ -91,6 +95,8 @@ namespace Elysium {
             Field("Shape", &ColliderComponent::shape, "shape").Section("Shape"),
             Field("Radius", &ColliderComponent::radius, "radius").Speed(0.5f).Range(0.0f, 512.0f),
             Field("Polygon", &ColliderComponent::points, "points"),
+            Field("Bottom", &ColliderComponent::bottom, "bottom").Section("Height").Speed(0.5f),
+            Field("Top", &ColliderComponent::top, "top").Speed(0.5f),
         };
     }
 
@@ -102,6 +108,8 @@ namespace Elysium {
         ut["isTrigger"] = &ColliderComponent::isTrigger;
         ut["shape"] = &ColliderComponent::shape;
         ut["radius"] = &ColliderComponent::radius;
+        ut["bottom"] = &ColliderComponent::bottom;
+        ut["top"] = &ColliderComponent::top;
         ut["points"] = sol::property(
             [](ColliderComponent& c) { return c.points; },
             [](ColliderComponent& c, const std::string& v) { c.points = v; c.SyncBoxToPolygon(); });
@@ -117,6 +125,8 @@ namespace Elysium {
             if (t["isTrigger"].valid()) c.isTrigger = t["isTrigger"];
             if (t["shape"].valid()) c.shape = t["shape"].get<std::string>();
             if (t["radius"].valid()) c.radius = t["radius"];
+            if (t["bottom"].valid()) c.bottom = t["bottom"];
+            if (t["top"].valid()) c.top = t["top"];
             if (t["points"].valid()) { c.points = t["points"].get<std::string>(); c.SyncBoxToPolygon(); }
         }
     }

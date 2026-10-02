@@ -71,7 +71,6 @@ class ModelPane : public ContentPane {
     }
 
     void DrawToolbar() override {
-        ImGui::SameLine();
         if (ToggleIconButton(ICON_FA_ROTATE, spin_, "Turntable")) spin_ = !spin_;
         if (const Model* model = services_.Get<Services::IAssetService>().Get<Model>(path_)) {
             char info[96];
@@ -105,7 +104,10 @@ class ModelPane : public ContentPane {
 
         const ::Vector3 min{model->boundsMin[0], model->boundsMin[1], model->boundsMin[2]};
         const ::Vector3 max{model->boundsMax[0], model->boundsMax[1], model->boundsMax[2]};
-        const ::Vector3 center{(min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f, (min.z + max.z) * 0.5f};
+        // Stood on the grid: footprint centred on the origin, base at y 0 (as a centered
+        // ModelComponent places it), so it turns about its own middle.
+        const ::Vector3 offset{-(min.x + max.x) * 0.5f, -min.y, -(min.z + max.z) * 0.5f};
+        const ::Vector3 center{0.0f, (max.y - min.y) * 0.5f, 0.0f};
         const float radius = 0.5f * std::sqrt((max.x - min.x) * (max.x - min.x) + (max.y - min.y) * (max.y - min.y) +
                                               (max.z - min.z) * (max.z - min.z));
         constexpr float kFov = 40.0f, kPitch = 0.45f;
@@ -136,7 +138,8 @@ class ModelPane : public ContentPane {
                 ::Material& material = native.materials[native.meshMaterial[i]];
                 const ::Shader previous = material.shader;
                 material.shader = shader;
-                DrawMesh(native.meshes[i], material, native.transform);
+                DrawMesh(native.meshes[i], material,
+                         MatrixMultiply(native.transform, MatrixTranslate(offset.x, offset.y, offset.z)));
                 material.shader = previous;
             }
         }

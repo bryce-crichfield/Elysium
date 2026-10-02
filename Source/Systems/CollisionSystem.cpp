@@ -130,7 +130,7 @@ void CollisionSystem::Update(float deltaTime) {
         });
 
     // O(n^2) broad phase - simple for now
-    // TODO: Use SpatialSystem for broad phase optimization
+    // TODO: a spatial hash for the broad phase
     // TODO: Consider camera and viewport for math. (if we change zoom, collisions break because colliders are sized for 1:1 pixels)
     for (size_t i = 0; i < collidables.size(); ++i) {
         for (size_t j = i + 1; j < collidables.size(); ++j) {
@@ -141,6 +141,12 @@ void CollisionSystem::Update(float deltaTime) {
             const auto& transformB = world->GetComponent<TransformComponent>(b.entity);
             const Vector2 posA{transformA.worldX, transformA.worldY};
             const Vector2 posB{transformB.worldX, transformB.worldY};
+
+            // Heights first: a flier over a low wall never touches it.
+            float lowA, highA, lowB, highB;
+            a.collider.HeightRange(transformA.worldZ, lowA, highA);
+            b.collider.HeightRange(transformB.worldZ, lowB, highB);
+            if (highA < lowB || highB < lowA) continue;
 
             // Broad phase: bounding rects, which for a circle cover it conservatively.
             if (!a.collider.GetBroadRect(posA.x, posA.y).Intersects(b.collider.GetBroadRect(posB.x, posB.y))) continue;

@@ -5,7 +5,6 @@
 #include <string>
 #include "Components/ColliderComponent.h"
 #include "Components/NavAreaComponent.h"
-#include "Components/OccluderComponent.h"
 #include "Components/TransformComponent.h"
 #include "Core/Editor.h"
 #include "Core/EntitySerializer.h"
@@ -36,19 +35,15 @@ Vector2 OriginOf(World& world, Entity entity) {
 }
 
 // The polygon-bearing components this tool understands, in the order the Shape parameter lists
-// them. Each is a local point list on an entity with a transform, so all three reshape
+// them. Each is a local point list on an entity with a transform, so both reshape
 // identically; only the field differs. kShapeLabels is what the UI calls them.
-const char* const kPolygonComponents[] = {NavAreaComponent::XmlTag(), OccluderComponent::XmlTag(),
-                                          ColliderComponent::XmlTag()};
-const char* const kShapeLabels[] = {"nav area", "occluder", "collider"};
+const char* const kPolygonComponents[] = {NavAreaComponent::XmlTag(), ColliderComponent::XmlTag()};
+const char* const kShapeLabels[] = {"nav area", "collider"};
 constexpr int kShapeCount = (int)(sizeof(kPolygonComponents) / sizeof(kPolygonComponents[0]));
 
 std::vector<Vector2> ReadPolygon(World& world, Entity entity, const std::string& tag) {
     if (tag == NavAreaComponent::XmlTag() && world.HasComponent<NavAreaComponent>(entity)) {
         return world.GetComponent<NavAreaComponent>(entity).LocalPolygon();
-    }
-    if (tag == OccluderComponent::XmlTag() && world.HasComponent<OccluderComponent>(entity)) {
-        return world.GetComponent<OccluderComponent>(entity).LocalFootprint();
     }
     if (tag == ColliderComponent::XmlTag() && world.HasComponent<ColliderComponent>(entity)) {
         return world.GetComponent<ColliderComponent>(entity).LocalPolygon();
@@ -60,8 +55,6 @@ void WritePolygon(World& world, Entity entity, const std::string& tag, const std
     const std::string text = FormatPointList(local);
     if (tag == NavAreaComponent::XmlTag() && world.HasComponent<NavAreaComponent>(entity)) {
         world.GetComponent<NavAreaComponent>(entity).points = text;
-    } else if (tag == OccluderComponent::XmlTag() && world.HasComponent<OccluderComponent>(entity)) {
-        world.GetComponent<OccluderComponent>(entity).footprint = text;
     } else if (tag == ColliderComponent::XmlTag() && world.HasComponent<ColliderComponent>(entity)) {
         auto& collider = world.GetComponent<ColliderComponent>(entity);
         collider.points = text;
@@ -108,11 +101,11 @@ EdgeHit NearestEdge(const std::vector<Vector2>& polygon, Vector2 point, float ra
 const char* VertexTool::Icon() const { return ICON_FA_VECTOR_SQUARE; }
 
 const char* VertexTool::Unavailable(Services::IEditorService& editor, bool isScene) const {
-    (void)isScene;  // an occluder or nav area is editable on a prefab tab too
+    (void)isScene;  // a nav area or collider is editable on a prefab tab too
     World* world = editor.GetWorld();
     if (!world) return "Open a scene or prefab to edit outlines";
 
-    // Deliberately any of the three kinds, not the chosen one: the choice lives in this tool's own
+    // Deliberately either kind, not the chosen one: the choice lives in this tool's own
     // panel, so gating on it would make the tool unselectable and the choice unreachable. A
     // selection carrying no polygon of the chosen kind leaves the tool selectable and says so.
     for (Entity entity : editor.GetSelectedEntities()) {
@@ -121,7 +114,7 @@ const char* VertexTool::Unavailable(Services::IEditorService& editor, bool isSce
             if (ReadPolygon(*world, entity, tag).size() >= 3) return nullptr;
         }
     }
-    return "Select a nav area, occluder or collider to reshape it";
+    return "Select a nav area or collider to reshape it";
 }
 
 void VertexTool::OnDeactivate(Services::IEditorService&) {
@@ -138,7 +131,7 @@ ToolStatus VertexTool::Status(Services::IEditorService& editor) const {
     if (!world) return {};
 
     // Name what is actually being reshaped. Not knowing that was the confusing part: an entity can
-    // carry a nav area, an occluder and a collider at once, and three outlines in the same colour
+    // carry a nav area and a collider at once, and two outlines in the same colour
     // said nothing about which one a drag would move.
     const char* label = kShapeLabels[shape_ >= 0 && shape_ < kShapeCount ? shape_ : 0];
     const char* tag = ShapeTag();

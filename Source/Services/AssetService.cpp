@@ -2,7 +2,6 @@
 #include <algorithm>
 #include "Core/Assets/SpriteAsset.h"
 #include "Core/Assets/TextureAsset.h"
-#include "Core/Assets/TileAsset.h"
 #include "Core/Common.h"
 #include "Interfaces/ITaskService.h"
 #include "Services/LogService.h"
@@ -173,24 +172,12 @@ void AssetService::FinishLoad(Path path, IAsset* raw) {
         return;
     }
 
-    // Sprites/tiles reference a sheet texture by path — kick off that load too.
+    // Sprites reference a sheet texture by path — kick off that load too.
     if (auto* spriteAsset = dynamic_cast<SpriteAsset*>(owned.get())) {
         for (auto& [sheetName, sheet] : spriteAsset->GetData().sheets) {
             Path sheetPath(sheet.path);
             if (!IsAssetLoaded(sheetPath)) {
                 LOG_DEBUGF("AssetService", "Loading sheet texture: %s", sheetPath.c_str());
-                LoadAsset<Texture>(sheetPath);
-            }
-            for (const std::string* map : {&sheet.normalPath, &sheet.emissionPath}) {
-                if (!map->empty() && !IsAssetLoaded(Path(*map))) LoadAsset<Texture>(Path(*map));
-            }
-        }
-    } else if (auto* tileAsset = dynamic_cast<TileAsset*>(owned.get())) {
-        const Tile& tile = tileAsset->GetData();
-        if (!tile.sheet.path.empty()) {
-            Path sheetPath("Tiles/" + tile.sheet.path);
-            if (!IsAssetLoaded(sheetPath)) {
-                LOG_DEBUGF("AssetService", "Loading tile sheet texture: %s", sheetPath.c_str());
                 LoadAsset<Texture>(sheetPath);
             }
         }

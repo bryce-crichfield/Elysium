@@ -11,6 +11,8 @@
 #include "Editor/Widgets.h"
 #include "Interfaces/IEditorService.h"
 #include "Systems/NavMeshSystem.h"
+#include "Core/World3D.h"
+#include <cmath>
 
 namespace Elysium {
 
@@ -167,10 +169,13 @@ void NavMeshTool::DrawOverlay(ToolContext& context, OverlayPainter& painter) {
         for (int cy = 0; cy < nav->Height() && budget > 0; ++cy) {
             int runStart = -1;
             bool runCost = false;
+            float runZ = 0.0f;
+            // Each cell is drawn on its (top) floor: lifted by its height, as the picture draws it.
             auto flush = [&](int endX) {
                 if (runStart < 0) return;
                 const ImVec4& color = runCost ? Editor::Palette().Warning : Editor::Palette().Success;
-                painter.Rect({b.x + runStart * cs, b.y + cy * cs}, {b.x + endX * cs, b.y + (cy + 1) * cs}, color, 0.22f, 0.0f);
+                const float lift = runZ * World3D::kPitchCos;
+                painter.Rect({b.x + runStart * cs, b.y + cy * cs - lift}, {b.x + endX * cs, b.y + (cy + 1) * cs - lift}, color, 0.22f, 0.0f);
                 --budget;
                 runStart = -1;
             };
@@ -178,9 +183,10 @@ void NavMeshTool::DrawOverlay(ToolContext& context, OverlayPainter& painter) {
                 const auto* cell = nav->GetCell(cx, cy);
                 const bool walkable = cell && cell->walkable;
                 const bool cost = walkable && cell->cost > 1.0f;
-                if (walkable && runStart >= 0 && cost == runCost) continue;  // extend the run
+                // Extend the run while the floor stays level.
+                if (walkable && runStart >= 0 && cost == runCost && std::fabs(cell->z - runZ) < 1.0f) continue;
                 flush(cx);
-                if (walkable) { runStart = cx; runCost = cost; }
+                if (walkable) { runStart = cx; runCost = cost; runZ = cell->z; }
             }
             flush(nav->Width());
         }

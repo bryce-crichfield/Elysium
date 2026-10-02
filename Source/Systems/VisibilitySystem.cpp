@@ -1,13 +1,12 @@
 #include "Systems/VisibilitySystem.h"
-#include "Systems/OcclusionSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Entity.h"
 #include "Core/World.h"
-#include "Core/Geometry.h"
+#include "Core/World3D.h"
 #include "Components/TransformComponent.h"
 #include "Components/LayerComponent.h"
 #include "Components/LightComponent.h"
-#include "Components/OccluderComponent.h"
+#include "Components/ModelComponent.h"
 #include <cmath>
 
 namespace Elysium::Systems {
@@ -15,73 +14,55 @@ namespace Elysium::Systems {
 namespace {
 
 // The fog of war's question, asked of the world instead of the picture: can any vision light
-// (LightComponent::vision) see this point? Lighting.fs answers it per pixel from the shadow
-// maps; this answers it per unit from the occluder footprints, so the two agree: in range
-// (3D distance, the ground's y doubled as in WorldTo3D) and no occluder taller than the
-// eye standing between them.
+// (LightComponent::vision) see this point? Lighting answers it per pixel from the shadow maps;
+// this answers it per unit by casting the same rays at the same models, so the two agree: in
+// range (3D distance) and no model that casts shadows standing between them. Walkable models
+// (floors, stairs) don't cast, so they don't block either.
 struct Eye {
     Entity entity;
-    Vector2 ground;
-    float height;
+    Vector3 gl;
     float radius;
 };
 
 struct Blocker {
     Entity entity;
-    std::vector<Vector2> footprint;
-    Rectangle bounds;
-    float height;
+    Matrix matrix;
+    const Model* model;
 };
 
-float Cross(Vector2 a, Vector2 b) { return a.x * b.y - a.y * b.x; }
-
-bool SegmentsCross(Vector2 a, Vector2 b, Vector2 c, Vector2 d) {
-    const Vector2 r{b.x - a.x, b.y - a.y}, s{d.x - c.x, d.y - c.y};
-    const float denom = Cross(r, s);
-    if (std::fabs(denom) < 1e-6f) return false;
-    const Vector2 ac{c.x - a.x, c.y - a.y};
-    const float t = Cross(ac, s) / denom, u = Cross(ac, r) / denom;
-    return t >= 0.0f && t <= 1.0f && u >= 0.0f && u <= 1.0f;
-}
-
-bool Blocks(const Blocker& blocker, Vector2 from, Vector2 to) {
-    const Rectangle span{std::min(from.x, to.x), std::min(from.y, to.y), std::fabs(to.x - from.x) + 1.0f,
-                         std::fabs(to.y - from.y) + 1.0f};
-    if (!span.Intersects(blocker.bounds)) return false;
-    const auto& f = blocker.footprint;
-    for (size_t i = 0; i < f.size(); ++i)
-        if (SegmentsCross(from, to, f[i], f[(i + 1) % f.size()])) return true;
-    return false;
-}
-
-// How much of a vision radius counts as seen: Lighting.fs fades sight out over its last fifth.
+// How much of a vision radius counts as seen: Render3D's fog fades sight out over its last fifth.
 constexpr float kSightReach = 0.9f;
+// A unit is seen when the middle of it is, not its feet, which the floor's edge can hide.
+constexpr float kTargetLift = 8.0f;
 
 }  // namespace
 
 void VisibilitySystem::Update(float) {
     std::vector<Eye> eyes;
     world->Query<TransformComponent, LightComponent>([&](Entity e, auto& transform, auto& light) {
-        if (light.vision) eyes.push_back({e, {transform.worldX, transform.worldY}, light.height, light.radius});
+        if (light.vision) {
+            eyes.push_back({e, World3D::ToGL(transform.worldX, transform.worldY, transform.worldZ + light.height), light.radius});
+        }
     });
 
     std::vector<Blocker> blockers;
-    world->Query<TransformComponent, OccluderComponent>([&](Entity e, auto&, auto& occluder) {
-        if (!occluder.castsShadow) return;
-        OccluderVolume volume = ResolveOccluder(*world, e);
-        if (volume.height <= 0.0f || volume.footprint.size() < 3) return;
-        blockers.push_back({e, std::move(volume.footprint), {}, volume.height});
-        blockers.back().bounds = PolygonBounds(blockers.back().footprint);
+    world->Query<TransformComponent, ModelComponent>([&](Entity e, auto& transform, auto& model) {
+        if (model.walkable || !model.loaded || !model.loaded->native) return;
+        blockers.push_back({e, World3D::ModelMatrix(transform, model, *model.loaded), model.loaded});
     });
 
-    auto seen = [&](Entity target, Vector2 at) {
+    auto seen = [&](Entity target, Vector3 at) {
         for (const Eye& eye : eyes) {
-            const float dx = at.x - eye.ground.x, dz = (at.y - eye.ground.y) * 2.0f;
-            if (std::sqrt(dx * dx + dz * dz) > eye.radius * kSightReach) continue;
+            const Vector3 d{at.x - eye.gl.x, at.y - eye.gl.y, at.z - eye.gl.z};
+            const float distance = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+            if (distance > eye.radius * kSightReach) continue;
+            if (distance < 1e-3f) return true;
+            const Vector3 direction{d.x / distance, d.y / distance, d.z / distance};
             bool blocked = false;
             for (const Blocker& b : blockers) {
-                if (b.entity == eye.entity || b.entity == target || b.height < eye.height) continue;
-                if (Blocks(b, eye.ground, at)) { blocked = true; break; }
+                if (b.entity == eye.entity || b.entity == target) continue;
+                const auto hit = World3D::RayDistance(b.matrix, *b.model, eye.gl, direction);
+                if (hit && *hit < distance) { blocked = true; break; }
             }
             if (!blocked) return true;
         }
@@ -91,7 +72,8 @@ void VisibilitySystem::Update(float) {
     // What hides in fog (LayerComponent::hideInFog) is hidden while no vision light sees it;
     // RenderSorter hides its children with it. With no vision lights there's no fog.
     world->Query<TransformComponent, LayerComponent>([&](Entity e, auto& transform, auto& layer) {
-        layer.inFog = layer.hideInFog && !eyes.empty() && !seen(e, {transform.worldX, transform.worldY});
+        layer.inFog = layer.hideInFog && !eyes.empty() &&
+                      !seen(e, World3D::ToGL(transform.worldX, transform.worldY, transform.worldZ + kTargetLift));
     });
 }
 

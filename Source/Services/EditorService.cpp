@@ -342,9 +342,20 @@ void EditorService::OpenPrefab(const std::string& fullPath) {
     doc->parameters = prefab->GetParameters();
     doc->scene = std::make_shared<Elysium::Scene>(registry_);
 
-    // Borrow a scene's layers and systems so the prefab renders like it would in-game.
+    // Borrow a scene's layers and systems, so the prefab's entities find their layers and are
+    // drawn in the right space. But a preview, not the scene's look: each layer is drawn plain,
+    // without its lighting, fog, compositing or blending.
     if (const Elysium::Scene* host = HostScene()) {
         doc->scene->CopySetupFrom(*host, false);
+        for (SceneLayer& layer : doc->scene->GetLayers()) {
+            layer.isVisible = true;
+            layer.isComposited = false;
+            layer.opacity = 1.0f;
+            layer.layerBlend = layer.compositeBlend = SceneLayerBlend::Normal;
+            layer.ambient = {0, 0, 0, 0};
+            layer.fogOfWar = 0.0f;
+            layer.lightAmbient = {220, 220, 224, 255};  // World3D: an even light, so models read
+        }
     } else {
         LOG_WARNING("Editor", "No scene to borrow layers/systems from; the prefab won't render.");
     }

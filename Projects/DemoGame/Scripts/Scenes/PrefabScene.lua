@@ -135,7 +135,7 @@ function PrefabScene:OnEvent(event)
 
     if event.type == "KeyPressed" then
         if event.key == KEY_ESCAPE then
-            SceneReplace("ExploreScene")
+            SceneReplace("MenuScene")
             return true
         elseif event.key == KEY_N then
             self.navDebug = not self.navDebug

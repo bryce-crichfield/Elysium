@@ -6,7 +6,7 @@
         </Entity>
         <Entity id="2">
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Brazer/Brazer.png" normalMap="Textures/Brazer/Brazer_normal.png">
+                <Layer material="Texture" enabled="true" texture="Textures/Brazer/Brazer.png">
                     <Uniform name="uSourceRect" type="vec4" value="0.000000 0.000000 512.000000 512.000000"/>
                 </Layer>
             </MaterialComponent>

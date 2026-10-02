@@ -10,14 +10,13 @@
             <LayerComponent name="entity"/>
             <LightComponent color="#FFFFFFFF" intensity="1" radius="500" height="24" flicker="0" vision="true"/>
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Knight/Knight_idle.png" normalMap="Textures/Sprites/Knight/Knight_idle_normal.png">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Knight/Knight_idle.png">
                     <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
                     <Uniform name="uSourceRect" type="vec4" value="384.000000 0.000000 128.000000 128.000000"/>
                 </Layer>
             </MaterialComponent>
             <MovementComponent state="Idle" goalX="0" goalY="0"/>
             <NameComponent name="Knight"/>
-            <OccluderComponent footprint="0,-6 12,0 0,6 -12,0" height="38" isStatic="false" castsShadow="true" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
             <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5144093" originY="0.82500803"/>
             <ScriptComponent>
                 <Script name="Scripts/Elysium/Unit.lua"/>

@@ -42,6 +42,25 @@ void ModelBounds(const Matrix& modelMatrix, const Model& model, Vector3& min, Ve
     }
 }
 
+void ForEachTriangle(const Matrix& modelMatrix, const Model& model, const std::function<void(Vector3, Vector3, Vector3)>& visit) {
+    if (!model.native) return;
+    const ::Model& native = *static_cast<const ::Model*>(model.native);
+    const ::Matrix m = ToRaylib(modelMatrix);
+    for (int i = 0; i < native.meshCount; ++i) {
+        const ::Mesh& mesh = native.meshes[i];
+        if (!mesh.vertices) continue;
+        auto vertex = [&](int index) {
+            const ::Vector3 p = Vector3Transform({mesh.vertices[index * 3], mesh.vertices[index * 3 + 1], mesh.vertices[index * 3 + 2]}, m);
+            return Vector3{p.x, p.y, p.z};
+        };
+        for (int t = 0; t < mesh.triangleCount; ++t) {
+            int a = t * 3, b = t * 3 + 1, c = t * 3 + 2;
+            if (mesh.indices) { a = mesh.indices[a]; b = mesh.indices[b]; c = mesh.indices[c]; }
+            visit(vertex(a), vertex(b), vertex(c));
+        }
+    }
+}
+
 Rectangle ModelBounds2D(const Matrix& modelMatrix, const Model& model) {
     Vector3 min, max;
     ModelBounds(modelMatrix, model, min, max);
@@ -110,6 +129,53 @@ std::optional<float> PickDepth(const Matrix& modelMatrix, const Model& model, Ve
     const auto distance = RayDistance(modelMatrix, model, eye, Vector3{-kTowardCamera.x, -kTowardCamera.y, -kTowardCamera.z});
     if (!distance) return std::nullopt;
     return kFar - *distance;
+}
+
+std::optional<float> PickDepth(const Matrix& modelMatrix, const Model& model, Vector3 ground, Vector3 toward) {
+    constexpr float kFar = 100000.0f;
+    const Vector3 eye{ground.x + toward.x * kFar, ground.y + toward.y * kFar, ground.z + toward.z * kFar};
+    const auto distance = RayDistance(modelMatrix, model, eye, Vector3{-toward.x, -toward.y, -toward.z});
+    if (!distance) return std::nullopt;
+    return kFar - *distance;
+}
+
+View::View(Vector2 focus, float zoom_, float width, float height, float yaw, float pitch_) : zoom(zoom_), pitch(pitch_) {
+    // Turn the world about the vertical through the focus, tilt it toward the camera, scale.
+    const float cy = cosf(yaw * DEG2RAD), sy = sinf(yaw * DEG2RAD);
+    const float cp = cosf(pitch * DEG2RAD), sp = sinf(pitch * DEG2RAD);
+    const Vector3 f = ToGL(focus.x, focus.y, 0.0f);
+    // Turned: x' = cy x + sy z, z' = -sy x + cy z. Screen x is x', screen y is z' sin p less
+    // the height cos p, depth is the height sin p plus z' cos p.
+    const float x[3] = {zoom * cy, 0.0f, zoom * sy};
+    const float y[3] = {-zoom * sp * sy, -zoom * cp, zoom * sp * cy};
+    const float d[3] = {-zoom * cp * sy, zoom * sp, zoom * cp * cy};
+    auto fill = [&](float* row, const float* c, float offset) {
+        row[0] = c[0]; row[1] = c[1]; row[2] = c[2];
+        row[3] = offset - (c[0] * f.x + c[1] * f.y + c[2] * f.z);
+    };
+    fill(rowX, x, width * 0.5f);
+    fill(rowY, y, height * 0.5f);
+    fill(rowDepth, d, 0.0f);
+}
+
+Vector3 View::Project(Vector3 p) const {
+    auto dot = [&](const float* r) { return r[0] * p.x + r[1] * p.y + r[2] * p.z + r[3]; };
+    return {dot(rowX), dot(rowY), dot(rowDepth)};
+}
+
+Vector2 View::WorldToFramebuffer(float x, float y, float z) const {
+    const Vector3 p = Project(ToGL(x, y, z));
+    return {p.x, p.y};
+}
+
+Vector2 View::FramebufferToGround(Vector2 fb) const {
+    // On the ground GL y is 0 and z is 2 * ground y: solve the 2x2 of (x, z).
+    const float a = rowX[0], b = rowX[2], c = rowY[0], d = rowY[2];
+    const float det = a * d - b * c;
+    if (std::fabs(det) < 1e-12f) return {0.0f, 0.0f};
+    const float u = fb.x - rowX[3], v = fb.y - rowY[3];
+    const float gx = (d * u - b * v) / det, gz = (a * v - c * u) / det;
+    return {gx, gz / kGroundDepth};
 }
 
 }  // namespace Elysium::World3D

@@ -7,6 +7,7 @@
 #include "Core/Graphics.h"
 #include "Core/Framebuffer.h"
 #include "Core/ShadowAtlas.h"
+#include "Core/World3D.h"
 #include <span>
 #include <unordered_map>
 #include <unordered_set>
@@ -34,6 +35,13 @@ struct CameraView {
     bool screenInWorld = false;
     Vector2 screenOrigin{};
     float screenScale = 1.0f;
+
+    // Editor only: the orbit around `position` (see World3D::View). The default is the camera
+    // the ground picture is drawn from; turned away from it, ground layers lie on the ground plane.
+    float yaw = 0.0f;
+    float pitch = World3D::kDefaultPitch;
+
+    bool IsDefaultOrientation() const { return yaw == 0.0f && pitch == World3D::kDefaultPitch; }
 };
 
 // Deferred draw commands issued by Lua scripts
@@ -65,6 +73,8 @@ public:
     // A Screen2D position <-> framebuffer; the identity unless view.screenInWorld.
     static Vector2 ScreenToFramebuffer(Vector2 screenPos, const CameraView& view);
     static Vector2 FramebufferToScreen(Vector2 fbPos, const CameraView& view);
+    // The 3D view the camera looks through. World positions above are ground positions.
+    static World3D::View View3D(const CameraView& view);
 };
 
 // Builds one frame's sorted RenderRecord queue for a single CameraView: culls + collects
@@ -74,7 +84,6 @@ public:
     // Which keys order records within a layer; RenderSystem's parameters of the same names.
     struct SortOptions {
         bool hierarchySort = true;  // parents before children, siblings in child order
-        bool ySort = true;          // World2D layers: lower y first (things further down draw on top)
     };
     void SetSortOptions(const SortOptions& options) { sortOptions_ = options; }
 
@@ -95,6 +104,7 @@ private:
     std::vector<RenderRecord> queue_;
     std::unordered_set<Entity> hiddenEntities_;
     std::unordered_set<std::string> hiddenLayerOverride_;
+    bool unlitOverride_ = false;
     uint32_t nextCollectionOrder_ = 0;
     SortOptions sortOptions_;
 
@@ -103,29 +113,16 @@ public:
     // isVisible. Applied to the sorter's private copy of the layer list, so the editor's
     // hide/solo never becomes scene data. Empty in play mode.
     void SetHiddenLayerOverride(std::unordered_set<std::string> layers) { hiddenLayerOverride_ = std::move(layers); }
+    // Editor only: every layer drawn unlit this frame (the viewport's lighting switch), on the
+    // same private copy.
+    void SetUnlitOverride(bool unlit) { unlitOverride_ = unlit; }
 };
 
-// Renders one layer's slice of a RenderSorter's queue: immediate-mode straight to the
-// framebuffer, composited through an offscreen buffer (blend modes, opacity, ambient), or
-// lit (albedo/normal/emission buffers, lit by the layer's own emission).
+// Renders one layer's slice of a RenderSorter's queue: a World3D layer in 3D (Render3D), or a
+// ground or screen layer flat, immediate-mode straight to the framebuffer or composited through
+// an offscreen buffer (blend modes, opacity, ambient).
 class RenderCompositor {
 public:
-    // What lit layers' shadows are made of: every OccluderComponent that casts one, its
-    // footprint in world space extruded `height` up. Handed over once per frame by
-    // RenderSystem, which can walk the world mutably (ResolveOccluder needs to).
-    struct ShadowCaster {
-        std::vector<Vector2> footprint;
-        float height = 0.0f;
-        Entity owner = INVALID_ENTITY;  // a light on this entity ignores this caster
-    };
-    // The line an entity stands on, for the height pass: through its footprint's centre,
-    // along its long axis (a wall's run; flat for anything roughly round). Entities with
-    // no occluder stand on a flat line through their position.
-    struct GroundLine {
-        Vector2 anchor;
-        float slope = 0.0f;  // dy/dx
-        bool flat = false;   // lies on the ground (a floor tile) rather than standing on it
-    };
     // A LightComponent, already placed in the 3D world (see WorldTo3D in RenderSystem.cpp)
     // and flickered for this frame. color is premultiplied by intensity.
     struct PointLight {
@@ -135,15 +132,7 @@ public:
         bool vision = false;            // also clears the fog of war where it can see
         Entity owner = INVALID_ENTITY;
     };
-    void SetOccluders(std::vector<ShadowCaster> casters, std::unordered_map<Entity, GroundLine> groundLines) {
-        shadowCasters_ = std::move(casters);
-        groundLines_ = std::move(groundLines);
-        shadowAtlasDirty_ = true;
-    }
-    void SetLights(std::vector<PointLight> lights) {
-        lights_ = std::move(lights);
-        shadowAtlasDirty_ = true;
-    }
+    void SetLights(std::vector<PointLight> lights) { lights_ = std::move(lights); }
 
     void RenderLayer(RenderContext& ctx, const CameraView& view,
                       const SceneLayer& layer, std::span<const RenderRecord> records);
@@ -158,13 +147,6 @@ private:
                           const SceneLayer& layer, std::span<const RenderRecord> records);
     void RenderComposited(RenderContext& ctx, const CameraView& view,
                            const SceneLayer& layer, std::span<const RenderRecord> records);
-    // A lit layer: its records drawn four times, as albedo (the usual draw), normals,
-    // emission and height above the ground (material entities only; see Sdf/Main.glsl).
-    // The emission is moved down to where it stands on the ground, gathered across the
-    // ground through the occluder field (LightGather.fs), and combined onto the frame
-    // through Shaders/Lighting.fs, each pixel lit by what reaches its ground point.
-    void RenderLit(RenderContext& ctx, const CameraView& view,
-                   const SceneLayer& layer, std::span<const RenderRecord> records);
     // A World3D layer, through the iso camera with a depth buffer (Core/World3D.h): first its
     // models, then everything else as upright cards standing at their root's ground position,
     // far to near, depth-tested against the models but not each other.
@@ -197,13 +179,6 @@ private:
     // geometry + the layer's material. Records without geometry render normally.
     void RenderMaterialEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records);
 
-    // Rasterizes the shadow casters' footprints over the ground grid (origin/size, world;
-    // gridWidth x gridHeight texels) into occluderMask_, then jump-floods them into the
-    // nearest-occluder field. Returns the buffer holding the field. With `shadows` off,
-    // both come out empty.
-    const Framebuffer& BuildOccluderField(RenderContext& ctx, Shader& flood, Vector2 origin, Vector2 size,
-                                          int gridWidth, int gridHeight, bool shadows);
-
     Shader* GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material);
     Shader* GetShader(Services::IAssetService& assets, const Path& path);
     static void PushBlend(RenderContext& ctx, SceneLayerBlend blend);
@@ -211,33 +186,8 @@ private:
     const Framebuffer& EnsureEntityBuffer(Entity entity, int width, int height);
 
     Framebuffer compositeBuffer_;
-    Framebuffer normalBuffer_;
-    Framebuffer emissionBuffer_{1, 1, true};  // HDR: emission is brightness, it goes past 1
-    // Low resolution, HDR: the light gathered from the emission, and where it comes from.
-    Framebuffer lightBuffer_{1, 1, true};
-    Framebuffer directionBuffer_{1, 1, true};
-    // Full resolution, HDR: how far above its ground line each pixel is drawn, world units.
-    Framebuffer heightBuffer_{1, 1, true};
-    // The ground grid (half the layer's resolution, plus a margin): occluder footprints
-    // (r = height / 2040), their jump-flood field (ping-pong), and the emission moved down
-    // to the ground it stands on.
-    Framebuffer occluderMask_;
-    Framebuffer floodA_{1, 1, true};
-    Framebuffer floodB_{1, 1, true};
-    Framebuffer groundEmission_{1, 1, true};
-    std::vector<ShadowCaster> shadowCasters_;
-    std::unordered_map<Entity, GroundLine> groundLines_;
-    // Point lights (SceneLayer::pointLights): shared by every lit layer, so their shadow
-    // atlas is rendered once a frame, by the first lit layer that needs it.
+    // This frame's point lights, shared by every World3D layer.
     std::vector<PointLight> lights_;
-    ShadowAtlas shadowAtlas_;
-    bool shadowAtlasDirty_ = true;
-    void RenderShadowAtlas(RenderContext& ctx);
-
-    // Which surface RenderRecords is drawing. Only Color draws everything; Normal, Emission
-    // and Height draw material entities alone (through their @Normal/@Emission/@Height shaders).
-    enum class SurfaceOutput { Color, Normal, Emission, Height };
-    SurfaceOutput output_ = SurfaceOutput::Color;
     // One retained buffer per shaded entity, resized when its bounds change. Kept across
     // frames because allocating a render texture per entity per frame is not viable.
     std::unordered_map<Entity, Framebuffer> entityBuffers_;
@@ -288,6 +238,8 @@ public:
     void SetHiddenLayerOverride(std::unordered_set<std::string> layers) {
         _sorter.SetHiddenLayerOverride(std::move(layers));
     }
+    // Editor only: the viewport's lighting switch. See the sorter's method.
+    void SetUnlitOverride(bool unlit) { _sorter.SetUnlitOverride(unlit); }
 
 protected:
     SystemParameters DefaultParameters() const override;
@@ -295,8 +247,8 @@ protected:
 
 private:
     void FindCameras();
-    // Hands the compositor this frame's shadow casters and ground lines.
-    void CollectOccluders();
+    // Hands the compositor this frame's point lights.
+    void CollectLights();
     CameraView MakeCameraView(Entity cameraEntity);
     void RenderView(RenderContext& ctx, const CameraView& view);
 

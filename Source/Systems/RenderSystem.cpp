@@ -12,14 +12,12 @@
 #include "Components/LineComponent.h"
 #include "Components/MaterialComponent.h"
 #include "Components/ModelComponent.h"
-#include "Components/OccluderComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/PolygonComponent.h"
 #include "Components/RectangleComponent.h"
 #include "Components/ShaderComponent.h"
 #include "Components/SpriteComponent.h"
 #include "Components/TextComponent.h"
-#include "Components/TileComponent.h"
 #include "Components/TransformComponent.h"
 #include "Core/Assets/ShaderAsset.h"
 #include "Core/Common.h"
@@ -35,13 +33,11 @@
 #include "Core/Shader.h"
 #include "Core/Value.h"
 #include "Core/SystemRegistry.h"
-#include "Core/Tile.h"
 #include "Core/World3D.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
 #include "Interfaces/IEditorService.h"
 #include "Interfaces/ISceneService.h"
-#include "Systems/OcclusionSystem.h"
 #include "Core/RaylibConvert.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -52,10 +48,10 @@ extern "C" void* glfwGetProcAddress(const char* name);
 
 namespace Elysium::Systems {
 
-// The 3D world point lights live in. World2D positions are an isometric (2:1) picture of
-// the ground; seen through an orthographic camera tilted 30 degrees down, a ground point
-// (x, y) is (x, 0, 2y) in 3D, and something drawn h pixels above its ground point stands
-// h / cos(30) up. Y is up, Z toward the camera. Lighting.fs does the same for each pixel.
+// The 3D world point lights live in (GL, as Core/World3D.h). Ground positions are an
+// isometric (2:1) picture of the ground; seen through an orthographic camera tilted 30 degrees
+// down, a ground point (x, y) is (x, 0, 2y) in 3D, and something drawn h pixels above its
+// ground point stands h / cos(30) up. Y is up, Z toward the camera.
 static constexpr float kIsoCos = 0.8660254f;
 static Vector3 WorldTo3D(Vector2 ground, float height) {
     return Vector3{ground.x, height / kIsoCos, ground.y * 2.0f};
@@ -85,10 +81,6 @@ static RenderableTypeId DrawCmdTypeId() {
 // registered at the bottom of this file. Registration order determines draw order for a
 // single entity with multiple shape components (e.g. Rectangle + Text "button" pattern).
 
-static bool HasTileImpl(const World& world, Entity entity) {
-    if (!world.HasComponent<TileComponent>(entity)) return false;
-    return !world.GetComponent<TileComponent>(entity).tileName.empty();
-}
 static bool HasRectangleImpl(const World& world, Entity entity) { return world.HasComponent<RectangleComponent>(entity); }
 static bool HasCircleImpl(const World& world, Entity entity)    { return world.HasComponent<CircleComponent>(entity); }
 static bool HasTextImpl(const World& world, Entity entity)      { return world.HasComponent<TextComponent>(entity); }
@@ -124,46 +116,6 @@ static bool PickShaderImpl(const World& world, const RenderRecord& rec, Vector2 
     Rectangle b = *BoundsShaderImpl(world, rec);
     return testPos.x >= b.x && testPos.x <= b.x + b.width &&
            testPos.y >= b.y && testPos.y <= b.y + b.height;
-}
-
-static void RenderTileImpl(RenderContext& ctx, const RenderRecord& rec) {
-    const auto& comp = ctx.GetWorld().GetComponent<TileComponent>(rec.entity);
-    auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
-
-    auto* tileData = assets.Get<Tile>(Path(comp.tileName));
-    if (!tileData) return;
-    const Tile& tile = *tileData;
-    if (tile.IsEmpty()) return;
-
-    auto varIt = tile.variants.find(comp.variantName);
-    if (varIt == tile.variants.end()) {
-        varIt = tile.variants.find("default");
-        if (varIt == tile.variants.end()) return;
-    }
-    const TileVariant& variant = varIt->second;
-
-    auto* textureData = assets.Get<Texture>(Path("Tiles/" + tile.sheet.path));
-    if (!textureData) return;
-    const Texture& texture = *textureData;
-    if (texture.id == 0) return;
-
-    float frameWidth  = (float)texture.width  / (float)tile.sheet.cols;
-    float frameHeight = (float)texture.height / (float)tile.sheet.rows;
-
-    Rectangle sourceRect = {
-        (float)variant.col * frameWidth,
-        (float)variant.row * frameHeight,
-        frameWidth,
-        frameHeight
-    };
-    Rectangle destRect = {
-        rec.x - frameWidth  * tile.originX,
-        rec.y - frameHeight * tile.originY,
-        frameWidth,
-        frameHeight
-    };
-
-    ctx.DrawTexturePro(texture, sourceRect, destRect, {0, 0}, 0.0f, comp.tint);
 }
 
 // Axis-aligned box around a set of points (at least one).
@@ -416,14 +368,24 @@ Matrix RenderProjector::CalculateTransform(const CameraView& view, const SceneLa
         case SceneLayerSpace::Screen2D: {
             if (!view.screenInWorld) return Matrix::Identity();
             SceneLayer worldLayer = layer;
-            worldLayer.space = SceneLayerSpace::World2D;
+            worldLayer.space = SceneLayerSpace::World3D;
             Matrix screenToWorld = Matrix::Scale({view.screenScale, view.screenScale, 1.0f}) *
                                    Matrix::Translation({view.screenOrigin.x, view.screenOrigin.y, 0.0f});
             return screenToWorld * CalculateTransform(view, worldLayer);
         }
-        // A World3D layer's ground plane is the World2D picture (see Core/World3D.h).
-        case SceneLayerSpace::World3D:
-        case SceneLayerSpace::World2D: {
+        // The ground plane, the picture the default camera sees (see Core/World3D.h).
+        case SceneLayerSpace::World3D: {
+            if (!view.IsDefaultOrientation()) {
+                // The ground plane through the orbit: an affine map of ground (x, y).
+                const World3D::View v = View3D(view);
+                const Vector2 o = v.WorldToFramebuffer(0.0f, 0.0f);
+                const Vector2 ex = v.WorldToFramebuffer(1.0f, 0.0f), ey = v.WorldToFramebuffer(0.0f, 1.0f);
+                Matrix m = Matrix::Identity();
+                m.data[0] = ex.x - o.x;  m.data[1] = ex.y - o.y;
+                m.data[4] = ey.x - o.x;  m.data[5] = ey.y - o.y;
+                m.data[12] = o.x;        m.data[13] = o.y;
+                return m;
+            }
             Vector2 viewportCenter = {
                 view.viewport.width  * 0.5f,
                 view.viewport.height * 0.5f
@@ -438,7 +400,13 @@ Matrix RenderProjector::CalculateTransform(const CameraView& view, const SceneLa
     return Matrix::Identity();
 }
 
+World3D::View RenderProjector::View3D(const CameraView& view) {
+    return World3D::View(view.position, view.zoom != 0.0f ? view.zoom : 1.0f, view.viewport.width, view.viewport.height,
+                         view.yaw, view.pitch);
+}
+
 Vector2 RenderProjector::WorldToFramebuffer(Vector2 worldPos, const CameraView& view) {
+    if (!view.IsDefaultOrientation()) return View3D(view).WorldToFramebuffer(worldPos.x, worldPos.y);
     Vector2 viewportCenter = { view.viewport.width * 0.5f, view.viewport.height * 0.5f };
     float zoom = view.zoom != 0.0f ? view.zoom : 1.0f;
     return {
@@ -448,6 +416,7 @@ Vector2 RenderProjector::WorldToFramebuffer(Vector2 worldPos, const CameraView& 
 }
 
 Vector2 RenderProjector::FramebufferToWorld(Vector2 fbPos, const CameraView& view) {
+    if (!view.IsDefaultOrientation()) return View3D(view).FramebufferToGround(fbPos);
     Vector2 viewportCenter = { view.viewport.width * 0.5f, view.viewport.height * 0.5f };
     float zoom = view.zoom != 0.0f ? view.zoom : 1.0f;
     return {
@@ -498,14 +467,18 @@ void RenderSorter::CollectEntities(World& world, const CameraView& view) {
     auto& registry = RenderableRegistry::Instance();
     const auto& types = registry.All();
 
-    Vector2 cameraPos = view.position;
-    float halfW = (view.viewport.width  * 0.5f) / view.zoom;
-    float halfH = (view.viewport.height * 0.5f) / view.zoom;
-
-    float worldLeft   = cameraPos.x - halfW - 100;
-    float worldRight  = cameraPos.x + halfW + 100;
-    float worldTop    = cameraPos.y - halfH - 100;
-    float worldBottom = cameraPos.y + halfH + 100;
+    // The ground the view's corners show, with a margin for what stands above it.
+    float worldLeft = 1e30f, worldRight = -1e30f, worldTop = 1e30f, worldBottom = -1e30f;
+    for (Vector2 corner : {Vector2{0.0f, 0.0f}, Vector2{view.viewport.width, 0.0f}, Vector2{0.0f, view.viewport.height},
+                           Vector2{view.viewport.width, view.viewport.height}}) {
+        const Vector2 ground = RenderProjector::FramebufferToWorld(corner, view);
+        worldLeft = std::min(worldLeft, ground.x);
+        worldRight = std::max(worldRight, ground.x);
+        worldTop = std::min(worldTop, ground.y);
+        worldBottom = std::max(worldBottom, ground.y);
+    }
+    const float margin = view.IsDefaultOrientation() ? 100.0f : 400.0f;
+    worldLeft -= margin; worldRight += margin; worldTop -= margin; worldBottom += margin;
 
     world.Query<TransformComponent>([&](Entity entity, auto& transform) {
         if (world.HasComponent<CameraComponent>(entity)) return;
@@ -620,8 +593,8 @@ void RenderSorter::SortQueue() {
             if (a.hierarchyDepth != b.hierarchyDepth) return a.hierarchyDepth < b.hierarchyDepth;
             if (a.childIndex != b.childIndex) return a.childIndex < b.childIndex;
         }
-        // Y-sort only for World2D layers; ties (and Screen2D layers) fall back to collection order.
-        if (options.ySort && a.isWorldSpace && a.y != b.y) return a.y < b.y;
+        // World3D cards are ordered by depth in Render3D, ground decals by layer; ties fall
+        // back to collection order.
         return a.collectionOrder < b.collectionOrder;
     });
 }
@@ -639,6 +612,12 @@ void RenderSorter::Build(World& world, Scene& scene, const std::vector<DrawComma
     // flags are never touched, so hiding a layer to work on another can't be saved into the file.
     for (auto& layer : layers_) {
         if (hiddenLayerOverride_.contains(layer.name)) layer.isVisible = false;
+        if (unlitOverride_) {
+            layer.unlit = true;
+            layer.shadows = false;
+            layer.fogOfWar = 0.0f;
+            layer.lightAmbient = {255, 255, 255, 255};
+        }
     }
 
     layerNameToIndex_.clear();
@@ -731,13 +710,6 @@ void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderR
             ~PopLift() { if (active) ctx.PopMatrix(); }
         } popLift{ctx, lift != 0.0f};
 
-        // Normals and emission come from materials alone; anything else (text, tiles,
-        // script draws) leaves the flat, dark defaults the buffers were cleared to.
-        if (output_ != SurfaceOutput::Color) {
-            if (IsEnabled<MaterialComponent>(world, entity)) RenderMaterialEntity(ctx, entity, group);
-            continue;
-        }
-
         // A ShaderComponent filters the entity after it's drawn: RenderShadedEntity draws
         // it (materials included) into an offscreen buffer and blits that through the shader.
         if (IsEnabled<ShaderComponent>(world, entity)) {
@@ -776,14 +748,7 @@ static void ApplyUniformOverrides(Shader& shader, const std::unordered_map<std::
 // Composed shaders are requested lazily on first use. Remembered so a load in flight
 // (or one that failed — a missing chunk) isn't re-requested every frame.
 Shader* RenderCompositor::GetComposedShader(Services::IAssetService& assets, const char* geometry, const std::string& material) {
-    const char* output = "";
-    switch (output_) {
-        case SurfaceOutput::Normal:   output = "Normal";   break;
-        case SurfaceOutput::Emission: output = "Emission"; break;
-        case SurfaceOutput::Height:   output = "Height";   break;
-        case SurfaceOutput::Color:    break;
-    }
-    return GetShader(assets, ComposedShaderPath(geometry, material, output));
+    return GetShader(assets, ComposedShaderPath(geometry, material));
 }
 
 Shader* RenderCompositor::GetShader(Services::IAssetService& assets, const Path& path) {
@@ -813,8 +778,8 @@ void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, s
 
         SdfGeometry geometry;
         if (!type.Geometry || !type.Geometry(world, rec, geometry) || !geometry.geometry) {
-            // Text on a button, a Sprite, ... Its colors aren't heights: it stays on the ground.
-            if (type.Render && output_ != SurfaceOutput::Height) type.Render(ctx, rec);
+            // Text on a button, a Sprite, ...: drawn as itself.
+            if (type.Render) type.Render(ctx, rec);
             continue;
         }
 
@@ -859,49 +824,13 @@ void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, s
             }
             ApplyUniformOverrides(shader, pass.layer->overrides);
 
-            // Lit layers: how normals turn with the shape, and its lighting maps.
-            const Texture* normalMap = nullptr;
-            const Texture* emissionMap = nullptr;
-            if (output_ != SurfaceOutput::Color) {
-                shader.SetUniform("e_NormalXform", Value{Vector4{xf.cs, xf.sn, xf.scaleX < 0.0f ? -1.0f : 1.0f,
-                                                                 xf.scaleY < 0.0f ? -1.0f : 1.0f}});
-                auto mapOf = [&](const std::string& path) -> const Texture* {
-                    const Texture* map = path.empty() ? nullptr : assets.Get<Texture>(Path(path));
-                    return map && map->id != 0 ? map : nullptr;
-                };
-                normalMap = mapOf(pass.layer->normalMapPath);
-                emissionMap = mapOf(pass.layer->emissionMapPath);
-                shader.SetUniform("e_HasNormalMap", Value{normalMap != nullptr});
-                shader.SetUniform("e_HasEmissionMap", Value{emissionMap != nullptr});
-            }
-
             const Texture* texture = pass.layer->texturePath.empty()
                                          ? nullptr
                                          : assets.Get<Texture>(Path(pass.layer->texturePath));
             if (texture && texture->id == 0) texture = nullptr;
             if (texture) shader.SetUniform("e_TextureSize", Value{Vector2{(float)texture->width, (float)texture->height}});
 
-            // The height pass: where the quad is in the world, and the line it stands on.
-            if (output_ == SurfaceOutput::Height) {
-                GroundLine line{Vector2{rec.x, rec.y}, 0.0f};
-                if (auto it = groundLines_.find(entity); it != groundLines_.end()) {
-                    line = it->second;
-                } else if (world.HasComponent<TransformComponent>(entity)) {
-                    const auto& transform = world.GetComponent<TransformComponent>(entity);
-                    line.anchor = {transform.worldX, transform.worldY};
-                }
-                shader.SetUniform("e_QuadCorner", Value{corners[0]});
-                shader.SetUniform("e_QuadAxisU", Value{Vector2{corners[3].x - corners[0].x, corners[3].y - corners[0].y}});
-                shader.SetUniform("e_QuadAxisV", Value{Vector2{corners[1].x - corners[0].x, corners[1].y - corners[0].y}});
-                shader.SetUniform("e_GroundAnchor", Value{line.anchor});
-                shader.SetUniform("e_GroundSlope", Value{line.slope});
-                shader.SetUniform("e_GroundFlat", Value{line.flat ? 1.0f : 0.0f});
-            }
-
             ctx.PushShader(shader);
-            // Samplers bind to the draw that follows, so only once the shader is pushed.
-            if (normalMap) shader.SetTexture("e_NormalMap", normalMap->id);
-            if (emissionMap) shader.SetTexture("e_EmissionMap", emissionMap->id);
             ctx.DrawShaderQuad(corners, texture, Colors::White);
             ctx.PopShader();
         }
@@ -1017,10 +946,8 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
 
 void RenderCompositor::RenderLayer(RenderContext& ctx, const CameraView& view,
                                     const SceneLayer& layer, std::span<const RenderRecord> records) {
-    if (layer.space == SceneLayerSpace::World3D) {
+    if (layer.IsLit()) {
         Render3D(ctx, view, layer, records);
-    } else if (layer.isLit) {
-        RenderLit(ctx, view, layer, records);
     } else if (layer.isComposited) {
         RenderComposited(ctx, view, layer, records);
     } else {
@@ -1033,9 +960,9 @@ namespace {
 // Models are lit per pixel by the layer's ambient and the point lights (LightComponent); cards
 // by the same lights at one point above their anchor (CardShader). Both test each light's cube
 // shadow map of the models (shadowAtlas3D_, laid out as ShadowAtlas documents) and fog what
-// no vision light sees, as Lighting.fs does for lit 2D layers.
+// no vision light sees.
 constexpr int kMaxLights3D = 16;
-constexpr int kShadowUnit3D = 14;  // past raylib's batch units and RenderLit's 8..11
+constexpr int kShadowUnit3D = 14;  // well past raylib's batch units
 
 const char* kLight3DSource = R"(
 uniform vec3 uAmbient;
@@ -1052,7 +979,7 @@ uniform float uShadowBias;
 uniform float uFog;             // 0 off .. 1 the unseen is hidden
 uniform vec3 uFogColor;
 
-// Must match ShadowAtlas.cpp's face table (and Lighting.fs).
+// Must match ShadowAtlas.cpp's face table.
 float ShadowDistance(int light, vec3 v, vec2 offset)
 {
     vec3 a = abs(v);
@@ -1212,7 +1139,7 @@ void AppendTriangles(const ::Model& model, const ::Matrix& transform, std::vecto
 }
 
 ::Vector3 AmbientOf(const SceneLayer& layer) {
-    return {layer.lightAmbient.r / 255.0f, layer.lightAmbient.g / 255.0f, layer.lightAmbient.b / 255.0f};  // as RenderLit
+    return {layer.lightAmbient.r / 255.0f, layer.lightAmbient.g / 255.0f, layer.lightAmbient.b / 255.0f};
 }
 
 void ClearDepth() {
@@ -1243,21 +1170,17 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     const World& world = ctx.GetWorld();
     auto& assets = ctx.GetServices().Get<Services::IAssetService>();
 
-    using World3D::kPitchCos;
-    using World3D::kPitchSin;
     using World3D::kGroundDepth;
     const float zoom = view.zoom != 0.0f ? view.zoom : 1.0f;
-    const float halfW = view.viewport.width * 0.5f, halfH = view.viewport.height * 0.5f;
-    const float cx = view.position.x, cy = view.position.y;
-    // Eye z: how far toward the camera, in zoomed units, relative to the camera's ground point.
-    const float cameraDepth = zoom * cy * kGroundDepth * kPitchCos;
+    const World3D::View view3D = RenderProjector::View3D(view);
+    const Vector3 towardCamera = view3D.TowardCamera();
 
-    // GL (x, y up, z toward the camera) -> framebuffer pixels and depth: screen x is x; screen
-    // y is the ground depth at half less the height; depth is how far toward the camera.
+    // GL (x, y up, z toward the default camera) -> framebuffer pixels and depth, through the
+    // orbit (World3D::View).
     ::Matrix viewMatrix = MatrixIdentity();
-    viewMatrix.m0 = zoom;  viewMatrix.m4 = 0.0f;               viewMatrix.m8 = 0.0f;              viewMatrix.m12 = -zoom * cx + halfW;
-    viewMatrix.m1 = 0.0f;  viewMatrix.m5 = -zoom * kPitchCos;  viewMatrix.m9 = zoom * kPitchSin;  viewMatrix.m13 = -zoom * cy + halfH;
-    viewMatrix.m2 = 0.0f;  viewMatrix.m6 = zoom * kPitchSin;   viewMatrix.m10 = zoom * kPitchCos; viewMatrix.m14 = -cameraDepth;
+    viewMatrix.m0 = view3D.rowX[0];     viewMatrix.m4 = view3D.rowX[1];     viewMatrix.m8 = view3D.rowX[2];      viewMatrix.m12 = view3D.rowX[3];
+    viewMatrix.m1 = view3D.rowY[0];     viewMatrix.m5 = view3D.rowY[1];     viewMatrix.m9 = view3D.rowY[2];      viewMatrix.m13 = view3D.rowY[3];
+    viewMatrix.m2 = view3D.rowDepth[0]; viewMatrix.m6 = view3D.rowDepth[1]; viewMatrix.m10 = view3D.rowDepth[2]; viewMatrix.m14 = view3D.rowDepth[3];
 
     constexpr double kDepthRange = 1.0e6;
     const ::Matrix projection =
@@ -1266,7 +1189,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     const ::Matrix previousModelview = rlGetMatrixModelview();
 
     // Every model's triangles into the lights' cube shadow maps, before this layer draws.
-    const int lightCount = (int)std::min<size_t>(lights_.size(), kMaxLights3D);
+    const int lightCount = layer.unlit ? 0 : (int)std::min<size_t>(lights_.size(), kMaxLights3D);
     int shadowCount = 0;
     if (layer.shadows && lightCount > 0) {
         ProfileN("World3D Shadows");
@@ -1414,7 +1337,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
                 ToRaylib(World3D::ModelMatrix(world.GetComponent<TransformComponent>(entity), component, *model));
             bool occluding = false;
             for (const ::Vector3& eye : eyes) {
-                if (World3D::RayHits(FromRaylib(transform), *model, Vector3{eye.x, eye.y, eye.z}, World3D::kTowardCamera)) {
+                if (World3D::RayHits(FromRaylib(transform), *model, Vector3{eye.x, eye.y, eye.z}, towardCamera)) {
                     occluding = true;
                     break;
                 }
@@ -1455,27 +1378,26 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     rlDrawRenderBatchActive();
     rlSetMatrixModelview(previousModelview);
 
-    // Cards, far to near, drawn in 2D world units. An upright card standing at ground y0 and
-    // height h shows a point drawn at 2D y as (y0 - y) / cos30 above its base, so that much
-    // closer to the camera times sin30: a tall sprite leans out of the wall behind it rather
+    // Cards, far to near, drawn in 2D world units, screen-facing at their anchor. A point drawn
+    // at 2D y above the card's base y0 is (y0 - y) / cos(pitch) up the upright card, so that much
+    // times sin(pitch) nearer the camera: a tall sprite leans out of the wall behind it rather
     // than into it. Each card's matrix is that, an affine map of 2D y into depth.
-    auto depthOf = [&](const Card& card) {
-        return card.groundY * kGroundDepth * kPitchCos + card.height * kPitchSin;
-    };
-    std::stable_sort(cards.begin(), cards.end(), [&](const Card& a, const Card& b) { return depthOf(a) < depthOf(b); });
+    const float lean = zoom * std::tan(view3D.pitch * DEG2RAD);
+    auto anchorOf = [&](const Card& card) { return view3D.Project(World3D::ToGL(card.groundX, card.groundY, card.height)); };
+    std::stable_sort(cards.begin(), cards.end(), [&](const Card& a, const Card& b) { return anchorOf(a).z < anchorOf(b).z; });
     rlDisableDepthMask();
     auto& registry = RenderableRegistry::Instance();
     const Framebuffer& sceneFramebuffer = ctx.GetServices().Get<Services::ISceneService>().GetFramebuffer();
     for (const Card& card : cards) {
-        const float y0 = card.groundY, h = card.height;
+        const Vector3 anchor = anchorOf(card);
         ::Matrix m = MatrixIdentity();
         m.m0 = zoom;
-        m.m12 = -zoom * cx + halfW;
+        m.m12 = anchor.x - zoom * card.groundX;
         m.m5 = zoom;
-        m.m13 = zoom * (-h * kPitchCos - cy) + halfH;
-        m.m6 = -zoom * kPitchSin / kPitchCos;
+        m.m13 = anchor.y - zoom * card.groundY;
+        m.m6 = -lean;
         m.m10 = 1.0f;
-        m.m14 = zoom * (depthOf(card) + kPitchSin * y0 / kPitchCos) - cameraDepth;
+        m.m14 = anchor.z + lean * card.groundY;
         ctx.PushMatrix();
         rlLoadIdentity();
         ctx.MultiplyMatrix(FromRaylib(m));
@@ -1490,7 +1412,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
         } else {
             ::Shader& shader = CardShader();
             // Lit at a point a little above its anchor.
-            const ::Vector3 at{card.groundX, (card.height + 24.0f) / kPitchCos, card.groundY * kGroundDepth};
+            const ::Vector3 at{card.groundX, (card.height + 24.0f) / World3D::kPitchCos, card.groundY * kGroundDepth};
             rlDrawRenderBatchActive();
             SetShaderValue(shader, GetShaderLocation(shader, "uCardPos"), &at, SHADER_UNIFORM_VEC3);
             BeginShaderMode(shader);
@@ -1581,305 +1503,6 @@ void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& vi
         (int)view.viewport.height);
 }
 
-// A layer's buffers cover the viewport; this is the stretch of the layer's own space (the
-// world, for World2D) they show.
-struct LayerRegion {
-    Vector2 origin;  // at the buffers' top-left
-    Vector2 size;
-};
-
-static LayerRegion GetLayerRegion(const CameraView& view, const SceneLayer& layer, int width, int height) {
-    if (layer.space == SceneLayerSpace::Screen2D && !view.screenInWorld) {
-        return {Vector2{0.0f, 0.0f}, Vector2{(float)width, (float)height}};
-    }
-    const float zoom = view.zoom != 0.0f ? view.zoom : 1.0f;
-    Vector2 origin = RenderProjector::FramebufferToWorld(Vector2{0.0f, 0.0f}, view);
-    Vector2 size{width / zoom, height / zoom};
-    if (layer.space == SceneLayerSpace::Screen2D) {
-        const float scale = view.screenScale != 0.0f ? view.screenScale : 1.0f;
-        origin = {(origin.x - view.screenOrigin.x) / scale, (origin.y - view.screenOrigin.y) / scale};
-        size = {size.x / scale, size.y / scale};
-    }
-    return {origin, size};
-}
-
-const Framebuffer& RenderCompositor::BuildOccluderField(RenderContext& ctx, Shader& flood, Vector2 origin, Vector2 size,
-                                                        int gridWidth, int gridHeight, bool shadows) {
-    ProfileN("Build Occluder Field");
-
-    // Footprints, one texel per ground texel, carrying their height in 8 bits: r is
-    // height / 2040 (LightGather.fs scales it back), 8 world units a step.
-    occluderMask_.Resize(gridWidth, gridHeight);
-    ctx.BeginRenderTarget(occluderMask_);
-    ctx.ClearTarget(Colors::Transparent);
-    if (shadows) {
-        ctx.PushBlendMode(BlendMode::Alpha);
-        ctx.PushMatrix();
-        ctx.Scale(gridWidth / size.x, gridHeight / size.y, 1.0f);
-        ctx.Translate(-origin.x, -origin.y, 0.0f);
-        for (const ShadowCaster& caster : shadowCasters_) {
-            if (caster.footprint.size() < 3 || caster.height <= 0.0f) continue;
-            const float level = std::clamp(std::ceil(caster.height / 8.0f), 1.0f, 255.0f);
-            ctx.DrawTriangleList(TriangulatePolygon(caster.footprint), Color{(unsigned char)level, 0, 0, 255});
-        }
-        ctx.PopMatrix();
-        ctx.PopBlendMode();
-    }
-    ctx.EndRenderTarget();
-
-    // Jump flood: seed from the mask, then halve the step down to one texel.
-    floodA_.Resize(gridWidth, gridHeight);
-    floodB_.Resize(gridWidth, gridHeight);
-    const Rectangle grid{0.0f, 0.0f, (float)gridWidth, (float)gridHeight};
-    flood.SetUniform("e_GridSize", Value{Vector2{(float)gridWidth, (float)gridHeight}});
-    auto pass = [&](const Framebuffer& source, const Framebuffer& target, int mode, int step) {
-        flood.SetUniform("e_Mode", Value{mode});
-        flood.SetUniform("e_Step", Value{(float)step});
-        ctx.BeginRenderTarget(target);
-        ctx.PushBlendMode(BlendMode::Alpha);  // opaque output: a plain write
-        ctx.PushShader(flood);
-        ctx.DrawFramebuffer(source, grid, Colors::White);
-        ctx.PopShader();
-        ctx.PopBlendMode();
-        ctx.EndRenderTarget();
-    };
-    pass(occluderMask_, floodA_, 0, 0);
-    if (!shadows) return floodA_;
-    const Framebuffer* source = &floodA_;
-    const Framebuffer* target = &floodB_;
-    int step = 1;
-    while (step * 2 < std::max(gridWidth, gridHeight)) step *= 2;
-    for (; step >= 1; step /= 2) {
-        pass(*source, *target, 1, step);
-        std::swap(source, target);
-    }
-    return *source;
-}
-
-void RenderCompositor::RenderShadowAtlas(RenderContext& ctx) {
-    if (!shadowAtlasDirty_) return;
-    shadowAtlasDirty_ = false;
-    ProfileN("Render Shadow Atlas");
-
-    // Every caster's footprint extruded to its height: its walls and its lid.
-    std::vector<Vector3> triangles;
-    std::vector<unsigned int> owners;
-    auto ownerOf = [](Entity e) {
-        return e == INVALID_ENTITY ? ShadowAtlas::kNoOwner : (unsigned int)e;
-    };
-    for (const ShadowCaster& caster : shadowCasters_) {
-        const auto& footprint = caster.footprint;
-        if (footprint.size() < 3 || caster.height <= 0.0f) continue;
-        for (size_t i = 0; i < footprint.size(); ++i) {
-            const Vector2 a = footprint[i], b = footprint[(i + 1) % footprint.size()];
-            const Vector3 a0 = WorldTo3D(a, 0.0f), b0 = WorldTo3D(b, 0.0f);
-            const Vector3 a1 = WorldTo3D(a, caster.height), b1 = WorldTo3D(b, caster.height);
-            triangles.insert(triangles.end(), {a0, b0, b1, a0, b1, a1});
-        }
-        for (const Vector2& p : TriangulatePolygon(footprint)) triangles.push_back(WorldTo3D(p, caster.height));
-        owners.resize(triangles.size() / 3, ownerOf(caster.owner));
-    }
-
-    std::vector<ShadowAtlas::Light> lights;
-    for (const PointLight& light : lights_) lights.push_back({light.position, light.radius, ownerOf(light.owner)});
-    shadowAtlas_.Render(ctx, lights, triangles, owners);
-}
-
-void RenderCompositor::RenderLit(RenderContext& ctx, const CameraView& view,
-                                  const SceneLayer& layer, std::span<const RenderRecord> records) {
-    ProfileN("Render Lit Layer");
-
-    auto& assets = ctx.GetServices().Get<Elysium::Services::IAssetService>();
-    Shader* lighting = GetShader(assets, Path("Shaders/Lighting.fs", PathRoot::Engine));
-    Shader* gather = GetShader(assets, Path("Shaders/LightGather.fs", PathRoot::Engine));
-    Shader* flood = GetShader(assets, Path("Shaders/OccluderField.fs", PathRoot::Engine));
-    Shader* grounding = GetShader(assets, Path("Shaders/GroundEmission.fs", PathRoot::Engine));
-    if (!lighting || !gather || !flood || !grounding) {
-        // Still compiling (or failed): the layer unlit rather than missing.
-        RenderComposited(ctx, view, layer, records);
-        return;
-    }
-
-    const Matrix layerTransform = RenderProjector::CalculateTransform(view, layer);
-    const int w = (int)view.viewport.width;
-    const int h = (int)view.viewport.height;
-    const Framebuffer& albedo = EnsureCompositeBuffer(w, h);
-    normalBuffer_.Resize(w, h);
-    emissionBuffer_.Resize(w, h);
-    heightBuffer_.Resize(w, h);
-
-    ctx.PopScissorMode();
-
-    // The four surfaces. Normals clear to flat (facing the camera), emission to none,
-    // height to the ground.
-    struct Surface { SurfaceOutput output; const Framebuffer* target; Color clear; };
-    const Surface surfaces[] = {
-        {SurfaceOutput::Color, &albedo, layer.ambient},
-        {SurfaceOutput::Normal, &normalBuffer_, Color{128, 128, 255, 0}},
-        {SurfaceOutput::Emission, &emissionBuffer_, Color{0, 0, 0, 0}},
-        {SurfaceOutput::Height, &heightBuffer_, Color{0, 0, 0, 0}},
-    };
-    for (const Surface& surface : surfaces) {
-        output_ = surface.output;
-        ctx.BeginRenderTarget(*surface.target);
-        ctx.ClearTarget(surface.clear);
-        // The layer's blend is for its colors; normals and glow simply stack, and heights
-        // are written opaque (the last thing drawn over a pixel wins).
-        PushBlend(ctx, surface.output == SurfaceOutput::Color ? layer.layerBlend : SceneLayerBlend::Normal);
-        ctx.PushMatrix();
-        ctx.MultiplyMatrix(layerTransform);
-        RenderRecords(ctx, records, layerTransform, *surface.target);
-        ctx.PopMatrix();
-        ctx.PopBlendMode();
-        ctx.EndRenderTarget();
-    }
-    output_ = SurfaceOutput::Color;
-
-    // The ground the light is worked out over: what the layer shows, plus a margin so
-    // walls and glows just off screen still cast and light, and so the ground under tall
-    // things at the bottom edge is covered. Two grids over the same region: occluders and
-    // ground emission at half the layer's resolution, the light at a quarter (it's smooth,
-    // and the gather is the expensive part).
-    const LayerRegion region = GetLayerRegion(view, layer, w, h);
-    const float pixelsPerUnit = w / std::max(region.size.x, 1e-3f);
-    constexpr float kMargin = 128.0f;  // world units
-    constexpr int kMaxGrid = 2048;     // the flood stores texel coordinates in half floats
-    Vector2 groundSize{region.size.x + kMargin * 2.0f, region.size.y + kMargin * 2.0f};
-    const float texelWorld = std::max({2.0f / pixelsPerUnit, groundSize.x / kMaxGrid, groundSize.y / kMaxGrid});
-    const int gw = std::max(1, (int)std::ceil(groundSize.x / texelWorld));
-    const int gh = std::max(1, (int)std::ceil(groundSize.y / texelWorld));
-    groundSize = {gw * texelWorld, gh * texelWorld};  // square texels
-    const Vector2 groundOrigin{region.origin.x - kMargin, region.origin.y - kMargin};
-    const int lw = std::max(1, gw / 2), lh = std::max(1, gh / 2);
-
-    const bool shadows = layer.shadows && layer.space == SceneLayerSpace::World2D && !shadowCasters_.empty();
-    const Framebuffer* field = nullptr;
-    if (layer.pointLights) {
-        // Light comes from LightComponents instead; their shadows are shared by every
-        // lit layer and rendered once a frame.
-        RenderShadowAtlas(ctx);
-    } else {
-        field = &BuildOccluderField(ctx, *flood, groundOrigin, groundSize, gw, gh, shadows);
-
-        // Emission moves down to where it stands: a sample up the column every ground texel,
-        // as high as anything is likely drawn.
-        emissionBuffer_.GenerateMipmaps();
-        heightBuffer_.SetLinearFilter(false);
-        constexpr float kMaxLift = 192.0f;  // world units
-        constexpr int kMaxLiftSamples = 96;
-        const float liftStep = std::max(texelWorld, kMaxLift / kMaxLiftSamples);
-        groundEmission_.Resize(gw, gh);
-        grounding->SetUniform("e_GroundOrigin", Value{groundOrigin});
-        grounding->SetUniform("e_GroundSize", Value{groundSize});
-        grounding->SetUniform("e_ViewOrigin", Value{region.origin});
-        grounding->SetUniform("e_ViewSize", Value{region.size});
-        grounding->SetUniform("e_Step", Value{liftStep});
-        grounding->SetUniform("e_Lod", Value{std::log2(std::max(liftStep * pixelsPerUnit, 1.0f))});
-        grounding->SetUniform("e_Samples", Value{(int)std::ceil(kMaxLift / liftStep) + 1});
-        ctx.BeginRenderTarget(groundEmission_);
-        ctx.ClearTarget(Colors::Transparent);
-        ctx.PushBlendMode(BlendMode::Alpha);
-        ctx.PushShader(*grounding);
-        grounding->SetTexture("e_HeightBuffer", heightBuffer_.TextureId());
-        ctx.DrawFramebuffer(emissionBuffer_, Rectangle{0, 0, (float)gw, (float)gh}, Colors::White);
-        ctx.PopShader();
-        ctx.PopBlendMode();
-        ctx.EndRenderTarget();
-        // Blurred copies of it (its mips) are what the gather reads further away.
-        groundEmission_.GenerateMipmaps();
-
-        // Gather the light across the ground: how much arrives, then from where. Lighting.fs
-        // re-aims it by each pixel's normal at full resolution.
-        lightBuffer_.Resize(lw, lh);
-        directionBuffer_.Resize(lw, lh);
-        lightBuffer_.SetLinearFilter(true);
-        directionBuffer_.SetLinearFilter(true);
-        occluderMask_.SetLinearFilter(false);
-        gather->SetUniform("e_GroundSize", Value{groundSize});
-        gather->SetUniform("e_GridSize", Value{Vector2{(float)gw, (float)gh}});
-        gather->SetUniform("e_Reach", Value{layer.lightReach});
-        gather->SetUniform("e_Height", Value{layer.lightHeight});
-        gather->SetUniform("e_Strength", Value{layer.lightStrength});
-        gather->SetUniform("e_Shadows", Value{shadows});
-        const Framebuffer* gathered[] = {&lightBuffer_, &directionBuffer_};
-        for (int mode = 0; mode < 2; ++mode) {
-            gather->SetUniform("e_Mode", Value{mode});
-            ctx.BeginRenderTarget(*gathered[mode]);
-            ctx.ClearTarget(Colors::Transparent);
-            ctx.PushBlendMode(BlendMode::Alpha);  // opaque output: a plain write
-            ctx.PushShader(*gather);
-            gather->SetTexture("e_OccluderMask", occluderMask_.TextureId());
-            gather->SetTexture("e_OccluderField", field->TextureId());
-            ctx.DrawFramebuffer(groundEmission_, Rectangle{0, 0, (float)lw, (float)lh}, Colors::White);
-            ctx.PopShader();
-            ctx.PopBlendMode();
-            ctx.EndRenderTarget();
-        }
-    }
-
-    // Combine onto the frame, the way RenderComposited composites.
-    auto rgb = [](Color c) { return Vector3{c.r / 255.0f, c.g / 255.0f, c.b / 255.0f}; };
-    lighting->SetUniform("e_Resolution", Value{Vector2{(float)w, (float)h}});
-    lighting->SetUniform("e_Ambient", Value{rgb(layer.lightAmbient)});
-    lighting->SetUniform("e_Bands", Value{(float)layer.lightBands});
-    lighting->SetUniform("e_Outline", Value{layer.outline});
-    const Color ink = layer.outlineColor;
-    lighting->SetUniform("e_OutlineColor", Value{Vector4{ink.r / 255.0f, ink.g / 255.0f, ink.b / 255.0f, ink.a / 255.0f}});
-    lighting->SetUniform("e_ViewOrigin", Value{region.origin});
-    lighting->SetUniform("e_ViewSize", Value{region.size});
-    lighting->SetUniform("e_GroundOrigin", Value{groundOrigin});
-    lighting->SetUniform("e_GroundSize", Value{groundSize});
-    lighting->SetUniform("e_GridSize", Value{Vector2{(float)gw, (float)gh}});
-    lighting->SetUniform("e_Shadows", Value{shadows});
-    lighting->SetUniform("e_Debug", Value{layer.lightDebug});
-    lighting->SetUniform("e_PointLights", Value{layer.pointLights});
-    if (layer.pointLights) {
-        const int count = shadowAtlas_.LightCount();
-        std::vector<float> positions, colors, radii, vision;
-        for (int i = 0; i < count; ++i) {
-            const PointLight& light = lights_[i];
-            positions.insert(positions.end(), {light.position.x, light.position.y, light.position.z});
-            colors.insert(colors.end(), {light.color.x, light.color.y, light.color.z});
-            radii.push_back(light.radius);
-            vision.push_back(light.vision ? 1.0f : 0.0f);
-        }
-        lighting->SetUniform("e_Fog", Value{layer.fogOfWar});
-        lighting->SetUniform("e_FogColor", Value{rgb(layer.fogColor)});
-        lighting->SetUniform("e_LightCount", Value{count});
-        lighting->SetUniform("e_ShadowBias", Value{layer.shadowBias});
-        lighting->SetUniform("e_ShadowRows", Value{(float)ShadowAtlas::kMaxLights});
-        lighting->SetUniform("e_ShadowTile", Value{(float)ShadowAtlas::kTileSize});
-        if (count > 0) {
-            lighting->SetFloatArray("e_LightPos", positions.data(), count, 3);
-            lighting->SetFloatArray("e_LightColor", colors.data(), count, 3);
-            lighting->SetFloatArray("e_LightRadius", radii.data(), count, 1);
-            lighting->SetFloatArray("e_LightVision", vision.data(), count, 1);
-        }
-    }
-
-    auto& sceneService = ctx.GetServices().Get<Services::ISceneService>();
-    ctx.BeginRenderTarget(sceneService.GetFramebuffer());
-    PushBlend(ctx, layer.compositeBlend);
-    Color tint = Colors::White;
-    tint.a = (unsigned char)(255.0f * std::clamp(layer.opacity, 0.0f, 1.0f));
-    ctx.PushShader(*lighting);
-    lighting->SetTexture("e_NormalBuffer", normalBuffer_.TextureId());
-    lighting->SetTexture("e_EmissionBuffer", emissionBuffer_.TextureId());
-    lighting->SetTexture("e_LightBuffer", lightBuffer_.TextureId());
-    lighting->SetTexture("e_DirectionBuffer", directionBuffer_.TextureId());
-    // Past the four samplers raylib's batch binds: straight to units of their own.
-    lighting->SetTextureUnit("e_HeightBuffer", heightBuffer_.TextureId(), 8);
-    lighting->SetTextureUnit("e_OccluderMask", occluderMask_.TextureId(), 9);
-    if (field) lighting->SetTextureUnit("e_OccluderField", field->TextureId(), 10);
-    lighting->SetTextureUnit("e_GroundEmission", groundEmission_.TextureId(), 11);
-    if (layer.pointLights) lighting->SetTextureUnit("e_ShadowAtlas", shadowAtlas_.TextureId(), 12);
-    ctx.DrawFramebuffer(albedo, Rectangle{view.viewport.x, view.viewport.y, (float)w, (float)h}, tint);
-    ctx.PopShader();
-    ctx.PopBlendMode();
-
-    ctx.PushScissorMode((int)view.viewport.x, (int)view.viewport.y, (int)view.viewport.width, (int)view.viewport.height);
-}
-
 // RenderSystem — glue: owns the camera list and script draw-command queue, drives
 // RenderSorter -> RenderCompositor per camera per frame.
 
@@ -1892,14 +1515,12 @@ RenderSystem::~RenderSystem() {
 SystemParameters RenderSystem::DefaultParameters() const {
     return {
         {"hierarchySort", Value{true}},
-        {"ySort", Value{true}},
     };
 }
 
 void RenderSystem::OnParametersChanged() {
     _sorter.SetSortOptions({
         .hierarchySort = GetParameter("hierarchySort", true),
-        .ySort = GetParameter("ySort", true),
     });
 }
 
@@ -1911,7 +1532,7 @@ void RenderSystem::Draw() {
     ProfileN("RenderSystem Draw");
 
     FindCameras();
-    CollectOccluders();
+    CollectLights();
     RenderContext ctx(*services, *world);
 
     if (services->Get<Services::IApplicationService>().GetMode() == AppMode::Editor) {
@@ -1926,6 +1547,8 @@ void RenderSystem::Draw() {
             editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
             Rectangle{0, 0, (float)target.Width(), (float)target.Height()}
         };
+        view.yaw = editorCam.yaw;
+        view.pitch = editorCam.pitch;
 
         PlaceScreenInWorld(view);
         RenderView(ctx, view);
@@ -1947,38 +1570,8 @@ void RenderSystem::Draw() {
     _drawCommands.clear();
 }
 
-void RenderSystem::CollectOccluders() {
-    ProfileN("Collect Occluders");
-    std::vector<RenderCompositor::ShadowCaster> casters;
-    std::unordered_map<Entity, RenderCompositor::GroundLine> groundLines;
-    world->Query<TransformComponent, OccluderComponent>([&](Entity entity, auto&, auto& occluder) {
-        OccluderVolume volume = ResolveOccluder(*world, entity);
-        const auto& footprint = volume.footprint;
-        if (footprint.size() < 3) return;
-
-        // The ground line runs through the footprint's centre along its long axis (the
-        // principal axis of its vertices), when it clearly has one: a wall, not a pillar.
-        Vector2 centre{0.0f, 0.0f};
-        for (const Vector2& p : footprint) centre = {centre.x + p.x, centre.y + p.y};
-        centre = {centre.x / footprint.size(), centre.y / footprint.size()};
-        float xx = 0.0f, xy = 0.0f, yy = 0.0f;
-        for (const Vector2& p : footprint) {
-            const float dx = p.x - centre.x, dy = p.y - centre.y;
-            xx += dx * dx; xy += dx * dy; yy += dy * dy;
-        }
-        const float spread = std::sqrt((xx - yy) * (xx - yy) * 0.25f + xy * xy);
-        const float major = (xx + yy) * 0.5f + spread, minor = (xx + yy) * 0.5f - spread;
-        float slope = 0.0f;
-        if (major > minor * 6.0f) {
-            const float angle = 0.5f * std::atan2(2.0f * xy, xx - yy);
-            slope = std::clamp(std::tan(angle), -1.0f, 1.0f);  // a wall running up the screen can't lean further
-        }
-        groundLines[entity] = {centre, slope, volume.height <= 0.0f && occluder.isStatic};
-
-        if (occluder.castsShadow && volume.height > 0.0f) casters.push_back({footprint, volume.height, entity});
-    });
-    _compositor.SetOccluders(std::move(casters), std::move(groundLines));
-
+void RenderSystem::CollectLights() {
+    ProfileN("Collect Lights");
     // Lights stand `height` above their entity's position, as sprites stand on theirs.
     // Flicker is a few incommensurate sines per light, in brightness and a little in
     // position, so shadows breathe with it.
@@ -2131,6 +1724,7 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
     std::vector<Entity> hits;
     Vector2 worldPos = RenderProjector::FramebufferToWorld(fbPos, view);
     Vector2 screenPos = RenderProjector::FramebufferToScreen(fbPos, view);
+    const World3D::View view3D = RenderProjector::View3D(view);
 
     const auto& queue = _sorter.GetQueue();
     auto& registry = RenderableRegistry::Instance();
@@ -2142,6 +1736,17 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
         if (!type.Pick || IsStale(*world, rec, type)) continue;
 
         Vector2 testPos = rec.isWorldSpace ? worldPos : screenPos;
+        // A card in a turned view stands screen-facing at its anchor (see Render3D): undo that
+        // instead of the ground plane. Ground layers lie on it.
+        if (rec.isWorldSpace && !view.IsDefaultOrientation() && rec.entity != INVALID_ENTITY &&
+            rec.layerIndex < _sorter.GetLayers().size() && _sorter.GetLayers()[rec.layerIndex].IsLit()) {
+            const Entity anchor = CardAnchor(*world, rec.entity);
+            if (world->HasComponent<TransformComponent>(anchor)) {
+                const auto& t = world->GetComponent<TransformComponent>(anchor);
+                const Vector2 at = view3D.WorldToFramebuffer(t.worldX, t.worldY, t.worldZ);
+                testPos = {(fbPos.x - at.x) / view3D.zoom + t.worldX, (fbPos.y - at.y) / view3D.zoom + t.worldY};
+            }
+        }
         if (type.Pick(*world, rec, testPos)) {
             // Records for the same entity are adjacent in the sort — dedup via last-pushed.
             if (hits.empty() || hits.back() != rec.entity) hits.push_back(rec.entity);
@@ -2155,7 +1760,7 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
         const auto& component = world->GetComponent<ModelComponent>(e);
         if (!component.loaded || !component.loaded->native) return std::nullopt;
         return World3D::PickDepth(World3D::ModelMatrix(world->GetComponent<TransformComponent>(e), component, *component.loaded),
-                                  *component.loaded, worldPos);
+                                  *component.loaded, World3D::ToGL(worldPos.x, worldPos.y, 0.0f), view3D.TowardCamera());
     };
     std::vector<std::pair<float, Entity>> models;
     std::erase_if(hits, [&](Entity e) {
@@ -2260,7 +1865,6 @@ static bool PickModelImpl(const World& world, const RenderRecord& rec, Vector2 t
 }
 
 // Grouped here rather than in each component's .cpp — avoids a Components->Systems include.
-REGISTER_RENDERABLE(HasTileImpl,      RenderTileImpl,      nullptr,           nullptr,             false, nullptr)
 REGISTER_RENDERABLE(HasRectangleImpl, nullptr,             PickRectangleImpl, BoundsRectangleImpl, false, GeometryRectangleImpl)
 REGISTER_RENDERABLE(HasCircleImpl,    nullptr,             PickCircleImpl,    BoundsCircleImpl,    false, GeometryCircleImpl)
 REGISTER_RENDERABLE(HasTextImpl,      RenderTextImpl,      PickTextImpl,      nullptr,             false, nullptr)

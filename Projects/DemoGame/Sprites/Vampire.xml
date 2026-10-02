@@ -9,6 +9,6 @@
         <Sequence name="east" indicies="6:*"/>
         <Sequence name="southeast" indicies="7:*"/>
     </Sequences>
-    <Sheet name="Run" path="Textures/Sprites/Vampire/Knight_run.png" normal="Textures/Sprites/Vampire/Knight_run_normal.png" rows="8" columns="9"/>
-    <Sheet name="Idle" path="Textures/Sprites/Vampire/Knight_idle_breathing.png" normal="Textures/Sprites/Vampire/Knight_idle_breathing_normal.png" rows="8" columns="15"/>
+    <Sheet name="Run" path="Textures/Sprites/Vampire/Knight_run.png" rows="8" columns="9"/>
+    <Sheet name="Idle" path="Textures/Sprites/Vampire/Knight_idle_breathing.png" rows="8" columns="15"/>
 </Sprite>

@@ -9,10 +9,6 @@
 //     p is in world units, centered on the shape. Negative inside, positive outside.
 //   Material defines  vec4 Shade(float sd, vec2 p, vec2 uv)
 //     uv is 0..1 across the shape's box (not the padded quad). Returns straight alpha.
-//   Material may define, for lit layers (each behind its #define so Main.glsl knows):
-//     HAS_SURFACE_NORMAL    vec3 SurfaceNormal(sd, p, uv, color)    y-up; default facing the camera
-//     HAS_SURFACE_EMISSION  vec3 SurfaceEmission(sd, p, uv, color)  default none
-//     SURFACE_NO_NORMAL     an effect (glow, fire): leaves the normals beneath it alone
 //
 // e_ uniforms are engine-fed per draw (RenderCompositor::RenderMaterialEntity) and are
 // never exposed as per-layer overrides.
@@ -30,14 +26,6 @@ uniform float e_CornerRadius;  // world units
 uniform vec2  e_PointA;        // segment endpoints, relative to the box center
 uniform vec2  e_PointB;
 uniform float e_Thickness;
-
-// Lit layers (see Main.glsl). The shape's transform for turning a normal from the quad's
-// frame into the screen's: (cos, sin) of its rotation, then the sign of its x/y scale.
-uniform vec4 e_NormalXform;
-uniform sampler2D e_NormalMap;     // bound with the layer's normal map, if any
-uniform int e_HasNormalMap;
-uniform sampler2D e_EmissionMap;
-uniform int e_HasEmissionMap;
 
 out vec4 finalColor;
 

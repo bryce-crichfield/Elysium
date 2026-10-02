@@ -91,8 +91,6 @@ static void ResolveSprite(Elysium::World* world, Elysium::Services::IAssetServic
     size_t row = linearIndex / sheet.cols;
 
     layer->texturePath = sheet.path;
-    layer->normalMapPath = sheet.normalPath;
-    layer->emissionMapPath = sheet.emissionPath;
     layer->overrides["uSourceRect"] = Value{Vector4{col * frameWidth, row * frameHeight, frameWidth, frameHeight}};
 
     // Frame-sized; the renderer applies the entity's scale (negative mirrors) and rotation.

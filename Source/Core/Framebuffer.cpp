@@ -3,8 +3,8 @@
 #include "raylib.h"
 #include "rlgl.h"
 
-// raylib's rlGenTextureMipmaps logs every call, and lit layers rebuild their emission
-// mips every frame; call GL directly (GLFW is linked into raylib on desktop).
+// raylib's rlGenTextureMipmaps logs every call, which is too noisy for buffers that rebuild
+// their mips every frame; call GL directly (GLFW is linked into raylib on desktop).
 extern "C" void* glfwGetProcAddress(const char* name);
 
 namespace Elysium {

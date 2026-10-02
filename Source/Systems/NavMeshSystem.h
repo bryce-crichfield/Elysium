@@ -6,13 +6,26 @@
 #include <unordered_map>
 #include <vector>
 
+namespace Elysium { struct Model; }
+
 namespace Elysium::Systems {
 
-// Scene-level walkability, baked into a cell grid from static colliders and painted
-// NavAreas. Rebakes whenever those inputs change.
+// Scene-level walkability, baked into a layered grid: a column of ground cells, each holding
+// every floor stacked over it. With walkable models (ModelComponent::walkable) the floors are
+// their surfaces, found by casting down through each column, so a unit can stand under a bridge
+// or on top of the stairs and the path knows which. Without any, it is one flat floor at height
+// 0, made walkable by painted NavAreas. Static colliders carve it where their height range
+// meets an agent's, Blocked and Cost NavAreas apply to every floor. Rebakes whenever an input
+// changes.
+//
+// Positions are ground positions (Transform x, y) plus a height (Transform z). Neighbouring
+// floors join when they're no more than stepHeight apart, which is what lets a path climb the
+// stairs and not the wall beside them.
 class NavMeshSystem : public System {
 public:
+    // One floor in a column.
     struct Cell {
+        float z = 0.0f;
         bool walkable = false;
         float cost = 1.0f;
     };
@@ -22,15 +35,22 @@ public:
     void Update(float deltaTime) override;
     bool RunsWhenPaused() const override { return true; }
 
+    // Whether any floor at this ground position is walkable.
     bool IsWalkable(Vector2 worldPos) const;
-    bool NearestWalkable(Vector2 worldPos, float maxDistance, Vector2& out) const;
-    bool HasLineOfSight(Vector2 a, Vector2 b) const;
-    std::vector<Vector2> FindPath(Vector2 start, Vector2 end) const;
+    // Whether the floor a unit at height `z` stands on here is walkable.
+    bool IsWalkable(Vector2 worldPos, float z) const;
+    // Whether a unit at height `z` at `a` can walk straight to `b` (over floors that join).
+    bool HasLineOfSight(Vector2 a, Vector2 b, float z = 0.0f) const;
+    // A path from a unit at `start`, height `startZ`, to `end`. `end` is a point in the picture
+    // (where a click lands, ground height 0): it goes to the floor actually drawn there, so
+    // clicking the top of the stairs goes up them. Waypoints are ground positions.
+    std::vector<Vector2> FindPath(Vector2 start, Vector2 end, float startZ = 0.0f) const;
 
     int Width() const { return width_; }
     int Height() const { return height_; }
     float CellSize() const { return cellSize_; }
     Rectangle Bounds() const { return bounds_; }
+    // The column's top walkable floor (else its top floor), or nothing for an empty column.
     const Cell* GetCell(int cx, int cy) const;
     Vector2 CellCenter(int cx, int cy) const;
 
@@ -43,21 +63,40 @@ private:
         std::vector<Vector2> polygon;
         Rectangle bounds;
         float cost = 1.0f;
+        float low = -1e30f, high = 1e30f;  // heights it occupies (obstacles)
+    };
+    struct Surface {
+        Matrix matrix;
+        const Model* model;
+        Rectangle ground;  // its ground footprint
+        float top = 0.0f;
     };
     struct Inputs {
         std::vector<Area> regions, blocked, costs, obstacles;
+        std::vector<Surface> surfaces;
     };
 
     void Bake();
-    Inputs GatherInputs() const;
+    Inputs GatherInputs();
     bool AllocateGrid(const Inputs& inputs);
+    void BuildFloors(const Inputs& inputs);
     void Rasterise(const Inputs& inputs);
     uint64_t InputSignature() const;
 
     bool WorldToCell(Vector2 p, int& cx, int& cy) const;
     int IndexOf(int cx, int cy) const { return cy * width_ + cx; }
-    std::vector<int> AStar(int startIndex, int endIndex) const;
-    std::vector<Vector2> StringPull(const std::vector<Vector2>& path) const;
+    // Floors are numbered across the whole grid; a column's run from columnStart_.
+    int FloorCount(int column) const { return columnStart_[column + 1] - columnStart_[column]; }
+    // The walkable floor of `column` that one at height `z` steps onto, or -1.
+    int FloorNear(int column, float z) const;
+    // The floor at `p` a unit at height `z` is on, else the nearest walkable one within
+    // `maxDistance`; -1 if none.
+    int NearestFloor(Vector2 p, float z, float maxDistance) const;
+    // The floor drawn at picture point `p` (nearest the camera), or -1.
+    int FloorInPicture(Vector2 p) const;
+    // Walks from floor `from` at `a` toward `b`; the floor it ends on, or -1 if it can't.
+    int Walk(int from, Vector2 a, Vector2 b) const;
+    std::vector<int> AStar(int start, int goal) const;
 
     void SlideMovers();
     void DrawPaths();
@@ -78,14 +117,22 @@ private:
     // Measured along x. Along y the carve reaches agentRadius_ / isoRatio_, so a ground-space
     // circle stays a circle instead of becoming an ellipse twice as deep as it should be.
     float agentRadius_ = 10.0f;
+    // How tall an agent is: a floor needs this much room above it, and an obstacle carves the
+    // floors it stands in this high.
+    float agentHeight_ = 40.0f;
+    // The biggest rise between neighbouring cells an agent walks up (a stair, not a wall).
+    float stepHeight_ = 24.0f;
     // Screen tile width / height (64x32 iso = 2). 1 for a top-down scene.
     float isoRatio_ = 2.0f;
     float padding_ = 32.0f;
     bool debugDraw_ = true;
 
-    std::vector<Cell> cells_;
+    std::vector<Cell> floors_;
+    std::vector<int> floorColumn_;   // each floor's column
+    std::vector<int> columnStart_;   // width*height + 1 entries
     int width_ = 0, height_ = 0;
     Rectangle bounds_{0, 0, 0, 0};
+    float highestFloor_ = 0.0f;
     uint64_t lastSignature_ = 0;
     std::unordered_map<Entity, Vector2> lastWalkablePos_;
 };

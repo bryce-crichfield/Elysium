@@ -46,7 +46,7 @@ bool ClosestPointOnPolygon(Vector2 point, const std::vector<Vector2>& points, Cl
 // Offsets every point by `delta`.
 std::vector<Vector2> TranslatePolygon(const std::vector<Vector2>& points, Vector2 delta);
 
-// Shared XML/Lua point-list format: "x,y x,y x,y". Used by Occluder/Collider/NavArea footprints.
+// Shared XML/Lua point-list format: "x,y x,y x,y". Used by Collider/NavArea outlines.
 std::vector<Vector2> ParsePointList(const std::string& text);
 std::string FormatPointList(const std::vector<Vector2>& points);
 

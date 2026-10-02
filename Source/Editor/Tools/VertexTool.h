@@ -9,12 +9,12 @@
 
 namespace Elysium {
 
-// Reshapes one kind of polygon on the selected entities: a nav area's region, an occluder's
-// footprint or a collider's outline. Until now a closed shape was final -- you could lay one out
+// Reshapes one kind of polygon on the selected entities: a nav area's region or a
+// collider's outline. Until now a closed shape was final -- you could lay one out
 // and never correct it.
 //
 // The kind is a tool setting rather than "whatever the selection happens to carry", because an
-// entity can carry several: editing all of them at once drew three identically-coloured outlines
+// entity can carry several: editing all of them at once drew identically-coloured outlines
 // on top of each other with no way to tell which vertex belonged to what. One kind at a time, named
 // in the panel and in the status line.
 //
@@ -33,7 +33,7 @@ class VertexTool : public ViewportTool {
     const char* Unavailable(Services::IEditorService& editor, bool isScene) const override;
 
     ToolParameters Parameters() override {
-        return {this, {Field("Shape", &VertexTool::shape_, "shape").Choices({"Nav area", "Occluder", "Collider"})}};
+        return {this, {Field("Shape", &VertexTool::shape_, "shape").Choices({"Nav area", "Collider"})}};
     }
 
     void OnDeactivate(Services::IEditorService& editor) override;

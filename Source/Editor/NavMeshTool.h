@@ -15,7 +15,7 @@ namespace Services { class IEditorService; }
 //
 // Laying out and reshaping are deliberately different tools. This one draws new areas and picks
 // or deletes existing ones; correcting an outline afterwards is the vertex tool's job, which
-// does the same thing for occluder footprints and would only have been duplicated here.
+// does the same thing for collider outlines and would only have been duplicated here.
 class NavMeshTool : public ViewportTool {
 public:
     const char* Name() const override { return "Navmesh"; }

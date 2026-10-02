@@ -1,5 +1,7 @@
 # POC — Occluders, Colliders, NavMesh (tile-free scenes)
 
+> **2026-10-02:** OccluderComponent and OcclusionSystem were removed. World3D layers occlude with real geometry (depth buffer, model shadow maps, the camera-ray fade), and VisibilitySystem now ray-casts the models. The occluder sections below are history.
+
 Branch: `feature/materials`. Status: implemented, every touched translation unit syntax-checked with `g++ -std=c++20 -Wall` against this branch's headers; not yet run on Windows. Try it: build, start ExploreScene, press **P**.
 
 ## The three layers

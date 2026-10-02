@@ -23,7 +23,6 @@ class TexturePane : public ContentPane {
     }
 
     void DrawToolbar() override {
-        ImGui::SameLine();
         if (ToggleIconButton(ICON_FA_EXPAND, fit_, "Fit to the pane")) fit_ = true;
         ImGui::SameLine();
         if (ToggleIconButton("1:1", !fit_ && zoom_ == 1.0f, "Actual size")) {

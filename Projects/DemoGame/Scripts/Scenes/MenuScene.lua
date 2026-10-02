@@ -3,7 +3,7 @@
 local MenuScene = {}
 
 local BUTTONS = {
-    { name = "PlayButton",    action = function() SceneReplace("ExploreScene") end },
+    { name = "PlayButton",    action = function() SceneReplace("PrefabScene") end },
     { name = "OptionsButton", action = nil },  -- placeholder
     { name = "QuitButton",    action = nil },  -- placeholder
 }

@@ -43,7 +43,7 @@ struct Face {
     ::Vector3 forward;
     ::Vector3 up;
 };
-// Must match the face table in Lighting.fs.
+// Must match the face table in RenderSystem.cpp's kLight3DSource.
 const Face kFaces[6] = {
     {{1, 0, 0}, {0, 1, 0}},  {{-1, 0, 0}, {0, 1, 0}},
     {{0, 1, 0}, {0, 0, 1}},  {{0, -1, 0}, {0, 0, 1}},

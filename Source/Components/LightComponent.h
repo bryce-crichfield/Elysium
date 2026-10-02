@@ -3,13 +3,12 @@
 #include "Core/Graphics.h"
 
 namespace Elysium {
-    // A point light in the 3D world the lit layers reconstruct (see RenderCompositor::RenderLit
-    // with SceneLayer::pointLights). It stands `height` world units (screen pixels, like an
-    // occluder's height) above its entity's position, the way a sprite stands on its anchor,
-    // and casts shadows from every OccluderComponent footprint that casts one except its own
-    // entity's (a unit carrying a light doesn't shadow it). Lights every lit layer at once.
-    // With `vision`, it's also a pair of eyes: what it can see is clear of the lit layers'
-    // fog of war (SceneLayer::fogOfWar). Vision with no intensity sees without lighting.
+    // A point light in the 3D world (see RenderCompositor::Render3D). It stands `height` world
+    // units above its entity's position, the way a sprite stands on its anchor, and casts
+    // shadows from the models (not its own entity's: a unit carrying a light doesn't shadow it).
+    // Lights every World3D layer at once. With `vision`, it's also a pair of eyes: what it can
+    // see is clear of the fog of war (SceneLayer::fogOfWar). Vision with no intensity sees
+    // without lighting.
     struct LightComponent {
         Color color = {255, 170, 90, 255};
         float intensity = 2.0f;

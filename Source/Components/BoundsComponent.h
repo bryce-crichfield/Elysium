@@ -9,7 +9,7 @@
 namespace Elysium {
     struct BoundsComponent {
         Rectangle bounds;  // Bounding box in the entity's layer coordinate space
-        SceneLayerSpace space = SceneLayerSpace::World2D;  // Coordinate space of bounds
+        SceneLayerSpace space = SceneLayerSpace::World3D;  // Coordinate space of bounds
         bool isDragging;   // Is this entity currently being dragged
         Color debugColor;  // Color to draw debug bounds
 

@@ -2,5 +2,5 @@
     <Sequences>
         <Sequence name="default" indicies="0:*"/>
     </Sequences>
-    <Sheet name="sprite" path="Textures/sprite.png" normal="Textures/sprite_normal.png" rows="1" columns="1"/>
+    <Sheet name="sprite" path="Textures/sprite.png" rows="1" columns="1"/>
 </Sprite>

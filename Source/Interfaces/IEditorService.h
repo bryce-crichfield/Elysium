@@ -36,6 +36,10 @@ struct ComponentPlaceholder {
 struct EditorCamera {
     Vector2 position = {0, 0};
     float zoom = 1.0f;
+    // Orbit about `position` (degrees; see World3D::View). The target is where the orientation
+    // widget's snaps ease toward; dragging sets both.
+    float yaw = 0.0f, pitch = 30.0f;
+    float targetYaw = 0.0f, targetPitch = 30.0f;
     bool initialized = false;
 };
 

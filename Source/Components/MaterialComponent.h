@@ -14,16 +14,13 @@ namespace Elysium {
         std::string material = "Flat";
         bool enabled = true;
         std::string texturePath;
-        // Lighting maps for lit layers, sampled like texturePath (Texture material only).
-        std::string normalMapPath;
-        std::string emissionMapPath;
         std::unordered_map<std::string, Value> overrides;
     };
 
     // Draws the entity's shape as an ordered stack of analytic SDF layers — fill,
     // then stroke, then glow, drawn in list order (so put a glow first to sit behind).
     // Only applies to shapes that report SdfGeometry (Rectangle, Circle, Ellipse, Line, Polygon);
-    // other renderables on the entity (Text, Tile, ...) draw as usual. A sprite is a
+    // other renderables on the entity (Text, ...) draw as usual. A sprite is a
     // Rectangle + a Texture layer (SpriteSystem maintains both for SpriteComponent). padding grows
     // every layer's quad past the shape so glow / outside strokes have room.
     //

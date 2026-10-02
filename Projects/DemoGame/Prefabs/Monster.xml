@@ -4,7 +4,7 @@
             <KinematicsComponent friction="5" maxSpeed="150"/>
             <LayerComponent name="entity" hideInFog="true"/>
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png" normalMap="Textures/Sprites/Archer/Archer_idle_bored_normal.png">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Archer/Archer_idle_bored.png">
                     <Uniform name="uSourceRect" type="vec4" value="6400.000000 768.000000 256.000000 256.000000"/>
                 </Layer>
             </MaterialComponent>
