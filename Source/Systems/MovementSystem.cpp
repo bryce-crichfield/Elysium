@@ -5,10 +5,10 @@
 #include "Core/Entity.h"
 #include "Core/Scene.h"
 #include <algorithm>
-#include "Components/MovementComponent.h"
-#include "Components/TransformComponent.h"
-#include "Components/BoundsComponent.h"
-#include "Components/KinematicsComponent.h"
+#include "Core/Components/MovementComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/BoundsComponent.h"
+#include "Core/Components/KinematicsComponent.h"
 namespace Elysium::Systems {
 
 static constexpr int   STUCK_CHECK_INTERVAL_MS = 1000;

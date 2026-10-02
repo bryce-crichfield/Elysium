@@ -4,7 +4,7 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include "Core/Editor.h"
+#include "Editor/Editor.h"
 #include "Core/Entity.h"
 
 namespace Elysium::Services {

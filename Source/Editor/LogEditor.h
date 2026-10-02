@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "Core/Editor.h"
+#include "Editor/Editor.h"
 
 namespace Elysium::Services {
 class ILogService;

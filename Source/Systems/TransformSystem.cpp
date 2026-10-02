@@ -1,7 +1,7 @@
 #include "Systems/TransformSystem.h"
 #include "Core/SystemRegistry.h"
-#include "Components/TransformComponent.h"
-#include "Components/ParentComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/ParentComponent.h"
 #include "Core/MathTypes.h"
 #include <cmath>
 #include <vector>

@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
-#include "Components/ModelComponent.h"
-#include "Components/TransformComponent.h"
+#include "Core/Components/ModelComponent.h"
+#include "Core/Components/TransformComponent.h"
 #include "Core/Graphics.h"
 #include "Core/RaylibConvert.h"
 #include "raylib.h"

@@ -4,25 +4,25 @@
 #include <cstring>
 #include <type_traits>
 #include <unordered_set>
-#include "Components/CameraComponent.h"
-#include "Components/CircleComponent.h"
-#include "Components/EllipseComponent.h"
-#include "Components/LayerComponent.h"
-#include "Components/LightComponent.h"
-#include "Components/LineComponent.h"
-#include "Components/MaterialComponent.h"
-#include "Components/ModelComponent.h"
-#include "Components/ParentComponent.h"
-#include "Components/PolygonComponent.h"
-#include "Components/RectangleComponent.h"
-#include "Components/ShaderComponent.h"
-#include "Components/SpriteComponent.h"
-#include "Components/TextComponent.h"
-#include "Components/TransformComponent.h"
+#include "Core/Components/CameraComponent.h"
+#include "Core/Components/CircleComponent.h"
+#include "Core/Components/EllipseComponent.h"
+#include "Core/Components/LayerComponent.h"
+#include "Core/Components/LightComponent.h"
+#include "Core/Components/LineComponent.h"
+#include "Core/Components/MaterialComponent.h"
+#include "Core/Components/ModelComponent.h"
+#include "Core/Components/ParentComponent.h"
+#include "Core/Components/PolygonComponent.h"
+#include "Core/Components/RectangleComponent.h"
+#include "Core/Components/ShaderComponent.h"
+#include "Core/Components/SpriteComponent.h"
+#include "Core/Components/TextComponent.h"
+#include "Core/Components/TransformComponent.h"
 #include "Core/Assets/ShaderAsset.h"
 #include "Core/Common.h"
 #include "Core/Entity.h"
-#include "Core/Geometry.h"
+#include "Core/Geometry/Polygon.h"
 #include "Core/Graphics.h"
 #include "Core/Log.h"
 #include "Core/Path.h"
@@ -251,24 +251,16 @@ static std::optional<Rectangle> BoundsLineImpl(const World& world, const RenderR
 static bool PickLineImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
     const auto& component = world.GetComponent<LineComponent>(rec.entity);
     const Vector2 p = GetShapeTransform(world, rec).ToLocal(testPos);
-    const Vector2 a = { rec.x + component.x1, rec.y + component.y1 };
-    const Vector2 ab = Vector2{ rec.x + component.x2, rec.y + component.y2 } - a;
-    const float lengthSq = ab.x * ab.x + ab.y * ab.y;
-    const float t = lengthSq > 0.0f ? std::clamp(((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / lengthSq, 0.0f, 1.0f) : 0.0f;
-    const Vector2 closest = { a.x + ab.x * t, a.y + ab.y * t };
-    return (p - closest).Length() <= std::max(component.thickness * 0.5f, 2.0f);
+    const Segment line{{rec.x + component.x1, rec.y + component.y1}, {rec.x + component.x2, rec.y + component.y2}};
+    return line.Distance(p) <= std::max(component.thickness * 0.5f, 2.0f);
 }
 
 static bool PickPolygonImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
     const auto& component = world.GetComponent<PolygonComponent>(rec.entity);
     if (component.points.size() < 3) return false;
 
-    std::vector<Vector2> worldPoints;
-    worldPoints.reserve(component.points.size());
-    for (const auto& p : component.points) {
-        worldPoints.push_back({ rec.x + p.x, rec.y + p.y });
-    }
-    return PointInPolygon(GetShapeTransform(world, rec).ToLocal(testPos), worldPoints);
+    const Polygon polygon = Polygon(component.points).Translated({ rec.x, rec.y });
+    return polygon.Contains(GetShapeTransform(world, rec).ToLocal(testPos));
 }
 
 static std::optional<Rectangle> BoundsPolygonImpl(const World& world, const RenderRecord& rec) {
@@ -359,7 +351,7 @@ static void RenderDrawTextCmd(RenderContext& ctx, const RenderRecord& rec) {
 }
 static void RenderDrawPolygonCmd(RenderContext& ctx, const RenderRecord& rec) {
     const auto& c = *static_cast<const DrawPolygonCmd*>(rec.payload);
-    std::vector<Vector2> triangles = TriangulatePolygon(c.points);
+    std::vector<Vector2> triangles = Polygon(c.points).Triangulate();
     ctx.DrawTriangleList(triangles, c.color);
 }
 

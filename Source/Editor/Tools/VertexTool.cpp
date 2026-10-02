@@ -3,17 +3,17 @@
 #include <cmath>
 #include <memory>
 #include <string>
-#include "Components/ColliderComponent.h"
-#include "Components/NavAreaComponent.h"
-#include "Components/TransformComponent.h"
-#include "Core/Editor.h"
+#include "Core/Components/ColliderComponent.h"
+#include "Core/Components/NavAreaComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Editor/Editor.h"
 #include "Core/EntitySerializer.h"
-#include "Core/Geometry.h"
+#include "Core/Geometry/Polygon.h"
 #include "Core/World.h"
 #include "Editor/Commands/EditorCommands.h"
-#include "Editor/OverlayPainter.h"
-#include "Editor/Theme.h"
-#include "Editor/Widgets.h"
+#include "Editor/Viewport/OverlayPainter.h"
+#include "Editor/Style/Theme.h"
+#include "Editor/Widgets/Widgets.h"
 #include "extras/IconsFontAwesome6.h"
 #include "Interfaces/IEditorService.h"
 #include "imgui.h"
@@ -41,7 +41,7 @@ const char* const kPolygonComponents[] = {NavAreaComponent::XmlTag(), ColliderCo
 const char* const kShapeLabels[] = {"nav area", "collider"};
 constexpr int kShapeCount = (int)(sizeof(kPolygonComponents) / sizeof(kPolygonComponents[0]));
 
-std::vector<Vector2> ReadPolygon(World& world, Entity entity, const std::string& tag) {
+Polygon ReadPolygon(World& world, Entity entity, const std::string& tag) {
     if (tag == NavAreaComponent::XmlTag() && world.HasComponent<NavAreaComponent>(entity)) {
         return world.GetComponent<NavAreaComponent>(entity).LocalPolygon();
     }
@@ -51,8 +51,8 @@ std::vector<Vector2> ReadPolygon(World& world, Entity entity, const std::string&
     return {};
 }
 
-void WritePolygon(World& world, Entity entity, const std::string& tag, const std::vector<Vector2>& local) {
-    const std::string text = FormatPointList(local);
+void WritePolygon(World& world, Entity entity, const std::string& tag, const Polygon& local) {
+    const std::string text = local.Format();
     if (tag == NavAreaComponent::XmlTag() && world.HasComponent<NavAreaComponent>(entity)) {
         world.GetComponent<NavAreaComponent>(entity).points = text;
     } else if (tag == ColliderComponent::XmlTag() && world.HasComponent<ColliderComponent>(entity)) {
@@ -65,35 +65,16 @@ void WritePolygon(World& world, Entity entity, const std::string& tag, const std
     }
 }
 
-// Index of the edge `point` is nearest to (the edge from result to result+1), when it is within
-// `radius` of it, plus where on that edge it lands.
+// The edge `point` is nearest to, when it is within `radius` of it, and where on that edge it lands.
 struct EdgeHit {
     size_t after = 0;  // insert the new vertex after this index
     Vector2 at{};
-    bool found = false;
 };
 
-EdgeHit NearestEdge(const std::vector<Vector2>& polygon, Vector2 point, float radius) {
-    EdgeHit best;
-    float bestDistance = radius;
-
-    for (size_t i = 0; i < polygon.size(); i++) {
-        const Vector2 a = polygon[i], b = polygon[(i + 1) % polygon.size()];
-        const Vector2 edge = b - a;
-        const float lengthSquared = edge.x * edge.x + edge.y * edge.y;
-        if (lengthSquared <= 0.0f) continue;
-
-        // Projection of the point onto the segment, clamped to it.
-        float t = ((point.x - a.x) * edge.x + (point.y - a.y) * edge.y) / lengthSquared;
-        t = std::fmin(1.0f, std::fmax(0.0f, t));
-        const Vector2 closest{a.x + edge.x * t, a.y + edge.y * t};
-
-        const float distance = (closest - point).Length();
-        if (distance >= bestDistance) continue;
-        bestDistance = distance;
-        best = EdgeHit{i, closest, true};
-    }
-    return best;
+std::optional<EdgeHit> NearestEdge(const Polygon& polygon, Vector2 point, float radius) {
+    const auto nearest = polygon.NearestOnOutline(point);
+    if (!nearest || nearest->distance >= radius) return std::nullopt;
+    return EdgeHit{nearest->edge, nearest->point};
 }
 
 }  // namespace
@@ -111,7 +92,7 @@ const char* VertexTool::Unavailable(Services::IEditorService& editor, bool isSce
     for (Entity entity : editor.GetSelectedEntities()) {
         if (!world->IsAlive(entity)) continue;
         for (const char* tag : kPolygonComponents) {
-            if (ReadPolygon(*world, entity, tag).size() >= 3) return nullptr;
+            if (ReadPolygon(*world, entity, tag).IsValid()) return nullptr;
         }
     }
     return "Select a nav area or collider to reshape it";
@@ -137,7 +118,7 @@ ToolStatus VertexTool::Status(Services::IEditorService& editor) const {
     const char* tag = ShapeTag();
     int count = 0;
     for (Entity entity : editor.GetSelectedEntities()) {
-        if (world->IsAlive(entity) && ReadPolygon(*world, entity, tag).size() >= 3) count++;
+        if (world->IsAlive(entity) && ReadPolygon(*world, entity, tag).IsValid()) count++;
     }
 
     if (count == 0) {
@@ -157,17 +138,17 @@ std::vector<VertexTool::Target> VertexTool::TargetsOf(ToolContext& context) cons
     std::vector<Target> targets;
     for (Entity entity : context.editor.GetSelectedEntities()) {
         if (!context.world.IsAlive(entity)) continue;
-        std::vector<Vector2> local = ReadPolygon(context.world, entity, tag);
-        if (local.size() < 3) continue;
-        targets.push_back(Target{entity, tag, TranslatePolygon(local, OriginOf(context.world, entity))});
+        Polygon local = ReadPolygon(context.world, entity, tag);
+        if (!local.IsValid()) continue;
+        targets.push_back(Target{entity, tag, local.Translated(OriginOf(context.world, entity))});
     }
     return targets;
 }
 
-void VertexTool::Commit(ToolContext& context, const Target& target, const std::vector<Vector2>& world,
+void VertexTool::Commit(ToolContext& context, const Target& target, const Polygon& world,
                         const std::string& before, const char* label) {
     const Vector2 origin = OriginOf(context.world, target.entity);
-    WritePolygon(context.world, target.entity, target.component, TranslatePolygon(world, origin * -1.0f));
+    WritePolygon(context.world, target.entity, target.component, world.Translated(origin * -1.0f));
 
     std::string after = EntityXml::SaveComponent(context.world, target.entity, target.component);
     if (after == before) return;
@@ -191,13 +172,13 @@ bool VertexTool::HandleInput(ToolContext& context) {
         }
 
         const Vector2 origin = OriginOf(context.world, dragEntity_);
-        std::vector<Vector2> world = TranslatePolygon(ReadPolygon(context.world, dragEntity_, dragComponent_), origin);
-        handles_.Drag(world, in.mouseWorld);
+        Polygon world = ReadPolygon(context.world, dragEntity_, dragComponent_).Translated(origin);
+        handles_.Drag(world.Points(), in.mouseWorld);
 
         const Target target{dragEntity_, dragComponent_, world};
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
             // Live, unrecorded: write it straight through without a command.
-            WritePolygon(context.world, dragEntity_, dragComponent_, TranslatePolygon(world, origin * -1.0f));
+            WritePolygon(context.world, dragEntity_, dragComponent_, world.Translated(origin * -1.0f));
             return true;
         }
 
@@ -214,13 +195,13 @@ bool VertexTool::HandleInput(ToolContext& context) {
     // Right-click a vertex to remove it, down to the three a polygon needs.
     if (in.rightClicked) {
         for (const Target& target : targets) {
-            auto vertex = PolygonHandles::HitVertex(target.world, in.mouseWorld, handleRadius);
+            auto vertex = PolygonHandles::HitVertex(target.world.Points(), in.mouseWorld, handleRadius);
             if (!vertex) continue;
-            if (target.world.size() <= 3) return true;  // any fewer stops being a polygon
+            if (target.world.Size() <= 3) return true;  // any fewer stops being a polygon
 
             const std::string before = EntityXml::SaveComponent(context.world, target.entity, target.component);
-            std::vector<Vector2> world = target.world;
-            world.erase(world.begin() + (long)*vertex);
+            Polygon world = target.world;
+            world.Points().erase(world.Points().begin() + (long)*vertex);
             Commit(context, target, world, before, "Remove Vertex");
             return true;
         }
@@ -231,7 +212,7 @@ bool VertexTool::HandleInput(ToolContext& context) {
 
     // A vertex under the cursor starts a drag.
     for (const Target& target : targets) {
-        if (!handles_.Begin(target.world, in.mouseWorld, handleRadius)) continue;
+        if (!handles_.Begin(target.world.Points(), in.mouseWorld, handleRadius)) continue;
         dragEntity_ = target.entity;
         dragComponent_ = target.component;
         dragBefore_ = EntityXml::SaveComponent(context.world, target.entity, target.component);
@@ -241,18 +222,18 @@ bool VertexTool::HandleInput(ToolContext& context) {
     // Otherwise an edge under the cursor gains one, and the new vertex is picked up immediately
     // so adding and positioning it is one motion.
     for (const Target& target : targets) {
-        const EdgeHit edge = NearestEdge(target.world, in.mouseWorld, edgeRadius);
-        if (!edge.found) continue;
+        const auto edge = NearestEdge(target.world, in.mouseWorld, edgeRadius);
+        if (!edge) continue;
 
         const std::string before = EntityXml::SaveComponent(context.world, target.entity, target.component);
-        std::vector<Vector2> world = target.world;
-        world.insert(world.begin() + (long)edge.after + 1, edge.at);
+        Polygon world = target.world;
+        world.Points().insert(world.Points().begin() + (long)edge->after + 1, edge->at);
         Commit(context, target, world, before, "Add Vertex");
 
         dragEntity_ = target.entity;
         dragComponent_ = target.component;
         dragBefore_ = EntityXml::SaveComponent(context.world, target.entity, target.component);
-        handles_.Begin(world, edge.at, handleRadius);
+        handles_.Begin(world.Points(), edge->at, handleRadius);
         return true;
     }
 
@@ -266,13 +247,13 @@ bool VertexTool::HandleInput(ToolContext& context) {
 
 void VertexTool::DrawOverlay(ToolContext& context, OverlayPainter& painter) {
     for (const Target& target : TargetsOf(context)) {
-        painter.Polygon(target.world, Editor::Palette().Selection, 0.08f, painter.LineWidth() + 1.0f);
-        painter.Handles(target.world, Editor::Palette().Selection);
+        painter.Polygon(target.world.Points(), Editor::Palette().Selection, 0.08f, painter.LineWidth() + 1.0f);
+        painter.Handles(target.world.Points(), Editor::Palette().Selection);
 
         // Preview where a click would add a vertex, so edges read as clickable.
         if (!context.input.hovered || handles_.Dragging()) continue;
-        const EdgeHit edge = NearestEdge(target.world, context.input.mouseWorld, kEdgePixels * context.input.worldPerPixel);
-        if (edge.found) painter.Circle(edge.at, OverlayPainter::HandleRadius * 0.6f, Editor::Palette().Accent, true);
+        const auto edge = NearestEdge(target.world, context.input.mouseWorld, kEdgePixels * context.input.worldPerPixel);
+        if (edge) painter.Circle(edge->at, OverlayPainter::HandleRadius * 0.6f, Editor::Palette().Accent, true);
     }
 }
 

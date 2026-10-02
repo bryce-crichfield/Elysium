@@ -4,6 +4,7 @@
 
 #include "Core/Event.h"
 #include "Core/Message.h"
+#include "Core/ServiceLocator.h"
 #include "Core/Value.h"
 
 namespace Elysium {

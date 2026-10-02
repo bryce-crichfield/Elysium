@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "Core/Editor.h"
+#include "Editor/Editor.h"
 #include "Core/Future.h"
 #include "Network/Network.h"
 #include "Network/Generated.h"

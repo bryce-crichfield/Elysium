@@ -1,9 +1,9 @@
 #include "Editor/Tools/SelectTool.h"
 
 #include <algorithm>
-#include "Core/Editor.h"
-#include "Editor/OverlayPainter.h"
-#include "Editor/Theme.h"
+#include "Editor/Editor.h"
+#include "Editor/Viewport/OverlayPainter.h"
+#include "Editor/Style/Theme.h"
 #include "extras/IconsFontAwesome6.h"
 #include "Interfaces/IEditorService.h"
 #include "imgui.h"

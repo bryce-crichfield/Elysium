@@ -5,9 +5,9 @@
 #include "Interfaces/ISceneService.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
-#include "Components/TransformComponent.h"
-#include "Components/CameraComponent.h"
-#include "Components/FollowComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/CameraComponent.h"
+#include "Core/Components/FollowComponent.h"
 
 namespace Elysium::Systems {
 

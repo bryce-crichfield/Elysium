@@ -2,7 +2,7 @@
 #include <tinyxml2.h>
 #include <cstdio>
 #include "Core/Log.h"
-#include "Core/Geometry.h"
+#include "Core/Geometry/Polygon.h"
 
 namespace Elysium {
 
@@ -16,7 +16,7 @@ std::string ColorToHex(Color color) {
 std::string ReadPolygonAttribute(tinyxml2::XMLElement* el, const char* name) {
     if (const char* points = el->Attribute(name)) return points;
     if (el->Attribute("diamondW") && el->Attribute("diamondH")) {
-        return FormatPointList(IsoDiamond(el->FloatAttribute("diamondW"), el->FloatAttribute("diamondH")));
+        return Polygon::IsoDiamond(el->FloatAttribute("diamondW"), el->FloatAttribute("diamondH")).Format();
     }
     return {};
 }

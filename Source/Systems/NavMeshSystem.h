@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/System.h"
 #include "Core/Entity.h"
+#include "Core/Geometry/Polygon.h"
 #include "Core/MathTypes.h"
 #include <cstdint>
 #include <unordered_map>
@@ -60,7 +61,7 @@ protected:
 
 private:
     struct Area {
-        std::vector<Vector2> polygon;
+        Polygon polygon;
         Rectangle bounds;
         float cost = 1.0f;
         float low = -1e30f, high = 1e30f;  // heights it occupies (obstacles)

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/System.h"
-#include "Components/CameraComponent.h"
+#include "Core/Components/CameraComponent.h"
 #include "Core/Scene.h"
 #include "Core/Renderable.h"
 #include "Core/Graphics.h"

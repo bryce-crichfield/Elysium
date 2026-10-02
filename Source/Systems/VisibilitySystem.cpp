@@ -3,10 +3,10 @@
 #include "Core/Entity.h"
 #include "Core/World.h"
 #include "Core/World3D.h"
-#include "Components/TransformComponent.h"
-#include "Components/LayerComponent.h"
-#include "Components/LightComponent.h"
-#include "Components/ModelComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/LayerComponent.h"
+#include "Core/Components/LightComponent.h"
+#include "Core/Components/ModelComponent.h"
 #include <cmath>
 
 namespace Elysium::Systems {

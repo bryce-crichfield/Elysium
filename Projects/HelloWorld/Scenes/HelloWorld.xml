@@ -26,15 +26,15 @@
                     <Uniform name="uColor" type="vec4" value="0.102000 0.078000 0.125000 1.000000"/>
                 </Layer>
                 <Layer material="Stroke" enabled="true">
-                    <Uniform name="uWidth" type="float" value="3.000000"/>
                     <Uniform name="uColor" type="vec4" value="1.000000 0.549000 0.165000 1.000000"/>
+                    <Uniform name="uWidth" type="float" value="3.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="FireFrame"/>
             <RectangleComponent width="200" height="100" cornerRadius="0.059999999"/>
             <ShaderComponent shader="Assets/Shaders/FireBorder.fs" padding="48" enabled="true" width="100" height="100">
-                <Uniform name="uIntensity" type="float" value="1.600000"/>
                 <Uniform name="uGlowRadius" type="float" value="26.000000"/>
+                <Uniform name="uIntensity" type="float" value="1.600000"/>
             </ShaderComponent>
             <TransformComponent x="540" y="-300"/>
         </Entity>
@@ -42,16 +42,16 @@
             <LayerComponent name="default"/>
             <MaterialComponent padding="32" enabled="true">
                 <Layer material="Glow" enabled="true">
-                    <Uniform name="uPulse" type="float" value="0.300000"/>
-                    <Uniform name="uRadius" type="float" value="10.000000"/>
                     <Uniform name="uColor" type="vec4" value="0.500000 0.830000 1.000000 1.000000"/>
+                    <Uniform name="uRadius" type="float" value="10.000000"/>
+                    <Uniform name="uPulse" type="float" value="0.300000"/>
                 </Layer>
                 <Layer material="Flat" enabled="true">
                     <Uniform name="uColor" type="vec4" value="0.137000 0.188000 0.290000 1.000000"/>
                 </Layer>
                 <Layer material="Stroke" enabled="true">
-                    <Uniform name="uWidth" type="float" value="3.000000"/>
                     <Uniform name="uColor" type="vec4" value="0.498000 0.831000 1.000000 1.000000"/>
+                    <Uniform name="uWidth" type="float" value="3.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="SdfPanel"/>
@@ -77,8 +77,8 @@
                     <Uniform name="uColor" type="vec4" value="0.102000 0.078000 0.125000 1.000000"/>
                 </Layer>
                 <Layer material="Stroke" enabled="true">
-                    <Uniform name="uWidth" type="float" value="3.000000"/>
                     <Uniform name="uColor" type="vec4" value="1.000000 0.549000 0.165000 1.000000"/>
+                    <Uniform name="uWidth" type="float" value="3.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="SdfFireFrame"/>
@@ -89,21 +89,21 @@
             <LayerComponent name="default"/>
             <MaterialComponent padding="25" enabled="true">
                 <Layer material="Electric" enabled="true">
-                    <Uniform name="uGlowWidth" type="float" value="4.000000"/>
-                    <Uniform name="uIntensity" type="float" value="1.500000"/>
                     <Uniform name="uInteriorFade" type="float" value="5.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.500000"/>
+                    <Uniform name="uGlowWidth" type="float" value="4.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="SdfElectric"/>
             <RectangleComponent width="200" height="100" cornerRadius="0.2"/>
-            <TransformComponent x="-540" y="0"/>
+            <TransformComponent x="-556.38635" y="50.625" scaleX="0.81343639"/>
         </Entity>
         <Entity name="SdfDissolve">
             <LayerComponent name="default"/>
             <MaterialComponent padding="2" enabled="true">
                 <Layer material="Dissolve" enabled="true">
-                    <Uniform name="uAutoSpeed" type="float" value="0.800000"/>
                     <Uniform name="uColor" type="vec4" value="0.227000 0.357000 0.659000 1.000000"/>
+                    <Uniform name="uAutoSpeed" type="float" value="0.800000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="SdfDissolve"/>
@@ -115,9 +115,9 @@
             <LayerComponent name="default"/>
             <MaterialComponent padding="2" enabled="true">
                 <Layer material="Meter" enabled="true">
-                    <Uniform name="uAutoSpeed" type="float" value="0.250000"/>
-                    <Uniform name="uHole" type="float" value="0.700000"/>
                     <Uniform name="uMode" type="float" value="1.000000"/>
+                    <Uniform name="uHole" type="float" value="0.700000"/>
+                    <Uniform name="uAutoSpeed" type="float" value="0.250000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="SdfCooldownRing"/>
@@ -127,13 +127,13 @@
             <LayerComponent name="default"/>
             <MaterialComponent padding="2" enabled="true">
                 <Layer material="Meter" enabled="true">
-                    <Uniform name="uFillColor" type="vec4" value="1.000000 0.750000 0.250000 1.000000"/>
                     <Uniform name="uAutoSpeed" type="float" value="0.400000"/>
+                    <Uniform name="uFillColor" type="vec4" value="1.000000 0.750000 0.250000 1.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="SdfCastBar"/>
             <RectangleComponent width="220" height="22" cornerRadius="1"/>
-            <TransformComponent x="540" y="0"/>
+            <TransformComponent x="540" y="209.48877"/>
         </Entity>
         <Entity name="SdfTelegraph">
             <CircleComponent radius="26"/>
@@ -152,13 +152,13 @@
             <LayerComponent name="default"/>
             <MaterialComponent padding="4" enabled="true">
                 <Layer material="Gradient" enabled="true">
-                    <Uniform name="uColorB" type="vec4" value="0.850000 0.200000 0.350000 1.000000"/>
                     <Uniform name="uColorA" type="vec4" value="1.000000 0.850000 0.300000 1.000000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.850000 0.200000 0.350000 1.000000"/>
                 </Layer>
                 <Layer material="Stroke" enabled="true">
-                    <Uniform name="uAlign" type="float" value="1.000000"/>
-                    <Uniform name="uWidth" type="float" value="4.000000"/>
                     <Uniform name="uColor" type="vec4" value="1.000000 1.000000 1.000000 1.000000"/>
+                    <Uniform name="uWidth" type="float" value="4.000000"/>
+                    <Uniform name="uAlign" type="float" value="1.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="SdfOrb"/>
@@ -169,8 +169,8 @@
             <LineComponent x1="-130" y1="20" x2="130" y2="-20" thickness="8"/>
             <MaterialComponent padding="24" enabled="true">
                 <Layer material="Glow" enabled="true">
-                    <Uniform name="uRadius" type="float" value="6.000000"/>
                     <Uniform name="uColor" type="vec4" value="0.500000 1.000000 0.400000 1.000000"/>
+                    <Uniform name="uRadius" type="float" value="6.000000"/>
                 </Layer>
                 <Layer material="Flat" enabled="true">
                     <Uniform name="uColor" type="vec4" value="0.706000 1.000000 0.549000 1.000000"/>
@@ -183,8 +183,8 @@
             <LayerComponent name="default"/>
             <MaterialComponent padding="40" enabled="true">
                 <Layer material="Glow" enabled="true">
-                    <Uniform name="uRadius" type="float" value="12.000000"/>
                     <Uniform name="uColor" type="vec4" value="1.000000 0.800000 0.300000 1.000000"/>
+                    <Uniform name="uRadius" type="float" value="12.000000"/>
                 </Layer>
                 <Layer material="Flat" enabled="true">
                     <Uniform name="uColor" type="vec4" value="0.231000 0.165000 0.063000 1.000000"/>

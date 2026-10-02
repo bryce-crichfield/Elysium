@@ -7,14 +7,15 @@
 #include <string>
 #include <memory>
 #include <set>
+#include <typeindex>
 
 #include "Core/Entity.h"
 #include "Core/Component.h"
 #include "Core/World.h"
 
 #include "Core/Xml.h"
-#include "Core/Editor.h"
 #include "Core/Reflection.h"
+#include "Core/ServiceLocator.h"
 #include <sol/sol.hpp>
 
 namespace Elysium {
@@ -91,6 +92,7 @@ namespace Elysium {
             const char* name = T::Name();
             const char* tag = name;
             if constexpr (requires { T::XmlTag(); }) tag = T::XmlTag();
+            types_.emplace(name, std::type_index(typeid(T)));
 
             // Typed fields, by display name and by XML tag (what prefab parameters name).
             if constexpr (Reflected<T>) {
@@ -202,24 +204,7 @@ namespace Elysium {
                 prefabFieldSupport_[fieldXmlTag] = std::move(support);
             }
 
-            // 4. Register Inspector
-            // Its own Inspect, or else one drawn from its fields.
-            if constexpr (Inspectable<T>) {
-                inspectorOrder_[name] = InspectorOrderOf<T>();
-                inspectors_[name] = [](World* w, Entity e, ServiceLocator& services) {
-                    if (w->HasComponent<T>(e)) {
-                        auto& comp = w->GetComponent<T>(e);
-                        T::Inspect(comp, e, services);
-                    }
-                };
-            } else if constexpr (Reflected<T>) {
-                inspectorOrder_[name] = InspectorOrderOf<T>();
-                inspectors_[name] = [fields = T::Fields()](World* w, Entity e, ServiceLocator&) {
-                    if (w->HasComponent<T>(e)) InspectFields(&w->GetComponent<T>(e), fields);
-                };
-            }
-
-            // 5. Register Script Binding
+            // 4. Register Script Binding
             if constexpr (Scriptable<T>) {
                 scriptBinders_.push_back([](sol::state& lua) {
                     sol::usertype<T> ut = lua.new_usertype<T>(T::Name(), sol::constructors<T()>());
@@ -227,7 +212,7 @@ namespace Elysium {
                 });
             }
             
-            // 6. Register generic "Add/Set/Get" for Lua (Dynamic access)
+            // 5. Register generic "Add/Set/Get" for Lua (Dynamic access)
             // This is complex because we need to bridge the compile-time T to runtime strings
             scriptAccessors_[name] = LuaComponentAccess {
                 .add = [](World* w, Entity e) { w->AddComponent<T>(e, T{}); },
@@ -256,12 +241,9 @@ namespace Elysium {
         using XmlSaverFunc = std::function<void(XMLBuilder&, World*, Entity)>;
         const std::map<std::string, XmlSaverFunc>& GetXmlSavers() const { return xmlSavers_; }
 
-        using InspectorFunc = std::function<void(World*, Entity, ServiceLocator&)>;
-        const std::unordered_map<std::string, InspectorFunc>& GetInspectors() const { return inspectors_; }
-        InspectorOrder GetInspectorOrder(const std::string& name) const {
-            auto it = inspectorOrder_.find(name);
-            return it == inspectorOrder_.end() ? InspectorOrder::Other : it->second;
-        }
+        // Every registered component's C++ type, by T::Name(). Behavior that lives outside Core
+        // (the editor's inspectors) keys itself by type and finds a component through this.
+        const std::map<std::string, std::type_index>& GetComponentTypes() const { return types_; }
 
         const std::unordered_map<std::string, PrefabFieldSupport>& GetPrefabFieldSupport() const { return prefabFieldSupport_; }
 
@@ -312,8 +294,7 @@ namespace Elysium {
         std::vector<std::function<void(World&)>> worldRegistrars_;
         std::unordered_map<std::string, XmlLoaderFunc> xmlLoaders_;
         std::map<std::string, XmlSaverFunc> xmlSavers_;
-        std::unordered_map<std::string, InspectorFunc> inspectors_;
-        std::unordered_map<std::string, InspectorOrder> inspectorOrder_;
+        std::map<std::string, std::type_index> types_;
         std::unordered_map<std::string, PrefabFieldSupport> prefabFieldSupport_;
         std::unordered_map<std::string, XmlComponentOps> xmlComponentOps_;
         std::unordered_map<std::string, std::string> xmlTagByName_;

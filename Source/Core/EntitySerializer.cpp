@@ -3,7 +3,7 @@
 #include <tinyxml2.h>
 #include <unordered_map>
 #include <vector>
-#include "Components/PrefabInstanceComponent.h"
+#include "Core/Components/PrefabInstanceComponent.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
 

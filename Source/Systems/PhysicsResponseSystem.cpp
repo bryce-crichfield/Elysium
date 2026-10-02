@@ -2,9 +2,9 @@
 #include "Systems/CollisionSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Scene.h"
-#include "Components/TransformComponent.h"
-#include "Components/ColliderComponent.h"
-#include "Components/KinematicsComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/ColliderComponent.h"
+#include "Core/Components/KinematicsComponent.h"
 #include <cmath>
 #include <algorithm>
 

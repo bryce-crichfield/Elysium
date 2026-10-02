@@ -1,6 +1,6 @@
 #include "NetworkEditor.h"
 #include "Core/Common.h"
-#include "Editor/Widgets.h"
+#include "Editor/Widgets/Widgets.h"
 #include "Interfaces/IInvokeService.h"
 #include "Interfaces/INetworkService.h"
 #include "Core/Log.h"

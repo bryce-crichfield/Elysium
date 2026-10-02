@@ -1,8 +1,8 @@
 #include "Systems/FollowSystem.h"
 #include "Core/SystemRegistry.h"
-#include "Components/TransformComponent.h"
-#include "Components/FollowComponent.h"
-#include "Components/ParentComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/FollowComponent.h"
+#include "Core/Components/ParentComponent.h"
 
 namespace Elysium::Systems {
 

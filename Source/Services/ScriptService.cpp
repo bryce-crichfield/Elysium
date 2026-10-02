@@ -1,7 +1,7 @@
 #define SOL_HEADER_ONLY 1
 #define SOL_ALL_SAFETIES_ON 1
 #include "Services/ScriptService.h"
-#include "Editor/Widgets.h"
+#include "Editor/Widgets/Widgets.h"
 #include "Core/Common.h"
 #include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
@@ -18,8 +18,8 @@
 #include <memory>
 #include <limits>
 #include <cmath>
-#include "Components/CameraComponent.h"
-#include "Components/TransformComponent.h"
+#include "Core/Components/CameraComponent.h"
+#include "Core/Components/TransformComponent.h"
 #include "Systems/CollisionSystem.h"
 #include "Systems/MovementSystem.h"
 #include "Systems/NavMeshSystem.h"

@@ -6,7 +6,7 @@
 #include <optional>
 #include <filesystem>
 #include <fstream>
-#include "Components/PrefabInstanceComponent.h"
+#include "Core/Components/PrefabInstanceComponent.h"
 #include "Core/Xml.h"
 #include "Core/Common.h"
 #include "Core/ComponentRegistry.h"
@@ -19,6 +19,7 @@
 #include "Core/PrefabInstance.h"
 #include "imgui.h"
 #include "Editor/Commands/EditorCommands.h"
+#include "Editor/Inspectors/Inspector.h"
 #include "Editor/PrefabEditing.h"
 #include "Interfaces/IAssetService.h"
 #include "Core/Scene.h"
@@ -37,12 +38,20 @@ void EditorService::Shutdown() {
 }
 
 void EditorService::RegisterComponentTypes() {
-    const auto& inspectors = ComponentRegistry::Instance().GetInspectors();
-    for (const auto& [name, inspectorFunc] : inspectors) {
+    InspectorRegistry inspectors;
+    RegisterComponentInspectors(inspectors);
+
+    // The order each placeholder sorts by, alongside it.
+    std::unordered_map<std::string, InspectorOrder> orders;
+    for (const auto& [name, type] : ComponentRegistry::Instance().GetComponentTypes()) {
+        const InspectorRegistry::Entry* inspector = inspectors.Find(type);
+        if (!inspector) continue;
+        orders[name] = inspector->order;
+
         ComponentPlaceholder placeholder;
         placeholder.name = name;
-        placeholder.drawFunc = [inspectorFunc, this](Entity e, Elysium::World* w) {
-            inspectorFunc(w, e, registry_);
+        placeholder.drawFunc = [draw = inspector->draw, this](Entity e, Elysium::World* w) {
+            draw(*w, e, registry_);
         };
 
         if (auto* access = ComponentRegistry::Instance().GetLuaAccess(name)) {
@@ -59,9 +68,8 @@ void EditorService::RegisterComponentTypes() {
     }
 
     // Inspector and Add Component list them in InspectorOrder, then by name.
-    auto& registry = ComponentRegistry::Instance();
     std::sort(componentPlaceholders.begin(), componentPlaceholders.end(), [&](const auto& a, const auto& b) {
-        const auto orderA = registry.GetInspectorOrder(a.name), orderB = registry.GetInspectorOrder(b.name);
+        const auto orderA = orders.at(a.name), orderB = orders.at(b.name);
         return orderA != orderB ? orderA < orderB : a.name < b.name;
     });
 }

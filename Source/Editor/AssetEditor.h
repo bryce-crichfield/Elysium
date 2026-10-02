@@ -7,8 +7,8 @@
 #include <unordered_map>
 #include <vector>
 #include "Core/AssetKind.h"
-#include "Core/Editor.h"
-#include "Editor/AssetFileDialog.h"
+#include "Editor/Editor.h"
+#include "Editor/Widgets/AssetFileDialog.h"
 #include "Core/Future.h"
 
 namespace Elysium {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "Editor/PrefabPainter.h"
+#include "Editor/Tools/PrefabPainter.h"
 #include "Editor/Tools/ViewportTool.h"
 
 namespace Elysium {

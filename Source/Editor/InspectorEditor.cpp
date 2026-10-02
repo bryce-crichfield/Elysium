@@ -2,8 +2,8 @@
 #include <cstring>
 #include <algorithm>
 #include <set>
-#include "Components/NameComponent.h"
-#include "Components/PrefabInstanceComponent.h"
+#include "Core/Components/NameComponent.h"
+#include "Core/Components/PrefabInstanceComponent.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/EntitySerializer.h"
 #include "Editor/Commands/EditorCommands.h"
@@ -12,8 +12,8 @@
 #include "Core/Scene.h"
 #include "Core/World.h"
 #include "Core/Common.h"
-#include "Editor/AssetStyle.h"
-#include "Editor/Widgets.h"
+#include "Editor/Style/AssetStyle.h"
+#include "Editor/Widgets/Widgets.h"
 #include "Interfaces/IEditorService.h"
 
 namespace Elysium {

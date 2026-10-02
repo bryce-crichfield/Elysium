@@ -6,7 +6,7 @@
 #include "Interfaces/ISceneService.h"
 #include "Services/ScriptService.h"
 #include "Services/SceneService.h"
-#include "Components/ScriptComponent.h"
+#include "Core/Components/ScriptComponent.h"
 
 namespace Elysium::Systems {
 

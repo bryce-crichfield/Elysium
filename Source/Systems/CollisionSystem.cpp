@@ -1,10 +1,10 @@
 #include "Systems/CollisionSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Entity.h"
-#include "Core/Geometry.h"
+#include "Core/Geometry/Polygon.h"
 #include "Core/Scene.h"
-#include "Components/TransformComponent.h"
-#include "Components/ColliderComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/ColliderComponent.h"
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -46,12 +46,13 @@ std::optional<Contact> CircleVsCircle(Vector2 centerA, float radiusA, Vector2 ce
 }
 
 // `polygon` is world space. Returns the push for the *circle*.
-std::optional<Contact> CircleVsPolygon(Vector2 center, float radius, const std::vector<Vector2>& polygon,
+std::optional<Contact> CircleVsPolygon(Vector2 center, float radius, const Polygon& polygon,
                                        const ScaledSpace& space) {
-    ClosestPoint near;
-    if (!ClosestPointOnPolygon(center, polygon, near, space.scale)) return std::nullopt;
+    const auto nearest = polygon.NearestOnOutline(center, space.scale);
+    if (!nearest) return std::nullopt;
+    const Polygon::Nearest& near = *nearest;
 
-    Vector2 outward = space.In(center) - space.In(near.closest);
+    Vector2 outward = space.In(center) - space.In(near.point);
     if (near.inside) {
         // Centre is inside: the shortest way out is toward the nearest edge and beyond it.
         return space.Resolve(outward * -1.0f, radius + near.distance);

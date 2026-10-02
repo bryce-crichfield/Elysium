@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "Components/ModelComponent.h"
-#include "Components/MovementComponent.h"
-#include "Components/TransformComponent.h"
+#include "Core/Components/ModelComponent.h"
+#include "Core/Components/MovementComponent.h"
+#include "Core/Components/TransformComponent.h"
 #include "Core/Path.h"
 #include "Core/SystemRegistry.h"
 #include "Core/World3D.h"

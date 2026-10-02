@@ -3,8 +3,8 @@
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
-#include "Components/KinematicsComponent.h"
-#include "Components/TransformComponent.h"
+#include "Core/Components/KinematicsComponent.h"
+#include "Core/Components/TransformComponent.h"
 
 namespace Elysium::Systems {
 

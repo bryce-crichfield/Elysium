@@ -5,16 +5,16 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "Core/Editor.h"
+#include "Editor/Editor.h"
 #include "Core/Entity.h"
-#include "Editor/LayerDrawer.h"
-#include "Editor/ToolPanel.h"
-#include "Editor/SpatialOverlays.h"
+#include "Editor/Viewport/LayerDrawer.h"
+#include "Editor/Viewport/ToolPanel.h"
+#include "Editor/Viewport/SpatialOverlays.h"
 #include "Editor/Tools/ViewportTool.h"
-#include "Editor/AssetFileDialog.h"
-#include "Editor/ContentPane.h"
-#include "Editor/PrefabSettings.h"
-#include "Editor/SceneSettings.h"
+#include "Editor/Widgets/AssetFileDialog.h"
+#include "Editor/Panes/ContentPane.h"
+#include "Editor/Settings/PrefabSettings.h"
+#include "Editor/Settings/SceneSettings.h"
 #include "Systems/RenderSystem.h"
 
 namespace Elysium {

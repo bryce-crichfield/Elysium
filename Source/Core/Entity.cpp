@@ -4,7 +4,7 @@
 #include "ComponentRegistry.h"
 #include "Core/Components.h"
 #include "Core/World.h"
-#include "Components/ParentComponent.h"
+#include "Core/Components/ParentComponent.h"
 
 namespace Elysium {
 void ComponentManager::EntityDestroyed(Entity entity) {

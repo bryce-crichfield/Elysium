@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/ServiceLocator.h"
-#include "Editor.h"
+#include "Editor/Editor.h"
 
 #include <memory>
 #include <string>

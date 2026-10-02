@@ -1,7 +1,7 @@
 #include "LogEditor.h"
 #include <algorithm>
 #include "Core/Common.h"
-#include "Editor/Widgets.h"
+#include "Editor/Widgets/Widgets.h"
 #include "Interfaces/ILogService.h"
 
 namespace Elysium {

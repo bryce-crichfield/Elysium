@@ -3,8 +3,9 @@
 #include <string>
 #include <vector>
 #include "Core/Entity.h"
+#include "Core/Geometry/Polygon.h"
 #include "Core/MathTypes.h"
-#include "Editor/PolygonHandles.h"
+#include "Editor/Tools/PolygonHandles.h"
 #include "Editor/Tools/ViewportTool.h"
 
 namespace Elysium {
@@ -46,9 +47,9 @@ class VertexTool : public ViewportTool {
     struct Target {
         Entity entity = INVALID_ENTITY;
         std::string component;  // XML tag, which is also what the undo command records
-        std::vector<Vector2> world;
+        Polygon world;
 
-        bool Valid() const { return entity != INVALID_ENTITY && world.size() >= 3; }
+        bool Valid() const { return entity != INVALID_ENTITY && world.IsValid(); }
     };
 
     // The XML tag of the component `shape_` names.
@@ -56,7 +57,7 @@ class VertexTool : public ViewportTool {
     // The chosen kind of polygon on each selected entity that has one.
     std::vector<Target> TargetsOf(ToolContext& context) const;
     // Writes `world` back onto the target and records the change against `before`.
-    static void Commit(ToolContext& context, const Target& target, const std::vector<Vector2>& world,
+    static void Commit(ToolContext& context, const Target& target, const Polygon& world,
                        const std::string& before, const char* label);
 
     // Which polygon-bearing component to reshape, as an index into the Parameters() choices.

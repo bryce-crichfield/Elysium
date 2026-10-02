@@ -4,7 +4,7 @@
 #include "Core/Common.h"
 #include "Core/Event.h"
 #include "Core/Path.h"
-#include "Editor/Theme.h"
+#include "Editor/Style/Theme.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IInvokeService.h"
 #include "Interfaces/IMessageService.h"

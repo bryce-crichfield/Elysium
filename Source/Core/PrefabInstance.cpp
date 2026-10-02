@@ -5,7 +5,7 @@
 #include <map>
 #include <set>
 
-#include "Components/PrefabInstanceComponent.h"
+#include "Core/Components/PrefabInstanceComponent.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Components.h"
 #include "Core/Log.h"

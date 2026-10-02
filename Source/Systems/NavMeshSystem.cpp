@@ -2,16 +2,16 @@
 #include "Systems/RenderSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Scene.h"
-#include "Core/Geometry.h"
+#include "Core/Geometry/Polygon.h"
 #include "Core/Log.h"
 #include "Core/Path.h"
 #include "Core/World3D.h"
-#include "Components/TransformComponent.h"
-#include "Components/ColliderComponent.h"
-#include "Components/KinematicsComponent.h"
-#include "Components/ModelComponent.h"
-#include "Components/MovementComponent.h"
-#include "Components/NavAreaComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/ColliderComponent.h"
+#include "Core/Components/KinematicsComponent.h"
+#include "Core/Components/ModelComponent.h"
+#include "Core/Components/MovementComponent.h"
+#include "Core/Components/NavAreaComponent.h"
 #include "Interfaces/IAssetService.h"
 #include <algorithm>
 #include <chrono>
@@ -144,10 +144,10 @@ NavMeshSystem::Inputs NavMeshSystem::GatherInputs() {
     World& w = *world;
 
     w.Query<TransformComponent, NavAreaComponent>([&](Entity, auto& t, auto& area) {
-        auto polygon = area.LocalPolygon();
-        if (polygon.empty()) return;
-        polygon = TranslatePolygon(polygon, {t.worldX, t.worldY});
-        Area entry{polygon, PolygonBounds(polygon), std::max(1.0f, area.cost)};
+        Polygon polygon = area.LocalPolygon();
+        if (polygon.Empty()) return;
+        polygon = polygon.Translated({t.worldX, t.worldY});
+        Area entry{polygon, polygon.Bounds(), std::max(1.0f, area.cost)};
         switch (area.Type()) {
             case NavAreaType::Walkable: inputs.regions.push_back(std::move(entry)); break;
             case NavAreaType::Blocked:  inputs.blocked.push_back(std::move(entry)); break;
@@ -161,7 +161,7 @@ NavMeshSystem::Inputs NavMeshSystem::GatherInputs() {
         // Scan bounds must cover exactly the carve reach, which is anisotropic like the metric.
         const float carve = CarveRadius();
         const Vector2 reach{carve, carve / isoRatio_};
-        Area obstacle{polygon, Inflate(PolygonBounds(polygon), reach), 1.0f};
+        Area obstacle{polygon, Inflate(polygon.Bounds(), reach), 1.0f};
         collider.HeightRange(t.worldZ, obstacle.low, obstacle.high);
         inputs.obstacles.push_back(std::move(obstacle));
     });
@@ -301,7 +301,7 @@ void NavMeshSystem::Rasterise(const Inputs& inputs) {
                 for (int f = columnStart_[column]; f < columnStart_[column + 1]; ++f) fn(CellCenter(cx, cy), floors_[f]);
             }
     };
-    auto inside = [](Vector2 p, const Area& a) { return PointInPolygon(p, a.polygon); };
+    auto inside = [](Vector2 p, const Area& a) { return a.polygon.Contains(p); };
 
     // Painted walkable regions only matter on the flat floor; models say where their floors are.
     if (inputs.surfaces.empty()) {
@@ -317,7 +317,7 @@ void NavMeshSystem::Rasterise(const Inputs& inputs) {
         forEachColumnIn(o.bounds, [&](Vector2 p, Cell& c) {
             // Only where it stands in an agent's way on this floor.
             if (o.high < c.z || o.low > c.z + agentHeight_) return;
-            if (c.walkable && DistanceToPolygon(p, o.polygon, AgentScale()) < carveRadius) c.walkable = false;
+            if (c.walkable && o.polygon.Distance(p, AgentScale()) < carveRadius) c.walkable = false;
         });
 }
 

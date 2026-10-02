@@ -26,8 +26,8 @@ namespace Elysium {
 // }
 //```
 //
-// and gets from it a generic Inspector section (unless it has its own Inspect, which can
-// still call InspectFields) and typed prefab parameters. A field's `key` is its XML attribute,
+// and gets from it typed prefab parameters, and in the editor a generic Inspector section
+// (Editor/Inspectors/FieldInspector.h). A field's `key` is its XML attribute,
 // the name prefab parameters and overrides address it by; a field without one is runtime
 // state, shown read-only and never exposed.
 // Choice is an int member restricted to a named set, drawn as a dropdown rather than a drag.
@@ -86,17 +86,5 @@ template <typename T>
 concept Reflected = requires {
     { T::Fields() } -> std::convertible_to<std::vector<FieldInfo>>;
 };
-
-// The Inspector rows for `fields` of `component` (Editor/FieldInspector.cpp). Returns true
-// when any was edited.
-bool InspectFields(void* component, const std::vector<FieldInfo>& fields);
-
-// One field's widget over its serialized (XML attribute) text, for values that live as text,
-// like prefab parameters. Returns true when edited; `text` holds the result.
-bool InspectFieldText(const char* id, const FieldInfo& field, std::string& text);
-
-// A field's type as a small icon in its color (an asset's kind color), with the type as a
-// tooltip; `field` null means untyped.
-void FieldTypeBadge(const FieldInfo* field);
 
 }  // namespace Elysium

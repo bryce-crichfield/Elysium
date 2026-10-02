@@ -4,9 +4,9 @@
 #include "Core/SystemRegistry.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
-#include "Components/MaterialComponent.h"
-#include "Components/RectangleComponent.h"
-#include "Components/SpriteComponent.h"
+#include "Core/Components/MaterialComponent.h"
+#include "Core/Components/RectangleComponent.h"
+#include "Core/Components/SpriteComponent.h"
 #include "Core/Graphics.h"
 #include "Core/Sprite.h"
 

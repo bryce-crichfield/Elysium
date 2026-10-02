@@ -1,0 +1,21 @@
+#pragma once
+#include "Core/Component.h"
+#include "Core/Graphics.h"
+#include "Core/MathTypes.h"
+#include <vector>
+
+namespace Elysium {
+    struct PolygonComponent {
+        std::vector<Vector2> points;  // local-space, relative to entity position
+
+        PolygonComponent(std::vector<Vector2> points = {});
+
+        static constexpr const char* Name() { return "Polygon"; }
+        static constexpr const char* XmlTag() { return "PolygonComponent"; }
+
+        static void LoadXml(PolygonComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services);
+        static void SaveXml(const PolygonComponent& c, XMLBuilder& builder);
+        static void BindLua(sol::usertype<PolygonComponent>& ut);
+        static void SetFromLua(PolygonComponent& c, sol::object v);
+    };
+}
