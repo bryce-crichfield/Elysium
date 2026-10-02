@@ -33,7 +33,7 @@
         </Entity>
         <Entity name="NavArea Room">
             <NameComponent name="NavArea Room"/>
-            <NavAreaComponent points="360.802,-515.014 1911.61,258.234 1012.57,713.376 -528.631,-62.1503" type="Walkable" cost="1"/>
+            <NavAreaComponent points="-156.862,-595.977 1394.4,190.281 477.988,631.223 -1062.65,-144.41" type="Walkable" cost="1"/>
             <TransformComponent x="-9.174284" y="111.99997"/>
         </Entity>
     </Entities>
@@ -477,55 +477,55 @@
         <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch1">
-        <Override entity="0" component="TransformComponent" field="x" value="-302.16086"/>
-        <Override entity="0" component="TransformComponent" field="y" value="104.96051"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-814.18829"/>
+        <Override entity="0" component="TransformComponent" field="y" value="38.592026"/>
         <Override entity="0" component="TransformComponent" field="z" value="50.303879"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch10">
-        <Override entity="0" component="TransformComponent" field="x" value="330.19534"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-21.082733"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-181.83212"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-87.451218"/>
         <Override entity="0" component="TransformComponent" field="z" value="51.349033"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch11">
-        <Override entity="0" component="TransformComponent" field="x" value="739.64917"/>
-        <Override entity="0" component="TransformComponent" field="y" value="369.82458"/>
+        <Override entity="0" component="TransformComponent" field="x" value="227.62173"/>
+        <Override entity="0" component="TransformComponent" field="y" value="303.45605"/>
         <Override entity="0" component="TransformComponent" field="z" value="57.178829"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch2">
-        <Override entity="0" component="TransformComponent" field="x" value="96"/>
-        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-416.02747"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-18.368484"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch3">
-        <Override entity="0" component="TransformComponent" field="x" value="-30.092356"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-9.4722958"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-542.11981"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-75.840775"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch4">
-        <Override entity="0" component="TransformComponent" field="x" value="407.24387"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-119.11195"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-104.78368"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-185.48045"/>
         <Override entity="0" component="TransformComponent" field="z" value="48.245445"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch5">
-        <Override entity="0" component="TransformComponent" field="x" value="-160"/>
-        <Override entity="0" component="TransformComponent" field="y" value="176"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-672.0274"/>
+        <Override entity="0" component="TransformComponent" field="y" value="109.63152"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch6">
-        <Override entity="0" component="TransformComponent" field="x" value="230.91341"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-213.51717"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-281.11411"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-279.88574"/>
         <Override entity="0" component="TransformComponent" field="z" value="43.528275"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch7">
-        <Override entity="0" component="TransformComponent" field="x" value="79.520508"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-145.97777"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-432.50696"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-212.34631"/>
         <Override entity="0" component="TransformComponent" field="z" value="83.968262"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch8">
-        <Override entity="0" component="TransformComponent" field="x" value="294.13193"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-36.934013"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-217.89554"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-103.30249"/>
         <Override entity="0" component="TransformComponent" field="z" value="49"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch9">
-        <Override entity="0" component="TransformComponent" field="x" value="462.8154"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-89.09671"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-49.212109"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-155.46519"/>
         <Override entity="0" component="TransformComponent" field="z" value="51.193684"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE1">

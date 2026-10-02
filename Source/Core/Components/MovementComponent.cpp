@@ -1,4 +1,5 @@
 #include "Core/Components/MovementComponent.h"
+#include <algorithm>
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
 
@@ -46,12 +47,24 @@ namespace Elysium {
         // but support it for editor-placed patrol paths etc.
         VisitElement(el, "Waypoints", [&](tinyxml2::XMLElement* xmlWaypoints) {
             ForEachElement(xmlWaypoints, "Waypoint", [&](tinyxml2::XMLElement* xmlWaypoint) {
-                Vector2 wp;
+                Vector3 wp;
                 wp.x = xmlWaypoint->FloatAttribute("x", 0.0f);
                 wp.y = xmlWaypoint->FloatAttribute("y", 0.0f);
+                wp.z = xmlWaypoint->FloatAttribute("z", 0.0f);
                 c.waypoints.push_back(wp);
             });
         });
+    }
+
+    std::optional<float> MovementComponent::PathHeight(Vector2 pos) const {
+        if (state != MovementState::Moving) return std::nullopt;
+        if (currentWaypointIndex < 0 || currentWaypointIndex >= (int)waypoints.size()) return std::nullopt;
+        const Vector3& a = segmentStart;
+        const Vector3& b = waypoints[currentWaypointIndex];
+        const Vector2 d{b.x - a.x, b.y - a.y};
+        const float lengthSquared = Dot(d, d);
+        const float t = lengthSquared > 0.0f ? std::clamp(Dot(pos - Vector2{a.x, a.y}, d) / lengthSquared, 0.0f, 1.0f) : 1.0f;
+        return a.z + (b.z - a.z) * t;
     }
 
     void MovementComponent::BindLua(sol::usertype<MovementComponent>& ut) {
@@ -75,15 +88,15 @@ namespace Elysium {
             c.waypoints.clear();
             c.currentWaypointIndex = 0;
         };
-        ut["AddWaypoint"] = [](MovementComponent& c, float x, float y) {
-            c.waypoints.push_back({x, y});
+        ut["AddWaypoint"] = [](MovementComponent& c, float x, float y, sol::optional<float> z) {
+            c.waypoints.push_back({x, y, z.value_or(0.0f)});
         };
         ut["GetWaypointCount"] = [](MovementComponent& c) {
             return c.waypoints.size();
         };
         ut["GetWaypoint"] = [](MovementComponent& c, int i) -> Vector2 {
             if (i >= 0 && i < static_cast<int>(c.waypoints.size()))
-                return c.waypoints[i];
+                return {c.waypoints[i].x, c.waypoints[i].y};
             return {0.0f, 0.0f};
         };
     }

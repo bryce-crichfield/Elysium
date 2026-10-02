@@ -4,6 +4,7 @@
 #include "Core/Math/Polygon.h"
 #include "Core/Math/MathTypes.h"
 #include <cstdint>
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -44,8 +45,10 @@ public:
     bool HasLineOfSight(Vector2 a, Vector2 b, float z = 0.0f) const;
     // A path from a unit at `start`, height `startZ`, to `end`. `end` is a point in the picture
     // (where a click lands, ground height 0): it goes to the floor actually drawn there, so
-    // clicking the top of the stairs goes up them. Waypoints are ground positions.
-    std::vector<Vector2> FindPath(Vector2 start, Vector2 end, float startZ = 0.0f) const;
+    // clicking the top of the stairs goes up them. Waypoints are ground positions (x, y) and
+    // the height of the floor there (z), with one wherever the height along the way bends (the
+    // foot and top of the stairs, not each step), so lerping between them follows the floor.
+    std::vector<Vector3> FindPath(Vector2 start, Vector2 end, float startZ = 0.0f) const;
 
     int Width() const { return width_; }
     int Height() const { return height_; }
@@ -96,7 +99,12 @@ private:
     // The floor drawn at picture point `p` (nearest the camera), or -1.
     int FloorInPicture(Vector2 p) const;
     // Walks from floor `from` at `a` toward `b`; the floor it ends on, or -1 if it can't.
-    int Walk(int from, Vector2 a, Vector2 b) const;
+    // `visit` sees each floor stepped onto, with where along the line it was entered.
+    using WalkVisitor = std::function<void(Vector2 at, int floor)>;
+    int Walk(int from, Vector2 a, Vector2 b, const WalkVisitor& visit = {}) const;
+    // The waypoints from floor `from` at `a` to floor `to` at `b` (straight-walkable): one at
+    // each bend in the floor's height along the way, then `b`.
+    void AppendHeightBends(int from, Vector2 a, int to, Vector2 b, std::vector<Vector3>& out) const;
     std::vector<int> AStar(int start, int goal) const;
 
     void SlideMovers();

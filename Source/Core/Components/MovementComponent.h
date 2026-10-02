@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/Component.h"
 #include "Core/Math/MathTypes.h"
+#include <optional>
 #include <vector>
 
 namespace Elysium {
@@ -16,13 +17,20 @@ namespace Elysium {
 
     struct MovementComponent {
         MovementState state;
-        std::vector<Vector2> waypoints;     
+        // Ground position (x, y) and the height of the floor there (z).
+        std::vector<Vector3> waypoints;
         Vector2 goal;  
         int waitTimeMs;
         int stuckRetryCount;
         int stuckCheckAccumMs;
         int currentWaypointIndex;
         Vector2 lastPosition;
+        // Where the unit was (ground position and height) when it set off for the current
+        // waypoint; its height on the way is lerped from here to the waypoint's.
+        Vector3 segmentStart;
+
+        // The path's height at ground position `pos`, while following one; else nothing.
+        std::optional<float> PathHeight(Vector2 pos) const;
 
         static constexpr const char* Name() { return "Movement"; }
         static constexpr const char* XmlTag() { return "MovementComponent"; }

@@ -5,6 +5,7 @@
 #include "Core/Entity.h"
 #include "Core/Scene.h"
 #include <algorithm>
+#include <cmath>
 #include "Core/Components/MovementComponent.h"
 #include "Core/Components/TransformComponent.h"
 #include "Core/Components/BoundsComponent.h"
@@ -21,6 +22,22 @@ static constexpr float ARRIVE_SLOWDOWN_DIST     = 24.0f;  // ease into the final
 
 float MathLerp(float start, float end, float t) {
     return start + t * (end - start);
+}
+
+Vector2 Ground(const Vector3& waypoint) { return {waypoint.x, waypoint.y}; }
+
+// Whether heading straight from (`from`, height `z`) to waypoint `to` keeps to the heights of the
+// waypoints it skips (`first` up to `to`): they lie on the straight climb, within a little.
+bool KeepsHeight(Vector2 from, float z, const std::vector<Vector3>& waypoints, int first, int to) {
+    constexpr float kTolerance = 2.0f;
+    const Vector3& end = waypoints[to];
+    const float length = (Ground(end) - from).Length();
+    for (int k = first; k < to; ++k) {
+        const float along = (Ground(waypoints[k]) - from).Length();
+        const float t = length > 0.0f ? std::min(1.0f, along / length) : 1.0f;
+        if (std::fabs(waypoints[k].z - MathLerp(z, end.z, t)) > kTolerance) return false;
+    }
+    return true;
 }
 
 void MovementSystem::Update(float deltaTime) {
@@ -40,6 +57,7 @@ void MovementSystem::Update(float deltaTime) {
         mv.state = MovementState::Moving;
         mv.waypoints.clear();  // Clear existing waypoints; GlobalSteeringSystem will replan on next update.
         mv.currentWaypointIndex = 0;
+        mv.segmentStart = {transform.worldX, transform.worldY, transform.worldZ};
         mv.stuckRetryCount = 0;
         mv.stuckCheckAccumMs = 0;
 
@@ -47,7 +65,7 @@ void MovementSystem::Update(float deltaTime) {
         // NavMeshSystem (baked from prefab NavAreas + static colliders) is the pathfinding
         // authority; without one, no path.
         Vector2 from{transform.worldX, transform.worldY};
-        std::vector<Vector2> result;
+        std::vector<Vector3> result;
         if (navMesh_)            result = navMesh_->FindPath(from, cmd.target, transform.worldZ);
         mv.waypoints = std::move(result);
 
@@ -79,6 +97,7 @@ void MovementSystem::Update(float deltaTime) {
                     // that waypoints are empty and replan.
                     mv.waypoints.clear();
                     mv.currentWaypointIndex = 0;
+                    mv.segmentStart = {transform.worldX, transform.worldY, transform.worldZ};
                     mv.state = MovementState::Moving;
                     mv.stuckRetryCount++;
                 }
@@ -128,9 +147,10 @@ void MovementSystem::Update(float deltaTime) {
             // --- WAYPOINT FOLLOWING ---
             // Pop waypoints we've reached. The radius scales with how far we move per frame,
             // otherwise a fast unit overshoots a 2px target and oscillates around it.
+            const int previousIndex = mv.currentWaypointIndex;
             const float arriveDist = std::max(WAYPOINT_ARRIVE_MIN, kin.maxSpeed * deltaTime * 1.5f);
             while (mv.currentWaypointIndex < (int)mv.waypoints.size()) {
-                Vector2 wp = mv.waypoints[mv.currentWaypointIndex];
+                Vector2 wp = Ground(mv.waypoints[mv.currentWaypointIndex]);
                 float dist = (currentPos - wp).Length();
                 if (dist < arriveDist) {
                     mv.currentWaypointIndex++;
@@ -140,11 +160,17 @@ void MovementSystem::Update(float deltaTime) {
             }
             // Look ahead: if we can already see a later waypoint, steer for it. This re-pulls
             // the string from where the unit actually is, so corners are rounded smoothly instead
-            // of walked to the exact cell centre and turned at.
+            // of walked to the exact cell centre and turned at. Never past a bend in the height,
+            // though: the climb between waypoints is lerped, so skipping the foot of the stairs
+            // would start the climb early.
             if (navMesh_) {
                 for (int i = (int)mv.waypoints.size() - 1; i > mv.currentWaypointIndex; --i) {
-                    if (navMesh_->HasLineOfSight(currentPos, mv.waypoints[i], transform.worldZ)) { mv.currentWaypointIndex = i; break; }
+                    if (!KeepsHeight(currentPos, transform.worldZ, mv.waypoints, mv.currentWaypointIndex, i)) continue;
+                    if (navMesh_->HasLineOfSight(currentPos, Ground(mv.waypoints[i]), transform.worldZ)) { mv.currentWaypointIndex = i; break; }
                 }
+            }
+            if (mv.currentWaypointIndex != previousIndex) {
+                mv.segmentStart = {currentPos.x, currentPos.y, transform.worldZ};
             }
 
             // All waypoints consumed — arrived at goal.
@@ -160,7 +186,7 @@ void MovementSystem::Update(float deltaTime) {
             }
 
             // Steer toward current waypoint, easing in on the final one so we settle rather than overshoot.
-            Vector2 wp = mv.waypoints[mv.currentWaypointIndex];
+            Vector2 wp = Ground(mv.waypoints[mv.currentWaypointIndex]);
             Vector2 toWp = wp - currentPos;
             Vector2 dir = toWp.Normalized();
             float speed = kin.maxSpeed;

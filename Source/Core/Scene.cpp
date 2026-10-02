@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
+#include "Core/Common.h"
 #include "Core/Log.h"
 #include "Core/ServiceLocator.h"
 #include "Entity.h"
@@ -77,7 +78,11 @@ Scene::~Scene() {
 void Scene::OnUpdate(float deltaTime, bool isPlaying) {
     for (auto& system : systems_) {
         if (system->IsEnabled() && (isPlaying || system->RunsWhenPaused()))
+        {
+            ProfileN("System::Update");
+            ProfileName(system->GetName().c_str());
             system->Update(deltaTime);
+        }
     }
 
     if (isPlaying && !sceneScriptPath_.empty()) {
@@ -98,8 +103,11 @@ void Scene::OnDraw(Rectangle screen) {
     // RenderSystem now handles all camera rendering internally
     // Just render all systems - no need for manual camera management
     for (auto& system : systems_) {
-        if (system->IsVisible())
+        if (system->IsVisible()) {
+            ProfileN("System::Draw");
+            ProfileName(system->GetName().c_str());
             system->Draw();
+        }
     }
 }
 

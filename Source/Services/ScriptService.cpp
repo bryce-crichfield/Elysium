@@ -468,7 +468,7 @@ void ScriptService::BindEntityAPI() {
         int i = 1;
         for (const auto& p : nav->FindPath({x1, y1}, {x2, y2})) {
             sol::table pt = lua.create_table();
-            pt["x"] = p.x; pt["y"] = p.y;
+            pt["x"] = p.x; pt["y"] = p.y; pt["z"] = p.z;
             result[i++] = pt;
         }
         return result;

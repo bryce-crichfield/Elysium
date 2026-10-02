@@ -439,7 +439,7 @@ int NavMeshSystem::FloorInPicture(Vector2 p) const {
     return best;
 }
 
-int NavMeshSystem::Walk(int from, Vector2 a, Vector2 b) const {
+int NavMeshSystem::Walk(int from, Vector2 a, Vector2 b, const WalkVisitor& visit) const {
     if (from < 0) return -1;
     const int steps = std::max(1, (int)std::ceil((b - a).Length() / (cellSize_ * 0.5f)));
     int current = from;
@@ -459,6 +459,7 @@ int NavMeshSystem::Walk(int from, Vector2 a, Vector2 b) const {
         current = FloorNear(next, z);
         if (current < 0) return -1;
         column = next;
+        if (visit) visit(p, current);
     }
     return current;
 }
@@ -519,7 +520,42 @@ std::vector<int> NavMeshSystem::AStar(int start, int goal) const {
     return path;
 }
 
-std::vector<Vector2> NavMeshSystem::FindPath(Vector2 start, Vector2 end, float startZ) const {
+void NavMeshSystem::AppendHeightBends(int from, Vector2 a, int to, Vector2 b, std::vector<Vector3>& out) const {
+    // The floor's height along the line, sampled where it enters each column.
+    struct Sample { float along; float z; Vector2 at; };
+    std::vector<Sample> profile{{0.0f, floors_[from].z, a}};
+    Walk(from, a, b, [&](Vector2 at, int floor) { profile.push_back({(at - a).Length(), floors_[floor].z, at}); });
+    profile.push_back({(b - a).Length(), floors_[to].z, b});
+
+    // Douglas-Peucker on the height: keep the samples that stray from a straight climb between
+    // the kept ones by more than half a step. Each stair is at most a step, so a flight of them
+    // comes out as one ramp, and the flat runs either side stay flat.
+    const float tolerance = std::max(1.0f, stepHeight_ * 0.5f);
+    std::vector<bool> keep(profile.size(), false);
+    keep.front() = keep.back() = true;
+    std::function<void(size_t, size_t)> simplify = [&](size_t i, size_t j) {
+        if (j <= i + 1) return;
+        const Sample& p = profile[i];
+        const Sample& q = profile[j];
+        float worst = tolerance;
+        size_t split = 0;
+        for (size_t k = i + 1; k < j; ++k) {
+            const float t = q.along > p.along ? (profile[k].along - p.along) / (q.along - p.along) : 0.0f;
+            const float off = std::fabs(profile[k].z - (p.z + (q.z - p.z) * t));
+            if (off > worst) { worst = off; split = k; }
+        }
+        if (split == 0) return;
+        keep[split] = true;
+        simplify(i, split);
+        simplify(split, j);
+    };
+    simplify(0, profile.size() - 1);
+    for (size_t k = 1; k < profile.size(); ++k) {
+        if (keep[k]) out.push_back({profile[k].at.x, profile[k].at.y, profile[k].z});
+    }
+}
+
+std::vector<Vector3> NavMeshSystem::FindPath(Vector2 start, Vector2 end, float startZ) const {
     if (width_ == 0) return {};
 
     const int s = NearestFloor(start, startZ, cellSize_ * 4.0f);
@@ -532,7 +568,7 @@ std::vector<Vector2> NavMeshSystem::FindPath(Vector2 start, Vector2 end, float s
     auto centerOf = [&](int floor) { return CellCenter(floorColumn_[floor] % width_, floorColumn_[floor] / width_); };
     Vector2 goal = {end.x, end.y + floors_[e].z * World3D::kPitchCos};
     if (int gx, gy; !WorldToCell(goal, gx, gy) || IndexOf(gx, gy) != floorColumn_[e]) goal = centerOf(e);
-    if (s == e) return {goal};
+    if (s == e) return {{goal.x, goal.y, floors_[e].z}};
 
     const std::vector<int> nodes = AStar(s, e);
     if (nodes.empty()) return {};
@@ -545,14 +581,14 @@ std::vector<Vector2> NavMeshSystem::FindPath(Vector2 start, Vector2 end, float s
 
     // String pulling: from each anchor, the farthest node it can walk straight to, ending on
     // that node's own floor (not the one above or below it).
-    std::vector<Vector2> pulled;
+    std::vector<Vector3> pulled;
     size_t anchor = 0;
     while (anchor < raw.size() - 1) {
         size_t farthest = anchor + 1;
         for (size_t j = raw.size() - 1; j > anchor + 1; --j) {
             if (Walk(nodes[anchor], raw[anchor], raw[j]) == nodes[j]) { farthest = j; break; }
         }
-        pulled.push_back(raw[farthest]);
+        AppendHeightBends(nodes[anchor], raw[anchor], nodes[farthest], raw[farthest], pulled);
         anchor = farthest;
     }
     return pulled;
@@ -602,9 +638,11 @@ void NavMeshSystem::DrawPaths() {
     if (!render) return;
     const Color color{255, 255, 255, 200};
     world->Query<TransformComponent, MovementComponent>([&](Entity, auto& t, auto& mv) {
-        Vector2 prev{t.worldX, t.worldY};
+        // Drawn where each point is seen: lifted by its height.
+        Vector2 prev = World3D::To2D(World3D::ToGL(t.worldX, t.worldY, t.worldZ));
         for (int i = std::max(0, mv.currentWaypointIndex); i < (int)mv.waypoints.size(); ++i) {
-            const Vector2& wp = mv.waypoints[i];
+            const Vector3& p = mv.waypoints[i];
+            const Vector2 wp = World3D::To2D(World3D::ToGL(p.x, p.y, p.z));
             render->IssueDrawCommand(DrawLineCmd{"selection", prev.x, prev.y, wp.x, wp.y, color});
             render->IssueDrawCommand(DrawCircleCmd{"selection", wp.x, wp.y, 3.0f, color});
             prev = wp;

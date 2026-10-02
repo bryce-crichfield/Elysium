@@ -53,7 +53,7 @@ void InspectMovement(MovementComponent& c, Entity e, ServiceLocator& services) {
         if (isCurrent) ImGui::PushStyleColor(ImGuiCol_Text, Editor::Palette().Success);
         const std::string label = "[" + std::to_string(i) + "]" + (isCurrent ? "  " ICON_FA_ARROW_LEFT : "");
         PropertyLabel(label.c_str());
-        ImGui::DragFloat2("##wp", &c.waypoints[i].x, 1.0f);
+        ImGui::DragFloat3("##wp", &c.waypoints[i].x, 1.0f);
         if (isCurrent) ImGui::PopStyleColor();
 
         ImGui::PopID();
