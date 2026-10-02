@@ -204,6 +204,18 @@ std::optional<Rectangle> TurnedOutline(const World& world, EditorApplication& ed
     return Rectangle{minX, minY, maxX - minX, maxY - minY};
 }
 
+// Whether a handle along GL direction `axis` is worth showing from this camera: not when the
+// axis points (nearly) at the eye, where it shrinks to a stub that drags erratically. Within
+// ~25 degrees of the view direction counts as pointing at it.
+bool AxisFacesSideways(const World3D::View& view, Vector3 axis) {
+    const Vector3 eye = view.TowardCamera();
+    const float eyeLength = std::sqrt(eye.x * eye.x + eye.y * eye.y + eye.z * eye.z);
+    const float axisLength = std::sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
+    if (eyeLength <= 0.0f || axisLength <= 0.0f) return true;
+    const float alignment = std::fabs(eye.x * axis.x + eye.y * axis.y + eye.z * axis.z) / (eyeLength * axisLength);
+    return alignment < 0.9f;
+}
+
 float WrapDegrees(float degrees) {
     degrees = fmodf(degrees + 180.0f, 360.0f);
     return (degrees < 0.0f ? degrees + 360.0f : degrees) - 180.0f;
@@ -967,18 +979,42 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, EditorApplication&
     ImGuizmo::SetDrawlist();
     ImGuizmo::SetRect(imageScreenRect.x, imageScreenRect.y, imageScreenRect.width, imageScreenRect.height);
 
-    ImGuizmo::OPERATION operation = ImGuizmo::OPERATION(ImGuizmo::TRANSLATE_X | ImGuizmo::TRANSLATE_Y |
-                                                        (is3D ? ImGuizmo::TRANSLATE_Z : 0));
+    // Only the handles the camera sees side-on: looking straight down there's no height arrow,
+    // looking along a tile row no arrow for that row. Each axis's GL direction is the gizmo
+    // matrix's column for it (Move), else the ground axes through ViewProjection's mapping
+    // (ground x -> GL x, ground y -> GL depth, height -> GL up), turned by the entity (Scale).
+    const World3D::View view3D = Systems::RenderProjector::View3D(view);
+    const bool turned = isWorldSpace;  // a Screen2D entity's gizmo always faces the camera
+    auto shows = [&](Vector3 axis) { return !turned || AxisFacesSideways(view3D, axis); };
+    Vector3 axisX{1.0f, 0.0f, 0.0f}, axisY{0.0f, 0.0f, World3D::kGroundDepth};
+    const Vector3 axisUp{0.0f, 1.0f, 0.0f};
+    if (moveIn3D) {
+        axisX = {matrix.m[0], matrix.m[1], matrix.m[2]};
+        axisY = {matrix.m[4], matrix.m[5], matrix.m[6]};
+    } else if (gizmo == GizmoMode::Scale) {
+        const float c = cosf(t.worldRotation * DegToRad), s = sinf(t.worldRotation * DegToRad);
+        axisX = {c, 0.0f, s * World3D::kGroundDepth};
+        axisY = {-s, 0.0f, c * World3D::kGroundDepth};
+    }
+    const bool showX = shows(axisX), showY = shows(axisY);
+
+    int moveHandles = (showX ? ImGuizmo::TRANSLATE_X : 0) | (showY ? ImGuizmo::TRANSLATE_Y : 0);
+    if (is3D && shows(axisUp)) moveHandles |= ImGuizmo::TRANSLATE_Z;
+    ImGuizmo::OPERATION operation = ImGuizmo::OPERATION(moveHandles);
     ImGuizmo::MODE mode = moveIn3D ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
     float snapValue = MoveSnap;
     if (gizmo == GizmoMode::Rotate) {
+        // The one ring, about the height axis. Kept even edge-on: hiding it would leave nothing.
         operation = ImGuizmo::ROTATE_Z;
         snapValue = RotateSnap;
     } else if (gizmo == GizmoMode::Scale) {
-        operation = ImGuizmo::OPERATION(ImGuizmo::SCALE_X | ImGuizmo::SCALE_Y);
+        operation = ImGuizmo::OPERATION((showX ? ImGuizmo::SCALE_X : 0) | (showY ? ImGuizmo::SCALE_Y : 0));
         mode = ImGuizmo::LOCAL;
         snapValue = ScaleSnap;
     }
+    // Never hide every handle (a camera looking down the only axis there is).
+    if (operation == 0) operation = gizmo == GizmoMode::Scale ? ImGuizmo::OPERATION(ImGuizmo::SCALE_X | ImGuizmo::SCALE_Y)
+                                                              : ImGuizmo::OPERATION(ImGuizmo::TRANSLATE_X | ImGuizmo::TRANSLATE_Y);
     const float snap[3] = { snapValue, snapValue, snapValue };
     // Ctrl is the ad-hoc snap. A move is instead snapped to the editing grid below, since
     // ImGuizmo's snap is axis-aligned and an isometric lattice isn't.

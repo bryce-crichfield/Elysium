@@ -232,6 +232,7 @@ class EditorApplication {
     // Documents (viewport tabs). Index -1 means none.
     // Opens the asset at `fullPath` in a tab, by its kind (see AssetKindOf); sounds can't be.
     void OpenAsset(const std::string& fullPath);
+    // Opens Scenes/<sceneName>.xml (ScenePath).
     void OpenScene(const std::string& sceneName);
     void OpenPrefab(const std::string& fullPath);
     const std::vector<std::unique_ptr<EditorDocument>>& GetDocuments() const { return documents_; }
@@ -257,7 +258,13 @@ class EditorApplication {
     // Packs `entity` and its subtree (in the active tab) into a new prefab at `fullPath` and
     // replaces them with a placement of it. False if the file exists or fails.
     bool CreatePrefabFromEntity(Entity entity, const std::string& fullPath);
+    // Renames an open scene document's file to <newName>.xml beside it (the project's entry
+    // scene follows). False, logged, if the name is bad or taken.
+    bool RenameScene(Scene& scene, const std::string& newName);
    private:
+    void OpenSceneFile(const std::string& fullPath);
+    // The active document's grid, into its scene's editor metadata, so it saves with it.
+    void StoreGrid(Scene& scene);
     ServiceLocator& registry_;
     std::unique_ptr<EditorUI> ui_;
 

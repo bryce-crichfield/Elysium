@@ -21,8 +21,8 @@ public:
 
 private:
     void DrawProperties(Services::ISceneService& service, Scene& scene);
-    // The editing grid. Deliberately not part of SceneConfiguration: it's a tool setting, so it
-    // lives in EditorApplication for the session and is never written to the scene file.
+    // The editing grid. Not part of SceneConfiguration: the engine has no use for it. The editor
+    // keeps it per document and saves it in the scene's editor metadata.
     void DrawGrid();
     void DrawLayers(Scene& scene);
     void DrawSystems(Scene& scene);
@@ -31,6 +31,9 @@ private:
     EditorApplication& editor_;
     ServiceLocator& services_;
     std::string zIndexError_;
+    // The Name field's text while it's being typed; committed (renaming the file) on Enter.
+    char nameBuffer_[128] = {};
+    const Scene* nameBufferScene_ = nullptr;
 };
 
 }  // namespace Elysium

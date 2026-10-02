@@ -46,31 +46,42 @@ void SceneSettings::Draw(Scene& scene) {
 }
 
 void SceneSettings::DrawProperties(ISceneService& service, Scene& scene) {
-    const std::string name = service.GetSceneName(&scene);
-    const auto& config = scene.GetConfiguration();
-
     SectionHeader("Properties");
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "%.0f x %.0f", config.resolutionWidth, config.resolutionHeight);
-    ReadOnlyRow("Resolution", buffer);
 
-    const auto& stack = service.GetStack();
-    const auto position = std::find(stack.begin(), stack.end(), &scene) - stack.begin();
-    if (position == (long long)stack.size() - 1) snprintf(buffer, sizeof(buffer), "Top of %zu", stack.size());
-    else snprintf(buffer, sizeof(buffer), "%lld of %zu", (long long)position + 1, stack.size());
-    ReadOnlyRow("Stack", buffer);
-
-    auto registration = service.GetSceneRegistry().find(name);
-    if (registration != service.GetSceneRegistry().end() && !registration->second.xmlPath.empty()) {
-        ReadOnlyRow("Source", registration->second.xmlPath.c_str());
+    // The name is the file's: renaming renames Scenes/<name>.xml. Anything that pushes the scene
+    // by its old name (a script's Push("...")) has to be updated by hand.
+    if (nameBufferScene_ != &scene) {
+        snprintf(nameBuffer_, sizeof(nameBuffer_), "%s", scene.GetName().c_str());
+        nameBufferScene_ = &scene;
     }
+    PropertyLabel("Name");
+    if (ImGui::InputText("##sceneName", nameBuffer_, sizeof(nameBuffer_), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        if (!editor_.RenameScene(scene, nameBuffer_)) snprintf(nameBuffer_, sizeof(nameBuffer_), "%s", scene.GetName().c_str());
+    }
+    // Clicking away abandons the edit.
+    if (!ImGui::IsItemActive() && scene.GetName() != nameBuffer_) {
+        snprintf(nameBuffer_, sizeof(nameBuffer_), "%s", scene.GetName().c_str());
+    }
+    ItemTooltip("Renames the scene's file (Enter to apply). Scripts that push it by name need updating");
+    if (service.GetEntryScene() == scene.GetName()) ReadOnlyRow("Entry", "The project starts here");
+
+    SceneConfiguration config = scene.GetConfiguration();
+    PropertyLabel("Resolution");
+    float resolution[2] = {config.resolutionWidth, config.resolutionHeight};
+    if (ImGui::DragFloat2("##resolution", resolution, 1.0f, 1.0f, 8192.0f, "%.0f")) {
+        config.resolutionWidth = std::max(1.0f, resolution[0]);
+        config.resolutionHeight = std::max(1.0f, resolution[1]);
+        scene.SetConfiguration(config);
+    }
+
+    if (!scene.GetPath().empty()) ReadOnlyRow("Source", scene.GetPath().c_str());
 }
 
 void SceneSettings::DrawGrid() {
     auto& grid = editor_.GetGrid();
 
     SectionHeader("Grid");
-    MutedText("Editing aid only — not saved with the scene");
+    MutedText("Saved with the scene, for the editor only");
 
     static const char* kLattices[] = {"Square", "Isometric"};
     EnumRow("Lattice", grid.lattice, kLattices, IM_ARRAYSIZE(kLattices));

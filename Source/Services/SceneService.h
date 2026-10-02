@@ -82,8 +82,6 @@ public:
     size_t GetStackSize() const override { return sceneStack_.size(); }
     bool IsEmpty() const override { return sceneStack_.empty(); }
     const std::vector<Scene*>& GetStack() const override { return sceneStack_; }
-    const std::unordered_map<std::string, SceneRegistration>& GetSceneRegistry() const override { return scenes_; }
-    void RegisterScene(const std::string& fullPath) override;
 
     // Rendering info getters
     const Rectangle& GetLetterboxRect() const override { return letterboxRect_; }
@@ -115,8 +113,10 @@ private:
     ServiceLocator& registry_;
 
     void ProcessInput();
-    Scene* CreateOrGetScene(const std::string& name);
-    void EnterScene(Scene* scene, const std::string& name);
+    // A new scene loaded from ScenePath(name), or null (logged) if it can't be.
+    Scene* LoadNamed(const std::string& name);
+    // Takes the top scene off the stack and frees it.
+    void PopAndFree();
     void ApplySceneOperations();
 
     enum class SceneOperationType { Push, Pop, Replace, Clear };
@@ -129,8 +129,7 @@ private:
     // Rendering helpers
     void CalculateLetterboxing();
 
-    // Scene registry and stack
-    std::unordered_map<std::string, SceneRegistration> scenes_;
+    // Owned: each is deleted when it leaves the stack.
     std::vector<Scene*> sceneStack_;
 
     // Rendering

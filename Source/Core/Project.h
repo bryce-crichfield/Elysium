@@ -14,6 +14,8 @@ struct ProjectConfig {
     std::string rootDir;                                       // directory containing Project.xml, trailing '/'
 
     static bool FromXML(const std::string& projectXmlPath, ProjectConfig& out);
+    // Rewrites the <EntryScene> of the project file at `projectXmlPath`.
+    static bool SetEntryScene(const std::string& projectXmlPath, const std::string& sceneName);
 };
 
 }  // namespace Elysium

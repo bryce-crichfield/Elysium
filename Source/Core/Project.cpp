@@ -43,4 +43,15 @@ bool ProjectConfig::FromXML(const std::string& projectXmlPath, ProjectConfig& ou
     return true;
 }
 
+bool ProjectConfig::SetEntryScene(const std::string& projectXmlPath, const std::string& sceneName) {
+    tinyxml2::XMLDocument doc;
+    if (!LoadXml(projectXmlPath, doc)) return false;
+    tinyxml2::XMLElement* root = doc.FirstChildElement("Project");
+    if (!root) return false;
+    tinyxml2::XMLElement* entry = root->FirstChildElement("EntryScene");
+    if (!entry) entry = root->InsertNewChildElement("EntryScene");
+    entry->SetText(sceneName.c_str());
+    return SaveXml(projectXmlPath, doc);
+}
+
 }  // namespace Elysium

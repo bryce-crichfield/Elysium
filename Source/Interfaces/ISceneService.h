@@ -13,20 +13,13 @@
 
 namespace Elysium::Services {
 
-struct SceneRegistration {
-    std::string name;
-    Elysium::Scene* scene = nullptr;
-    Elysium::SceneFactory factory;
-    std::string xmlPath;
-    bool xmlLoaded = false;
-};
-
 class ISceneService : public IService {
    public:
 
     virtual void OnMessage(const Elysium::Message& message) = 0;
 
-    // Stack operations
+    // Stack operations. A scene is named by its file: Push("Town") loads Scenes/Town.xml
+    // (ScenePath), fresh each time it goes on the stack.
     virtual void Push(const std::string& sceneName) = 0;
     virtual void Pop() = 0;
     virtual void Replace(const std::string& sceneName) = 0;
@@ -37,22 +30,15 @@ class ISceneService : public IService {
     virtual size_t GetStackSize() const = 0;
     virtual bool IsEmpty() const = 0;
     virtual const std::vector<Elysium::Scene*>& GetStack() const = 0;
-    virtual const std::unordered_map<std::string, SceneRegistration>& GetSceneRegistry() const = 0;
-    // Registers the scene file at `fullPath` under its file name, as startup does for every
-    // file in Scenes/ (for one created since). No-op if the name is taken.
-    virtual void RegisterScene(const std::string& fullPath) = 0;
 
     bool IsInStack(const Elysium::Scene* scene) const {
         const auto& stack = GetStack();
         return scene && std::find(stack.begin(), stack.end(), scene) != stack.end();
     }
 
-    // The name `scene` is registered under, or "Unknown".
+    // `scene`'s name, or "Unknown".
     std::string GetSceneName(const Elysium::Scene* scene) const {
-        for (const auto& [name, registration] : GetSceneRegistry()) {
-            if (registration.scene == scene) return name;
-        }
-        return "Unknown";
+        return scene && !scene->GetName().empty() ? scene->GetName() : "Unknown";
     }
 
     // Rendering info

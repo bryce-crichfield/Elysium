@@ -16,6 +16,7 @@
 #include "Core/Log.h"
 #include "Core/Path.h"
 #include "Core/Prefab.h"
+#include "Core/Project.h"
 #include "Core/PrefabInstance.h"
 #include "imgui.h"
 #include "Editor/Commands/EditorCommands.h"
@@ -133,6 +134,40 @@ bool EditorApplication::IsSelected(Entity entity) const {
 }
 
 // --- Layers and grid --------------------------------------------------------------------
+
+namespace {
+// The grid, kept in a scene's editor metadata.
+void ReadGrid(const Scene& scene, GridSettings& grid) {
+    const auto& metadata = scene.GetEditorMetadata();
+    auto get = [&](const char* key) -> const char* {
+        auto it = metadata.find(key);
+        return it == metadata.end() ? nullptr : it->second.c_str();
+    };
+    if (const char* v = get("gridLattice")) grid.lattice = std::string(v) == "Square" ? GridLattice::Square : GridLattice::Isometric;
+    if (const char* v = get("gridWidth")) grid.width = std::max(1.0f, std::strtof(v, nullptr));
+    if (const char* v = get("gridHeight")) grid.height = std::max(1.0f, std::strtof(v, nullptr));
+    if (const char* v = get("gridDivisor")) grid.divisor = std::max(1, std::atoi(v));
+    if (const char* v = get("gridSnap")) grid.snapEnabled = std::string(v) == "true";
+    if (const char* v = get("gridShow")) grid.showGrid = std::string(v) == "true";
+}
+
+void WriteGrid(Scene& scene, const GridSettings& grid) {
+    auto& metadata = scene.GetEditorMetadata();
+    auto number = [](float f) {
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "%g", f);
+        return std::string(buffer);
+    };
+    metadata["gridLattice"] = grid.lattice == GridLattice::Square ? "Square" : "Isometric";
+    metadata["gridWidth"] = number(grid.width);
+    metadata["gridHeight"] = number(grid.height);
+    metadata["gridDivisor"] = std::to_string(grid.divisor);
+    metadata["gridSnap"] = grid.snapEnabled ? "true" : "false";
+    metadata["gridShow"] = grid.showGrid ? "true" : "false";
+}
+}  // namespace
+
+void EditorApplication::StoreGrid(Scene& scene) { WriteGrid(scene, EditState().grid); }
 
 EditorApplication::DocumentEditState& EditorApplication::EditState() const {
     auto* doc = ActiveDocument();
@@ -310,33 +345,77 @@ const Scene* EditorApplication::HostScene() {
     // No scene open: borrow from the entry scene, loaded once just for its setup.
     if (!fallbackHost_) {
         auto& scenes = registry_.Get<ISceneService>();
-        auto it = scenes.GetSceneRegistry().find(scenes.GetEntryScene());
-        if (it == scenes.GetSceneRegistry().end()) return nullptr;
+        if (scenes.GetEntryScene().empty()) return nullptr;
         fallbackHost_ = std::make_shared<Scene>(registry_);
-        LoadScene(*fallbackHost_, it->second.xmlPath);
+        LoadScene(*fallbackHost_, ScenePath(scenes.GetEntryScene()));
     }
     return fallbackHost_.get();
 }
 
-void EditorApplication::OpenScene(const std::string& sceneName) {
-    auto& scenes = registry_.Get<ISceneService>();
-    auto it = scenes.GetSceneRegistry().find(sceneName);
-    if (it == scenes.GetSceneRegistry().end() || it->second.xmlPath.empty()) {
-        LOG_ERRORF("Editor", "No scene file for '%s'", sceneName.c_str());
+void EditorApplication::OpenScene(const std::string& sceneName) { OpenSceneFile(ScenePath(sceneName)); }
+
+void EditorApplication::OpenSceneFile(const std::string& fullPath) {
+    std::error_code ec;
+    if (!std::filesystem::exists(fullPath, ec)) {
+        LOG_ERRORF("Editor", "No scene file %s", fullPath.c_str());
         return;
     }
-    if (int open = FindDocument(it->second.xmlPath); open >= 0) {
+    if (int open = FindDocument(fullPath); open >= 0) {
         SetActiveDocument(open);
         return;
     }
 
     auto doc = std::make_unique<EditorDocument>();
     doc->kind = AssetKind::Scene;
-    doc->fullPath = it->second.xmlPath;
-    doc->title = sceneName;
-    doc->scene = std::shared_ptr<Scene>(it->second.factory(registry_));
+    doc->fullPath = fullPath;
+    doc->scene = std::make_shared<Scene>(registry_);
     if (!LoadScene(*doc->scene, doc->fullPath)) return;
+    doc->title = doc->scene->GetName();
+    ReadGrid(*doc->scene, editState_[doc->fullPath].grid);
     AddDocument(std::move(doc));
+}
+
+bool EditorApplication::RenameScene(Scene& scene, const std::string& newName) {
+    auto it = std::find_if(documents_.begin(), documents_.end(), [&](const auto& d) { return d->scene.get() == &scene; });
+    if (it == documents_.end() || !(*it)->IsScene()) return false;
+    EditorDocument& doc = **it;
+    const std::string oldName = scene.GetName();
+    if (newName == oldName) return true;
+    if (newName.empty() || newName.find_first_of("/\\:*?\"<>|.") != std::string::npos) {
+        LOG_ERRORF("Editor", "'%s' isn't a valid scene name", newName.c_str());
+        return false;
+    }
+    const std::string newPath = DirectoryOf(doc.fullPath) + newName + ".xml";
+    std::error_code ec;
+    if (std::filesystem::exists(newPath, ec)) {
+        LOG_ERRORF("Editor", "A scene called '%s' already exists", newName.c_str());
+        return false;
+    }
+    std::filesystem::rename(doc.fullPath, newPath, ec);
+    if (ec) {
+        LOG_ERRORF("Editor", "Couldn't rename %s: %s", doc.fullPath.c_str(), ec.message().c_str());
+        return false;
+    }
+
+    // The tab's grid and layer state are keyed by its path.
+    if (auto state = editState_.extract(doc.fullPath)) {
+        state.key() = newPath;
+        editState_.insert(std::move(state));
+    }
+    doc.fullPath = newPath;
+    doc.title = newName;
+    scene.SetSource(newName, newPath);
+
+    auto& scenes = registry_.Get<ISceneService>();
+    if (scenes.GetEntryScene() == oldName) {
+        scenes.SetEntryScene(newName);
+        const std::string projectFile = Path::GetAssetsRoot() + "Project.xml";
+        if (!ProjectConfig::SetEntryScene(projectFile, newName)) {
+            LOG_WARNINGF("Editor", "Couldn't update the entry scene in %s", projectFile.c_str());
+        }
+    }
+    LOG_INFOF("Editor", "Renamed scene '%s' to '%s'", oldName.c_str(), newName.c_str());
+    return true;
 }
 
 void EditorApplication::OpenAsset(const std::string& fullPath) {
@@ -344,12 +423,7 @@ void EditorApplication::OpenAsset(const std::string& fullPath) {
     if (!kind || *kind == AssetKind::Folder || *kind == AssetKind::Sound) return;
     if (*kind == AssetKind::Prefab) return OpenPrefab(fullPath);
     if (*kind == AssetKind::Scene) {
-        // Scenes open by the name they're registered under.
-        for (const auto& [name, registration] : registry_.Get<ISceneService>().GetSceneRegistry()) {
-            if (SamePath(registration.xmlPath, fullPath)) return OpenScene(name);
-        }
-        LOG_ERRORF("Editor", "%s isn't a registered scene", fullPath.c_str());
-        return;
+        return OpenSceneFile(fullPath);
     }
 
     if (int open = FindDocument(fullPath); open >= 0) {
@@ -434,7 +508,7 @@ bool EditorApplication::SaveActiveDocument() {
         return false;
     }
     const bool saved = doc->IsPrefab()  ? SavePrefabDocument(*doc)
-                       : doc->IsScene() ? SaveScene(*doc->scene, doc->fullPath)
+                       : doc->IsScene() ? (StoreGrid(*doc->scene), SaveScene(*doc->scene, doc->fullPath))
                                         : false;
     if (saved) doc->history.MarkSaved();
     return saved;
@@ -968,7 +1042,6 @@ bool EditorApplication::CreateAsset(AssetKind kind, const std::string& fullPath)
         Scene scene(registry_);
         if (const Scene* host = HostScene()) scene.CopySetupFrom(*host, false);
         ok = SaveScene(scene, fullPath);
-        if (ok) registry_.Get<ISceneService>().RegisterScene(fullPath);
     } else if (const char* text = StarterText(kind, fs::path(fullPath).stem().string())) {
         std::ofstream file(fullPath, std::ios::binary);
         file << text;
@@ -986,8 +1059,8 @@ bool EditorApplication::SaveActiveDocumentAs(const std::string& fullPath) {
     if (!doc || !doc->HasWorld()) return false;
     bool ok = false;
     if (doc->IsScene()) {
+        StoreGrid(*doc->scene);
         ok = SaveScene(*doc->scene, fullPath);
-        if (ok) registry_.Get<ISceneService>().RegisterScene(fullPath);
     } else {
         std::unordered_map<Entity, int> localIds = doc->localIds;  // the original keeps its own
         const Scene* host = HostScene();

@@ -1,4 +1,5 @@
 #include "Services/SceneService.h"
+#include <algorithm>
 #include <filesystem>
 #include <typeinfo>
 #include "Core/Common.h"
@@ -23,40 +24,15 @@ using namespace tinyxml2;
 
 namespace Elysium::Services {
 
-// Release a scene's memory and reset its registration so it reloads fresh next push.
-static void FreeScene(SceneRegistration& data) {
-    delete data.scene;
-    data.scene = nullptr;
-    data.xmlLoaded = false;
-}
-
 // =============================================================================
 // Constructor
 // =============================================================================
 
 SceneService::SceneService(ServiceLocator& registry) : registry_(registry) {}
 
-void SceneService::RegisterScene(const std::string& fullPath) {
-    const std::string sceneName = std::filesystem::path(fullPath).stem().string();
-    if (scenes_.count(sceneName)) return;
-    SceneFactory factory = [](ServiceLocator& services) { return new Scene(services); };
-    scenes_.emplace(sceneName, SceneRegistration{sceneName, nullptr, factory, fullPath, false});
-    LOG_INFOF("SceneService", "Registered scene: %s", sceneName.c_str());
-}
-
 void SceneService::Initialize() {
     Profile;
     const auto& config = registry_.Get<IApplicationService>().GetConfig();
-
-    // Load scenes from Scenes folder
-    Path scenesDir("Scenes");
-    auto sceneFiles = scenesDir.GetFiles();
-    for (const auto& file : sceneFiles) {
-        std::string filename = file.GetFilename(".xml");
-        if (!filename.empty()) {
-            RegisterScene(file.GetRelativePath());
-        }
-    }
 
     framebuffer_ = Framebuffer(config.framebufferWidth, config.framebufferHeight);
     CalculateLetterboxing();
@@ -115,40 +91,24 @@ void SceneService::ApplySceneOperations() {
     if (pendingOperations_.empty()) return;
     ProfileN("SceneService ApplySceneOperations");
 
-    // Process all pending operations
-    for (const auto& op : pendingOperations_) {
+    auto& messageService = registry_.Get<IMessageService>();
+    // Swapped out first: a scene entered below may queue operations of its own.
+    const std::vector<SceneOperation> operations = std::move(pendingOperations_);
+    pendingOperations_.clear();
+    for (const auto& op : operations) {
         switch (op.type) {
             case SceneOperationType::Push: {
-                auto it = scenes_.find(op.name);
-                if (it == scenes_.end()) {
-                    LOG_ERRORF("SceneService", "Cannot push scene. Scene not found: %s", op.name.c_str());
-                    continue;
-                }
-
-                Scene* scene = CreateOrGetScene(op.name);
-                if (!scene) {
-                    LOG_ERRORF("SceneService", "Failed to create scene: %s", op.name.c_str());
-                    continue;
-                }
-
-                // Check duplicates
-                bool found = false;
-                for (Scene* s : sceneStack_) {
-                    if (s == scene) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (found) {
+                const bool onStack = std::any_of(sceneStack_.begin(), sceneStack_.end(),
+                                                 [&](const Scene* s) { return s->GetName() == op.name; });
+                if (onStack) {
                     LOG_WARNINGF("SceneService", "Scene '%s' is already in the stack", op.name.c_str());
                     continue;
                 }
-
+                Scene* scene = LoadNamed(op.name);
+                if (!scene) continue;
                 sceneStack_.push_back(scene);
-                EnterScene(scene, op.name);
+                scene->OnEnter();
                 LOG_INFOF("SceneService", "Pushed scene: %s (stack size: %zu)", op.name.c_str(), sceneStack_.size());
-
-                auto& messageService = registry_.Get<IMessageService>();
                 messageService.Post<SceneChangedMessage>(SceneChangeOp::Push, op.name);
                 break;
             }
@@ -157,84 +117,30 @@ void SceneService::ApplySceneOperations() {
                     LOG_WARNING("SceneService", "Cannot pop. Scene stack is empty");
                     continue;
                 }
-
-                Scene* scene = sceneStack_.back();
-                sceneStack_.pop_back();
-
-                if (scene) {
-                    scene->OnExit();
-                    for (auto& [name, data] : scenes_) {
-                        if (data.scene == scene) {
-                            FreeScene(data);
-                            break;
-                        }
-                    }
-                }
-
+                PopAndFree();
                 LOG_INFOF("SceneService", "Popped scene (stack size: %zu)", sceneStack_.size());
-
-                auto& messageService = registry_.Get<IMessageService>();
                 messageService.Post<SceneChangedMessage>(SceneChangeOp::Pop, "");
                 break;
             }
             case SceneOperationType::Replace: {
-                if (!sceneStack_.empty()) {
-                    Scene* oldScene = sceneStack_.back();
-                    sceneStack_.pop_back();
-                    if (oldScene) {
-                        oldScene->OnExit();
-                        for (auto& [name, data] : scenes_) {
-                            if (data.scene == oldScene) {
-                                FreeScene(data);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                auto it = scenes_.find(op.name);
-                if (it == scenes_.end()) {
-                    LOG_ERRORF("SceneService", "Cannot replace with scene. Scene not found: %s", op.name.c_str());
-                    continue;
-                }
-
-                Scene* scene = CreateOrGetScene(op.name);
-                if (!scene) {
-                    LOG_ERRORF("SceneService", "Failed to create scene: %s", op.name.c_str());
-                    continue;
-                }
-
+                // Loaded before the old one goes, so a missing scene leaves the stack as it was.
+                Scene* scene = LoadNamed(op.name);
+                if (!scene) continue;
+                if (!sceneStack_.empty()) PopAndFree();
                 sceneStack_.push_back(scene);
-                EnterScene(scene, op.name);
+                scene->OnEnter();
                 LOG_INFOF("SceneService", "Replaced top scene with: %s", op.name.c_str());
-
-                auto& messageService = registry_.Get<IMessageService>();
                 messageService.Post<SceneChangedMessage>(SceneChangeOp::Replace, op.name);
                 break;
             }
             case SceneOperationType::Clear: {
-                while (!sceneStack_.empty()) {
-                    Scene* scene = sceneStack_.back();
-                    sceneStack_.pop_back();
-                    if (scene) {
-                        scene->OnExit();
-                        for (auto& [name, data] : scenes_) {
-                            if (data.scene == scene) {
-                                FreeScene(data);
-                                break;
-                            }
-                        }
-                    }
-                }
+                while (!sceneStack_.empty()) PopAndFree();
                 LOG_INFO("SceneService", "Cleared scene stack");
-
-                auto& messageService = registry_.Get<IMessageService>();
                 messageService.Post<SceneChangedMessage>(SceneChangeOp::Clear, "");
                 break;
             }
         }
     }
-    pendingOperations_.clear();
 }
 
 Scene* SceneService::GetTopScene() const {
@@ -244,37 +150,29 @@ Scene* SceneService::GetTopScene() const {
 // =============================================================================
 // Scene Management
 // =============================================================================
-Scene* SceneService::CreateOrGetScene(const std::string& name) {
-    auto it = scenes_.find(name);
-    if (it == scenes_.end()) {
-        LOG_ERRORF("SceneService", "Scene not found: %s", name.c_str());
+
+Scene* SceneService::LoadNamed(const std::string& name) {
+    ProfileN("SceneService LoadNamed");
+    const std::string path = ScenePath(name);
+    std::error_code ec;
+    if (!std::filesystem::exists(path, ec)) {
+        LOG_ERRORF("SceneService", "Scene not found: %s (%s)", name.c_str(), path.c_str());
         return nullptr;
     }
-
-    SceneRegistration& sceneData = it->second;
-    if (!sceneData.scene) {
-        sceneData.scene = sceneData.factory(registry_);
+    auto* scene = new Scene(registry_);
+    if (!LoadScene(*scene, path)) {
+        LOG_ERRORF("SceneService", "Failed to load scene: %s", name.c_str());
+        delete scene;
+        return nullptr;
     }
-
-    return sceneData.scene;
+    return scene;
 }
 
-void SceneService::EnterScene(Scene* scene, const std::string& name) {
-    ProfileN("SceneService EnterScene");
-    auto it = scenes_.find(name);
-    if (it == scenes_.end()) {
-        LOG_ERRORF("SceneService", "Cannot enter scene. Scene not found: %s", name.c_str());
-        return;
-    }
-
-    SceneRegistration& sceneData = it->second;
-
-    if (!sceneData.xmlPath.empty() && !sceneData.xmlLoaded) {
-        LoadScene(*scene, sceneData.xmlPath);
-        sceneData.xmlLoaded = true;
-    }
-
-    scene->OnEnter();
+void SceneService::PopAndFree() {
+    Scene* scene = sceneStack_.back();
+    sceneStack_.pop_back();
+    scene->OnExit();
+    delete scene;
 }
 
 // =============================================================================
@@ -553,28 +451,7 @@ void SceneService::Shutdown() {
     Profile;
     framebuffer_ = Framebuffer();
 
-    // Free any scenes still on the stack
-    while (!sceneStack_.empty()) {
-        Scene* scene = sceneStack_.back();
-        sceneStack_.pop_back();
-        if (scene) {
-            scene->OnExit();
-            for (auto& [name, data] : scenes_) {
-                if (data.scene == scene) {
-                    FreeScene(data);
-                    break;
-                }
-            }
-        }
-    }
-
-
-    // Any remaining allocated scenes not in the stack (shouldn't happen, but clean up)
-    for (auto& [name, data] : scenes_) {
-        delete data.scene;
-        data.scene = nullptr;
-    }
-    scenes_.clear();
+    while (!sceneStack_.empty()) PopAndFree();
 }
 
 }  // namespace Elysium::Services

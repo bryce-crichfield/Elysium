@@ -147,6 +147,11 @@ bool SaveScene(Scene& scene, const std::string& path) {
             .SetAttribute("path", scene.GetSceneScript().c_str());
     }
 
+    if (!scene.GetEditorMetadata().empty()) {
+        auto metadata = builder.AddElement("EditorMetadata");
+        for (const auto& [key, value] : scene.GetEditorMetadata()) metadata.SetAttribute(key.c_str(), value.c_str());
+    }
+
     SaveSystems(builder, scene);
     SaveLayers(builder, scene);
     SaveEntities(builder, world);

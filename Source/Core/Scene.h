@@ -3,6 +3,7 @@
 #include "System.h"
 #include <cstddef>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -130,6 +131,16 @@ class Scene final : public IEventListener, IMessageListener {
     void SetBackgroundColor(std::optional<Color> color) { backgroundColor_ = color; }
     const std::optional<Color>& GetBackgroundColor() const { return backgroundColor_; }
 
+    // The scene's name is its file's stem (Scenes/<name>.xml); both are set by LoadScene.
+    const std::string& GetName() const { return name_; }
+    const std::string& GetPath() const { return path_; }
+    void SetSource(const std::string& name, const std::string& path) { name_ = name; path_ = path; }
+
+    // Attributes the editor keeps with the scene (its grid), loaded and saved verbatim from
+    // <EditorMetadata>. The engine never reads them.
+    std::map<std::string, std::string>& GetEditorMetadata() { return editorMetadata_; }
+    const std::map<std::string, std::string>& GetEditorMetadata() const { return editorMetadata_; }
+
     void SetSceneScript(const std::string& path) { sceneScriptPath_ = path; }
     const std::string& GetSceneScript() const { return sceneScriptPath_; }
 
@@ -141,12 +152,14 @@ protected:
     SceneConfiguration configuration_;
     std::vector<SceneLayer> layers_;
     std::string sceneScriptPath_;
+    std::string name_, path_;
+    std::map<std::string, std::string> editorMetadata_;
     std::optional<Color> backgroundColor_;
     bool isSceneScriptInitialized_ = false;
 };
 
-// Scene factory function type - declared after Scene class is defined
-using SceneFactory = std::function<Scene*(ServiceLocator&)>;
+// The file of the scene called `name`: Scenes/<name>.xml under the project.
+std::string ScenePath(const std::string& name);
 
 bool LoadScene(Scene& scene, const std::string& path);
 bool SaveScene(Scene& scene, const std::string& path);

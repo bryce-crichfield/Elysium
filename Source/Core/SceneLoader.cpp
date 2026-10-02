@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <sstream>
 #include <string>
 #include "Core/Log.h"
@@ -150,6 +151,8 @@ void LoadSystems(XMLElement* root, Scene& scene) {
     });
 }
 
+std::string ScenePath(const std::string& name) { return Path("Scenes/" + name + ".xml").GetFullPath(); }
+
 bool LoadScene(Scene& scene, const std::string& path) {
     LOG_INFOF("Scene", "Loading scene from XML: %s", path.c_str());
     XMLDocument doc;
@@ -166,6 +169,13 @@ bool LoadScene(Scene& scene, const std::string& path) {
     }
 
     World* world_ = scene.GetWorld();
+    scene.SetSource(std::filesystem::path(path).stem().string(), path);
+
+    VisitElement(root, "EditorMetadata", [&](XMLElement* el) {
+        for (const tinyxml2::XMLAttribute* a = el->FirstAttribute(); a; a = a->Next()) {
+            scene.GetEditorMetadata()[a->Name()] = a->Value();
+        }
+    });
 
     LoadLayers(root, scene);
     LoadEntities(root, world_, scene.GetServices());

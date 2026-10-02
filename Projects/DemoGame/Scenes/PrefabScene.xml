@@ -1,5 +1,6 @@
 <Scene>
     <SceneScript path="Scripts/Scenes/PrefabScene.lua"/>
+    <EditorMetadata gridDivisor="1" gridHeight="32" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="64"/>
     <Systems>
         <System type="MovementSystem"/>
         <System type="KinematicsSystem"/>
@@ -500,28 +501,28 @@
         <Override entity="0" component="TransformComponent" field="y" value="-75.840775"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch4">
-        <Override entity="0" component="TransformComponent" field="x" value="-104.78368"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-185.48045"/>
-        <Override entity="0" component="TransformComponent" field="z" value="48.245445"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-98.060165"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-187.69548"/>
+        <Override entity="0" component="TransformComponent" field="z" value="78.885338"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch5">
         <Override entity="0" component="TransformComponent" field="x" value="-672.0274"/>
         <Override entity="0" component="TransformComponent" field="y" value="109.63152"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch6">
-        <Override entity="0" component="TransformComponent" field="x" value="-281.11411"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-279.88574"/>
-        <Override entity="0" component="TransformComponent" field="z" value="43.528275"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-296.45972"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-295.69153"/>
+        <Override entity="0" component="TransformComponent" field="z" value="76.930618"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch7">
-        <Override entity="0" component="TransformComponent" field="x" value="-432.50696"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-212.34631"/>
-        <Override entity="0" component="TransformComponent" field="z" value="83.968262"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-434.74384"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-216.85164"/>
+        <Override entity="0" component="TransformComponent" field="z" value="62.932129"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch8">
-        <Override entity="0" component="TransformComponent" field="x" value="-217.89554"/>
-        <Override entity="0" component="TransformComponent" field="y" value="-103.30249"/>
-        <Override entity="0" component="TransformComponent" field="z" value="49"/>
+        <Override entity="0" component="TransformComponent" field="x" value="-232.40106"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-116.25581"/>
+        <Override entity="0" component="TransformComponent" field="z" value="91.194336"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Torch.xml" id="Torch9">
         <Override entity="0" component="TransformComponent" field="x" value="-49.212109"/>
