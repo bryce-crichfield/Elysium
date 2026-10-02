@@ -36,7 +36,8 @@ public:
 
     void ReloadScript(Path scriptPath) override;
 
-    void InspectEntityScript(Entity entity, Path scriptPath) override;
+    std::optional<std::vector<ScriptField>> GetScriptFields(Entity entity, Path scriptPath) override;
+    bool SetScriptField(Entity entity, Path scriptPath, const std::string& name, const ScriptValue& value) override;
 
     sol::state& GetLua() { return lua; }
 

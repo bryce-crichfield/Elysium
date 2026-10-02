@@ -16,7 +16,6 @@ class IApplicationService : public IService {
     virtual AppMode GetMode() const = 0;
     virtual void SetMode(AppMode mode) = 0;
     virtual float GetTime() const = 0;
-    virtual void RequestFontReload() = 0;
     virtual bool ShouldClose() const = 0;
     virtual int GetWindowWidth() const = 0;
     virtual int GetWindowHeight() const = 0;

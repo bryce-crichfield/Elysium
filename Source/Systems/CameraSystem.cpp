@@ -12,10 +12,6 @@
 namespace Elysium::Systems {
 
 void CameraSystem::OnEvent(Event& event) {
-    // Skip input processing in Editor mode - editor input is handled separately
-    if (services->Get<Services::IApplicationService>().GetMode() == AppMode::Editor) {
-        return;
-    }
     IMouseListener::DispatchMouseEvent(event);
     IKeyboardListener::DispatchKeyboardEvent(event);
 }

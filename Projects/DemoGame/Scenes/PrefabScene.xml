@@ -16,13 +16,13 @@
         <System type="RenderSystem"/>
     </Systems>
     <SceneConfiguration width="1920" height="1080">
-        <SceneLayer name="background" z="-2" space="World3D" ground="true" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
-        <SceneLayer name="default" z="-1" space="World3D" ground="true" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
-        <SceneLayer name="tile" z="0" space="World3D" ground="true" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
-        <SceneLayer name="selection" z="1" space="World3D" ground="true" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="background" z="-2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="default" z="-1" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="tile" z="0" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="selection" z="1" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
         <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#60607080" shadows="true" shadowBias="12" fogOfWar="0.34999999" fogColor="#06060CFF"/>
-        <SceneLayer name="light" z="4" space="World3D" ground="true" layerBlend="Additive" compositeBlend="Normal" isComposited="false" isVisible="false" opacity="1"/>
-        <SceneLayer name="shadow" z="5" space="World3D" ground="true" layerBlend="Normal" compositeBlend="Multiply" isComposited="true" isVisible="false" opacity="1" ambient="#000000FF"/>
+        <SceneLayer name="light" z="4" space="World3D" layerBlend="Additive" compositeBlend="Normal" isComposited="false" isVisible="false" opacity="1" ground="true"/>
+        <SceneLayer name="shadow" z="5" space="World3D" layerBlend="Normal" compositeBlend="Multiply" isComposited="true" isVisible="false" opacity="1" ground="true" ambient="#000000FF"/>
         <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="false" opacity="1"/>
     </SceneConfiguration>
     <Entities>

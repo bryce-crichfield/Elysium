@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include "Entity.h"
@@ -124,6 +125,11 @@ class Scene final : public IEventListener, IMessageListener {
     // Called during XML loading to create scene-specific systems
     virtual void CreateCustomSystems() {}
 
+    // What the framebuffer is cleared to behind this scene; unset uses the window's
+    // configured background. The editor sets it on its documents to match its theme.
+    void SetBackgroundColor(std::optional<Color> color) { backgroundColor_ = color; }
+    const std::optional<Color>& GetBackgroundColor() const { return backgroundColor_; }
+
     void SetSceneScript(const std::string& path) { sceneScriptPath_ = path; }
     const std::string& GetSceneScript() const { return sceneScriptPath_; }
 
@@ -135,6 +141,7 @@ protected:
     SceneConfiguration configuration_;
     std::vector<SceneLayer> layers_;
     std::string sceneScriptPath_;
+    std::optional<Color> backgroundColor_;
     bool isSceneScriptInitialized_ = false;
 };
 

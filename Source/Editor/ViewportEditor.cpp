@@ -459,6 +459,7 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, IEditorService& edit
             // own copy of the layer list, so the scene's SceneLayer flags stay untouched.
             renderSystem->SetHiddenLayerOverride(editorService.GetHiddenLayers());
             renderSystem->SetUnlitOverride(!lightingOn_);
+            renderSystem->SetViewOverride(view);
         }
     }
 

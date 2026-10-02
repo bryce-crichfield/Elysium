@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 #include "Core/AssetKind.h"
-#include "Core/CommandHistory.h"
-#include "Core/EditorCommand.h"
+#include "Editor/Commands/CommandHistory.h"
+#include "Editor/Commands/EditorCommand.h"
 #include "Core/Entity.h"
 #include "Core/MathTypes.h"
 #include "Core/Prefab.h"

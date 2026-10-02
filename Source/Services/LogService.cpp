@@ -6,7 +6,6 @@
 #include <iomanip>
 #include <sstream>
 #include "Core/Common.h"
-#include "imgui.h"
 #include "raylib.h"
 
 namespace Elysium::Services {

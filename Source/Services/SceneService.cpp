@@ -4,7 +4,6 @@
 #include "Core/Common.h"
 #include "Core/Event.h"
 #include "Core/Path.h"
-#include "Editor/Style/Theme.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IInvokeService.h"
 #include "Interfaces/IMessageService.h"
@@ -16,7 +15,6 @@
 #include "Core/System.h"
 #include "Core/Framebuffer.h"
 #include "Core/Input.h"
-#include "imgui.h"
 #include "raylib.h"
 #include "Core/RaylibConvert.h"
 #include "tinyxml2.h"
@@ -392,13 +390,9 @@ void SceneService::Render() {
 
     // Render all scenes to framebuffer (bottom-to-top)
     ::BeginTextureMode(ToRaylib(framebuffer_));
-    // The editor viewport looks at the world through the editor camera, so the empty space
-    // around the scene is editor chrome and follows the theme.
-    Color clearColor = config.backgroundColor;
-    if (app.GetMode() == AppMode::Editor) {
-        const ImVec4 bg = EditorStyle::CurrentPalette().ViewportBackground;
-        clearColor = Color{(unsigned char)(bg.x * 255), (unsigned char)(bg.y * 255), (unsigned char)(bg.z * 255), 255};
-    }
+    // The bottom scene drawn decides what's behind everything.
+    Scene* base = app.GetMode() == AppMode::Editor ? editorScene_ : (sceneStack_.empty() ? nullptr : sceneStack_.front());
+    Color clearColor = base && base->GetBackgroundColor() ? *base->GetBackgroundColor() : config.backgroundColor;
     ClearBackground(ToRaylib(clearColor));
 
     if (app.GetMode() == AppMode::Editor) {
@@ -452,12 +446,6 @@ void SceneService::ProcessInput() {
     Profile;
     if (sceneStack_.empty())
         return;
-
-    // Check if ImGui wants the mouse - if so, don't send events to scene
-    /*ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse) {
-        return;
-    }*/
 
     Vector2 mousePos = Input::GetMousePosition();
     bool isInside = viewportRect_.Contains(mousePos);

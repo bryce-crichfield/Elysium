@@ -1,7 +1,6 @@
 #define SOL_HEADER_ONLY 1
 #define SOL_ALL_SAFETIES_ON 1
 #include "Services/ScriptService.h"
-#include "Editor/Widgets/Widgets.h"
 #include "Core/Common.h"
 #include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
@@ -14,7 +13,6 @@
 #include "Core/ComponentRegistry.h"
 #include "Core/Path.h"
 #include "Core/Input.h"
-#include "imgui.h"
 #include <memory>
 #include <limits>
 #include <cmath>
@@ -890,133 +888,46 @@ void ScriptService::ReloadScript(Path scriptPath) {
     LOG_INFOF("ScriptService", "Unloaded script: %s", scriptPath.c_str());
 }
 
-void ScriptService::InspectEntityScript(Entity entity, Path scriptPath) {
-    auto entityIt = entityScriptInstances.find(entity);
-    if (entityIt == entityScriptInstances.end()) {
-        ImGui::TextDisabled("No script instance.");
-        return;
+namespace {
+    // `entity`'s instance table of `scriptPath`, if it has one.
+    std::optional<sol::table> FindInstance(
+        std::unordered_map<Entity, std::unordered_map<Path, sol::table>>& instances, Entity entity, const Path& scriptPath) {
+        auto entityIt = instances.find(entity);
+        if (entityIt == instances.end()) return std::nullopt;
+        auto scriptIt = entityIt->second.find(scriptPath);
+        if (scriptIt == entityIt->second.end()) return std::nullopt;
+        return scriptIt->second;
     }
+}
 
-    auto scriptIt = entityIt->second.find(scriptPath);
-    if (scriptIt == entityIt->second.end()) {
-        ImGui::TextDisabled("No script instance.");
-        return;
+std::optional<std::vector<ScriptField>> ScriptService::GetScriptFields(Entity entity, Path scriptPath) {
+    auto instance = FindInstance(entityScriptInstances, entity, scriptPath);
+    if (!instance) return std::nullopt;
+
+    std::vector<ScriptField> fields;
+    for (auto& [key, val] : *instance) {
+        if (!key.is<std::string>()) continue;
+        std::string name = key.as<std::string>();
+        if (name.empty() || name[0] == '_') continue;
+
+        ScriptField field{name, std::nullopt, ""};
+        if (val.is<sol::function>()) field.kind = "function";
+        else if (val.is<sol::table>()) field.kind = "table";
+        else if (val.is<float>() || val.is<double>()) field.value = val.as<float>();
+        else if (val.is<int>()) field.value = val.as<int>();
+        else if (val.is<bool>()) field.value = val.as<bool>();
+        else if (val.is<std::string>()) field.value = val.as<std::string>();
+        else field.kind = "unknown type";
+        fields.push_back(std::move(field));
     }
+    return fields;
+}
 
-    sol::table instance = scriptIt->second;
-
-    // Track which fields we've seen to detect new ones
-    static std::unordered_map<Entity, std::unordered_set<std::string>> seenFields;
-    auto& seen = seenFields[entity];
-
-    for (auto& kv : instance) {
-        sol::object key = kv.first;
-        sol::object val = kv.second;
-
-        if (!key.is<std::string>())
-            continue;
-        std::string keyStr = key.as<std::string>();
-        if (keyStr.empty() || keyStr[0] == '_')
-            continue;
-
-        seen.insert(keyStr);
-
-        // Skip functions and tables for now
-        if (val.is<sol::function>() || val.is<sol::table>()) {
-            PropertyLabel(keyStr.c_str(), true);
-            ImGui::TextDisabled(val.is<sol::function>() ? "(function)" : "(table)");
-            continue;
-        }
-
-        ImGui::PushID(keyStr.c_str());
-
-        // Editable fields
-        if (val.is<float>() || val.is<double>()) {
-            float value = val.as<float>();
-            PropertyLabel(keyStr.c_str());
-            if (ImGui::DragFloat("##value", &value, 0.1f)) {
-                instance[keyStr] = value;
-            }
-        } else if (val.is<int>()) {
-            int value = val.as<int>();
-            PropertyLabel(keyStr.c_str());
-            if (ImGui::DragInt("##value", &value)) {
-                instance[keyStr] = value;
-            }
-        } else if (val.is<bool>()) {
-            bool value = val.as<bool>();
-            PropertyLabel(keyStr.c_str());
-            if (ImGui::Checkbox("##value", &value)) {
-                instance[keyStr] = value;
-            }
-        } else if (val.is<std::string>()) {
-            std::string value = val.as<std::string>();
-            char buffer[256];
-            strncpy(buffer, value.c_str(), sizeof(buffer) - 1);
-            buffer[sizeof(buffer) - 1] = '\0';
-
-            PropertyLabel(keyStr.c_str());
-            if (ImGui::InputText("##value", buffer, sizeof(buffer))) {
-                instance[keyStr] = std::string(buffer);
-            }
-        } else {
-            PropertyLabel(keyStr.c_str(), true);
-            ImGui::TextDisabled("(unknown type)");
-        }
-
-        ImGui::PopID();
-    }
-
-    // Optional: Add button to add new fields
-    ImGui::Separator();
-    if (ImGui::Button("+ Add Field")) {
-        ImGui::OpenPopup("AddFieldPopup");
-    }
-
-    if (ImGui::BeginPopup("AddFieldPopup")) {
-        static char fieldName[64] = "";
-        static int fieldType = 0;  // 0=float, 1=int, 2=bool, 3=string
-        static char fieldValue[256] = "";
-
-        ImGui::InputText("Name", fieldName, sizeof(fieldName));
-        ImGui::Combo("Type", &fieldType, "Float\0Int\0Bool\0String\0");
-
-        if (fieldType != 2) {  // Not bool
-            ImGui::InputText("Value", fieldValue, sizeof(fieldValue));
-        } else {
-            static bool boolValue = false;
-            ImGui::Checkbox("Value", &boolValue);
-            strcpy(fieldValue, boolValue ? "true" : "false");
-        }
-
-        if (ImGui::Button("Add")) {
-            if (strlen(fieldName) > 0) {
-                switch (fieldType) {
-                    case 0:
-                        instance[fieldName] = (float)atof(fieldValue);
-                        break;
-                    case 1:
-                        instance[fieldName] = atoi(fieldValue);
-                        break;
-                    case 2:
-                        instance[fieldName] = (strcmp(fieldValue, "true") == 0);
-                        break;
-                    case 3:
-                        instance[fieldName] = std::string(fieldValue);
-                        break;
-                }
-                fieldName[0] = '\0';
-                fieldValue[0] = '\0';
-                ImGui::CloseCurrentPopup();
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
+bool ScriptService::SetScriptField(Entity entity, Path scriptPath, const std::string& name, const ScriptValue& value) {
+    auto instance = FindInstance(entityScriptInstances, entity, scriptPath);
+    if (!instance) return false;
+    std::visit([&](const auto& v) { (*instance)[name] = v; }, value);
+    return true;
 }
 
 } // namespace Elysium::Services

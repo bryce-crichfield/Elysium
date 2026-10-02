@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "Core/EditorCommand.h"
+#include "Editor/Commands/EditorCommand.h"
 
 namespace Elysium {
 

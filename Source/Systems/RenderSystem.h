@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "Core/System.h"
 #include "Core/Components/CameraComponent.h"
 #include "Core/Scene.h"
@@ -240,6 +242,9 @@ public:
     }
     // Editor only: the viewport's lighting switch. See the sorter's method.
     void SetUnlitOverride(bool unlit) { _sorter.SetUnlitOverride(unlit); }
+    // Renders through `view` instead of the scene's cameras while set. The editor's free camera
+    // drives its documents this way.
+    void SetViewOverride(std::optional<CameraView> view) { _viewOverride = view; }
 
 protected:
     SystemParameters DefaultParameters() const override;
@@ -253,6 +258,7 @@ private:
     void RenderView(RenderContext& ctx, const CameraView& view);
 
     std::vector<Entity> _cameraEntities;
+    std::optional<CameraView> _viewOverride;
     std::vector<DrawCommand> _drawCommands;
     RenderSorter _sorter;
     RenderCompositor _compositor;

@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "Core/EditorCommand.h"
+#include "Editor/Commands/EditorCommand.h"
 #include "Core/Entity.h"
 
 namespace Elysium {

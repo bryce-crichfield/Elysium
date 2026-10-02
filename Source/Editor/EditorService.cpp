@@ -1,4 +1,4 @@
-#include "Services/EditorService.h"
+#include "Editor/EditorService.h"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -21,6 +21,7 @@
 #include "Editor/Commands/EditorCommands.h"
 #include "Editor/Inspectors/Inspector.h"
 #include "Editor/PrefabEditing.h"
+#include "Editor/Style/Theme.h"
 #include "Interfaces/IAssetService.h"
 #include "Core/Scene.h"
 #include "Core/World.h"
@@ -221,6 +222,12 @@ void EditorService::Update(float deltaTime) {
     if (!openedEntryScene_ && !scenes.IsPlaying() && !scenes.GetEntryScene().empty()) {
         openedEntryScene_ = true;
         if (documents_.empty()) OpenScene(scenes.GetEntryScene());
+    }
+
+    // The empty space around a document's world is editor chrome, so it follows the theme.
+    if (auto* doc = ActiveDocument(); doc && doc->scene) {
+        const ImVec4 bg = EditorStyle::CurrentPalette().ViewportBackground;
+        doc->scene->SetBackgroundColor(Color{(unsigned char)(bg.x * 255), (unsigned char)(bg.y * 255), (unsigned char)(bg.z * 255), 255});
     }
 
     // Auto-select dragged entities

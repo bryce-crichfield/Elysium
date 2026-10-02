@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/ServiceLocator.h"
-#include "Editor/Editor.h"
 
 #include <memory>
 #include <string>
@@ -11,6 +10,8 @@
 #include "Core/Window.h"
 
 namespace Elysium {
+
+class EditorUI;
 
 enum class AppMode { Play, Editor };
 
@@ -40,8 +41,8 @@ struct ApplicationConfig {
 // IApplicationService via the ServiceLocator, same as every other service.
 class Application {
    public:
-    Application() = default;
-    ~Application() = default;
+    Application();
+    ~Application();
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
 
@@ -53,29 +54,7 @@ class Application {
 
     ServiceLocator& GetServiceLocator() { return serviceLocator_; }
 
-    template <typename T, typename... Args>
-    T& RegisterEditor(Args&&... args) {
-        auto editor = std::make_unique<T>(serviceLocator_, std::forward<Args>(args)...);
-        T& ref = *editor;
-        editors_.push_back(std::move(editor));
-        return ref;
-    }
-
-    template <typename T>
-    T* GetEditor() {
-        for (auto& editor : editors_) {
-            if (auto* typed = dynamic_cast<T*>(editor.get())) {
-                return typed;
-            }
-        }
-        return nullptr;
-    }
-
-    const std::vector<std::unique_ptr<Editor>>& GetEditors() const { return editors_; }
-
     bool ShouldClose() const;
-
-    void RequestFontReload() { pendingFontReload_ = true; }
 
     void SetMode(AppMode mode);
     AppMode GetMode() const { return mode_; }
@@ -89,7 +68,6 @@ class Application {
    private:
     void Update(float deltaTime);
     void Draw();
-    void DrawMenuBar();
     void ProcessEvents();
 
     void ProcessInput();
@@ -98,17 +76,12 @@ class Application {
     Window window_;
 
     ServiceLocator serviceLocator_;
-    std::vector<std::unique_ptr<Editor>> editors_;
+    std::unique_ptr<EditorUI> editor_;  // the in-engine editor
 
     AppMode mode_ = AppMode::Play;
 
     bool initialized_ = false;
     bool shouldClose_ = false;
-    bool pendingFontReload_ = false;
-    bool editorLayoutBuilt_ = false;
-    float editorLayoutWidth_ = 0.0f;   // viewport size the layout was built for; rebuilt on change
-    float editorLayoutHeight_ = 0.0f;
-    bool focusDefaultTabs_ = false;    // select the default tabs once the panels exist
 
     float startTime_ = 0.0f;
 };

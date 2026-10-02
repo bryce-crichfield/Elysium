@@ -36,7 +36,6 @@
 #include "Core/World3D.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
-#include "Interfaces/IEditorService.h"
 #include "Interfaces/ISceneService.h"
 #include "Core/RaylibConvert.h"
 #include "raylib.h"
@@ -1527,26 +1526,9 @@ void RenderSystem::Draw() {
     CollectLights();
     RenderContext ctx(*services, *world);
 
-    if (services->Get<Services::IApplicationService>().GetMode() == AppMode::Editor) {
-        // Editor mode renders through the free editor camera, not any in-scene CameraComponent,
-        // across the whole framebuffer, which is sized to the viewport panel.
-        auto& editorService = services->Get<Services::IEditorService>();
-        const Framebuffer& target = services->Get<Services::ISceneService>().GetFramebuffer();
-        auto& editorCam = editorService.GetEditorCamera();
-
-        CameraView view{
-            editorCam.position,
-            editorCam.zoom != 0.0f ? editorCam.zoom : 1.0f,
-            Rectangle{0, 0, (float)target.Width(), (float)target.Height()}
-        };
-        view.yaw = editorCam.yaw;
-        view.pitch = editorCam.pitch;
-
-        PlaceScreenInWorld(view);
-        RenderView(ctx, view);
+    if (_viewOverride) {
+        RenderView(ctx, *_viewOverride);
     } else {
-        // Only play mode needs an in-scene camera; the editor (and prefab documents, which
-        // never have one) always renders through the editor camera above.
         if (_cameraEntities.empty()) {
             ClearBackground(::BLACK);
             DrawText("No active camera found", 10, 10, 20, ::RED);
