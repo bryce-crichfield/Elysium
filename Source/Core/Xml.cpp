@@ -2,7 +2,7 @@
 #include <tinyxml2.h>
 #include <cstdio>
 #include "Core/Log.h"
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 
 namespace Elysium {
 

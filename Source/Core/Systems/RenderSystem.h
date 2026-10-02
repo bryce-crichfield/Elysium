@@ -9,7 +9,7 @@
 #include "Core/Graphics.h"
 #include "Core/Framebuffer.h"
 #include "Core/ShadowAtlas.h"
-#include "Core/World3D.h"
+#include "Core/Math/World3D.h"
 #include <span>
 #include <unordered_map>
 #include <unordered_set>

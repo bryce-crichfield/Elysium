@@ -1,7 +1,7 @@
 #include "Core/Systems/CollisionSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Entity.h"
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 #include "Core/Scene.h"
 #include "Core/Components/TransformComponent.h"
 #include "Core/Components/ColliderComponent.h"

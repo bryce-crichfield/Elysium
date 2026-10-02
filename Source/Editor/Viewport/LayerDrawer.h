@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include "Editor/Viewport/ViewportPanel.h"
 #include "extras/IconsFontAwesome6.h"
 

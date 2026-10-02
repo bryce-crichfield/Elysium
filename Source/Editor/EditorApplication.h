@@ -12,7 +12,7 @@
 #include "Core/AssetKind.h"
 #include "Core/Entity.h"
 #include "Core/Event.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include "Core/Prefab.h"
 #include "Core/ServiceLocator.h"
 #include "Core/World.h"  // IWorldListener; needs Entity.h and Event.h ahead of it

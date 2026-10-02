@@ -4,8 +4,8 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include "Core/Geometry/Segment.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/Segment.h"
+#include "Core/Math/MathTypes.h"
 
 namespace Elysium {
 

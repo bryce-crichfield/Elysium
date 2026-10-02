@@ -2,7 +2,7 @@
 #include <unordered_set>
 #include "Core/Components/ColliderComponent.h"
 #include "Core/Components/TransformComponent.h"
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 #include "Core/World.h"
 #include "Editor/Viewport/OverlayPainter.h"
 #include "Editor/Style/Theme.h"

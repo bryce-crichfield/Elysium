@@ -1,7 +1,7 @@
 #pragma once
 #include "Core/Component.h"
-#include "Core/Geometry/Polygon.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/Polygon.h"
+#include "Core/Math/MathTypes.h"
 #include <string>
 #include <vector>
 

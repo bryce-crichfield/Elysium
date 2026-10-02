@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <optional>
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 
 namespace Elysium {
 

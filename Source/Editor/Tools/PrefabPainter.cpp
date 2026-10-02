@@ -7,7 +7,7 @@
 #include "Core/PrefabInstance.h"
 #include "Core/Components/TransformComponent.h"
 #include "Editor/Editor.h"
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 #include "Core/Path.h"
 #include "Core/World.h"
 #include "Editor/Viewport/OverlayPainter.h"

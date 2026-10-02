@@ -1,6 +1,6 @@
 #include "Core/Components/ColliderComponent.h"
 #include "Core/ComponentRegistry.h"
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 
 namespace Elysium {
     const char* ToString(ColliderShape shape) {

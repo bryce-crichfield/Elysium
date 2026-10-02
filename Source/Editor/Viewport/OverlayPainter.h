@@ -1,7 +1,7 @@
 #pragma once
 #include <functional>
 #include <vector>
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include "imgui.h"
 
 namespace Elysium {

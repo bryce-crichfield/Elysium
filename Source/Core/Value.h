@@ -3,7 +3,7 @@
 #include <string>
 #include <variant>
 #include "Core/Graphics.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 
 namespace Elysium {
 

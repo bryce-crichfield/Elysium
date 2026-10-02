@@ -27,7 +27,7 @@
 #include "Core/Components/LayerComponent.h"
 #include "Core/Components/ModelComponent.h"
 #include "Core/Scene.h"
-#include "Core/World3D.h"
+#include "Core/Math/World3D.h"
 #include <cstdio>
 #include "Editor/Viewport/OverlayPainter.h"
 #include "Core/Systems/NavMeshSystem.h"
@@ -38,7 +38,7 @@
 #include "Editor/HierarchyEditor.h"
 #include "Core/Systems/RenderSystem.h"
 #include "Core/Input.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include <limits>
 
 namespace Elysium {

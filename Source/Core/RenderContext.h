@@ -2,7 +2,7 @@
 
 #include <vector>
 #include "Core/Graphics.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include "Core/Framebuffer.h"
 
 namespace Elysium {

@@ -7,7 +7,7 @@
 #include "Core/Components/TransformComponent.h"
 #include "Core/Path.h"
 #include "Core/SystemRegistry.h"
-#include "Core/World3D.h"
+#include "Core/Math/World3D.h"
 #include "Interfaces/IAssetService.h"
 
 namespace Elysium::Systems {

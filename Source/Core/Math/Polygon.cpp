@@ -1,4 +1,4 @@
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 
 #include <algorithm>
 #include <sstream>

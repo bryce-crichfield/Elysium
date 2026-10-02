@@ -8,7 +8,7 @@
 #include "Core/Components/TransformComponent.h"
 #include "Editor/Editor.h"
 #include "Core/EntitySerializer.h"
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 #include "Core/World.h"
 #include "Editor/Commands/EditorCommands.h"
 #include "Editor/Viewport/OverlayPainter.h"

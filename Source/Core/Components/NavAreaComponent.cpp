@@ -1,6 +1,6 @@
 #include "Core/Components/NavAreaComponent.h"
 #include "Core/ComponentRegistry.h"
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 #include "Core/Xml.h"
 #include <algorithm>
 

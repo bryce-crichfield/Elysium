@@ -3,7 +3,7 @@
 #include <string>
 #include <unordered_set>
 #include "Core/Entity.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include "Editor/Tools/ViewportTool.h"  // ViewportInput
 
 namespace Elysium {

@@ -1,8 +1,8 @@
 #pragma once
 #include "Core/System.h"
 #include "Core/Entity.h"
-#include "Core/Geometry/Polygon.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/Polygon.h"
+#include "Core/Math/MathTypes.h"
 #include <cstdint>
 #include <unordered_map>
 #include <vector>

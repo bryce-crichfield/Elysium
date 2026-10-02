@@ -1,6 +1,6 @@
 #pragma once
 #include "Core/Component.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include <vector>
 
 namespace Elysium {

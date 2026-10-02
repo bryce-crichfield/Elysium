@@ -1,7 +1,7 @@
 #pragma once
 #include "Core/System.h"
 #include "Core/Entity.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include <queue>
 
 namespace Elysium::Systems {

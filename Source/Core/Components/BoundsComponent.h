@@ -4,7 +4,7 @@
 #include "Core/Components/LayerComponent.h"
 #include "Core/Scene.h"
 #include "Core/Graphics.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 
 namespace Elysium {
     struct BoundsComponent {

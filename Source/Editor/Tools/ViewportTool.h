@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include "Core/Entity.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include "Core/Reflection.h"
 
 namespace Elysium {

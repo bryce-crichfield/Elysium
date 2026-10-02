@@ -2,7 +2,7 @@
 
 #include "Core/System.h"
 #include "Core/Entity.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include <map>
 #include <set>
 #include <vector>

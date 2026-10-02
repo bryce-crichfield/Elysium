@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/Framebuffer.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 #include "Core/Shader.h"
 #include <vector>
 

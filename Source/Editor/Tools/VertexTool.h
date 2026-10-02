@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 #include "Core/Entity.h"
-#include "Core/Geometry/Polygon.h"
-#include "Core/MathTypes.h"
+#include "Core/Math/Polygon.h"
+#include "Core/Math/MathTypes.h"
 #include "Editor/Tools/PolygonHandles.h"
 #include "Editor/Tools/ViewportTool.h"
 

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include "Core/Components/NameComponent.h"
 #include "Core/Components/TransformComponent.h"
-#include "Core/Geometry/Polygon.h"
+#include "Core/Math/Polygon.h"
 #include "Core/World.h"
 #include "Editor/Viewport/OverlayPainter.h"
 #include "Editor/Viewport/SpatialOverlays.h"
@@ -11,7 +11,7 @@
 #include "Editor/Widgets/Widgets.h"
 #include "Editor/EditorApplication.h"
 #include "Core/Systems/NavMeshSystem.h"
-#include "Core/World3D.h"
+#include "Core/Math/World3D.h"
 #include <cmath>
 
 namespace Elysium {
