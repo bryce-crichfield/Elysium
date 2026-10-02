@@ -10,6 +10,7 @@
 extern "C" void* glfwGetProcAddress(const char* name);
 
 #include <algorithm>
+#include <cmath>
 
 namespace Elysium {
 
@@ -58,13 +59,52 @@ bool ScissorEnabled() {
     return isEnabled && isEnabled(kScissorTest);
 }
 
+// Whether a box (relative to the light) reaches into cube face `f`'s pyramid: some point in it
+// has its coordinate along the face's axis at least as large as the other two in magnitude.
+bool BoxInFace(int f, const float lo[3], const float hi[3]) {
+    const int axis = f / 2;
+    const float along = (f % 2 == 0) ? hi[axis] : -lo[axis];
+    if (along <= 0.0f) return false;
+    for (int k = 0; k < 3; ++k) {
+        if (k == axis) continue;
+        const float nearest = (lo[k] <= 0.0f && hi[k] >= 0.0f) ? 0.0f : std::min(std::fabs(lo[k]), std::fabs(hi[k]));
+        if (along < nearest) return false;
+    }
+    return true;
+}
+
+bool SameLight(const ShadowAtlas::Light& a, const ShadowAtlas::Light& b) {
+    return a.position.x == b.position.x && a.position.y == b.position.y && a.position.z == b.position.z &&
+           a.radius == b.radius && a.owner == b.owner;
+}
+
+// The current scissor box (x, y, width, height).
+void ScissorBox(int box[4]) {
+    using GetIntegervFn = void (*)(unsigned int, int*);
+    static const auto getIntegerv = reinterpret_cast<GetIntegervFn>(glfwGetProcAddress("glGetIntegerv"));
+    constexpr unsigned int kScissorBox = 0x0C10;  // GL_SCISSOR_BOX
+    if (getIntegerv) getIntegerv(kScissorBox, box);
+}
+
 constexpr float kNear = 1.0f;
 constexpr float kFar = 4096.0f;
 
 }  // namespace
 
+void ShadowAtlas::Invalidate(Elysium::Vector3 min, Elysium::Vector3 max) {
+    for (Row& row : rows_) {
+        if (!row.valid) continue;
+        const Elysium::Vector3& p = row.light.position;
+        const float dx = std::max({min.x - p.x, 0.0f, p.x - max.x});
+        const float dy = std::max({min.y - p.y, 0.0f, p.y - max.y});
+        const float dz = std::max({min.z - p.z, 0.0f, p.z - max.z});
+        const float r = std::max(row.light.radius, 1.0f);
+        if (dx * dx + dy * dy + dz * dz < r * r) row.valid = false;
+    }
+}
+
 void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights,
-                         const std::vector<Elysium::Vector3>& triangles, const std::vector<unsigned int>& owners) {
+                         const std::function<void(Casters&)>& gather) {
     if (!shader_.IsValid() && !shaderFailed_) {
         std::string error;
         shader_ = Shader::FromSource(kVertexSource, kFragmentSource, &error);
@@ -75,23 +115,44 @@ void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights,
     }
     lightCount_ = 0;
     if (!shader_.IsValid()) return;
-    if (!atlas_.IsValid()) atlas_ = Framebuffer(kTileSize * 6, kTileSize * maxLights_, true);
+    if (!atlas_.IsValid()) {
+        atlas_ = Framebuffer(kTileSize * 6, kTileSize * maxLights_, true);
+        rows_.assign(maxLights_, Row{});
+    }
 
     lightCount_ = std::min((int)lights.size(), maxLights_);
+    std::vector<int> dirty;
+    for (int i = 0; i < lightCount_; ++i) {
+        const Row& row = rows_[i];
+        if (!row.valid || !SameLight(row.light, lights[i])) dirty.push_back(i);
+    }
+    if (dirty.empty()) return;
+    Casters casters;
+    gather(casters);
+    const std::vector<Elysium::Vector3>& triangles = casters.triangles;
+    const std::vector<unsigned int>& owners = casters.owners;
 
     const bool scissor = ScissorEnabled();
+    int scissorBox[4] = {0, 0, 0, 0};
+    ScissorBox(scissorBox);
     rlDisableScissorTest();
     ctx.BeginRenderTarget(atlas_);
-    ctx.ClearTarget(Colors::White);
     rlDrawRenderBatchActive();
     rlEnableDepthTest();
     rlDisableBackfaceCulling();
     ctx.PushShader(shader_);
 
     const ::Matrix projection = MatrixPerspective(90.0 * DEG2RAD, 1.0, kNear, kFar);
-    std::vector<size_t> near;
-    for (int i = 0; i < lightCount_; ++i) {
+    std::vector<size_t> near, inFace;
+    for (int i : dirty) {
         const Light& light = lights[i];
+        rows_[i] = {true, light};
+        // Clear just this row (glClear honours the scissor).
+        rlEnableScissorTest();
+        rlScissor(0, i * kTileSize, kTileSize * 6, kTileSize);
+        ctx.ClearTarget(Colors::White);
+        rlDisableScissorTest();
+
         // The triangles whose bounds reach into the light's radius.
         near.clear();
         const float r = std::max(light.radius, 1.0f);
@@ -110,12 +171,24 @@ void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights,
         shader_.SetUniform("e_Radius", Value{std::max(light.radius, 1.0f)});
 
         for (int f = 0; f < 6; ++f) {
+            // Only the triangles inside this face's frustum.
+            inFace.clear();
+            for (size_t t : near) {
+                float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
+                for (size_t k = t * 3; k < t * 3 + 3; ++k) {
+                    const float v[3] = {triangles[k].x - light.position.x, triangles[k].y - light.position.y,
+                                        triangles[k].z - light.position.z};
+                    for (int c = 0; c < 3; ++c) { lo[c] = std::min(lo[c], v[c]); hi[c] = std::max(hi[c], v[c]); }
+                }
+                if (BoxInFace(f, lo, hi)) inFace.push_back(t);
+            }
+            if (inFace.empty()) continue;
             rlViewport(f * kTileSize, i * kTileSize, kTileSize, kTileSize);
             rlSetMatrixProjection(projection);
             rlSetMatrixModelview(MatrixLookAt(eye, Vector3Add(eye, kFaces[f].forward), kFaces[f].up));
             rlBegin(RL_TRIANGLES);
             rlColor4ub(255, 255, 255, 255);
-            for (size_t t : near) {
+            for (size_t t : inFace) {
                 for (size_t k = t * 3; k < t * 3 + 3; ++k) rlVertex3f(triangles[k].x, triangles[k].y, triangles[k].z);
             }
             rlEnd();
@@ -127,6 +200,8 @@ void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights,
     rlEnableBackfaceCulling();
     rlDisableDepthTest();
     ctx.EndRenderTarget();
+    // Clearing rows moved the scissor box: put the camera's back.
+    rlScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
     if (scissor) rlEnableScissorTest();
 }
 

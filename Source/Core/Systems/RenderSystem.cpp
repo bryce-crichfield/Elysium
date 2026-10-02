@@ -1184,9 +1184,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     int shadowCount = 0;
     if (layer.shadows && lightCount > 0) {
         ProfileN("World3D Shadows");
-        std::erase_if(modelTriangles_, [&](const auto& entry) { return !world.IsAlive(entry.first); });
-        std::vector<Vector3> triangles;
-        std::vector<unsigned int> owners;
+        std::vector<Entity> casters;
         const_cast<World&>(world).Query<TransformComponent, ModelComponent>([&](Entity entity, const auto& transform, const auto& component) {
             // Floors and stairs (walkable) cast nothing: lights stand above them, and a floor
             // would only shadow itself.
@@ -1196,6 +1194,8 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             const Matrix matrix = World3D::ModelMatrix(transform, component, *model);
             ModelTriangles& cached = modelTriangles_[entity];
             if (cached.model != model || std::memcmp(&cached.matrix, &matrix, sizeof(Matrix)) != 0) {
+                // The lights that saw it where it was.
+                if (cached.model) shadowAtlas3D_.Invalidate(cached.min, cached.max);
                 cached.matrix = matrix;
                 cached.model = model;
                 cached.triangles.clear();
@@ -1206,15 +1206,23 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
                     cached.min = {std::min(cached.min.x, v.x), std::min(cached.min.y, v.y), std::min(cached.min.z, v.z)};
                     cached.max = {std::max(cached.max.x, v.x), std::max(cached.max.y, v.y), std::max(cached.max.z, v.z)};
                 }
+                // And the lights that see it where it is now.
+                shadowAtlas3D_.Invalidate(cached.min, cached.max);
             }
-            triangles.insert(triangles.end(), cached.triangles.begin(), cached.triangles.end());
-            owners.resize(triangles.size() / 3, (unsigned int)entity);
+            casters.push_back(entity);
+        });
+        // Casters that are gone (dead, walkable now, no model): the lights that saw them redraw.
+        std::unordered_set<Entity> casting(casters.begin(), casters.end());
+        std::erase_if(modelTriangles_, [&](const auto& entry) {
+            if (casting.contains(entry.first)) return false;
+            if (entry.second.model) shadowAtlas3D_.Invalidate(entry.second.min, entry.second.max);
+            return true;
         });
         std::vector<ShadowAtlas::Light> shadowLights;
         for (int i = 0; i < lightCount; ++i) {
             // A light skips its own model, or else the model it's embedded in (a torch on a
             // wall stands inside the wall's bounds; that wall would hide it from everything).
-            const Vector3 at = lights_[i].position;
+            const Vector3 at = lights_[i].shadowPosition;
             unsigned int owner = lights_[i].owner == INVALID_ENTITY ? ShadowAtlas::kNoOwner : (unsigned int)lights_[i].owner;
             if (!modelTriangles_.contains(lights_[i].owner)) {
                 for (const auto& [entity, cached] : modelTriangles_) {
@@ -1227,7 +1235,13 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             }
             shadowLights.push_back({at, lights_[i].radius, owner});
         }
-        shadowAtlas3D_.Render(ctx, shadowLights, triangles, owners);
+        shadowAtlas3D_.Render(ctx, shadowLights, [&](ShadowAtlas::Casters& out) {
+            for (Entity entity : casters) {
+                const auto& tris = modelTriangles_[entity].triangles;
+                out.triangles.insert(out.triangles.end(), tris.begin(), tris.end());
+                out.owners.resize(out.triangles.size() / 3, (unsigned int)entity);
+            }
+        });
         shadowCount = shadowAtlas3D_.LightCount();
         // The atlas ends on the default framebuffer: back to the scene's.
         ctx.BeginRenderTarget(ctx.GetServices().Get<Services::ISceneService>().GetFramebuffer());
@@ -1578,6 +1592,7 @@ void RenderSystem::CollectLights() {
         const float seed = (float)entity * 1.618f;
         float brightness = light.intensity * fade * fade * (3.0f - 2.0f * fade);  // smoothstep
         Vector2 ground{transform.worldX, transform.worldY};
+        const Vector3 steady = WorldTo3D(ground, light.height + transform.worldZ * kIsoCos);
         if (light.flicker > 0.0f) {
             const float wave = 0.5f * std::sin(time * 7.3f + seed) + 0.3f * std::sin(time * 13.1f + seed * 2.0f) +
                                0.2f * std::sin(time * 23.7f + seed * 3.0f);
@@ -1589,7 +1604,7 @@ void RenderSystem::CollectLights() {
         lights.push_back({WorldTo3D(ground, light.height + transform.worldZ * kIsoCos),
                           Vector3{light.color.r / 255.0f * brightness, light.color.g / 255.0f * brightness,
                                   light.color.b / 255.0f * brightness},
-                          light.radius, light.vision, entity});
+                          light.radius, light.vision, entity, steady});
     });
     lightFade_ = std::move(fades);
     _compositor.SetLights(std::move(lights));

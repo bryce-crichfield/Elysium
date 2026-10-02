@@ -133,6 +133,7 @@ public:
         float radius = 1.0f;
         bool vision = false;            // also clears the fog of war where it can see
         Entity owner = INVALID_ENTITY;
+        Vector3 shadowPosition;         // `position` without the flicker: shadow maps stay cached
     };
     void SetLights(std::vector<PointLight> lights) { lights_ = std::move(lights); }
 

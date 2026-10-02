@@ -66,27 +66,30 @@ std::optional<Contact> Flip(std::optional<Contact> contact) {
     return contact;
 }
 
-std::optional<Contact> NarrowPhase(const ColliderComponent& a, Vector2 posA,
-                                   const ColliderComponent& b, Vector2 posB, float isoRatio) {
-    const ScaledSpace space{{1.0f, isoRatio}};
-    const ColliderShape shapeA = a.ResolvedShape();
-    const ColliderShape shapeB = b.ResolvedShape();
-    const Vector2 centerA = a.GetCenter(posA.x, posA.y);
-    const Vector2 centerB = b.GetCenter(posB.x, posB.y);
+// A collider resolved for this frame: its shape decided and its outline parsed and placed once,
+// not once per pair it's tested against.
+struct Prepared {
+    Entity entity;
+    ColliderShape shape;
+    Vector2 center;
+    float radius;
+    Polygon polygon;  // world space; empty for a circle
+    Rectangle rect;   // GetRect, for the box-vs-box fallback
+    Rectangle broad;  // GetBroadRect
+    float low, high;  // height range
+};
 
-    if (shapeA == ColliderShape::Circle && shapeB == ColliderShape::Circle) {
-        return CircleVsCircle(centerA, a.radius, centerB, b.radius, space);
+std::optional<Contact> NarrowPhase(const Prepared& a, const Prepared& b, float isoRatio) {
+    const ScaledSpace space{{1.0f, isoRatio}};
+    if (a.shape == ColliderShape::Circle && b.shape == ColliderShape::Circle) {
+        return CircleVsCircle(a.center, a.radius, b.center, b.radius, space);
     }
-    // A Box's GetPolygon is its four AABB corners, so Box and Polygon share this path.
-    if (shapeA == ColliderShape::Circle) {
-        return CircleVsPolygon(centerA, a.radius, b.GetPolygon(posB.x, posB.y), space);
-    }
-    if (shapeB == ColliderShape::Circle) {
-        return Flip(CircleVsPolygon(centerB, b.radius, a.GetPolygon(posA.x, posA.y), space));
-    }
+    // A Box's polygon is its four AABB corners, so Box and Polygon share this path.
+    if (a.shape == ColliderShape::Circle) return CircleVsPolygon(a.center, a.radius, b.polygon, space);
+    if (b.shape == ColliderShape::Circle) return Flip(CircleVsPolygon(b.center, b.radius, a.polygon, space));
     // Neither is a circle: keep the historical AABB overlap and let PhysicsResponseSystem's
     // axis-aligned code separate it.
-    if (!a.GetRect(posA.x, posA.y).Intersects(b.GetRect(posB.x, posB.y))) return std::nullopt;
+    if (!a.rect.Intersects(b.rect)) return std::nullopt;
     return Contact{};
 }
 
@@ -109,50 +112,33 @@ const Contact* CollisionSystem::GetContact(Entity a, Entity b) const {
 }
 
 void CollisionSystem::Update(float deltaTime) {
-    // Clear previous frame's collisions
     collisions_.clear();
     contacts_.clear();
 
-    // Collect all collidable entities
-    struct CollidableEntity {
-        Entity entity;
-        ColliderComponent collider;
-        bool isTrigger;
-    };
-    std::vector<CollidableEntity> collidables;
+    std::vector<Prepared> colliders;
+    world->Query<TransformComponent, ColliderComponent>([&](Entity e, auto& transform, auto& collider) {
+        const float x = transform.worldX, y = transform.worldY;
+        Prepared p{e, collider.ResolvedShape(), collider.GetCenter(x, y), collider.radius, {},
+                   collider.GetRect(x, y), collider.GetBroadRect(x, y), 0.0f, 0.0f};
+        if (p.shape != ColliderShape::Circle) p.polygon = collider.GetPolygon(x, y);
+        collider.HeightRange(transform.worldZ, p.low, p.high);
+        colliders.push_back(std::move(p));
+    });
 
-    world->Query<TransformComponent, ColliderComponent>(
-        [&](Entity e, auto& transform, auto& collider) {
-            CollidableEntity ce;
-            ce.entity = e;
-            ce.collider = collider;
-            ce.isTrigger = collider.isTrigger;
-            collidables.push_back(ce);
-        });
-
-    // O(n^2) broad phase - simple for now
-    // TODO: a spatial hash for the broad phase
+    // Broad phase: sweep along x. Sorted by left edge, each collider only meets the ones that
+    // start before it ends.
     // TODO: Consider camera and viewport for math. (if we change zoom, collisions break because colliders are sized for 1:1 pixels)
-    for (size_t i = 0; i < collidables.size(); ++i) {
-        for (size_t j = i + 1; j < collidables.size(); ++j) {
-            const auto& a = collidables[i];
-            const auto& b = collidables[j];
-
-            const auto& transformA = world->GetComponent<TransformComponent>(a.entity);
-            const auto& transformB = world->GetComponent<TransformComponent>(b.entity);
-            const Vector2 posA{transformA.worldX, transformA.worldY};
-            const Vector2 posB{transformB.worldX, transformB.worldY};
-
+    std::sort(colliders.begin(), colliders.end(), [](const Prepared& a, const Prepared& b) { return a.broad.x < b.broad.x; });
+    for (size_t i = 0; i < colliders.size(); ++i) {
+        const Prepared& a = colliders[i];
+        const float right = a.broad.x + a.broad.width;
+        for (size_t j = i + 1; j < colliders.size() && colliders[j].broad.x <= right; ++j) {
+            const Prepared& b = colliders[j];
             // Heights first: a flier over a low wall never touches it.
-            float lowA, highA, lowB, highB;
-            a.collider.HeightRange(transformA.worldZ, lowA, highA);
-            b.collider.HeightRange(transformB.worldZ, lowB, highB);
-            if (highA < lowB || highB < lowA) continue;
+            if (a.high < b.low || b.high < a.low) continue;
+            if (!a.broad.Intersects(b.broad)) continue;
 
-            // Broad phase: bounding rects, which for a circle cover it conservatively.
-            if (!a.collider.GetBroadRect(posA.x, posA.y).Intersects(b.collider.GetBroadRect(posB.x, posB.y))) continue;
-
-            auto contact = NarrowPhase(a.collider, posA, b.collider, posB, isoRatio_);
+            auto contact = NarrowPhase(a, b, isoRatio_);
             if (!contact) continue;
 
             CollisionPair pair(a.entity, b.entity);
