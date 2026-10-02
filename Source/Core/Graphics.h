@@ -48,6 +48,12 @@ namespace Elysium {
     struct Model {
         int meshCount = 0;
         int materialCount = 0;
+        // Model-space bounds over every mesh (the file's axes: y up).
+        float boundsMin[3] = {0.0f, 0.0f, 0.0f};
+        float boundsMax[3] = {0.0f, 0.0f, 0.0f};
+        // The loaded raylib ::Model, for the .cpp files that draw or ray-cast it (see
+        // Core/World3D.h). Null until the asset is finalized.
+        void* native = nullptr;
     };
 
     // Shader is not a POD handle like the above — it owns a compiled program plus its

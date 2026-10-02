@@ -9,10 +9,14 @@ namespace Elysium {
     // hierarchy; nothing else should assign to them.
     struct TransformComponent {
         float localX = 0.0f, localY = 0.0f;
+        // Height above the ground, in world units (3D: see Core/World3D.h). x and y stay the
+        // ground position, so everything that walks the ground keeps working in 2D.
+        float localZ = 0.0f;
         float localScaleX = 1.0f, localScaleY = 1.0f;
         float localRotation = 0.0f;
 
         float worldX = 0.0f, worldY = 0.0f;
+        float worldZ = 0.0f;
         float worldScaleX = 1.0f, worldScaleY = 1.0f;
         float worldRotation = 0.0f;
         uint32_t worldDepth = 0;  // hierarchy depth (0 = root), cached by TransformSystem

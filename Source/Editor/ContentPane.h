@@ -36,5 +36,6 @@ std::unique_ptr<ContentPane> MakeContentPane(ServiceLocator& services, const Ser
 std::unique_ptr<ContentPane> MakeCodePane(ServiceLocator& services, const Services::EditorDocument& document);
 std::unique_ptr<ContentPane> MakeTexturePane(ServiceLocator& services, const Services::EditorDocument& document);
 std::unique_ptr<ContentPane> MakeSpritePane(ServiceLocator& services, const Services::EditorDocument& document);
+std::unique_ptr<ContentPane> MakeModelPane(ServiceLocator& services, const Services::EditorDocument& document);
 
 }  // namespace Elysium

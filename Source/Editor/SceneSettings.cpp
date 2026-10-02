@@ -107,7 +107,7 @@ void SceneSettings::DrawLayers(Scene& scene) {
         return;
     }
 
-    static const char* spaceNames[] = {"World", "Screen"};
+    static const char* spaceNames[] = {"World", "Screen", "World 3D"};  // SceneLayerSpace order
     static const char* blendNames[] = {"Normal", "Additive", "Multiply"};
 
     bool needsSort = false;

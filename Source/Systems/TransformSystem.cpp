@@ -63,6 +63,7 @@ void TransformSystem::ComposeRecursive(Entity entity, const TransformComponent* 
     if (!parentWorld) {
         t.worldX = t.localX;
         t.worldY = t.localY;
+        t.worldZ = t.localZ;
         t.worldScaleX = t.localScaleX;
         t.worldScaleY = t.localScaleY;
         t.worldRotation = t.localRotation;
@@ -75,6 +76,7 @@ void TransformSystem::ComposeRecursive(Entity entity, const TransformComponent* 
 
         t.worldX = parentWorld->worldX + (scaledX * cs - scaledY * sn);
         t.worldY = parentWorld->worldY + (scaledX * sn + scaledY * cs);
+        t.worldZ = parentWorld->worldZ + t.localZ;
         t.worldScaleX = parentWorld->worldScaleX * t.localScaleX;
         t.worldScaleY = parentWorld->worldScaleY * t.localScaleY;
         t.worldRotation = parentWorld->worldRotation + t.localRotation;

@@ -24,6 +24,10 @@
 #include "Components/CameraComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/TransformComponent.h"
+#include "Components/LayerComponent.h"
+#include "Core/Scene.h"
+#include "Core/World3D.h"
+#include <cstdio>
 #include "Editor/OverlayPainter.h"
 #include "Systems/NavMeshSystem.h"
 #include "Core/Path.h"
@@ -557,6 +561,7 @@ std::unique_ptr<ContentPane> MakeContentPane(ServiceLocator& services, const Edi
         case AssetKind::Shader: return MakeCodePane(services, document);
         case AssetKind::Texture: return MakeTexturePane(services, document);
         case AssetKind::Sprite: return MakeSpritePane(services, document);
+        case AssetKind::Model: return MakeModelPane(services, document);
         default: return nullptr;
     }
 }
@@ -665,14 +670,22 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
     auto* renderSystem = editorService.GetViewportScene() ? editorService.GetViewportScene()->GetSystem<Systems::RenderSystem>() : nullptr;
     const bool isWorldSpace = renderSystem ? renderSystem->GetEntityRenderInfo(entity).isWorldSpace : true;
     const float screenScale = view.screenScale != 0.0f ? view.screenScale : 1.0f;
+    auto& t = world->GetComponent<TransformComponent>(entity);
+
+    // On a World3D layer an entity at height z draws z * cos30 higher; the gizmo sits there.
+    bool is3D = false;
+    if (isWorldSpace && world->HasComponent<LayerComponent>(entity) && editorService.GetViewportScene()) {
+        const SceneLayer* layer = editorService.GetViewportScene()->GetLayer(world->GetComponent<LayerComponent>(entity).name);
+        is3D = layer && layer->space == SceneLayerSpace::World3D;
+    }
+    const float lift = is3D ? t.worldZ * World3D::kPitchCos : 0.0f;
     auto toShown = [&](Vector2 p) {
-        return isWorldSpace ? p : Vector2{ view.screenOrigin.x + p.x * screenScale, view.screenOrigin.y + p.y * screenScale };
+        return isWorldSpace ? Vector2{ p.x, p.y - lift } : Vector2{ view.screenOrigin.x + p.x * screenScale, view.screenOrigin.y + p.y * screenScale };
     };
     auto fromShown = [&](Vector2 p) {
-        return isWorldSpace ? p : Vector2{ (p.x - view.screenOrigin.x) / screenScale, (p.y - view.screenOrigin.y) / screenScale };
+        return isWorldSpace ? Vector2{ p.x, p.y + lift } : Vector2{ (p.x - view.screenOrigin.x) / screenScale, (p.y - view.screenOrigin.y) / screenScale };
     };
 
-    auto& t = world->GetComponent<TransformComponent>(entity);
     // The primary's local transform before the manipulation, so whatever delta it ends up
     // receiving can be handed on to the followers.
     const float wasX = t.localX, wasY = t.localY, wasRotation = t.localRotation;
@@ -763,8 +776,65 @@ bool ViewportEditor::HandleGizmo(ISceneService& sceneService, IEditorService& ed
         }
     }
 
+    // World3D: a height handle beside the move arrows.
+    bool heightOwnsMouse = false;
+    if (is3D && gizmo == GizmoMode::Move && !ImGuizmo::IsUsing()) {
+        auto toScreen = [&](Vector2 w) {
+            const float* p = projection.m;
+            const float x = p[0] * w.x + p[4] * w.y + p[12], y = p[1] * w.x + p[5] * w.y + p[13];
+            const float wc = p[3] * w.x + p[7] * w.y + p[15];
+            return Vector2{ imageScreenRect.x + (x / wc * 0.5f + 0.5f) * imageScreenRect.width,
+                            imageScreenRect.y + (0.5f - y / wc * 0.5f) * imageScreenRect.height };
+        };
+        const Vector2 shown = toShown({ t.worldX, t.worldY });
+        const Vector2 anchor = toScreen(shown);
+        const float pixelsPerUnit = std::fabs(toScreen({ shown.x, shown.y + 1.0f }).y - anchor.y) * World3D::kPitchCos;
+        heightOwnsMouse = HandleHeightHandle(*world, entity, followers, anchor, pixelsPerUnit, ImGui::GetIO().KeyCtrl);
+    } else {
+        heightDragging_ = false;
+    }
+
     RecordGizmoDrag(editorService, entity, followers, gizmo);
-    return ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+    return ImGuizmo::IsOver() || ImGuizmo::IsUsing() || heightOwnsMouse;
+}
+
+bool ViewportEditor::HandleHeightHandle(World& world, Entity entity, const std::vector<Entity>& followers,
+                                        Vector2 anchor, float pixelsPerUnit, bool snap) {
+    // Beside the move arrows (which point right and up from the anchor), so neither hides the other.
+    constexpr float kOffset = -22.0f, kLength = 70.0f, kGrab = 7.0f;
+    const ImVec2 base{ anchor.x + kOffset, anchor.y };
+    const ImVec2 tip{ base.x, base.y - kLength };
+    const ImVec2 mouse = ImGui::GetMousePos();
+    const bool hovered = std::fabs(mouse.x - base.x) <= kGrab && mouse.y >= tip.y - kGrab && mouse.y <= base.y;
+
+    auto& t = world.GetComponent<TransformComponent>(entity);
+    if (hovered && !heightDragging_ && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsOver()) {
+        heightDragging_ = true;
+        heightDragMouseY_ = mouse.y;
+        heightDragStartZ_ = t.localZ;
+    }
+    if (heightDragging_ && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) heightDragging_ = false;
+    if (heightDragging_ && pixelsPerUnit > 0.0f) {
+        float z = heightDragStartZ_ + (heightDragMouseY_ - mouse.y) / pixelsPerUnit;
+        if (snap) z = std::round(z / 8.0f) * 8.0f;
+        const float delta = z - t.localZ;
+        t.localZ = z;
+        for (Entity follower : followers) world.GetComponent<TransformComponent>(follower).localZ += delta;
+    }
+
+    const bool active = hovered || heightDragging_;
+    const ImU32 color = active ? IM_COL32(255, 220, 90, 255) : IM_COL32(90, 200, 255, 255);
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    draw->AddLine(base, ImVec2{ tip.x, tip.y + 10.0f }, color, active ? 3.0f : 2.0f);
+    draw->AddTriangleFilled(tip, ImVec2{ tip.x - 6.0f, tip.y + 12.0f }, ImVec2{ tip.x + 6.0f, tip.y + 12.0f }, color);
+    draw->AddCircleFilled(base, 3.0f, color);
+    if (active) {
+        char label[32];
+        std::snprintf(label, sizeof(label), "z %.1f", t.localZ);
+        draw->AddText(ImVec2{ tip.x + 9.0f, tip.y }, color, label);
+    }
+    if (active) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+    return active;
 }
 
 void ViewportEditor::RecordGizmoDrag(IEditorService& editorService, Entity primary,
@@ -773,7 +843,7 @@ void ViewportEditor::RecordGizmoDrag(IEditorService& editorService, Entity prima
     // drag-begin or drag-end of its own. Rather than record each frame and merge them, watch the
     // edge of IsUsing() and snapshot once at each end: the entry is then exactly the drag.
     auto* world = editorService.GetWorld();
-    const bool dragging = ImGuizmo::IsUsing();
+    const bool dragging = ImGuizmo::IsUsing() || heightDragging_;
     const std::string tag = ComponentRegistry::Instance().GetXmlTag(TransformComponent::Name());
 
     if (dragging && gizmoDragEntities_.empty()) {

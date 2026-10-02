@@ -22,6 +22,9 @@ class ShadowAtlas {
 
     static constexpr unsigned int kNoOwner = 0xFFFFFFFFu;
 
+    // `maxLights`: rows in the atlas (World3D layers shadow up to 16 lights).
+    explicit ShadowAtlas(int maxLights = kMaxLights) : maxLights_(maxLights) {}
+
     struct Light {
         Elysium::Vector3 position;
         float radius = 1.0f;
@@ -29,17 +32,20 @@ class ShadowAtlas {
     };
 
     // `triangles`: the casters, three world-space vertices per triangle; `owners` one entry
-    // per triangle. Lights past kMaxLights are ignored.
+    // per triangle. Lights past Rows() are ignored; each light only draws the triangles
+    // that reach into its radius.
     void Render(RenderContext& ctx, const std::vector<Light>& lights, const std::vector<Elysium::Vector3>& triangles,
                 const std::vector<unsigned int>& owners);
 
     unsigned int TextureId() const { return atlas_.TextureId(); }
     int LightCount() const { return lightCount_; }
+    int Rows() const { return maxLights_; }
 
    private:
     Framebuffer atlas_;
     Shader shader_;
     bool shaderFailed_ = false;
+    int maxLights_ = kMaxLights;
     int lightCount_ = 0;
 };
 

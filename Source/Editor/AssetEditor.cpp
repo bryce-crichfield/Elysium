@@ -210,7 +210,7 @@ void AssetEditor::Draw() {
                 }
                 if (!here) {
                     if (ImGui::MenuItem(ICON_FA_FILE_CIRCLE_PLUS "  Create File...")) createDialog_.OpenNew();
-                } else if (here->kind != AssetKind::Sound && here->kind != AssetKind::Texture) {
+                } else if (here->kind != AssetKind::Sound && here->kind != AssetKind::Texture && here->kind != AssetKind::Model) {
                     const AssetStyle style = StyleOf(here->kind);
                     ImGui::PushStyleColor(ImGuiCol_Text, style.color);
                     const bool create = ImGui::MenuItem((std::string(style.icon) + "  Create " + style.label + "...").c_str());
@@ -454,6 +454,7 @@ void AssetEditor::HandleItem(const DiskFile& file, IAsset* asset, bool clicked, 
                     // ShaderAsset treats its path as the fragment shader and picks up the
                     // sibling .vs itself, if there is one.
                     case AssetKind::Shader: assetService.LoadAsset<Shader>(path); break;
+                    case AssetKind::Model: assetService.LoadAsset<Model>(path); break;
                     default: break;
                 }
             }

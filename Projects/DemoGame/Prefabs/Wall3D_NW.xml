@@ -1,0 +1,12 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <ColliderComponent width="67.577797" height="39.155399" offsetX="0" offsetY="0" isTrigger="false" points="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777"/>
+            <LayerComponent name="entity"/>
+            <ModelComponent model="Models/Wall.glb" scale="30.17" yaw="-45" tint="#7F88ECFF"/>
+            <NameComponent name="WallNW"/>
+            <OccluderComponent footprint="-33.7889,12.4223 30.2111,-19.5777 33.7889,-12.4223 -30.2111,19.5777" height="97" isStatic="true" castsShadow="true" mode="None" fadeAlpha="0.40000001" tint="#5A8CFFFF"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

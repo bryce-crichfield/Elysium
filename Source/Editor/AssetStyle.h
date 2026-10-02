@@ -24,6 +24,7 @@ inline AssetStyle StyleOf(AssetKind kind) {
         case AssetKind::Sprite: return {"Sprite", ICON_FA_PERSON_RUNNING, palette.AssetSprite};
         case AssetKind::Texture: return {"Texture", ICON_FA_IMAGE, palette.AssetTexture};
         case AssetKind::Shader: return {"Shader", ICON_FA_PAINTBRUSH, palette.AssetShader};
+        case AssetKind::Model: return {"Model", ICON_FA_CUBE, palette.AssetModel};
     }
     return {"Folder", ICON_FA_FOLDER, palette.AssetFolder};
 }

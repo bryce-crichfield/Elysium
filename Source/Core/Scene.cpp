@@ -23,6 +23,7 @@ static SceneLayerSpace ParseSceneLayerSpace(const char* str) {
     if (!str) return SceneLayerSpace::World2D;
     std::string s = str;
     if (s == "Screen" || s == "Screen2D") return SceneLayerSpace::Screen2D;
+    if (s == "World3D") return SceneLayerSpace::World3D;
     return SceneLayerSpace::World2D;
 }
 

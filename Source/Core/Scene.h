@@ -21,6 +21,9 @@ class ServiceLocator;
 enum class SceneLayerSpace {
     World2D,
     Screen2D,
+    // The 2D world's ground in true 3D (Core/World3D.h): models with depth, and everything
+    // else as upright cards facing the camera. Drawn through the same camera as World2D.
+    World3D,
 };
 
 enum class SceneLayerBlend {

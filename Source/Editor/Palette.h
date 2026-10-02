@@ -63,6 +63,7 @@ struct Palette {
     ImVec4 AssetSprite  = Hex(0xA98BE0);
     ImVec4 AssetTexture = Hex(0xE8995A);
     ImVec4 AssetShader  = Hex(0x5CC8D0);
+    ImVec4 AssetModel   = Hex(0xE05CC8);
 
     // Derived from the colors above after a theme loads, unless the theme sets them.
     ImVec4 AccentSoft;     // selected-row fill

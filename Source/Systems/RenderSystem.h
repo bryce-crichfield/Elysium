@@ -165,6 +165,11 @@ private:
     // through Shaders/Lighting.fs, each pixel lit by what reaches its ground point.
     void RenderLit(RenderContext& ctx, const CameraView& view,
                    const SceneLayer& layer, std::span<const RenderRecord> records);
+    // A World3D layer, through the iso camera with a depth buffer (Core/World3D.h): first its
+    // models, then everything else as upright cards standing at their root's ground position,
+    // far to near, depth-tested against the models but not each other.
+    void Render3D(RenderContext& ctx, const CameraView& view,
+                  const SceneLayer& layer, std::span<const RenderRecord> records);
     // Walks the layer's records in order, grouping the contiguous run each entity produced
     // so a ShaderComponent entity can be diverted through RenderShadedEntity as a unit.
     // `enclosingTarget` is the framebuffer already bound by the caller. raylib's
@@ -181,8 +186,11 @@ private:
     // plus ShaderComponent::padding, then blits that buffer back into the layer through the
     // entity's shader — so the shader sees exactly the entity's pixels in texture0, with
     // room around them for glow/outline effects to bleed into.
+    // `projection`: re-applied before the blit (World3D cards, whose depth the default
+    // ortho would clip), with depth testing back on.
     void RenderShadedEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records,
-                            const Matrix& layerTransform, const Framebuffer& enclosingTarget);
+                            const Matrix& layerTransform, const Framebuffer& enclosingTarget,
+                            const Matrix* projection = nullptr);
 
     // Analytic path: each record whose renderable reports SdfGeometry is drawn as one quad
     // per enabled MaterialLayer (in order), through the shader composed from that
@@ -235,6 +243,21 @@ private:
     std::unordered_map<Entity, Framebuffer> entityBuffers_;
     std::unordered_set<Entity> shadedThisFrame_;
     std::unordered_set<std::string> requestedShaders_;
+    std::unordered_set<std::string> requestedModels_;
+    // World3D: how faded each model is (1 solid), easing toward faded while it stands between
+    // the camera and a unit (MovementComponent).
+    std::unordered_map<Entity, float> modelFade_;
+    double modelFadeTime_ = 0.0;
+    // World3D shadows: the point lights' cube maps of every model, and each model's GL-space
+    // triangles, rebuilt only when its matrix or model changes.
+    ShadowAtlas shadowAtlas3D_{16};
+    struct ModelTriangles {
+        Matrix matrix;
+        const void* model = nullptr;
+        std::vector<Vector3> triangles;
+        Vector3 min, max;  // the triangles' bounds
+    };
+    std::unordered_map<Entity, ModelTriangles> modelTriangles_;
 };
 
 class RenderSystem : public System {

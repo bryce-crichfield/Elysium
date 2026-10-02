@@ -32,6 +32,8 @@ std::string LayerSpaceToString(SceneLayerSpace space) {
             return "Screen2D";
         case SceneLayerSpace::World2D:
             return "World2D";
+        case SceneLayerSpace::World3D:
+            return "World3D";
         default:
             return "World2D";
     }

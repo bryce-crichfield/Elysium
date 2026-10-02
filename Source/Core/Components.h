@@ -25,3 +25,4 @@
 #include "Components/OccluderComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/NavAreaComponent.h"
+#include "Components/ModelComponent.h"

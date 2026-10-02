@@ -101,6 +101,13 @@ class ViewportEditor : public Editor {
     void RecordGizmoDrag(Services::IEditorService& editorService, Entity primary,
                          const std::vector<Entity>& followers, GizmoMode mode);
 
+    // World3D entities' height handle: a vertical arrow above the move gizmo that drags
+    // Transform z (the selection follows by the same delta). `anchor` is where the entity
+    // draws, in ImGui screen pixels; `pixelsPerUnit` the screen pixels per unit of height.
+    // Returns true while it owns the mouse.
+    bool HandleHeightHandle(World& world, Entity entity, const std::vector<Entity>& followers,
+                            Vector2 anchor, float pixelsPerUnit, bool snap);
+
     // Snaps the editor camera to the first real CameraComponent's transform/zoom the first
     // time a world becomes available, so scenes don't open centered on the origin.
     void InitializeEditorCameraIfNeeded(Services::IEditorService& editorService);
@@ -154,6 +161,10 @@ class ViewportEditor : public Editor {
     // parallel arrays. Empty when no drag is in progress.
     std::vector<Entity> gizmoDragEntities_;
     std::vector<std::string> gizmoDragBefore_;
+    // Height handle drag: the mouse y and the primary's z when it began.
+    bool heightDragging_ = false;
+    float heightDragMouseY_ = 0.0f;
+    float heightDragStartZ_ = 0.0f;
 
     // Tracks world changes (e.g. loading a different scene) so the editor camera re-snaps
     // to the new scene's first camera instead of staying pointed at the old one.

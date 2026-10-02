@@ -9,7 +9,7 @@ namespace Elysium {
 // The kinds of asset a project holds. The project layout is by convention: each kind has
 // one folder at the project root, and only files with that kind's extensions inside it
 // are assets of that kind.
-enum class AssetKind { Folder, Scene, Prefab, Script, Sound, Sprite, Texture, Shader };
+enum class AssetKind { Folder, Scene, Prefab, Script, Sound, Sprite, Texture, Shader, Model };
 
 struct AssetKindFolder {
     const char* folder;  // at the project root

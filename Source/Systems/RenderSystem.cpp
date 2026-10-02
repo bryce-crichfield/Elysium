@@ -1,6 +1,7 @@
 #include "Systems/RenderSystem.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <type_traits>
 #include <unordered_set>
 #include "Components/CameraComponent.h"
@@ -10,6 +11,7 @@
 #include "Components/LightComponent.h"
 #include "Components/LineComponent.h"
 #include "Components/MaterialComponent.h"
+#include "Components/ModelComponent.h"
 #include "Components/OccluderComponent.h"
 #include "Components/ParentComponent.h"
 #include "Components/PolygonComponent.h"
@@ -34,6 +36,7 @@
 #include "Core/Value.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Tile.h"
+#include "Core/World3D.h"
 #include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
 #include "Interfaces/IEditorService.h"
@@ -41,6 +44,11 @@
 #include "Systems/OcclusionSystem.h"
 #include "Core/RaylibConvert.h"
 #include "raylib.h"
+#include "raymath.h"
+#include "rlgl.h"
+
+// For glClear (depth only), which rlgl only offers together with the color buffer.
+extern "C" void* glfwGetProcAddress(const char* name);
 
 namespace Elysium::Systems {
 
@@ -413,6 +421,8 @@ Matrix RenderProjector::CalculateTransform(const CameraView& view, const SceneLa
                                    Matrix::Translation({view.screenOrigin.x, view.screenOrigin.y, 0.0f});
             return screenToWorld * CalculateTransform(view, worldLayer);
         }
+        // A World3D layer's ground plane is the World2D picture (see Core/World3D.h).
+        case SceneLayerSpace::World3D:
         case SceneLayerSpace::World2D: {
             Vector2 viewportCenter = {
                 view.viewport.width  * 0.5f,
@@ -516,14 +526,14 @@ void RenderSorter::CollectEntities(World& world, const CameraView& view) {
         if (matchedCount == 0) return;
 
         uint8_t layerIndex   = defaultLayerIndex_;
-        uint8_t isWorldSpace = (layers_[defaultLayerIndex_].space == SceneLayerSpace::World2D) ? 1 : 0;
+        uint8_t isWorldSpace = (layers_[defaultLayerIndex_].space != SceneLayerSpace::Screen2D) ? 1 : 0;
         bool isVisible = true;
         if (world.HasComponent<LayerComponent>(entity)) {
             const auto& layerComp = world.GetComponent<LayerComponent>(entity);
             auto it = layerNameToIndex_.find(layerComp.name);
             if (it != layerNameToIndex_.end()) {
                 layerIndex   = it->second;
-                isWorldSpace = (layers_[layerIndex].space == SceneLayerSpace::World2D) ? 1 : 0;
+                isWorldSpace = (layers_[layerIndex].space != SceneLayerSpace::Screen2D) ? 1 : 0;
                 isVisible    = layers_[layerIndex].isVisible;
             }
             // else: an unresolvable layer name falls back to defaultLayerIndex_ above — isWorldSpace
@@ -587,7 +597,7 @@ void RenderSorter::CollectDrawCommands(const std::vector<DrawCommand>& drawComma
             rec.layerIndex = layerIndex;
             rec.hierarchyDepth = 255;  // defaults to drawing on top, above all entities in the layer
             rec.childIndex = 0;
-            rec.isWorldSpace = (layers_[layerIndex].space == SceneLayerSpace::World2D) ? 1 : 0;
+            rec.isWorldSpace = (layers_[layerIndex].space != SceneLayerSpace::Screen2D) ? 1 : 0;
             rec.x = rx;
             rec.y = ry;
             rec.typeId = DrawCmdTypeId<T>();
@@ -706,6 +716,20 @@ void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderR
 
         std::span<const RenderRecord> group = records.subspan(index, end - index);
         index = end;
+
+        // Something standing above the ground (Transform z) is drawn that much higher.
+        const float lift = (entity != INVALID_ENTITY && group.front().isWorldSpace && world.HasComponent<TransformComponent>(entity))
+                               ? world.GetComponent<TransformComponent>(entity).worldZ * World3D::kPitchCos
+                               : 0.0f;
+        if (lift != 0.0f) {
+            ctx.PushMatrix();
+            ctx.Translate(0.0f, -lift, 0.0f);
+        }
+        struct PopLift {
+            RenderContext& ctx;
+            bool active;
+            ~PopLift() { if (active) ctx.PopMatrix(); }
+        } popLift{ctx, lift != 0.0f};
 
         // Normals and emission come from materials alone; anything else (text, tiles,
         // script draws) leaves the flat, dark defaults the buffers were cleared to.
@@ -886,7 +910,7 @@ void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, s
 
 void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
                                           std::span<const RenderRecord> records, const Matrix& layerTransform,
-                                          const Framebuffer& enclosingTarget) {
+                                          const Framebuffer& enclosingTarget, const Matrix* projection) {
     ProfileN("Render Shaded Entity");
 
     auto& registry = RenderableRegistry::Instance();
@@ -959,6 +983,7 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
         ctx.PopScissorMode();
     }
 
+    if (projection) rlDisableDepthTest();
     ctx.BeginRenderTarget(buffer);
     ctx.ClearTarget(Colors::Transparent);
     ctx.PushMatrix();
@@ -967,6 +992,10 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
     ctx.PopMatrix();
     ctx.EndRenderTarget();
     ctx.BeginRenderTarget(enclosingTarget);  // EndTextureMode drops to the backbuffer
+    if (projection) {
+        rlSetMatrixProjection(ToRaylib(*projection));
+        rlEnableDepthTest();
+    }
 
     if (hadScissor) {
         ctx.PushScissorMode((int)savedScissor.x, (int)savedScissor.y,
@@ -988,13 +1017,501 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
 
 void RenderCompositor::RenderLayer(RenderContext& ctx, const CameraView& view,
                                     const SceneLayer& layer, std::span<const RenderRecord> records) {
-    if (layer.isLit) {
+    if (layer.space == SceneLayerSpace::World3D) {
+        Render3D(ctx, view, layer, records);
+    } else if (layer.isLit) {
         RenderLit(ctx, view, layer, records);
     } else if (layer.isComposited) {
         RenderComposited(ctx, view, layer, records);
     } else {
         RenderImmediate(ctx, view, layer, records);
     }
+}
+
+namespace {
+
+// Models are lit per pixel by the layer's ambient and the point lights (LightComponent); cards
+// by the same lights at one point above their anchor (CardShader). Both test each light's cube
+// shadow map of the models (shadowAtlas3D_, laid out as ShadowAtlas documents) and fog what
+// no vision light sees, as Lighting.fs does for lit 2D layers.
+constexpr int kMaxLights3D = 16;
+constexpr int kShadowUnit3D = 14;  // past raylib's batch units and RenderLit's 8..11
+
+const char* kLight3DSource = R"(
+uniform vec3 uAmbient;
+uniform int uLightCount;
+uniform vec3 uLightPos[16];
+uniform vec3 uLightColor[16];
+uniform float uLightRadius[16];
+uniform float uLightVision[16];
+uniform int uShadowCount;       // lights with a row in uShadowAtlas (0: no shadows)
+uniform sampler2D uShadowAtlas;
+uniform float uShadowRows;
+uniform float uShadowTile;
+uniform float uShadowBias;
+uniform float uFog;             // 0 off .. 1 the unseen is hidden
+uniform vec3 uFogColor;
+
+// Must match ShadowAtlas.cpp's face table (and Lighting.fs).
+float ShadowDistance(int light, vec3 v, vec2 offset)
+{
+    vec3 a = abs(v);
+    int face;
+    vec3 forward, up;
+    if (a.x >= a.y && a.x >= a.z) {
+        face = v.x > 0.0 ? 0 : 1; forward = vec3(sign(v.x), 0.0, 0.0); up = vec3(0.0, 1.0, 0.0);
+    } else if (a.y >= a.z) {
+        face = v.y > 0.0 ? 2 : 3; forward = vec3(0.0, sign(v.y), 0.0); up = vec3(0.0, 0.0, 1.0);
+    } else {
+        face = v.z > 0.0 ? 4 : 5; forward = vec3(0.0, 0.0, sign(v.z)); up = vec3(0.0, 1.0, 0.0);
+    }
+    vec3 right = cross(forward, up);
+    vec2 uv = vec2(dot(v, right), dot(v, up)) / dot(v, forward) * 0.5 + 0.5;
+    float inset = 1.0 / uShadowTile;
+    uv = clamp(uv + offset / uShadowTile, vec2(inset), vec2(1.0 - inset));
+    vec2 st = vec2((float(face) + uv.x) / 6.0, (float(light) + uv.y) / uShadowRows);
+    return textureLod(uShadowAtlas, st, 0.0).r;
+}
+
+// 0 in shadow .. 1 lit, softened over a few texels.
+float Shadow(int light, vec3 fromLight, float radius)
+{
+    if (light >= uShadowCount) return 1.0;
+    float d = length(fromLight) / radius - 0.004;
+    float lit = 0.0;
+    for (int y = -1; y <= 1; y++)
+        for (int x = -1; x <= 1; x++)
+            lit += d < ShadowDistance(light, fromLight, vec2(x, y) * 1.25) ? 1.0 : 0.0;
+    return lit / 9.0;
+}
+
+// The light reaching p (GL) and, in seen, how clearly any vision light sees it. n is the
+// surface's normal, or zero for a card, which takes light from any side.
+vec3 Light3D(vec3 p, vec3 n, out float seen)
+{
+    bool card = dot(n, n) < 0.5;
+    vec3 lifted = p + n * uShadowBias;
+    vec3 total = uAmbient * (card ? 1.0 : 0.75 + 0.25 * n.y);
+    seen = 0.0;
+    for (int i = 0; i < 16; i++) {
+        if (i >= uLightCount) break;
+        vec3 toLight = uLightPos[i] - p;
+        float d = length(toLight);
+        float radius = max(uLightRadius[i], 1.0);
+        if (d >= radius) continue;
+        float facing = card ? 0.6 : max(dot(n, toLight / max(d, 0.001)), 0.0);
+        bool eyes = uLightVision[i] > 0.5 && (card || dot(n, toLight) > 0.0);
+        if (facing <= 0.0 && !eyes) continue;
+        float shadow = Shadow(i, lifted - uLightPos[i], radius);
+        if (eyes) seen = max(seen, shadow * (1.0 - smoothstep(0.8, 1.0, d / radius)));
+        float falloff = 1.0 - d / radius;
+        total += uLightColor[i] * falloff * falloff * facing * shadow;
+    }
+    return total;
+}
+
+vec3 Fogged(vec3 color, float seen) { return mix(color, uFogColor, uFog * (1.0 - seen)); }
+)";
+const char* kModelVertexSource = R"(#version 330
+in vec3 vertexPosition;
+in vec2 vertexTexCoord;
+in vec3 vertexNormal;
+in vec4 vertexColor;
+uniform mat4 mvp;
+uniform mat4 matNormal;
+uniform mat4 matModel;
+out vec2 fragTexCoord;
+out vec3 fragNormal;
+out vec3 fragWorld;
+void main()
+{
+    fragTexCoord = vertexTexCoord;
+    fragWorld = vec3(matModel * vec4(vertexPosition, 1.0));
+    fragNormal = normalize(vec3(matNormal * vec4(vertexNormal, 0.0)));
+    gl_Position = mvp * vec4(vertexPosition, 1.0);
+}
+)";
+
+const char* kModelFragmentHead = R"(#version 330
+in vec2 fragTexCoord;
+in vec3 fragNormal;
+in vec3 fragWorld;
+uniform sampler2D texture0;
+uniform vec4 colDiffuse;
+uniform float uAlpha;
+out vec4 finalColor;
+)";
+
+const char* kModelFragmentMain = R"(
+void main()
+{
+    vec4 albedo = texture(texture0, fragTexCoord) * colDiffuse;
+    if (albedo.a < 0.5) discard;
+    // Faded (uAlpha < 1): screen-door dither, so no sorting against what's behind.
+    const float bayer[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+    ivec2 cell = ivec2(gl_FragCoord.xy) % 4;
+    if (uAlpha < (bayer[cell.y * 4 + cell.x] + 0.5) / 16.0) discard;
+    vec3 n = normalize(fragNormal);
+    float seen;
+    vec3 light = Light3D(fragWorld, n, seen);
+    finalColor = vec4(Fogged(albedo.rgb * light, seen), albedo.a);
+}
+)";
+
+::Shader& ModelShader() {
+    static const std::string fragment = std::string(kModelFragmentHead) + kLight3DSource + kModelFragmentMain;
+    static ::Shader shader = LoadShaderFromMemory(kModelVertexSource, fragment.c_str());
+    return shader;
+}
+
+// The batch's default shader, lit at one point (uCardPos, GL) for the whole card.
+const char* kCardFragmentHead = R"(#version 330
+in vec2 fragTexCoord;
+in vec4 fragColor;
+uniform sampler2D texture0;
+uniform vec4 colDiffuse;
+uniform vec3 uCardPos;
+out vec4 finalColor;
+)";
+
+const char* kCardFragmentMain = R"(
+void main()
+{
+    vec4 c = texture(texture0, fragTexCoord) * colDiffuse * fragColor;
+    float seen;
+    vec3 light = Light3D(uCardPos, vec3(0.0), seen);
+    finalColor = vec4(Fogged(c.rgb * light, seen), c.a);
+}
+)";
+
+::Shader& CardShader() {
+    static const std::string fragment = std::string(kCardFragmentHead) + kLight3DSource + kCardFragmentMain;
+    static ::Shader shader = LoadShaderFromMemory(nullptr, fragment.c_str());
+    return shader;
+}
+
+// The model's meshes as GL-space triangles, three vertices each.
+void AppendTriangles(const ::Model& model, const ::Matrix& transform, std::vector<Vector3>& out) {
+    for (int m = 0; m < model.meshCount; ++m) {
+        const ::Mesh& mesh = model.meshes[m];
+        if (!mesh.vertices) continue;
+        auto vertex = [&](int i) {
+            const ::Vector3 v = Vector3Transform({mesh.vertices[i * 3], mesh.vertices[i * 3 + 1], mesh.vertices[i * 3 + 2]}, transform);
+            out.push_back({v.x, v.y, v.z});
+        };
+        if (mesh.indices) {
+            for (int k = 0; k < mesh.triangleCount * 3; ++k) vertex(mesh.indices[k]);
+        } else {
+            for (int k = 0; k + 2 < mesh.vertexCount; k += 3) {
+                vertex(k);
+                vertex(k + 1);
+                vertex(k + 2);
+            }
+        }
+    }
+}
+
+::Vector3 AmbientOf(const SceneLayer& layer) {
+    return {layer.lightAmbient.r / 255.0f, layer.lightAmbient.g / 255.0f, layer.lightAmbient.b / 255.0f};  // as RenderLit
+}
+
+void ClearDepth() {
+    using ClearFn = void (*)(unsigned int);
+    static const auto clear = reinterpret_cast<ClearFn>(glfwGetProcAddress("glClear"));
+    constexpr unsigned int kDepthBufferBit = 0x00000100;  // GL_DEPTH_BUFFER_BIT
+    if (clear) clear(kDepthBufferBit);
+}
+
+// The entity whose ground position a card stands at: its topmost ancestor with a Transform,
+// so a torch's flame stands where the torch does rather than 24 units behind it.
+Entity CardAnchor(const World& world, Entity entity) {
+    Entity anchor = entity;
+    for (int depth = 0; depth < 64; ++depth) {
+        if (!world.HasComponent<ParentComponent>(anchor)) break;
+        const Entity parent = world.GetComponent<ParentComponent>(anchor).parent;
+        if (parent == INVALID_ENTITY || !world.HasComponent<TransformComponent>(parent)) break;
+        anchor = parent;
+    }
+    return anchor;
+}
+
+}  // namespace
+
+void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
+                                const SceneLayer& layer, std::span<const RenderRecord> records) {
+    ProfileN("Render 3D Layer");
+    const World& world = ctx.GetWorld();
+    auto& assets = ctx.GetServices().Get<Services::IAssetService>();
+
+    using World3D::kPitchCos;
+    using World3D::kPitchSin;
+    using World3D::kGroundDepth;
+    const float zoom = view.zoom != 0.0f ? view.zoom : 1.0f;
+    const float halfW = view.viewport.width * 0.5f, halfH = view.viewport.height * 0.5f;
+    const float cx = view.position.x, cy = view.position.y;
+    // Eye z: how far toward the camera, in zoomed units, relative to the camera's ground point.
+    const float cameraDepth = zoom * cy * kGroundDepth * kPitchCos;
+
+    // GL (x, y up, z toward the camera) -> framebuffer pixels and depth: screen x is x; screen
+    // y is the ground depth at half less the height; depth is how far toward the camera.
+    ::Matrix viewMatrix = MatrixIdentity();
+    viewMatrix.m0 = zoom;  viewMatrix.m4 = 0.0f;               viewMatrix.m8 = 0.0f;              viewMatrix.m12 = -zoom * cx + halfW;
+    viewMatrix.m1 = 0.0f;  viewMatrix.m5 = -zoom * kPitchCos;  viewMatrix.m9 = zoom * kPitchSin;  viewMatrix.m13 = -zoom * cy + halfH;
+    viewMatrix.m2 = 0.0f;  viewMatrix.m6 = zoom * kPitchSin;   viewMatrix.m10 = zoom * kPitchCos; viewMatrix.m14 = -cameraDepth;
+
+    constexpr double kDepthRange = 1.0e6;
+    const ::Matrix projection =
+        MatrixOrtho(0.0, rlGetFramebufferWidth(), rlGetFramebufferHeight(), 0.0, -kDepthRange, kDepthRange);
+    const ::Matrix previousProjection = rlGetMatrixProjection();
+    const ::Matrix previousModelview = rlGetMatrixModelview();
+
+    // Every model's triangles into the lights' cube shadow maps, before this layer draws.
+    const int lightCount = (int)std::min<size_t>(lights_.size(), kMaxLights3D);
+    int shadowCount = 0;
+    if (layer.shadows && lightCount > 0) {
+        ProfileN("World3D Shadows");
+        std::erase_if(modelTriangles_, [&](const auto& entry) { return !world.IsAlive(entry.first); });
+        std::vector<Vector3> triangles;
+        std::vector<unsigned int> owners;
+        const_cast<World&>(world).Query<TransformComponent, ModelComponent>([&](Entity entity, const auto& transform, const auto& component) {
+            // Floors and stairs (walkable) cast nothing: lights stand above them, and a floor
+            // would only shadow itself.
+            if (component.modelPath.empty() || component.walkable) return;
+            const Model* model = assets.Get<Model>(Path(component.modelPath));
+            if (!model || !model->native) return;
+            const Matrix matrix = World3D::ModelMatrix(transform, component, *model);
+            ModelTriangles& cached = modelTriangles_[entity];
+            if (cached.model != model || std::memcmp(&cached.matrix, &matrix, sizeof(Matrix)) != 0) {
+                cached.matrix = matrix;
+                cached.model = model;
+                cached.triangles.clear();
+                AppendTriangles(*static_cast<const ::Model*>(model->native), ToRaylib(matrix), cached.triangles);
+                cached.min = {1e30f, 1e30f, 1e30f};
+                cached.max = {-1e30f, -1e30f, -1e30f};
+                for (const Vector3& v : cached.triangles) {
+                    cached.min = {std::min(cached.min.x, v.x), std::min(cached.min.y, v.y), std::min(cached.min.z, v.z)};
+                    cached.max = {std::max(cached.max.x, v.x), std::max(cached.max.y, v.y), std::max(cached.max.z, v.z)};
+                }
+            }
+            triangles.insert(triangles.end(), cached.triangles.begin(), cached.triangles.end());
+            owners.resize(triangles.size() / 3, (unsigned int)entity);
+        });
+        std::vector<ShadowAtlas::Light> shadowLights;
+        for (int i = 0; i < lightCount; ++i) {
+            // A light skips its own model, or else the model it's embedded in (a torch on a
+            // wall stands inside the wall's bounds; that wall would hide it from everything).
+            const Vector3 at = lights_[i].position;
+            unsigned int owner = lights_[i].owner == INVALID_ENTITY ? ShadowAtlas::kNoOwner : (unsigned int)lights_[i].owner;
+            if (!modelTriangles_.contains(lights_[i].owner)) {
+                for (const auto& [entity, cached] : modelTriangles_) {
+                    if (at.x > cached.min.x && at.x < cached.max.x && at.y > cached.min.y && at.y < cached.max.y &&
+                        at.z > cached.min.z && at.z < cached.max.z) {
+                        owner = (unsigned int)entity;
+                        break;
+                    }
+                }
+            }
+            shadowLights.push_back({at, lights_[i].radius, owner});
+        }
+        shadowAtlas3D_.Render(ctx, shadowLights, triangles, owners);
+        shadowCount = shadowAtlas3D_.LightCount();
+        // The atlas ends on the default framebuffer: back to the scene's.
+        ctx.BeginRenderTarget(ctx.GetServices().Get<Services::ISceneService>().GetFramebuffer());
+    }
+
+    rlDrawRenderBatchActive();
+    ClearDepth();
+    rlEnableDepthTest();
+    rlDisableBackfaceCulling();  // imported models aren't always closed or consistently wound
+    rlSetMatrixProjection(projection);
+    PushBlend(ctx, layer.layerBlend);
+
+    const ::Vector3 ambient = AmbientOf(layer);
+    {
+        ::Vector3 positions[kMaxLights3D], colors[kMaxLights3D];
+        float radii[kMaxLights3D], vision[kMaxLights3D];
+        for (int i = 0; i < lightCount; ++i) {
+            positions[i] = {lights_[i].position.x, lights_[i].position.y, lights_[i].position.z};
+            colors[i] = {lights_[i].color.x, lights_[i].color.y, lights_[i].color.z};
+            radii[i] = lights_[i].radius;
+            vision[i] = lights_[i].vision ? 1.0f : 0.0f;
+        }
+        const float rows = (float)shadowAtlas3D_.Rows(), tile = (float)ShadowAtlas::kTileSize;
+        const float bias = layer.shadowBias, fog = layer.fogOfWar;
+        const ::Vector3 fogColor{layer.fogColor.r / 255.0f, layer.fogColor.g / 255.0f, layer.fogColor.b / 255.0f};
+        const int unit = kShadowUnit3D;
+        for (::Shader* shader : {&ModelShader(), &CardShader()}) {
+            auto set = [&](const char* name, const void* value, int type) {
+                SetShaderValue(*shader, GetShaderLocation(*shader, name), value, type);
+            };
+            set("uAmbient", &ambient, SHADER_UNIFORM_VEC3);
+            set("uLightCount", &lightCount, SHADER_UNIFORM_INT);
+            set("uShadowCount", &shadowCount, SHADER_UNIFORM_INT);
+            set("uShadowAtlas", &unit, SHADER_UNIFORM_INT);
+            set("uShadowRows", &rows, SHADER_UNIFORM_FLOAT);
+            set("uShadowTile", &tile, SHADER_UNIFORM_FLOAT);
+            set("uShadowBias", &bias, SHADER_UNIFORM_FLOAT);
+            set("uFog", &fog, SHADER_UNIFORM_FLOAT);
+            set("uFogColor", &fogColor, SHADER_UNIFORM_VEC3);
+            if (lightCount > 0) {
+                SetShaderValueV(*shader, GetShaderLocation(*shader, "uLightPos"), positions, SHADER_UNIFORM_VEC3, lightCount);
+                SetShaderValueV(*shader, GetShaderLocation(*shader, "uLightColor"), colors, SHADER_UNIFORM_VEC3, lightCount);
+                SetShaderValueV(*shader, GetShaderLocation(*shader, "uLightRadius"), radii, SHADER_UNIFORM_FLOAT, lightCount);
+                SetShaderValueV(*shader, GetShaderLocation(*shader, "uLightVision"), vision, SHADER_UNIFORM_FLOAT, lightCount);
+            }
+        }
+        // On a unit of its own for the whole layer; raylib's batch and DrawMesh only touch 0..3.
+        rlActiveTextureSlot(kShadowUnit3D);
+        rlEnableTexture(shadowCount > 0 ? shadowAtlas3D_.TextureId() : rlGetTextureIdDefault());
+        rlActiveTextureSlot(0);
+    }
+
+    // Fade the models standing between the camera and the player's eyes (vision lights, the same
+    // ones that clear the fog of war): a ray from chest height toward the camera, against each
+    // model's meshes. Floors never fade (the ray goes up).
+    constexpr float kFadedAlpha = 0.3f, kFadeSeconds = 0.25f;
+    std::vector<::Vector3> eyes;
+    const_cast<World&>(world).Query<TransformComponent, LightComponent>([&](Entity, const auto& transform, const auto& light) {
+        if (!light.vision) return;
+        const Vector3 at = World3D::ToGL(transform.worldX, transform.worldY, transform.worldZ + 32.0f);
+        eyes.push_back({at.x, at.y, at.z});
+    });
+    std::erase_if(modelFade_, [&](const auto& entry) { return !world.IsAlive(entry.first); });
+    const double fadeNow = ::GetTime();
+    const float fadeStep = (float)std::clamp(fadeNow - modelFadeTime_, 0.0, 0.25) / kFadeSeconds;
+    modelFadeTime_ = fadeNow;
+    const int alphaLoc = GetShaderLocation(ModelShader(), "uAlpha");
+
+    // Models now; everything else is collected as cards. An entity's records are contiguous.
+    struct Card {
+        std::span<const RenderRecord> records;
+        Entity entity;
+        float groundY;  // 2D y of its anchor's ground position
+        float height;   // its anchor's Transform z
+        float groundX;
+    };
+    std::vector<Card> cards;
+    rlSetMatrixModelview(viewMatrix);
+    for (size_t index = 0; index < records.size();) {
+        const Entity entity = records[index].entity;
+        size_t end = index + 1;
+        if (entity != INVALID_ENTITY) {
+            while (end < records.size() && records[end].entity == entity) ++end;
+        }
+        const std::span<const RenderRecord> group = records.subspan(index, end - index);
+        index = end;
+
+        if (entity != INVALID_ENTITY && world.HasComponent<ModelComponent>(entity)) {
+            // The cast is for the runtime `loaded` cache, which picking reads.
+            auto& component = const_cast<ModelComponent&>(world.GetComponent<ModelComponent>(entity));
+            if (component.modelPath.empty() || !world.HasComponent<TransformComponent>(entity)) continue;
+            const Model* model = assets.Get<Model>(Path(component.modelPath));
+            if (!model && requestedModels_.insert(component.modelPath).second) assets.LoadAsset<Model>(Path(component.modelPath));
+            component.loaded = model;
+            if (!model || !model->native) continue;
+
+            const ::Matrix transform =
+                ToRaylib(World3D::ModelMatrix(world.GetComponent<TransformComponent>(entity), component, *model));
+            bool occluding = false;
+            for (const ::Vector3& eye : eyes) {
+                if (World3D::RayHits(FromRaylib(transform), *model, Vector3{eye.x, eye.y, eye.z}, World3D::kTowardCamera)) {
+                    occluding = true;
+                    break;
+                }
+            }
+            auto [fadeIt, fresh] = modelFade_.try_emplace(entity, 1.0f);
+            fadeIt->second = std::clamp(fadeIt->second + (occluding ? -fadeStep : fadeStep), kFadedAlpha, 1.0f);
+            const float alpha = fadeIt->second;
+            SetShaderValue(ModelShader(), alphaLoc, &alpha, SHADER_UNIFORM_FLOAT);
+
+            ::Model& native = *static_cast<::Model*>(model->native);
+            for (int i = 0; i < native.meshCount; ++i) {
+                ::Material& material = native.materials[native.meshMaterial[i]];
+                const ::Shader shader = material.shader;
+                const ::Color color = material.maps[MATERIAL_MAP_DIFFUSE].color;
+                material.shader = ModelShader();
+                material.maps[MATERIAL_MAP_DIFFUSE].color = ::Color{
+                    (unsigned char)(color.r * component.tint.r / 255), (unsigned char)(color.g * component.tint.g / 255),
+                    (unsigned char)(color.b * component.tint.b / 255), (unsigned char)(color.a * component.tint.a / 255)};
+                DrawMesh(native.meshes[i], material, transform);
+                material.shader = shader;
+                material.maps[MATERIAL_MAP_DIFFUSE].color = color;
+            }
+            continue;
+        }
+
+        Card card{group, entity, group.front().y, 0.0f, group.front().x};
+        if (entity != INVALID_ENTITY) {
+            const Entity anchor = CardAnchor(world, entity);
+            if (world.HasComponent<TransformComponent>(anchor)) {
+                const auto& transform = world.GetComponent<TransformComponent>(anchor);
+                card.groundX = transform.worldX;
+                card.groundY = transform.worldY;
+                card.height = transform.worldZ;
+            }
+        }
+        cards.push_back(card);
+    }
+    rlDrawRenderBatchActive();
+    rlSetMatrixModelview(previousModelview);
+
+    // Cards, far to near, drawn in 2D world units. An upright card standing at ground y0 and
+    // height h shows a point drawn at 2D y as (y0 - y) / cos30 above its base, so that much
+    // closer to the camera times sin30: a tall sprite leans out of the wall behind it rather
+    // than into it. Each card's matrix is that, an affine map of 2D y into depth.
+    auto depthOf = [&](const Card& card) {
+        return card.groundY * kGroundDepth * kPitchCos + card.height * kPitchSin;
+    };
+    std::stable_sort(cards.begin(), cards.end(), [&](const Card& a, const Card& b) { return depthOf(a) < depthOf(b); });
+    rlDisableDepthMask();
+    auto& registry = RenderableRegistry::Instance();
+    const Framebuffer& sceneFramebuffer = ctx.GetServices().Get<Services::ISceneService>().GetFramebuffer();
+    for (const Card& card : cards) {
+        const float y0 = card.groundY, h = card.height;
+        ::Matrix m = MatrixIdentity();
+        m.m0 = zoom;
+        m.m12 = -zoom * cx + halfW;
+        m.m5 = zoom;
+        m.m13 = zoom * (-h * kPitchCos - cy) + halfH;
+        m.m6 = -zoom * kPitchSin / kPitchCos;
+        m.m10 = 1.0f;
+        m.m14 = zoom * (depthOf(card) + kPitchSin * y0 / kPitchCos) - cameraDepth;
+        ctx.PushMatrix();
+        rlLoadIdentity();
+        ctx.MultiplyMatrix(FromRaylib(m));
+        // A ShaderComponent card detours through its own buffer (RenderShadedEntity), then
+        // blits back through this card's matrix and the layer's projection.
+        if (card.entity != INVALID_ENTITY && IsEnabled<ShaderComponent>(world, card.entity)) {
+            rlDrawRenderBatchActive();
+            const Matrix layerProjection = FromRaylib(projection);
+            RenderShadedEntity(ctx, card.entity, card.records, FromRaylib(m), sceneFramebuffer, &layerProjection);
+        } else if (card.entity != INVALID_ENTITY && IsEnabled<MaterialComponent>(world, card.entity)) {
+            RenderMaterialEntity(ctx, card.entity, card.records);  // materials glow on their own
+        } else {
+            ::Shader& shader = CardShader();
+            // Lit at a point a little above its anchor.
+            const ::Vector3 at{card.groundX, (card.height + 24.0f) / kPitchCos, card.groundY * kGroundDepth};
+            rlDrawRenderBatchActive();
+            SetShaderValue(shader, GetShaderLocation(shader, "uCardPos"), &at, SHADER_UNIFORM_VEC3);
+            BeginShaderMode(shader);
+            for (const auto& rec : card.records) {
+                const RenderableType& type = registry.Get(rec.typeId);
+                if (type.Render) type.Render(ctx, rec);
+            }
+            EndShaderMode();
+        }
+        ctx.PopMatrix();
+    }
+    rlDrawRenderBatchActive();
+    rlEnableDepthMask();
+    rlActiveTextureSlot(kShadowUnit3D);
+    rlDisableTexture();
+    rlActiveTextureSlot(0);
+
+    ctx.PopBlendMode();
+    rlEnableBackfaceCulling();
+    rlDisableDepthTest();
+    rlSetMatrixProjection(previousProjection);
 }
 
 void RenderCompositor::RenderImmediate(RenderContext& ctx, const CameraView& view,
@@ -1501,7 +2018,8 @@ void RenderSystem::CollectOccluders() {
             ground.x += 1.5f * light.flicker * std::sin(time * 9.1f + seed * 4.0f);
             ground.y += 1.0f * light.flicker * std::sin(time * 8.3f + seed * 5.0f);
         }
-        lights.push_back({WorldTo3D(ground, light.height),
+        // Standing on its entity's height (Transform z, which is GL y as World3D models use it).
+        lights.push_back({WorldTo3D(ground, light.height + transform.worldZ * kIsoCos),
                           Vector3{light.color.r / 255.0f * brightness, light.color.g / 255.0f * brightness,
                                   light.color.b / 255.0f * brightness},
                           light.radius, light.vision, entity});
@@ -1630,6 +2148,24 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
         }
     }
 
+    // Models (World3D) aren't in depth order in the paint queue: after everything else,
+    // nearest the camera first, by where the view ray through the cursor meets their meshes.
+    auto modelDepth = [&](Entity e) -> std::optional<float> {
+        if (!world->HasComponent<ModelComponent>(e) || !world->HasComponent<TransformComponent>(e)) return std::nullopt;
+        const auto& component = world->GetComponent<ModelComponent>(e);
+        if (!component.loaded || !component.loaded->native) return std::nullopt;
+        return World3D::PickDepth(World3D::ModelMatrix(world->GetComponent<TransformComponent>(e), component, *component.loaded),
+                                  *component.loaded, worldPos);
+    };
+    std::vector<std::pair<float, Entity>> models;
+    std::erase_if(hits, [&](Entity e) {
+        auto depth = modelDepth(e);
+        if (depth) models.push_back({*depth, e});
+        return depth.has_value();
+    });
+    std::stable_sort(models.begin(), models.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    for (const auto& [depth, e] : models) hits.push_back(e);
+
     return hits;
 }
 
@@ -1704,6 +2240,25 @@ static bool GeometryPolygonImpl(const World& world, const RenderRecord& rec, Sdf
     return true;
 }
 
+static bool HasModelImpl(const World& world, Entity entity) { return world.HasComponent<ModelComponent>(entity); }
+static void RenderModelImpl(RenderContext&, const RenderRecord&) {}  // only World3D layers draw models (Render3D)
+
+static std::optional<Rectangle> BoundsModelImpl(const World& world, const RenderRecord& rec) {
+    const auto& component = world.GetComponent<ModelComponent>(rec.entity);
+    if (!component.loaded || !component.loaded->native || !world.HasComponent<TransformComponent>(rec.entity)) return std::nullopt;
+    return World3D::ModelBounds2D(World3D::ModelMatrix(world.GetComponent<TransformComponent>(rec.entity), component, *component.loaded),
+                                  *component.loaded);
+}
+
+// A model is hit where its meshes are under the cursor, not anywhere in its screen box.
+static bool PickModelImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
+    auto bounds = BoundsModelImpl(world, rec);
+    if (!bounds || !bounds->Contains(testPos)) return false;
+    const auto& component = world.GetComponent<ModelComponent>(rec.entity);
+    const Matrix matrix = World3D::ModelMatrix(world.GetComponent<TransformComponent>(rec.entity), component, *component.loaded);
+    return World3D::PickDepth(matrix, *component.loaded, testPos).has_value();
+}
+
 // Grouped here rather than in each component's .cpp — avoids a Components->Systems include.
 REGISTER_RENDERABLE(HasTileImpl,      RenderTileImpl,      nullptr,           nullptr,             false, nullptr)
 REGISTER_RENDERABLE(HasRectangleImpl, nullptr,             PickRectangleImpl, BoundsRectangleImpl, false, GeometryRectangleImpl)
@@ -1713,6 +2268,8 @@ REGISTER_RENDERABLE(HasEllipseImpl,   nullptr,             PickEllipseImpl,   Bo
 REGISTER_RENDERABLE(HasLineImpl,      nullptr,             PickLineImpl,      BoundsLineImpl,      false, GeometryLineImpl)
 REGISTER_RENDERABLE(HasPolygonImpl,   nullptr,             PickPolygonImpl,   BoundsPolygonImpl,   false, GeometryPolygonImpl)
 REGISTER_RENDERABLE(HasShaderImpl,    RenderShaderImpl,    PickShaderImpl,    BoundsShaderImpl,    false, nullptr)
+// Models can be far larger than the cull margin around their position.
+REGISTER_RENDERABLE(HasModelImpl,     RenderModelImpl,     PickModelImpl,     BoundsModelImpl,     true,  nullptr)
 
 namespace {
 bool RegisterDrawCommandRenderables() {
