@@ -10,7 +10,7 @@
 #include "Editor/Style/Theme.h"
 #include "Editor/Widgets/Widgets.h"
 #include "Editor/EditorApplication.h"
-#include "Systems/NavMeshSystem.h"
+#include "Core/Systems/NavMeshSystem.h"
 #include "Core/World3D.h"
 #include <cmath>
 

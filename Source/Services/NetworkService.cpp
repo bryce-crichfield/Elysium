@@ -23,7 +23,7 @@
 #include "Services/NetworkService.h"
 
 #include <tracy/Tracy.hpp>
-#include "Network/Generated.h"
+#include "Core/Generated.h"
 
 namespace Elysium::Services {
 

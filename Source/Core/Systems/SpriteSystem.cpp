@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "Systems/SpriteSystem.h"
+#include "Core/Systems/SpriteSystem.h"
 #include "Core/Path.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Component.h"

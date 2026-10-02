@@ -15,7 +15,7 @@
 #include "Editor/Panes/ContentPane.h"
 #include "Editor/Settings/PrefabSettings.h"
 #include "Editor/Settings/SceneSettings.h"
-#include "Systems/RenderSystem.h"
+#include "Core/Systems/RenderSystem.h"
 
 namespace Elysium {
 class World;

@@ -1,5 +1,5 @@
-#include "Systems/PhysicsResponseSystem.h"
-#include "Systems/CollisionSystem.h"
+#include "Core/Systems/PhysicsResponseSystem.h"
+#include "Core/Systems/CollisionSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Scene.h"
 #include "Core/Components/TransformComponent.h"

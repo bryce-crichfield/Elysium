@@ -1,6 +1,6 @@
-#include "Systems/MovementSystem.h"
+#include "Core/Systems/MovementSystem.h"
 #include "Core/SystemRegistry.h"
-#include "Systems/NavMeshSystem.h"
+#include "Core/Systems/NavMeshSystem.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"

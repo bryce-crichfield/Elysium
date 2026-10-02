@@ -39,24 +39,24 @@ There is no C++ unit test suite; correctness is currently verified by running th
 
 ### Network protocol codegen
 
-`Source/Network/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python) are both generated from `Source/Interface/Invoke.xml` by `Tools/eidc/eidc.py` — **never hand-edit either generated file**; edit the IDL and regenerate:
+`Source/Core/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python) are both generated from `Tools/eidc/Invoke.xml` by `Tools/eidc/eidc.py` — **never hand-edit either generated file**; edit the IDL and regenerate. Codegen is manual (not part of the build), and the IDL is parked in `Tools/` until networking is reworked so games can define their own protocol:
 
 ```
-python Tools/eidc/eidc.py Source/Interface/Invoke.xml
+python Tools/eidc/eidc.py Tools/eidc/Invoke.xml
 ```
 
 ## Architecture
 
 ### Service locator + interface split
 
-Almost every cross-cutting subsystem (`Services/*Service.cpp`) is registered into a single `Elysium::ServiceLocator` (`Source/Core/ServiceLocator.h`) against an abstract interface in `Source/Interfaces/I*Service.h`. Code depends on the interface (`Services::ISceneService`, `Services::IAssetService`, etc.) via `serviceLocator.Get<IFoo>()`, never on the concrete class. `Application` (`Source/Core/Application.h/.cpp`) owns the locator and drives `Initialize()`/`Update()`/`Shutdown()` across all registered services each frame.
+Almost every cross-cutting subsystem (`Services/*Service.cpp`) is registered into a single `Elysium::ServiceLocator` (`Source/Core/ServiceLocator.h`) against an abstract interface in `Source/Interfaces/I*Service.h`. Services stay out of `Core/` on purpose: they're swappable implementations Core reaches only through the interfaces. Code depends on the interface (`Services::ISceneService`, `Services::IAssetService`, etc.) via `serviceLocator.Get<IFoo>()`, never on the concrete class. `Application` (`Source/Core/Application.h/.cpp`) owns the locator and drives `Initialize()`/`Update()`/`Shutdown()` across all registered services each frame.
 
 ### ECS core
 
 - `World` (`Source/Core/World.h`) owns entities/components; components are plain structs registered via `ComponentRegistry::Instance().Register<T>()` (see the `REGISTER_COMPONENT` macro at the bottom of `Source/Core/ComponentRegistry.h`), one static registration call per component `.cpp`.
 - A component only needs to satisfy the concepts it wants to opt into (`Source/Core/Component.h`, `Xml.h`, `Script.h` define them): `XmlLoadable`/`XmlSavable` (load/save to scene XML), `Scriptable`/`LuaSettable` (exposed to Lua). `ComponentRegistry::Register<T>()` uses `if constexpr` against each concept, so adding a new component is additive — implement only the static methods (`LoadXml`, `SaveXml`, `BindLua`, `SetFromLua`, `Name()`) you actually need.
 - **Typed fields** (`Core/Reflection.h`): a component lists its fields once in `static FieldList Fields()` (`Field("Label", &T::member, "xmlAttr")`, with `.Range()`/`.Speed()`/`.Asset(kind)`/`.Section()`). Without its own `Inspect`, that list *is* its inspector; prefab parameters get their type (and widget) from the field they drive. A field's key is its XML attribute, which is how parameters/overrides address it; a field with no key is runtime state, shown read-only. Prefer `Fields()` over a hand-written `Inspect`; keep `Inspect` only for dependent pickers (e.g. Sprite's sheet/sequence), where it can still call `InspectFields`. XML load/save stays hand-written per component.
-- `System` (`Source/Core/System.h`) is the per-frame update/draw unit, constructed with a `Context{ services, scene, world }`. Systems declare typed tunables via `DefaultParameters()`/`SystemParameters` (a `map<string, Value>`), settable from scene XML `<System type="..." key="value"/>` attributes and from the editor's Systems tab. Override `RunsWhenPaused()` for systems (like `TransformSystem`) that must keep running while the scene is paused for editor gizmo/drag interactions, without resuming gameplay simulation.
+- `System` (`Source/Core/System.h`) is the per-frame update/draw unit (the engine's own live in `Source/Core/Systems/`), constructed with a `Context{ services, scene, world }`. Systems declare typed tunables via `DefaultParameters()`/`SystemParameters` (a `map<string, Value>`), settable from scene XML `<System type="..." key="value"/>` attributes and from the editor's Systems tab. Override `RunsWhenPaused()` for systems (like `TransformSystem`) that must keep running while the scene is paused for editor gizmo/drag interactions, without resuming gameplay simulation.
 - `SystemRegistry`/`ComponentRegistry` are both process-wide singletons populated by static initializers at startup (link-time registration) — a new component/system type doesn't need to be wired in anywhere else once it self-registers.
 
 ### Scenes, XML, and assets
@@ -95,4 +95,4 @@ Lua via sol2 (`ScriptComponent`, `ScriptSystem`, `ScriptService`). `ComponentReg
 
 ### Networking
 
-Client/server split over ENet (`Source/Network/Network.h/.cpp`, `Source/Services/NetworkService.cpp`). The RPC surface (procedure IDs, request/response structs, serialization) is defined once in `Source/Interface/Invoke.xml` and codegenerated into `Source/Network/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python, used by the `Tests/Network` integration tests) — see Codegen above.
+Client/server split over ENet (`Source/Core/Network.h/.cpp`, `Source/Services/NetworkService.cpp`). The RPC surface (procedure IDs, request/response structs, serialization) is defined once in `Tools/eidc/Invoke.xml` and codegenerated into `Source/Core/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python, used by the `Tests/Network` integration tests) — see Codegen above.

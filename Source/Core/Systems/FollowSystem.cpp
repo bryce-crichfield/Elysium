@@ -1,4 +1,4 @@
-#include "Systems/FollowSystem.h"
+#include "Core/Systems/FollowSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Components/TransformComponent.h"
 #include "Core/Components/FollowComponent.h"

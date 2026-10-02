@@ -5,7 +5,7 @@
 
 #include "Core/Future.h"
 #include "Core/Serial.h"
-#include "Network/Network.h"
+#include "Core/Network.h"
 #include "Interfaces/IService.h"
 
 namespace Elysium::Services {

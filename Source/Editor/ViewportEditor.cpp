@@ -30,13 +30,13 @@
 #include "Core/World3D.h"
 #include <cstdio>
 #include "Editor/Viewport/OverlayPainter.h"
-#include "Systems/NavMeshSystem.h"
+#include "Core/Systems/NavMeshSystem.h"
 #include "Core/Path.h"
 #include "Editor/Widgets/AssetField.h"
 #include "Editor/Style/AssetStyle.h"
 #include "Editor/Widgets/Widgets.h"
 #include "Editor/HierarchyEditor.h"
-#include "Systems/RenderSystem.h"
+#include "Core/Systems/RenderSystem.h"
 #include "Core/Input.h"
 #include "Core/MathTypes.h"
 #include <limits>

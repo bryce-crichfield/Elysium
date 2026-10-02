@@ -1,4 +1,4 @@
-#include "Systems/VisibilitySystem.h"
+#include "Core/Systems/VisibilitySystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Entity.h"
 #include "Core/World.h"

@@ -3,8 +3,8 @@
 #include <string>
 #include "Editor/Editor.h"
 #include "Core/Future.h"
-#include "Network/Network.h"
-#include "Network/Generated.h"
+#include "Core/Network.h"
+#include "Core/Generated.h"
 
 namespace Elysium::Services {
 class INetworkService;

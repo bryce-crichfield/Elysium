@@ -1,4 +1,4 @@
-#include "Systems/KinematicsSystem.h"
+#include "Core/Systems/KinematicsSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"

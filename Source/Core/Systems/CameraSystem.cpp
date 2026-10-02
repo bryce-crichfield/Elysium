@@ -1,4 +1,4 @@
-#include "Systems/CameraSystem.h"
+#include "Core/Systems/CameraSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Input.h"
 #include "Interfaces/IApplicationService.h"

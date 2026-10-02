@@ -1,5 +1,5 @@
-#include "Systems/NavMeshSystem.h"
-#include "Systems/RenderSystem.h"
+#include "Core/Systems/NavMeshSystem.h"
+#include "Core/Systems/RenderSystem.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Scene.h"
 #include "Core/Geometry/Polygon.h"

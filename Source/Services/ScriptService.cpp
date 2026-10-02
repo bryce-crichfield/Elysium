@@ -18,10 +18,10 @@
 #include <cmath>
 #include "Core/Components/CameraComponent.h"
 #include "Core/Components/TransformComponent.h"
-#include "Systems/CollisionSystem.h"
-#include "Systems/MovementSystem.h"
-#include "Systems/NavMeshSystem.h"
-#include "Systems/RenderSystem.h"
+#include "Core/Systems/CollisionSystem.h"
+#include "Core/Systems/MovementSystem.h"
+#include "Core/Systems/NavMeshSystem.h"
+#include "Core/Systems/RenderSystem.h"
 
 
 namespace Elysium::Services {
