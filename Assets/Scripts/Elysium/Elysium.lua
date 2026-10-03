@@ -177,6 +177,39 @@ function ScreenToWorld(screenPos) end
 ---@param sceneName string
 function SceneReplace(sceneName) end
 
+-- Network =====================================================================
+
+---@class NetEvent
+---@field type "connected"|"disconnected"|"stopped"|"message"
+---@field data? string  The payload, for "message"
+
+--- Start hosting on `port` (default 7777). Restarts the network if it was running.
+---@param port? integer
+---@return boolean
+function NetHost(port) end
+
+--- Connect to a host. Restarts the network if it was running.
+---@param address string
+---@param port? integer
+---@return boolean
+function NetJoin(address, port) end
+
+function NetStop() end
+
+---@return "none"|"server"|"client"
+function NetMode() end
+
+---@return integer
+function NetPeers() end
+
+--- Send a string reliably: a client to the server, the server to every client.
+---@param data string
+function NetSend(data) end
+
+--- Everything the network did since the last call, in order. The queue is shared by every script.
+---@return NetEvent[]
+function NetPoll() end
+
 -- Utility =====================================================================
 
 --- Print a message to the engine log.

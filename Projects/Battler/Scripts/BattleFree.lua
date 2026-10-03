@@ -4,13 +4,20 @@
 --   Left-click a blue-ringed unit, then anywhere in the blue area to move (or on the unit to
 --   stay put). Then 1 Attack / 2 Spell / 3 Wait. Right-click / Esc backs out.
 --   Space ends the player phase. Middle-drag pans, right-drag turns, wheel zooms (and tilts). R restarts.
+-- Versus: the lobby hosts (H) or joins (J) a game. The host plays the blue team and moves first,
+-- the joiner plays red. Every order goes across as a command the moment it's issued (a move,
+-- undoing one, an action) and the other side replays it with the same rules, so both run the
+-- same battle (lockstep); a phase
+-- ends with { kind = "end" } and a checksum of the units, to catch the two drifting apart.
 local Board = require("Scripts/Battler/Board")
 local Units = require("Scripts/Battler/Units")
 local Rules = require("Scripts/Battler/FreeRules")
+local Net = require("Scripts/Battler/Net")
 
 local Battle = {}
 
 local PLAYER, ENEMY = Units.PLAYER, Units.ENEMY
+local JOIN_ADDRESS = "127.0.0.1"  -- where J connects; the host's LAN / VPN address for two machines
 local SCREEN_W, SCREEN_H = 1280, 720
 local FONT = "Fonts/EnchantedLand-Regular.ttf"  -- every HUD line is drawn in it
 local SPEED = 215          -- ground units a second
@@ -82,7 +89,110 @@ function Battle:Initialize()
     self.loadTimer, self.loadChecks, self.lastCount = 0, 0, -1
     self.units = {}
     self.floaters = {}
+    self.inbox = {}               -- the opponent's commands, applied in order by RemotePhase
+    self.me, self.them = PLAYER, ENEMY
+    self.net = false              -- a versus game (true) or solo against the AI
     Log("Battler (free): waiting for the navmesh...")
+end
+
+-- --- Lobby and network --------------------------------------------------------------------
+
+function Battle:Lobby(sub)
+    if Net.Active() then Net.Stop() end
+    self.co, self.net, self.inbox = nil, false, {}
+    self.state = "lobby"
+    self:ShowBanner("H  Host     J  Join     Enter  Solo", sub)
+end
+
+function Battle:LobbyKey(key)
+    if self.state == "lobby" then
+        if key == KEY_H then
+            if Net.Host() then
+                self.state = "waiting"
+                self:ShowBanner("Waiting for an opponent", "Port " .. Net.PORT .. "     Esc  Cancel")
+            else
+                self:ShowBanner("H  Host     J  Join     Enter  Solo", "Couldn't host on port " .. Net.PORT)
+            end
+        elseif key == KEY_J then
+            if Net.Join(JOIN_ADDRESS) then
+                self.state = "joining"
+                self:ShowBanner("Connecting to " .. JOIN_ADDRESS, "Esc  Cancel")
+            end
+        elseif key == KEY_ENTER then
+            self.me, self.them, self.net = PLAYER, ENEMY, false
+            self.state = "battle"
+            self:StartBattle()
+        end
+    elseif key == KEY_ESCAPE then
+        self:Lobby()
+    end
+end
+
+-- The host is blue and goes first; the joiner is red.
+function Battle:BeginVersus(host)
+    self.net = true
+    self.me, self.them = host and PLAYER or ENEMY, host and ENEMY or PLAYER
+    self.state = "battle"
+    self.banner = nil
+    self:StartBattle()
+end
+
+function Battle:Restart()
+    self.co, self.inbox = nil, {}
+    self.state = "battle"
+    self.banner = nil
+    self:StartBattle()
+end
+
+function Battle:PollNetwork()
+    for _, e in ipairs(Net.Poll()) do
+        if e.type == "connected" then
+            if Net.IsHost() and self.state == "waiting" then
+                Net.Send({ kind = "start" })
+                self:BeginVersus(true)
+            elseif self.state == "joining" then
+                self:ShowBanner("Connected", "Waiting for the host...")
+            end
+        elseif e.type == "disconnected" then
+            if self.state == "joining" then
+                self:Lobby("Couldn't connect to " .. JOIN_ADDRESS)
+            elseif self.net then
+                self:Lobby("Your opponent left")
+            end
+        elseif e.type == "message" then
+            local msg = e.msg
+            if msg.kind == "start" and self.state == "joining" then
+                self:BeginVersus(false)
+            elseif msg.kind == "restart" and self.net then
+                self:Restart()
+            elseif msg.kind == "move" or msg.kind == "undo" or msg.kind == "act" or msg.kind == "end" then
+                self.inbox[#self.inbox + 1] = msg
+            end
+        end
+    end
+end
+
+-- A fingerprint of the battle both sides should agree on after every phase.
+function Battle:Checksum()
+    local parts = {}
+    for i, u in ipairs(self.units) do
+        parts[#parts + 1] = string.format("%d:%d:%.2f:%.2f", i, u.hp, u.x, u.y)
+    end
+    return table.concat(parts, "|")
+end
+
+-- The command for the selected unit's action, sent when it's chosen: what it does, and where it
+-- stands doing it.
+function Battle:Command(action, extra)
+    local u = self.selected
+    local cmd = { kind = "act", unit = u.index, action = action, x = u.x, y = u.y, z = u.z }
+    for k, v in pairs(extra or {}) do cmd[k] = v end
+    return cmd
+end
+
+-- Sends a command to the opponent, in a versus game.
+function Battle:Send(cmd)
+    if self.net then Net.Send(cmd) end
 end
 
 function Battle:Camera()
@@ -98,12 +208,15 @@ function Battle:StartBattle()
         local z = NavFloorHeight(x, y, 0)
         if z then
             local u = Units.Spawn(r[1], r[2], { x = x, y = y, z = z })
-            if u then self.units[#self.units + 1] = u end
+            if u then
+                self.units[#self.units + 1] = u
+                u.index = #self.units  -- how commands name it; the roster spawns the same on both sides
+            end
         end
     end
     self.turn = 0
     self.selected, self.mode, self.reach, self.viewed = nil, nil, nil, nil
-    self:Run(function() self:PlayerPhase() end)
+    self:Run(function() self:BeginPhase(PLAYER) end)
 end
 
 function Battle:Run(fn) self.co = coroutine.create(fn) end
@@ -148,7 +261,7 @@ function Battle:ClickFrame(u)
         self:Click()  -- the hovered unit is the frame's
         return
     end
-    local ready = u.team == PLAYER and not u.acted and (self.mode == nil or self.mode == "move")
+    local ready = u.team == self.me and self.phase == self.me and not u.acted and (self.mode == nil or self.mode == "move")
     if ready then
         self.viewed = nil
         self:Select(u)
@@ -170,13 +283,12 @@ function Battle:Update(dt)
             local count = self.board:Build()
             self.loadChecks = (count > 0 and count == self.lastCount) and self.loadChecks + 1 or 0
             self.lastCount = count
-            if self.loadChecks >= 3 then
-                self.state = "battle"
-                self:StartBattle()
-            end
+            if self.loadChecks >= 3 then self:Lobby() end
         end
         return
     end
+
+    self:PollNetwork()
 
     if self.co then
         local ok, err = coroutine.resume(self.co, dt)
@@ -226,7 +338,7 @@ function Battle:PollInput(mouse, w)
     if IsMouseButtonReleased(MOUSE_RIGHT) and not self.rightDragged then
         Feed({ type = "MouseButtonPressed", button = MOUSE_RIGHT })
     end
-    for _, key in ipairs({ KEY_R, KEY_ESCAPE, KEY_SPACE, KEY_TAB, KEY_1, KEY_2, KEY_3 }) do
+    for _, key in ipairs({ KEY_R, KEY_ESCAPE, KEY_SPACE, KEY_TAB, KEY_1, KEY_2, KEY_3, KEY_H, KEY_J, KEY_ENTER }) do
         if IsKeyPressed(key) then Feed({ type = "KeyPressed", key = key }) end
     end
 end
@@ -376,30 +488,93 @@ function Battle:ShowBanner(text, sub, duration)
 end
 
 function Battle:CheckOver()
-    if #self:Living(ENEMY) == 0 then
+    local again = self.net and "R  Rematch     Esc  Leave" or "Press R to fight again"
+    if #self:Living(self.them) == 0 then
         self.state = "over"
-        self:ShowBanner("VICTORY", "Press R to fight again")
+        self:ShowBanner("VICTORY", again)
         return true
-    elseif #self:Living(PLAYER) == 0 then
+    elseif #self:Living(self.me) == 0 then
         self.state = "over"
-        self:ShowBanner("DEFEAT", "Press R to try again")
+        self:ShowBanner("DEFEAT", again)
         return true
     end
     return false
 end
 
-function Battle:PlayerPhase()
-    self.turn = self.turn + 1
-    self.phase = PLAYER
+-- Starts `team`'s phase: ours takes input, the other side's is the AI's (solo) or replays the
+-- opponent's commands (versus). The blue team moves first, so its phase starts a new turn.
+function Battle:BeginPhase(team)
+    if team == PLAYER then self.turn = self.turn + 1 end
+    self.phase = team
     for _, u in ipairs(self.units) do u.moved, u.acted = false, false end
-    self:ShowBanner("PLAYER PHASE", "Turn " .. self.turn, 1.2)
-    Wait(0.9)
-    self:SelectNext()
+    if team == self.me then
+        self:ShowBanner(self.net and "YOUR PHASE" or "PLAYER PHASE", "Turn " .. self.turn, 1.2)
+        Wait(0.9)
+        self:SelectNext()
+    elseif self.net then
+        self:ShowBanner("OPPONENT'S PHASE", "Turn " .. self.turn, 1.2)
+        self:RemotePhase()
+    else
+        self:EnemyPhase()
+    end
 end
 
--- The next player unit still to act, in roster order after `after` (wrapping), else nil.
+-- Our phase is over: tell the other side (with our checksum) and hand it over.
+function Battle:EndMyPhase()
+    self.selected, self.mode, self.reach = nil, nil, nil
+    if self.net then Net.Send({ kind = "end", sum = self:Checksum() }) end
+    self:BeginPhase(self.them)
+end
+
+-- The opponent's phase: replays their commands as they arrive, until they end it.
+function Battle:RemotePhase()
+    while true do
+        local msg = table.remove(self.inbox, 1)
+        if not msg then
+            coroutine.yield()
+        elseif msg.kind == "move" or msg.kind == "undo" or msg.kind == "act" then
+            self:Replay(msg)
+            if self:CheckOver() then self.focus = nil return end
+        elseif msg.kind == "end" then
+            if msg.sum ~= self:Checksum() then
+                Log("Battler: DESYNC after the opponent's phase\n  theirs: " .. tostring(msg.sum) .. "\n  ours:   " .. self:Checksum())
+                self:Float("DESYNC", self.units[1].x, self.units[1].y, self.units[1].z + 40, COLORS.bad)
+            end
+            self.focus = nil
+            return self:BeginPhase(self.me)
+        end
+    end
+end
+
+-- Plays one of the opponent's commands as they issued it. Each lands the unit exactly where
+-- the sender had it (x, y, z), so the two sides never drift.
+--   move: walk the path.   undo: snap back to before the move.   act: attack / spell / wait.
+function Battle:Replay(cmd)
+    local u = self.units[cmd.unit]
+    if not u or not u.alive then return end
+    self.focus = u
+    if cmd.kind == "move" then
+        self:Follow(u)
+        if #cmd.path > 0 then self:MoveAlong(u, cmd.path) end
+        u.x, u.y, u.z = cmd.x, cmd.y, cmd.z
+    elseif cmd.kind == "undo" then
+        u.x, u.y, u.z, u.moved = cmd.x, cmd.y, cmd.z, false
+    else
+        u.x, u.y, u.z = cmd.x, cmd.y, cmd.z
+        local target = cmd.target and self.units[cmd.target]
+        if cmd.action == "attack" and target then
+            self:Attack(u, target)
+        elseif cmd.action == "spell" and cmd.at then
+            self:CastBolt(u, cmd.at)
+        end
+        u.acted, u.moved = true, true
+        Wait(0.2)
+    end
+end
+
+-- The next unit of ours still to act, in roster order after `after` (wrapping), else nil.
 function Battle:NextReady(after)
-    local list = self:Living(PLAYER)
+    local list = self:Living(self.me)
     local start = 0
     for i, u in ipairs(list) do if u == after then start = i end end
     for k = 1, #list do
@@ -417,15 +592,14 @@ end
 
 function Battle:EndPlayerPhase()
     self.selected, self.mode, self.reach = nil, nil, nil
-    self:Run(function() self:EnemyPhase() end)
+    self:Run(function() self:EndMyPhase() end)
 end
 
+-- The AI's phase, solo only.
 function Battle:EnemyPhase()
-    self.phase = ENEMY
-    for _, u in ipairs(self.units) do u.moved, u.acted = false, false end
     self:ShowBanner("ENEMY PHASE", nil, 1.2)
     Wait(1.0)
-    for _, u in ipairs(self:Living(ENEMY)) do
+    for _, u in ipairs(self:Living(self.them)) do
         if u.alive then
             local plan = Rules.Plan(self.units, u)
             if plan then
@@ -445,11 +619,11 @@ function Battle:EnemyPhase()
         end
     end
     self.focus = nil
-    self:PlayerPhase()
+    self:BeginPhase(self.me)
 end
 
 function Battle:AllPlayersDone()
-    for _, u in ipairs(self:Living(PLAYER)) do
+    for _, u in ipairs(self:Living(self.me)) do
         if not u.acted then return false end
     end
     return true
@@ -545,8 +719,11 @@ function Battle:CastBolt(caster, at)
     self:EndShot(home)
 end
 
-function Battle:PlayerAction(fn)
+-- Commits the selected unit's turn: `cmd` (Battle:Command) goes to the opponent, who replays it,
+-- while `fn` plays it here.
+function Battle:PlayerAction(cmd, fn)
     local u = self.selected
+    self:Send(cmd)
     self.mode, self.reach = nil, nil
     self:Run(function()
         fn()
@@ -555,7 +732,7 @@ function Battle:PlayerAction(fn)
         if self:CheckOver() then return end
         if self:AllPlayersDone() then
             Wait(0.3)
-            self:EnemyPhase()
+            self:EndMyPhase()
         else
             Wait(0.15)
             self:SelectNext(u)
@@ -565,7 +742,7 @@ end
 
 -- --- Input --------------------------------------------------------------------------------
 
-function Battle:Busy() return self.co ~= nil or self.state ~= "battle" or self.phase ~= PLAYER end
+function Battle:Busy() return self.co ~= nil or self.state ~= "battle" or self.phase ~= self.me end
 
 function Battle:Select(u)
     self.selected, self.viewed = u, nil
@@ -605,7 +782,7 @@ end
 function Battle:Choose(mode)
     local u = self.selected
     if mode == "wait" then
-        self:PlayerAction(function() end)
+        self:PlayerAction(self:Command("wait"), function() end)
     elseif mode == "spell" and not u.class.spell then
         return
     else
@@ -622,6 +799,7 @@ function Battle:Back()
         self.mode = "menu"
     elseif self.mode == "menu" then
         u.x, u.y, u.z, u.moved = self.origin.x, self.origin.y, self.origin.z, false
+        self:Send({ kind = "undo", unit = u.index, x = u.x, y = u.y, z = u.z })
         self:Select(u)
     else
         self.selected, self.mode, self.reach, self.viewed = nil, nil, nil, nil
@@ -641,7 +819,7 @@ function Battle:Click()
     local there = self.hoverUnit
 
     if self.mode == nil or self.mode == "move" then
-        if there and there.team == PLAYER and not there.acted and there ~= u then
+        if there and there.team == self.me and not there.acted and there ~= u then
             self:Select(there)
             return
         end
@@ -651,6 +829,10 @@ function Battle:Click()
         elseif self.preview and not self.preview.out and #self.preview.path > 0 then
             local path = self.preview.path
             self.mode, self.preview = nil, nil
+            local walk = {}
+            for _, p in ipairs(path) do walk[#walk + 1] = { x = p.x, y = p.y, z = p.z } end
+            local last = walk[#walk]
+            self:Send({ kind = "move", unit = u.index, path = walk, x = last.x, y = last.y, z = last.z })
             self:Run(function()
                 self:MoveAlong(u, path)
                 self.mode = "menu"
@@ -658,30 +840,38 @@ function Battle:Click()
         end
     elseif self.mode == "attack" then
         if there and there.team ~= u.team and Rules.Reaches(Rules.AttackRange(u), u, there) then
-            self:PlayerAction(function() self:Attack(u, there) end)
+            self:PlayerAction(self:Command("attack", { target = there.index }), function() self:Attack(u, there) end)
         end
     elseif self.mode == "spell" then
         local at = self:SpellTarget()
         if at then
-            self:PlayerAction(function() self:CastBolt(u, at) end)
+            at = { x = at.x, y = at.y, z = at.z }
+            self:PlayerAction(self:Command("spell", { at = at }), function() self:CastBolt(u, at) end)
         end
     end
 end
 
 function Battle:HandleEvent(event)
     if event.type == "KeyPressed" then
-        if event.key == KEY_R and self.state ~= "loading" then
-            self.co = nil
-            self.state = "battle"
-            self.banner = nil
-            self:StartBattle()
+        if self.state == "lobby" or self.state == "waiting" or self.state == "joining" then
+            self:LobbyKey(event.key)
+            return true
+        end
+        if event.key == KEY_R and (self.state == "over" or (self.state == "battle" and not self.net)) then
+            -- A versus restart is a rematch, and both sides start over together.
+            if self.net then Net.Send({ kind = "restart" }) end
+            self:Restart()
+            return true
+        end
+        if event.key == KEY_ESCAPE and (self.state == "over" or (self.net and self:Busy())) then
+            self:Lobby()
             return true
         end
         if self:Busy() then return false end
         if event.key == KEY_ESCAPE then self:Back() return true end
         if event.key == KEY_SPACE then self:EndPlayerPhase() return true end
         if event.key == KEY_TAB then
-            for _, u in ipairs(self:Living(PLAYER)) do
+            for _, u in ipairs(self:Living(self.me)) do
                 if not u.acted and u ~= self.selected then self:Select(u) break end
             end
             return true
@@ -861,9 +1051,15 @@ end
 
 function Battle:DrawHud()
     FillRect(0, 0, SCREEN_W, 36, COLORS.panel, "ui")
-    local phase = self.phase == ENEMY and "Enemy phase" or "Player phase"
+    if self.state ~= "battle" and self.state ~= "over" then
+        self:DrawBanner()
+        return
+    end
+    local phase
+    if self.phase == self.me then phase = self.net and "Your phase" or "Player phase"
+    else phase = self.net and "Opponent's phase" or "Enemy phase" end
     DrawText(string.format("Turn %d  -  %s", math.max(1, self.turn), phase), 16, 8, 20, COLORS.gold, "ui")
-    DrawText(string.format("Allies %d   Foes %d", #self:Living(PLAYER), #self:Living(ENEMY)),
+    DrawText(string.format("Allies %d   Foes %d", #self:Living(self.me), #self:Living(self.them)),
         SCREEN_W - 230, 8, 20, COLORS.text, "ui")
 
     local shown = self.hoverUnit or self.selected or self.focus
@@ -900,7 +1096,7 @@ function Battle:DrawHud()
     end
 
     local hint
-    if self.phase == PLAYER and not self.co and self.state == "battle" then
+    if self.phase == self.me and not self.co and self.state == "battle" then
         if not self.selected then hint = "Click a unit (Tab cycles)   Space: end phase"
         elseif self.mode == "move" then hint = "Click in the blue area to move, the unit itself to stay   Right-click: cancel"
         elseif self.mode == "menu" then hint = "Choose an action   Right-click: undo move"
@@ -908,6 +1104,10 @@ function Battle:DrawHud()
     end
     if hint then DrawText(hint, 16, 44, 16, COLORS.dim, "ui") end
 
+    self:DrawBanner()
+end
+
+function Battle:DrawBanner()
     if self.banner then
         local b = self.banner
         local a = b.duration and math.floor(255 * math.min(1, (b.duration - b.t) * 3, b.t * 4)) or 255

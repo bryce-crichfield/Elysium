@@ -187,6 +187,7 @@ bool NetworkService::Stop() {
 
         if (config_.mode == NetworkMode::Client && serverPeer_) {
             enet_peer_disconnect(serverPeer_, 0);
+            enet_host_flush(host_);  // send the disconnect now, so the server hears it before the host goes
             serverPeer_ = nullptr;
         }
 

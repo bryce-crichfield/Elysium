@@ -89,7 +89,10 @@ enum class PacketType : uint8_t {
 
     /* --- Application Layer / RPC (Reliable) --- */
     InvokeRequest     = 0x40, // Bidi: Execute arbitrary code
-    InvokeResponse    = 0x41  // Bidi: Result of that execution
+    InvokeResponse    = 0x41, // Bidi: Result of that execution
+
+    /* --- Game scripts (Reliable) --- */
+    ScriptMessage     = 0x50  // Bidi: an opaque string a Lua script sent (NetSend / NetPoll)
 };
 
 struct PacketHeader {

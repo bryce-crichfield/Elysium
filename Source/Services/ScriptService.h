@@ -70,6 +70,7 @@ private:
     void BindEntityAPI();
     void BindInputConstants();
     void BindComponents();
+    void BindNetwork();
 
     // Loads the script if not already loaded, returns the table
     sol::table GetOrLoadScript(Path path);

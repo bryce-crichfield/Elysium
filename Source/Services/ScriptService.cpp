@@ -27,6 +27,10 @@
 #include <algorithm>
 #include <optional>
 #include <tuple>
+#include <deque>
+#include "Core/Network.h"
+#include "Interfaces/IMessageService.h"
+#include "Interfaces/INetworkService.h"
 
 
 namespace Elysium::Services {
@@ -35,6 +39,15 @@ namespace Elysium::Services {
 // same reason s_activeWorld exists — this mirrors that existing pattern
 // instead of introducing a new one.
 static ServiceLocator* s_services = nullptr;
+
+// What the network did since a script last called NetPoll: connects, disconnects and
+// ScriptMessage payloads, in arrival order. Lives here rather than in a scene so it
+// survives scene changes (a lobby hands its connection to the battle).
+struct NetScriptEvent {
+    std::string type;  // "connected" | "disconnected" | "stopped" | "message"
+    std::string data;
+};
+static std::deque<NetScriptEvent> s_netInbox;
 
 ScriptService::ScriptService(ServiceLocator& registry) {
     s_services = &registry;
@@ -48,10 +61,80 @@ void ScriptService::Initialize() {
     BindComponents();
     BindEntityAPI();
     BindInputConstants();
+    BindNetwork();
     LOG_INFO("ScriptService", "Lua VM Initialized with sol2 and component usertypes");
 }
 
+void ScriptService::BindNetwork() {
+    auto& messages = s_services->Get<IMessageService>();
+    messages.Subscribe<NetworkDataMessage>(this, [](const NetworkDataMessage& msg) {
+        if (msg.data.size() < PacketHeader::SIZE) return;
+        if (msg.data[0] != static_cast<uint8_t>(PacketType::ScriptMessage)) return;
+        s_netInbox.push_back({"message", std::string(msg.data.begin() + PacketHeader::SIZE, msg.data.end())});
+    });
+    messages.Subscribe<NetworkConnectedMessage>(this, [](const NetworkConnectedMessage&) {
+        s_netInbox.push_back({"connected", {}});
+    });
+    messages.Subscribe<NetworkDisconnectedMessage>(this, [](const NetworkDisconnectedMessage&) {
+        s_netInbox.push_back({"disconnected", {}});
+    });
+    messages.Subscribe<NetworkStoppedMessage>(this, [](const NetworkStoppedMessage&) {
+        s_netInbox.push_back({"stopped", {}});
+    });
+
+    auto start = [](NetworkMode mode, const std::string& address, int port) {
+        auto& net = s_services->Get<INetworkService>();
+        if (net.IsRunning()) net.Stop();
+        s_netInbox.clear();
+        NetworkConfig config;
+        config.mode = mode;
+        config.address = address;
+        config.port = static_cast<uint16_t>(port);
+        return net.Start(config);
+    };
+    lua.set_function("NetHost", [start](sol::optional<int> port) {
+        return start(NetworkMode::Server, "", port.value_or(7777));
+    });
+    lua.set_function("NetJoin", [start](const std::string& address, sol::optional<int> port) {
+        return start(NetworkMode::Client, address, port.value_or(7777));
+    });
+    lua.set_function("NetStop", []() {
+        s_services->Get<INetworkService>().Stop();
+    });
+    lua.set_function("NetMode", []() -> std::string {
+        auto& net = s_services->Get<INetworkService>();
+        if (!net.IsRunning()) return "none";
+        return net.GetMode() == NetworkMode::Server ? "server" : "client";
+    });
+    lua.set_function("NetPeers", []() {
+        return static_cast<int>(s_services->Get<INetworkService>().GetConnectedPeers());
+    });
+    // A client sends to the server; the server sends to every client.
+    lua.set_function("NetSend", [](const std::string& data) {
+        auto& net = s_services->Get<INetworkService>();
+        if (!net.IsRunning()) return;
+        PacketWriter writer;
+        writer.BeginPacket(PacketType::ScriptMessage).WriteBytes(data.data(), data.size());
+        SerialBuffer packet = writer.Build();
+        if (net.GetMode() == NetworkMode::Client) net.SendToServer(packet.Data(), packet.Size());
+        else net.BroadcastToClients(packet.Data(), packet.Size());
+    });
+    lua.set_function("NetPoll", [this]() {
+        sol::table events = lua.create_table();
+        int i = 1;
+        for (auto& e : s_netInbox) {
+            sol::table t = lua.create_table();
+            t["type"] = e.type;
+            if (e.type == "message") t["data"] = e.data;
+            events[i++] = t;
+        }
+        s_netInbox.clear();
+        return events;
+    });
+}
+
 void ScriptService::Shutdown() {
+    s_services->Get<IMessageService>().UnsubscribeAll(this);
     LOG_INFO("ScriptService", "Lua VM Shutdown");
 }
 
