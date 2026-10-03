@@ -1,0 +1,39 @@
+<Scene>
+    <SceneScript path="Scripts/SettingsScene.lua"/>
+    <Systems>
+        <System type="ScriptSystem"/>
+        <System type="TransformSystem"/>
+        <System type="RenderSystem"/>
+    </Systems>
+    <SceneConfiguration width="1920" height="1080">
+        <SceneLayer name="background" z="0" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+    </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="0" y="0"/>
+            <CameraComponent/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="MasterVolume">
+        <Param name="Label" value="Master volume"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="240"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="MusicVolume">
+        <Param name="Label" value="Music"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="320"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="SfxVolume">
+        <Param name="Label" value="Effects"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="400"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Checkbox.xml" id="Msaa">
+        <Param name="Label" value="Antialiasing (MSAA)"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="460"/>
+    </PrefabInstance>
+</Scene>

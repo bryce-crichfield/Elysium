@@ -1335,7 +1335,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     // Models antialiased: drawn into a multisampled target, resolved after (below). Only
     // under Normal blending, since the resolve composites them over the scene as alpha.
     const Framebuffer& sceneTarget = ctx.GetServices().Get<Services::ISceneService>().GetFramebuffer();
-    const bool msaa = msaaSamples_ > 1 && layer.layerBlend == SceneLayerBlend::Normal && sceneTarget.IsValid();
+    const bool msaa = msaaEnabled_ && msaaSamples_ > 1 && layer.layerBlend == SceneLayerBlend::Normal && sceneTarget.IsValid();
     rlDrawRenderBatchActive();
     if (msaa) {
         msaaBuffer_.Ensure(sceneTarget.Width(), sceneTarget.Height(), msaaSamples_, sceneTarget);

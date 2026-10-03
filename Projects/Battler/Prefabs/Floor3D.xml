@@ -1,0 +1,10 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="entity"/>
+            <ModelComponent model="Models/Floor.glb" scale="64" yaw="45" walkable="true" tint="#7F88ECFF"/>
+            <NameComponent name="Floor"/>
+            <TransformComponent x="0" y="0" z="-15.2"/>
+        </Entity>
+    </Entities>
+</Prefab>

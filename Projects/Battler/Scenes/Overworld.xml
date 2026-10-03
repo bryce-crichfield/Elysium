@@ -1,0 +1,756 @@
+<Scene>
+    <SceneScript path="Scripts/OverworldScene.lua"/>
+    <EditorMetadata gridDivisor="1" gridHeight="32" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="64"/>
+    <Systems>
+        <System type="MovementSystem"/>
+        <System type="KinematicsSystem"/>
+        <System type="CollisionSystem"/>
+        <System type="PhysicsResponseSystem"/>
+        <System type="ScriptSystem"/>
+        <System type="SpriteSystem"/>
+        <System type="FollowSystem"/>
+        <System type="GroundSystem"/>
+        <System type="TransformSystem"/>
+        <System type="NavMeshSystem" agentRadius="12.000000" cellSize="3.000000"/>
+        <System type="VisibilitySystem"/>
+        <System type="UiSystem"/>
+        <System type="RenderSystem"/>
+    </Systems>
+    <SceneConfiguration width="1920" height="1080">
+        <SceneLayer name="background" z="-2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="default" z="-1" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="tile" z="0" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="selection" z="1" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#60607080" shadows="true" shadowBias="12" fogOfWar="0.34999999" fogColor="#06060CFF"/>
+        <SceneLayer name="light" z="4" space="World3D" layerBlend="Additive" compositeBlend="Normal" isComposited="false" isVisible="false" opacity="1" ground="true"/>
+        <SceneLayer name="shadow" z="5" space="World3D" layerBlend="Normal" compositeBlend="Multiply" isComposited="true" isVisible="false" opacity="1" ground="true" ambient="#000000FF"/>
+        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+    </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="9.2076797" y="87.826721"/>
+            <CameraComponent/>
+        </Entity>
+        <Entity name="NavArea Room">
+            <NameComponent name="NavArea Room"/>
+            <NavAreaComponent points="-156.862,-595.977 1394.4,190.281 477.988,631.223 -1062.65,-144.41" type="Walkable" cost="1"/>
+            <TransformComponent x="-9.174284" y="111.99997"/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor1">
+        <Override entity="0" component="TransformComponent" field="x" value="-935.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-28.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor10">
+        <Override entity="0" component="TransformComponent" field="x" value="-551.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-92.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor11">
+        <Override entity="0" component="TransformComponent" field="x" value="-423.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-28.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor12">
+        <Override entity="0" component="TransformComponent" field="x" value="-295.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="35.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor13">
+        <Override entity="0" component="TransformComponent" field="x" value="-423.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="227.48802"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor14">
+        <Override entity="0" component="TransformComponent" field="x" value="-295.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="291.48801"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor15">
+        <Override entity="0" component="TransformComponent" field="x" value="-295.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="163.48804"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor16">
+        <Override entity="0" component="TransformComponent" field="x" value="-167.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="227.48802"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor17">
+        <Override entity="0" component="TransformComponent" field="x" value="-167.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="99.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor18">
+        <Override entity="0" component="TransformComponent" field="x" value="-39.174263"/>
+        <Override entity="0" component="TransformComponent" field="y" value="163.48804"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor19">
+        <Override entity="0" component="TransformComponent" field="x" value="-551.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-220.51198"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor2">
+        <Override entity="0" component="TransformComponent" field="x" value="-807.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="35.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor20">
+        <Override entity="0" component="TransformComponent" field="x" value="-423.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-156.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor21">
+        <Override entity="0" component="TransformComponent" field="x" value="-295.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-92.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor22">
+        <Override entity="0" component="TransformComponent" field="x" value="-167.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-28.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor23">
+        <Override entity="0" component="TransformComponent" field="x" value="-39.174263"/>
+        <Override entity="0" component="TransformComponent" field="y" value="35.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor24">
+        <Override entity="0" component="TransformComponent" field="x" value="88.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="99.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor25">
+        <Override entity="0" component="TransformComponent" field="x" value="-423.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-284.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor26">
+        <Override entity="0" component="TransformComponent" field="x" value="-295.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-220.51198"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor27">
+        <Override entity="0" component="TransformComponent" field="x" value="-39.174263"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-92.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor28">
+        <Override entity="0" component="TransformComponent" field="x" value="-167.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-156.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor29">
+        <Override entity="0" component="TransformComponent" field="x" value="88.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-28.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3">
+        <Override entity="0" component="TransformComponent" field="x" value="-679.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="99.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor30">
+        <Override entity="0" component="TransformComponent" field="x" value="216.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="35.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor31">
+        <Override entity="0" component="TransformComponent" field="x" value="-295.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-348.51193"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor32">
+        <Override entity="0" component="TransformComponent" field="x" value="-167.17429"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-284.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor33">
+        <Override entity="0" component="TransformComponent" field="x" value="88.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-156.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor34">
+        <Override entity="0" component="TransformComponent" field="x" value="-39.174263"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-220.51198"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor35">
+        <Override entity="0" component="TransformComponent" field="x" value="216.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-92.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor36">
+        <Override entity="0" component="TransformComponent" field="x" value="344.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-28.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor37">
+        <Override entity="0" component="TransformComponent" field="x" value="-167.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-412.51193"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor38">
+        <Override entity="0" component="TransformComponent" field="x" value="-39.174263"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-348.51193"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor39">
+        <Override entity="0" component="TransformComponent" field="x" value="216.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-220.51198"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D1">
+        <Override entity="0" component="TransformComponent" field="x" value="-167.17419"/>
+        <Override entity="0" component="TransformComponent" field="y" value="355.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D10">
+        <Override entity="0" component="TransformComponent" field="x" value="728.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="547.48792"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D11">
+        <Override entity="0" component="TransformComponent" field="x" value="216.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="163.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D12">
+        <Override entity="0" component="TransformComponent" field="x" value="-39.174202"/>
+        <Override entity="0" component="TransformComponent" field="y" value="419.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D13">
+        <Override entity="0" component="TransformComponent" field="x" value="344.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="227.48802"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D14">
+        <Override entity="0" component="TransformComponent" field="x" value="472.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="291.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D15">
+        <Override entity="0" component="TransformComponent" field="x" value="600.82556"/>
+        <Override entity="0" component="TransformComponent" field="y" value="355.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D16">
+        <Override entity="0" component="TransformComponent" field="x" value="728.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="419.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D17">
+        <Override entity="0" component="TransformComponent" field="x" value="856.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="483.48795"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D18">
+        <Override entity="0" component="TransformComponent" field="x" value="344.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="99.488037"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D19">
+        <Override entity="0" component="TransformComponent" field="x" value="472.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="163.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D2">
+        <Override entity="0" component="TransformComponent" field="x" value="216.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="291.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D20">
+        <Override entity="0" component="TransformComponent" field="x" value="728.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="291.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D21">
+        <Override entity="0" component="TransformComponent" field="x" value="600.82556"/>
+        <Override entity="0" component="TransformComponent" field="y" value="227.48802"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D22">
+        <Override entity="0" component="TransformComponent" field="x" value="856.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="355.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D23">
+        <Override entity="0" component="TransformComponent" field="x" value="88.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="483.48795"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D24">
+        <Override entity="0" component="TransformComponent" field="x" value="984.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="419.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D25">
+        <Override entity="0" component="TransformComponent" field="x" value="472.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="35.488037"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D26">
+        <Override entity="0" component="TransformComponent" field="x" value="600.82556"/>
+        <Override entity="0" component="TransformComponent" field="y" value="99.488037"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D27">
+        <Override entity="0" component="TransformComponent" field="x" value="856.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="227.48802"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D28">
+        <Override entity="0" component="TransformComponent" field="x" value="728.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="163.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D29">
+        <Override entity="0" component="TransformComponent" field="x" value="984.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="291.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D3">
+        <Override entity="0" component="TransformComponent" field="x" value="344.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="355.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D30">
+        <Override entity="0" component="TransformComponent" field="x" value="1112.8258"/>
+        <Override entity="0" component="TransformComponent" field="y" value="355.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D31">
+        <Override entity="0" component="TransformComponent" field="x" value="600.82556"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-28.511963"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D32">
+        <Override entity="0" component="TransformComponent" field="x" value="728.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="35.488037"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D33">
+        <Override entity="0" component="TransformComponent" field="x" value="984.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="163.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D34">
+        <Override entity="0" component="TransformComponent" field="x" value="216.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="419.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D35">
+        <Override entity="0" component="TransformComponent" field="x" value="856.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="99.488037"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D36">
+        <Override entity="0" component="TransformComponent" field="x" value="1112.8258"/>
+        <Override entity="0" component="TransformComponent" field="y" value="227.48802"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D37">
+        <Override entity="0" component="TransformComponent" field="x" value="1240.8258"/>
+        <Override entity="0" component="TransformComponent" field="y" value="291.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D38">
+        <Override entity="0" component="TransformComponent" field="x" value="88.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="355.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D39">
+        <Override entity="0" component="TransformComponent" field="x" value="-39.174202"/>
+        <Override entity="0" component="TransformComponent" field="y" value="291.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D4">
+        <Override entity="0" component="TransformComponent" field="x" value="472.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="419.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D40">
+        <Override entity="0" component="TransformComponent" field="x" value="216.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="547.48792"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D41">
+        <Override entity="0" component="TransformComponent" field="x" value="344.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="483.48795"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D42">
+        <Override entity="0" component="TransformComponent" field="x" value="88.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="227.48802"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D5">
+        <Override entity="0" component="TransformComponent" field="x" value="344.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="611.48792"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D6">
+        <Override entity="0" component="TransformComponent" field="x" value="472.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="675.48792"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D7">
+        <Override entity="0" component="TransformComponent" field="x" value="472.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="547.48792"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D8">
+        <Override entity="0" component="TransformComponent" field="x" value="600.82556"/>
+        <Override entity="0" component="TransformComponent" field="y" value="611.48792"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor3D9">
+        <Override entity="0" component="TransformComponent" field="x" value="600.82556"/>
+        <Override entity="0" component="TransformComponent" field="y" value="483.48795"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-15.200004"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor4">
+        <Override entity="0" component="TransformComponent" field="x" value="-551.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="35.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor40">
+        <Override entity="0" component="TransformComponent" field="x" value="88.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-284.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor41">
+        <Override entity="0" component="TransformComponent" field="x" value="344.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-156.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor42">
+        <Override entity="0" component="TransformComponent" field="x" value="472.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-92.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor5">
+        <Override entity="0" component="TransformComponent" field="x" value="-679.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-28.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor6">
+        <Override entity="0" component="TransformComponent" field="x" value="-807.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-92.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor7">
+        <Override entity="0" component="TransformComponent" field="x" value="-551.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="163.48804"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor8">
+        <Override entity="0" component="TransformComponent" field="x" value="-423.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="99.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor9">
+        <Override entity="0" component="TransformComponent" field="x" value="-679.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-156.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar1">
+        <Override entity="0" component="TransformComponent" field="x" value="344.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="451.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar2">
+        <Override entity="0" component="TransformComponent" field="x" value="248.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="499.48795"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar_A">
+        <Override entity="0" component="TransformComponent" field="x" value="-423.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="67.488029"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar_B">
+        <Override entity="0" component="TransformComponent" field="x" value="-519.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="115.48804"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Stairs3D.xml" id="Stairs1">
+        <Override entity="0" component="TransformComponent" field="x" value="163.24197"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-132.15344"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Stairs3D.xml" id="Stairs3D1">
+        <Override entity="0" component="TransformComponent" field="x" value="931.24194"/>
+        <Override entity="0" component="TransformComponent" field="y" value="251.84653"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch1">
+        <Override entity="0" component="TransformComponent" field="x" value="-814.18829"/>
+        <Override entity="0" component="TransformComponent" field="y" value="38.592026"/>
+        <Override entity="0" component="TransformComponent" field="z" value="50.303879"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch10">
+        <Override entity="0" component="TransformComponent" field="x" value="-181.83212"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-87.451218"/>
+        <Override entity="0" component="TransformComponent" field="z" value="51.349033"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch11">
+        <Override entity="0" component="TransformComponent" field="x" value="227.62173"/>
+        <Override entity="0" component="TransformComponent" field="y" value="303.45605"/>
+        <Override entity="0" component="TransformComponent" field="z" value="57.178829"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch2">
+        <Override entity="0" component="TransformComponent" field="x" value="-416.02747"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-18.368484"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch3">
+        <Override entity="0" component="TransformComponent" field="x" value="-542.11981"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-75.840775"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch4">
+        <Override entity="0" component="TransformComponent" field="x" value="-98.060165"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-187.69548"/>
+        <Override entity="0" component="TransformComponent" field="z" value="78.885338"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch5">
+        <Override entity="0" component="TransformComponent" field="x" value="-672.0274"/>
+        <Override entity="0" component="TransformComponent" field="y" value="109.63152"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch6">
+        <Override entity="0" component="TransformComponent" field="x" value="-296.45972"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-295.69153"/>
+        <Override entity="0" component="TransformComponent" field="z" value="76.930618"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch7">
+        <Override entity="0" component="TransformComponent" field="x" value="-434.74384"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-216.85164"/>
+        <Override entity="0" component="TransformComponent" field="z" value="62.932129"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch8">
+        <Override entity="0" component="TransformComponent" field="x" value="-232.40106"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-116.25581"/>
+        <Override entity="0" component="TransformComponent" field="z" value="91.194336"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch9">
+        <Override entity="0" component="TransformComponent" field="x" value="-49.212109"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-155.46519"/>
+        <Override entity="0" component="TransformComponent" field="z" value="51.193684"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE1">
+        <Override entity="0" component="TransformComponent" field="x" value="568.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="115.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE10">
+        <Override entity="0" component="TransformComponent" field="x" value="-7.174202"/>
+        <Override entity="0" component="TransformComponent" field="y" value="467.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE11">
+        <Override entity="0" component="TransformComponent" field="x" value="504.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="275.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE12">
+        <Override entity="0" component="TransformComponent" field="x" value="632.82556"/>
+        <Override entity="0" component="TransformComponent" field="y" value="147.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE13">
+        <Override entity="0" component="TransformComponent" field="x" value="504.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="83.488029"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE14">
+        <Override entity="0" component="TransformComponent" field="x" value="696.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="179.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE2">
+        <Override entity="0" component="TransformComponent" field="x" value="-71.174202"/>
+        <Override entity="0" component="TransformComponent" field="y" value="435.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE3">
+        <Override entity="0" component="TransformComponent" field="x" value="376.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="339.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE4">
+        <Override entity="0" component="TransformComponent" field="x" value="312.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="179.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE5">
+        <Override entity="0" component="TransformComponent" field="x" value="248.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="275.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE6">
+        <Override entity="0" component="TransformComponent" field="x" value="312.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="307.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE7">
+        <Override entity="0" component="TransformComponent" field="x" value="376.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="211.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE8">
+        <Override entity="0" component="TransformComponent" field="x" value="56.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="499.48795"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall3D_NE9">
+        <Override entity="0" component="TransformComponent" field="x" value="440.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="243.48802"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW1">
+        <Override entity="0" component="TransformComponent" field="x" value="-583.37451"/>
+        <Override entity="0" component="TransformComponent" field="y" value="83.306908"/>
+        <Override entity="0" component="TransformComponent" field="z" value="100.45181"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW10">
+        <Override entity="0" component="TransformComponent" field="x" value="312.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="147.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW11">
+        <Override entity="0" component="TransformComponent" field="x" value="184.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="467.48788"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW12">
+        <Override entity="0" component="TransformComponent" field="x" value="376.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="115.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW13">
+        <Override entity="0" component="TransformComponent" field="x" value="312.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="403.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW14">
+        <Override entity="0" component="TransformComponent" field="x" value="376.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="371.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW15">
+        <Override entity="0" component="TransformComponent" field="x" value="440.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="83.488029"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW16">
+        <Override entity="0" component="TransformComponent" field="x" value="696.82568"/>
+        <Override entity="0" component="TransformComponent" field="y" value="211.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW3">
+        <Override entity="0" component="TransformComponent" field="x" value="56.825706"/>
+        <Override entity="0" component="TransformComponent" field="y" value="339.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW4">
+        <Override entity="0" component="TransformComponent" field="x" value="120.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="307.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW5">
+        <Override entity="0" component="TransformComponent" field="x" value="184.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="275.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW6">
+        <Override entity="0" component="TransformComponent" field="x" value="-71.174202"/>
+        <Override entity="0" component="TransformComponent" field="y" value="403.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW7">
+        <Override entity="0" component="TransformComponent" field="x" value="568.82562"/>
+        <Override entity="0" component="TransformComponent" field="y" value="275.48801"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW8">
+        <Override entity="0" component="TransformComponent" field="x" value="120.82571"/>
+        <Override entity="0" component="TransformComponent" field="y" value="499.48795"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-0.46566772"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall3D_NW9">
+        <Override entity="0" component="TransformComponent" field="x" value="-7.174202"/>
+        <Override entity="0" component="TransformComponent" field="y" value="371.48807"/>
+        <Override entity="0" component="TransformComponent" field="z" value="-3.8146973e-06"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="WallBack_1">
+        <Override entity="0" component="TransformComponent" field="x" value="-199.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-268.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="WallBack_3">
+        <Override entity="0" component="TransformComponent" field="x" value="-839.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="51.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="WallBack_4">
+        <Override entity="0" component="TransformComponent" field="x" value="-391.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-44.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="WallBack_5">
+        <Override entity="0" component="TransformComponent" field="x" value="-455.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-204.51198"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="WallBack_7">
+        <Override entity="0" component="TransformComponent" field="x" value="-519.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-108.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="WallMid_1">
+        <Override entity="0" component="TransformComponent" field="x" value="-455.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-76.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="WallRight_0">
+        <Override entity="0" component="TransformComponent" field="x" value="-711.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-44.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="WallRight_1">
+        <Override entity="0" component="TransformComponent" field="x" value="-647.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-76.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="WallRight_3">
+        <Override entity="0" component="TransformComponent" field="x" value="-583.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-108.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall_NE1">
+        <Override entity="0" component="TransformComponent" field="x" value="-391.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-172.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall_NE2">
+        <Override entity="0" component="TransformComponent" field="x" value="-711.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="115.48804"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall_NE3">
+        <Override entity="0" component="TransformComponent" field="x" value="-327.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-140.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall_NE4">
+        <Override entity="0" component="TransformComponent" field="x" value="-775.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="83.488029"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall_NE5">
+        <Override entity="0" component="TransformComponent" field="x" value="-263.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-108.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall_NE6">
+        <Override entity="0" component="TransformComponent" field="x" value="-135.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-236.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall_NE7">
+        <Override entity="0" component="TransformComponent" field="x" value="-263.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-300.51193"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NE.xml" id="Wall_NE8">
+        <Override entity="0" component="TransformComponent" field="x" value="-71.174263"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-204.51198"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW1">
+        <Override entity="0" component="TransformComponent" field="x" value="-839.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="19.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW10">
+        <Override entity="0" component="TransformComponent" field="x" value="-199.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-108.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW11">
+        <Override entity="0" component="TransformComponent" field="x" value="-647.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="115.48804"/>
+        <Override entity="0" component="TransformComponent" field="z" value="100.45181"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW2">
+        <Override entity="0" component="TransformComponent" field="x" value="-775.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-12.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW3">
+        <Override entity="0" component="TransformComponent" field="x" value="-455.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-236.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW4">
+        <Override entity="0" component="TransformComponent" field="x" value="-583.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="83.488029"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW5">
+        <Override entity="0" component="TransformComponent" field="x" value="-391.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-268.51196"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW6">
+        <Override entity="0" component="TransformComponent" field="x" value="-455.17432"/>
+        <Override entity="0" component="TransformComponent" field="y" value="19.488037"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW7">
+        <Override entity="0" component="TransformComponent" field="x" value="-391.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-12.511963"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW8">
+        <Override entity="0" component="TransformComponent" field="x" value="-327.17426"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-300.51193"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Wall3D_NW.xml" id="Wall_NW9">
+        <Override entity="0" component="TransformComponent" field="x" value="-71.174263"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-172.51196"/>
+    </PrefabInstance>
+</Scene>

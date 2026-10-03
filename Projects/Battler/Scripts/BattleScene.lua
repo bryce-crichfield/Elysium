@@ -4,7 +4,8 @@
 --   Left-click a blue-ringed unit, then anywhere in the blue area to move (or on the unit to
 --   stay put). Then 1 Attack / 2 Spell / 3 Wait. Right-click / Esc backs out.
 --   Space ends the player phase. Middle-drag pans, right-drag turns, wheel zooms (and tilts). R restarts.
--- Versus: the lobby hosts (H) or joins (J) a game. The host plays the blue team and moves first,
+-- Versus: entered from the Lobby scene with the connection already open (Skirmish comes in with
+-- none and plays the AI). The host plays the blue team and moves first,
 -- the joiner plays red. Every order goes across as a command the moment it's issued (a move,
 -- undoing one, an action) and the other side replays it with the same rules, so both run the
 -- same battle (lockstep); a phase
@@ -17,7 +18,6 @@ local Net = require("Scripts/Battler/Net")
 local Battle = {}
 
 local PLAYER, ENEMY = Units.PLAYER, Units.ENEMY
-local JOIN_ADDRESS = "127.0.0.1"  -- where J connects; the host's LAN / VPN address for two machines
 local SCREEN_W, SCREEN_H = 1280, 720
 local FONT = "Fonts/EnchantedLand-Regular.ttf"  -- every HUD line is drawn in it
 local SPEED = 215          -- ground units a second
@@ -95,37 +95,23 @@ function Battle:Initialize()
     Log("Battler (free): waiting for the navmesh...")
 end
 
--- --- Lobby and network --------------------------------------------------------------------
+-- --- Network ------------------------------------------------------------------------------
 
-function Battle:Lobby(sub)
-    if Net.Active() then Net.Stop() end
-    self.co, self.net, self.inbox = nil, false, {}
-    self.state = "lobby"
-    self:ShowBanner("H  Host     J  Join     Enter  Solo", sub)
+-- Once the navmesh is ready: versus if the Lobby left a connection open, else solo.
+function Battle:Begin()
+    if Net.Active() then
+        self:BeginVersus(Net.IsHost())
+    else
+        self.me, self.them, self.net = PLAYER, ENEMY, false
+        self.state = "battle"
+        self:StartBattle()
+    end
 end
 
-function Battle:LobbyKey(key)
-    if self.state == "lobby" then
-        if key == KEY_H then
-            if Net.Host() then
-                self.state = "waiting"
-                self:ShowBanner("Waiting for an opponent", "Port " .. Net.PORT .. "     Esc  Cancel")
-            else
-                self:ShowBanner("H  Host     J  Join     Enter  Solo", "Couldn't host on port " .. Net.PORT)
-            end
-        elseif key == KEY_J then
-            if Net.Join(JOIN_ADDRESS) then
-                self.state = "joining"
-                self:ShowBanner("Connecting to " .. JOIN_ADDRESS, "Esc  Cancel")
-            end
-        elseif key == KEY_ENTER then
-            self.me, self.them, self.net = PLAYER, ENEMY, false
-            self.state = "battle"
-            self:StartBattle()
-        end
-    elseif key == KEY_ESCAPE then
-        self:Lobby()
-    end
+-- Back to the main menu, closing any versus connection.
+function Battle:Leave()
+    if Net.Active() then Net.Stop() end
+    SceneReplace("MainMenu")
 end
 
 -- The host is blue and goes first; the joiner is red.
@@ -146,24 +132,13 @@ end
 
 function Battle:PollNetwork()
     for _, e in ipairs(Net.Poll()) do
-        if e.type == "connected" then
-            if Net.IsHost() and self.state == "waiting" then
-                Net.Send({ kind = "start" })
-                self:BeginVersus(true)
-            elseif self.state == "joining" then
-                self:ShowBanner("Connected", "Waiting for the host...")
-            end
-        elseif e.type == "disconnected" then
-            if self.state == "joining" then
-                self:Lobby("Couldn't connect to " .. JOIN_ADDRESS)
-            elseif self.net then
-                self:Lobby("Your opponent left")
-            end
+        if e.type == "disconnected" and self.net then
+            Net.Stop()
+            self.co, self.state = nil, "over"
+            self:ShowBanner("Your opponent left", "Esc  Menu")
         elseif e.type == "message" then
             local msg = e.msg
-            if msg.kind == "start" and self.state == "joining" then
-                self:BeginVersus(false)
-            elseif msg.kind == "restart" and self.net then
+            if msg.kind == "restart" and self.net then
                 self:Restart()
             elseif msg.kind == "move" or msg.kind == "undo" or msg.kind == "act" or msg.kind == "end" then
                 self.inbox[#self.inbox + 1] = msg
@@ -283,7 +258,7 @@ function Battle:Update(dt)
             local count = self.board:Build()
             self.loadChecks = (count > 0 and count == self.lastCount) and self.loadChecks + 1 or 0
             self.lastCount = count
-            if self.loadChecks >= 3 then self:Lobby() end
+            if self.loadChecks >= 3 then self:Begin() end
         end
         return
     end
@@ -338,7 +313,7 @@ function Battle:PollInput(mouse, w)
     if IsMouseButtonReleased(MOUSE_RIGHT) and not self.rightDragged then
         Feed({ type = "MouseButtonPressed", button = MOUSE_RIGHT })
     end
-    for _, key in ipairs({ KEY_R, KEY_ESCAPE, KEY_SPACE, KEY_TAB, KEY_1, KEY_2, KEY_3, KEY_H, KEY_J, KEY_ENTER }) do
+    for _, key in ipairs({ KEY_R, KEY_ESCAPE, KEY_SPACE, KEY_TAB, KEY_1, KEY_2, KEY_3 }) do
         if IsKeyPressed(key) then Feed({ type = "KeyPressed", key = key }) end
     end
 end
@@ -488,7 +463,7 @@ function Battle:ShowBanner(text, sub, duration)
 end
 
 function Battle:CheckOver()
-    local again = self.net and "R  Rematch     Esc  Leave" or "Press R to fight again"
+    local again = self.net and "R  Rematch     Esc  Leave" or "R  Fight again     Esc  Menu"
     if #self:Living(self.them) == 0 then
         self.state = "over"
         self:ShowBanner("VICTORY", again)
@@ -853,10 +828,7 @@ end
 
 function Battle:HandleEvent(event)
     if event.type == "KeyPressed" then
-        if self.state == "lobby" or self.state == "waiting" or self.state == "joining" then
-            self:LobbyKey(event.key)
-            return true
-        end
+        if event.key == KEY_R and self.net and not Net.Active() then return true end  -- they left
         if event.key == KEY_R and (self.state == "over" or (self.state == "battle" and not self.net)) then
             -- A versus restart is a rematch, and both sides start over together.
             if self.net then Net.Send({ kind = "restart" }) end
@@ -864,7 +836,7 @@ function Battle:HandleEvent(event)
             return true
         end
         if event.key == KEY_ESCAPE and (self.state == "over" or (self.net and self:Busy())) then
-            self:Lobby()
+            self:Leave()
             return true
         end
         if self:Busy() then return false end

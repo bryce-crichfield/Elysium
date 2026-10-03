@@ -772,6 +772,10 @@ void ScriptService::BindEntityAPI() {
         return Elysium::RenderContext::MeasureText(text.c_str(), fontSize, font.value_or(""));
     });
 
+    // SetMsaaEnabled(on) / IsMsaaEnabled(): the antialiasing setting, for every scene.
+    lua.set_function("SetMsaaEnabled", [](bool enabled) { Elysium::Systems::RenderCompositor::SetMsaaEnabled(enabled); });
+    lua.set_function("IsMsaaEnabled", []() { return Elysium::Systems::RenderCompositor::IsMsaaEnabled(); });
+
     lua.set_function("FillRect", [tableToColor](float x, float y, float width, float height, sol::table color, const std::string& layer) {
         if (auto* rs = GetCurrentRenderSystem()) {
             rs->IssueDrawCommand(Elysium::Systems::DrawRectCmd{layer, x, y, width, height, tableToColor(color)});

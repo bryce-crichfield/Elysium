@@ -143,6 +143,10 @@ public:
     void SetLights(std::vector<PointLight> lights) { lights_ = std::move(lights); }
     // Antialiases World3D models with this many samples per pixel (MSAA); 0 or 1 is off.
     void SetMsaaSamples(int samples) { msaaSamples_ = samples; }
+    // The player's antialiasing switch, over every scene's "msaa" parameter: off draws no
+    // scene multisampled. Process-wide, so it holds across scene changes.
+    static void SetMsaaEnabled(bool enabled) { msaaEnabled_ = enabled; }
+    static bool IsMsaaEnabled() { return msaaEnabled_; }
 
     void RenderLayer(RenderContext& ctx, const CameraView& view,
                       const SceneLayer& layer, std::span<const RenderRecord> records);
@@ -203,6 +207,7 @@ private:
     // World3D models draw multisampled, then resolve into msaaResolve_ (color, composited over
     // the scene) and the scene framebuffer's depth (which the cards test against).
     int msaaSamples_ = 4;
+    static inline bool msaaEnabled_ = true;
     MultisampleFramebuffer msaaBuffer_;
     Framebuffer msaaResolve_;
     // This frame's point lights, shared by every World3D layer.

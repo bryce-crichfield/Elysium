@@ -1,0 +1,46 @@
+<!-- A labeled checkbox for Screen2D menus (Scripts/Components/Checkbox.lua). The scene binds its
+     value by the placement id: Widgets.Bind(id, get, set). -->
+<Prefab>
+    <Parameters>
+        <Parameter name="Label" entity="2" component="TextComponent" field="text"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="2" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.133000 0.133000 0.204000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Checkbox"/>
+            <RectangleComponent width="32" height="32" cornerRadius="0.15"/>
+            <ScriptComponent>
+                <Script name="Scripts/Components/Checkbox.lua"/>
+            </ScriptComponent>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.824000 0.431000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Check"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="18" height="18" cornerRadius="0.15"/>
+            <TransformComponent x="7" y="7"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Label"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Option" fontSize="28" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="48" y="16"/>
+        </Entity>
+    </Entities>
+</Prefab>

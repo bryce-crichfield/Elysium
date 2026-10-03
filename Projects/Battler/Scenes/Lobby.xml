@@ -1,0 +1,19 @@
+<Scene>
+    <SceneScript path="Scripts/LobbyScene.lua"/>
+    <Systems>
+        <System type="ScriptSystem"/>
+        <System type="TransformSystem"/>
+        <System type="RenderSystem"/>
+    </Systems>
+    <SceneConfiguration width="1920" height="1080">
+        <SceneLayer name="background" z="0" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+    </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="0" y="0"/>
+            <CameraComponent/>
+        </Entity>
+    </Entities>
+</Scene>

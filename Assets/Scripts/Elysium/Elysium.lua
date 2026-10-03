@@ -210,6 +210,15 @@ function NetSend(data) end
 ---@return NetEvent[]
 function NetPoll() end
 
+-- Graphics ====================================================================
+
+--- Turn antialiasing (MSAA on World3D models) on or off for every scene.
+---@param enabled boolean
+function SetMsaaEnabled(enabled) end
+
+---@return boolean
+function IsMsaaEnabled() end
+
 -- Utility =====================================================================
 
 --- Print a message to the engine log.
