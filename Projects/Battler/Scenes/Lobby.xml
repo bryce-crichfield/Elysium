@@ -15,5 +15,49 @@
             <TransformComponent x="0" y="0"/>
             <CameraComponent/>
         </Entity>
+        <Entity name="Title">
+            <NameComponent name="Title"/>
+            <LayerComponent name="ui"/>
+            <TextComponent text="Versus" fontSize="72" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="640" y="126"/>
+        </Entity>
+        <Entity name="Status">
+            <NameComponent name="Status"/>
+            <LayerComponent name="ui"/>
+            <TextComponent text="Host a game, or join one" fontSize="26" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="640" y="503"/>
+        </Entity>
     </Entities>
+    <PrefabInstance src="../Prefabs/MenuBackground.xml" id="Background"/>
+    <PrefabInstance src="../Prefabs/TextField.xml" id="Address">
+        <Param name="Label" value="Address"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="250"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Host">
+        <Param name="Label" value="Host"/>
+        <Param name="Width" value="210"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="330"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Join">
+        <Param name="Label" value="Join"/>
+        <Param name="Width" value="210"/>
+        <Override entity="0" component="TransformComponent" field="x" value="650"/>
+        <Override entity="0" component="TransformComponent" field="y" value="330"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Cancel">
+        <Param name="Label" value="Cancel"/>
+        <Param name="Width" value="440"/>
+        <Param name="Height" value="52"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="410"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Back">
+        <Param name="Label" value="Back"/>
+        <Param name="Width" value="240"/>
+        <Param name="Height" value="52"/>
+        <Override entity="0" component="TransformComponent" field="x" value="520"/>
+        <Override entity="0" component="TransformComponent" field="y" value="580"/>
+    </PrefabInstance>
 </Scene>

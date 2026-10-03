@@ -1,0 +1,47 @@
+<!-- A menu button for Screen2D scenes (Scripts/Components/Button.lua). The scene gives it its
+     action by the placement id: Widgets.BindButton(id, onClick [, enabled]). The root is the
+     face; its Fire layer is the hover glow, which the script fades in and flares on a click.
+     The Label stays centered on the face, whatever its Width and Height. -->
+<Prefab>
+    <Parameters>
+        <Parameter name="Label" entity="1" component="TextComponent" field="text"/>
+        <Parameter name="Width" entity="0" component="RectangleComponent" field="width"/>
+        <Parameter name="Height" entity="0" component="RectangleComponent" field="height"/>
+        <Parameter name="Font Size" entity="1" component="TextComponent" field="fontSize"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="40" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="0.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
+                    <Uniform name="uGlowRadius" type="float" value="10.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.000000 0.000000 0.000000 0.920000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.250000"/>
+                    <Uniform name="uAngle" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Button"/>
+            <RectangleComponent width="320" height="56" cornerRadius="0.2"/>
+            <ScriptComponent>
+                <Script name="Scripts/Components/Button.lua"/>
+            </ScriptComponent>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Label"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Button" fontSize="30" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="160" y="28"/>
+        </Entity>
+    </Entities>
+</Prefab>

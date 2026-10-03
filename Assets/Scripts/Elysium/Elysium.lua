@@ -237,6 +237,12 @@ function StopSound(id) end
 --- Stop every sound.
 function StopAllSounds() end
 
+--- Whether a sound is still playing: false once it finished or was stopped (switching between
+--- Play and the editor stops every sound).
+---@param id integer
+---@return boolean
+function IsSoundPlaying(id) end
+
 -- Mixer channels. Every channel mixes into Master, whose volume scales them all.
 CHANNEL_MASTER = 0
 CHANNEL_MUSIC = 1

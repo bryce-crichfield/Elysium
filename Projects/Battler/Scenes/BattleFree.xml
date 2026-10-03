@@ -659,4 +659,32 @@
         <Override entity="0" component="TransformComponent" field="y" value="300.60025"/>
         <Override entity="0" component="TransformComponent" field="z" value="64.668457"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/TopBar.xml" id="TopBar"/>
+    <PrefabInstance src="../Prefabs/UnitCard.xml" id="UnitCard"/>
+    <PrefabInstance src="../Prefabs/Forecast.xml" id="Forecast"/>
+    <PrefabInstance src="../Prefabs/Button.xml" id="ActionAttack">
+        <Param name="Label" value="1  Attack"/>
+        <Param name="Width" value="200"/>
+        <Param name="Height" value="36"/>
+        <Param name="Font Size" value="22"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1050"/>
+        <Override entity="0" component="TransformComponent" field="y" value="576"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="ActionSpell">
+        <Param name="Label" value="2  Spell"/>
+        <Param name="Width" value="200"/>
+        <Param name="Height" value="36"/>
+        <Param name="Font Size" value="22"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1050"/>
+        <Override entity="0" component="TransformComponent" field="y" value="618"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="ActionWait">
+        <Param name="Label" value="3  Wait"/>
+        <Param name="Width" value="200"/>
+        <Param name="Height" value="36"/>
+        <Param name="Font Size" value="22"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1050"/>
+        <Override entity="0" component="TransformComponent" field="y" value="660"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Banner.xml" id="Banner"/>
 </Scene>

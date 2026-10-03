@@ -788,6 +788,11 @@ void ScriptService::BindEntityAPI() {
     });
     lua.set_function("StopSound", [](SoundId id) { s_services->Get<IAudioService>().Stop(id); });
     lua.set_function("StopAllSounds", []() { s_services->Get<IAudioService>().StopAll(); });
+    // IsSoundPlaying(id): false once it finished or was stopped (also by StopAllSounds, or the
+    // engine stopping everything when switching between Play and the editor).
+    lua.set_function("IsSoundPlaying", [](SoundId id) {
+        return s_services->Get<IAudioService>().GetPlayback(id).has_value();
+    });
     // SetChannelVolume(channel, 0..1) / GetChannelVolume(channel): a mixer channel's volume;
     // CHANNEL_MASTER's scales everything.
     lua["CHANNEL_MASTER"] = (int)AudioChannel::Master;

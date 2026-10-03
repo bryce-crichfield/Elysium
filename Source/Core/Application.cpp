@@ -3,6 +3,7 @@
 #include <thread>
 #include "Common.h"
 #include "Core/Path.h"
+#include "Interfaces/IAudioService.h"
 #include "Interfaces/ILogService.h"
 #include "Interfaces/ISceneService.h"
 #include "Services/ApplicationService.h"
@@ -214,6 +215,10 @@ void Application::SetMode(AppMode mode) {
     mode_ = mode;
 
     if (editor_) editor_->OnModeChanged(mode_);
+
+    // Neither side's sounds carry over: the game's music shouldn't play under the editor, nor an
+    // editor preview into the game.
+    serviceLocator_.Get<Services::IAudioService>().StopAll();
 
     // The editor works on its own document copies; the game's stack just freezes. Play runs
     // what's on disk, never the editor's in-memory copies.

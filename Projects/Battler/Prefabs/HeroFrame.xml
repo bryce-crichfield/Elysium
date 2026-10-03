@@ -14,22 +14,12 @@
             </MaterialComponent>
             <NameComponent name="Portrait"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="256" height="256" cornerRadius="0"/>
-            <TransformComponent x="0" y="0"/>
-        </Entity>
-        <Entity id="2">
-            <LayerComponent name="ui"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Ui/HeroFrame.png"/>
-            </MaterialComponent>
-            <NameComponent name="Frame"/>
-            <ParentComponent target="0"/>
-            <RectangleComponent width="256" height="256" cornerRadius="0"/>
+            <RectangleComponent width="256" height="256" cornerRadius="0.15000001"/>
             <TransformComponent x="0" y="0"/>
         </Entity>
         <Entity id="5">
             <LayerComponent name="ui"/>
-            <MaterialComponent padding="89" enabled="false">
+            <MaterialComponent padding="89" enabled="true">
                 <Layer material="Fire" enabled="true" texture="Textures/Ui/HeroFrame.png">
                     <Uniform name="uGlowColor" type="vec3" value="0.050000 0.766045 1.000000"/>
                     <Uniform name="uIntensity" type="float" value="2.700000"/>
@@ -38,7 +28,7 @@
             </MaterialComponent>
             <NameComponent name="Selection"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="256" height="256" cornerRadius="0"/>
+            <RectangleComponent width="256" height="256" cornerRadius="0.15000001"/>
             <TransformComponent x="0" y="0"/>
         </Entity>
         <Entity id="3">
@@ -52,8 +42,8 @@
             <LayerComponent name="ui"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Meter" enabled="true">
-                    <Uniform name="uEdgeGlow" type="float" value="-0.300000"/>
                     <Uniform name="uFillColor" type="vec4" value="1.000000 0.300000 0.300000 1.000000"/>
+                    <Uniform name="uEdgeGlow" type="float" value="-0.300000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="HealthBar"/>

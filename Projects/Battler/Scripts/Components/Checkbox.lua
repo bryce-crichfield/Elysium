@@ -26,6 +26,12 @@ function Checkbox:Update(entity, dt)
         binding.set(on)
     end
 
+    -- The box burns while hovered, and flares when toggled.
+    if hover and binding and IsMouseButtonPressed(MOUSE_LEFT) then self.flare = 1 end
+    self.flare = math.max(0, (self.flare or 0) - dt * 3)
+    self.glow = Widgets.Ease(self.glow or 0, hover and 1.2 or 0, 12, dt)
+    Widgets.SetGlow(entity, self.glow + self.flare * 1.5)
+
     Widgets.AlignLeft(self.label, LABEL_LEFT)
     local layer = self.check and GetComponent(self.check, "Layer")
     if layer then layer.isVisible = on end

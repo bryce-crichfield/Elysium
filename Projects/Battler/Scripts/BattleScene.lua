@@ -16,6 +16,7 @@ local Rules = require("Scripts/Battler/Rules")
 local Net = require("Scripts/Battler/Net")
 local Music = require("Scripts/Menu/Music")
 local Sfx = require("Scripts/Menu/Sfx")
+local Widgets = require("Scripts/Components/Widgets")
 
 local Battle = {}
 
@@ -76,9 +77,8 @@ local FRAME_FILLS = {
 -- --- Helpers ------------------------------------------------------------------------------
 
 -- The HUD font everywhere unless a call names another.
-local RawDrawText, RawMeasureText = DrawText, MeasureText
+local RawDrawText = DrawText
 local function DrawText(text, x, y, size, color, layer, font) RawDrawText(text, x, y, size, color, layer, font or FONT) end
-local function MeasureText(text, size, font) return RawMeasureText(text, size, font or FONT) end
 
 local function Wait(seconds)
     local t = 0
@@ -119,6 +119,7 @@ function Battle:Initialize()
     self.me, self.them = PLAYER, ENEMY
     self.net = false              -- a versus game (true) or solo against the AI
     self.ambiance = nil           -- the looping ambiance's sound id, once the battle starts
+    self:BindHud()
     Log("Battler (free): waiting for the navmesh...")
 end
 
@@ -323,7 +324,9 @@ function Battle:Update(dt)
     local w = ScreenToWorld(mouse)
     self.mouse = mouse
     self.frameUnit = HeroFrames and HeroFrames.At(mouse.x, mouse.y)
-    if self.frameUnit then
+    if Widgets.PointerOverUi() then
+        self.hoverPoint, self.hoverUnit = nil, nil
+    elseif self.frameUnit then
         self.hoverPoint, self.hoverUnit = nil, self.frameUnit
     else
         self.hoverPoint = NavPick(w.x, w.y)
@@ -806,20 +809,18 @@ function Battle:MenuItems()
     local items = { { key = "1", label = "Attack", mode = "attack" } }
     if u.class.spell then items[#items + 1] = { key = "2", label = u.class.spell.name, mode = "spell" } end
     items[#items + 1] = { key = "3", label = "Wait", mode = "wait" }
-    for k, item in ipairs(items) do
-        item.x, item.y, item.w, item.h = SCREEN_W - 230, SCREEN_H - 60 - (#items - k) * 42, 200, 36
-    end
     return items
 end
 
-function Battle:Choose(mode)
+-- `fromButton`: the action button already played its click.
+function Battle:Choose(mode, fromButton)
     local u = self.selected
     if mode == "wait" then
         self:PlayerAction(self:Command("wait"), function() end)
     elseif mode == "spell" and not u.class.spell then
         return
     else
-        Play(SFX.click)
+        if not fromButton then Play(SFX.click) end
         self.mode = mode
         local range = mode == "spell" and Rules.SpellRange(u) or Rules.AttackRange(u)
         self.cover = self:BuildCover(u, range)
@@ -921,15 +922,8 @@ function Battle:HandleEvent(event)
         if self:Busy() then return false end
         if event.button == MOUSE_RIGHT then self:Back() return true end
         if event.button ~= MOUSE_LEFT then return false end
+        if Widgets.PointerOverUi() then return true end  -- a HUD button takes it on release
         if self.frameUnit then self:ClickFrame(self.frameUnit) return true end
-        if self.mode == "menu" or self.mode == "attack" or self.mode == "spell" then
-            for _, item in ipairs(self:MenuItems()) do
-                if event.x >= item.x and event.x <= item.x + item.w and event.y >= item.y and event.y <= item.y + item.h then
-                    self:Choose(item.mode)
-                    return true
-                end
-            end
-        end
         if self.mode == "menu" then return true end
         self:Click()
         return true
@@ -1005,10 +999,8 @@ function Battle:DrawPath(from, path, color)
 end
 
 function Battle:Render()
-    if self.state == "loading" then
-        DrawText("Reading the battlefield...", SCREEN_W / 2 - 150, SCREEN_H / 2, 24, COLORS.text, "ui")
-        return
-    end
+    self:UpdateHud()
+    if self.state == "loading" then return end
 
     local u = self.selected
     if u and self.mode == "move" then
@@ -1056,7 +1048,6 @@ function Battle:Render()
         DrawText(f.text, x - 10, y - 15 - f.t * 40, 22, { r = f.color.r, g = f.color.g, b = f.color.b, a = a }, "ui")
     end
 
-    self:DrawHud()
 end
 
 function Battle:Forecast()
@@ -1081,77 +1072,109 @@ function Battle:Forecast()
     return nil
 end
 
-function Battle:DrawHud()
-    FillRect(0, 0, SCREEN_W, 36, COLORS.panel, "ui")
-    if self.state ~= "battle" and self.state ~= "over" then
-        self:DrawBanner()
-        return
-    end
-    local phase
-    if self.phase == self.me then phase = self.net and "Your phase" or "Player phase"
-    else phase = self.net and "Opponent's phase" or "Enemy phase" end
-    DrawText(string.format("Turn %d  -  %s", math.max(1, self.turn), phase), 16, 8, 20, COLORS.gold, "ui")
-    DrawText(string.format("Allies %d   Foes %d", #self:Living(self.me), #self:Living(self.them)),
-        SCREEN_W - 230, 8, 20, COLORS.text, "ui")
+-- --- HUD ---
+-- The HUD is prefab placements in Scenes/BattleFree.xml (TopBar, UnitCard, Forecast, the
+-- Action* buttons and the Banner); this binds the buttons and fills the rest in each frame.
 
-    local shown = self.hoverUnit or self.selected or self.focus
-    if shown then
-        FillRect(16, SCREEN_H - 120, 300, 104, COLORS.panel, "ui")
-        local c = shown.team == PLAYER and {r = 120, g = 190, b = 255, a = 255} or {r = 255, g = 120, b = 100, a = 255}
-        DrawText(shown.name, 30, SCREEN_H - 110, 24, c, "ui")
-        DrawText(string.format("HP %d / %d", shown.hp, shown.maxHp), 30, SCREEN_H - 80, 20, COLORS.text, "ui")
-        local cl = shown.class
-        DrawText(string.format("ATK %d  DEF %d  MOV %d", cl.atk, cl.def, Rules.MoveBudget(shown)),
-            30, SCREEN_H - 56, 18, COLORS.dim, "ui")
-        if cl.spell then
-            local r = Rules.SpellRange(shown)
-            DrawText(string.format("%s: %d power, range %d-%d", cl.spell.name, cl.spell.power, r[1], r[2]),
-                30, SCREEN_H - 34, 16, COLORS.dim, "ui")
-        end
-    end
+local MENU_MODES = { menu = true, attack = true, spell = true }
+local ACTION_BUTTONS = { attack = "ActionAttack", spell = "ActionSpell", wait = "ActionWait" }
 
-    if self.selected and (self.mode == "menu" or self.mode == "attack" or self.mode == "spell") then
-        for _, item in ipairs(self:MenuItems()) do
-            local active = item.mode == self.mode
-            local over = self.mouse and self.mouse.x >= item.x and self.mouse.x <= item.x + item.w
-                and self.mouse.y >= item.y and self.mouse.y <= item.y + item.h
-            local bg = active and {r = 70, g = 60, b = 30, a = 230} or (over and {r = 40, g = 40, b = 60, a = 230} or COLORS.panel)
-            FillRect(item.x, item.y, item.w, item.h, bg, "ui")
-            DrawText(item.key .. "  " .. item.label, item.x + 14, item.y + 8, 20, active and COLORS.gold or COLORS.text, "ui")
-        end
+function Battle:BindHud()
+    Widgets.ResetHover()
+    self.hud = {}
+    for mode, id in pairs(ACTION_BUTTONS) do
+        Widgets.BindButton(id,
+            function() self:Choose(mode, true) end,
+            function() return not self:Busy() and self.selected ~= nil end,
+            function() return self.mode == mode end)
     end
-
-    local forecast = self:Forecast()
-    if forecast then
-        FillRect(SCREEN_W / 2 - 180, SCREEN_H - 56, 360, 36, COLORS.panel, "ui")
-        DrawText(forecast, SCREEN_W / 2 - 165, SCREEN_H - 48, 20, COLORS.gold, "ui")
-    end
-
-    local hint
-    if self.phase == self.me and not self.co and self.state == "battle" then
-        if not self.selected then hint = "Click a unit (Tab cycles)   Space: end phase"
-        elseif self.mode == "move" then hint = "Click in the blue area to move, the unit itself to stay   Right-click: cancel"
-        elseif self.mode == "menu" then hint = "Choose an action   Right-click: undo move"
-        else hint = "Click a target   Right-click: back" end
-    end
-    if hint then DrawText(hint, 16, 44, 16, COLORS.dim, "ui") end
-
-    self:DrawBanner()
 end
 
-function Battle:DrawBanner()
-    if self.banner then
-        local b = self.banner
-        local a = b.duration and math.floor(255 * math.min(1, (b.duration - b.t) * 3, b.t * 4)) or 255
-        a = math.max(0, math.min(255, a))
-        FillRect(0, SCREEN_H / 2 - 50, SCREEN_W, 100, {r = 8, g = 8, b = 14, a = math.floor(a * 0.8)}, "ui")
-        DrawText(b.text, SCREEN_W / 2 - MeasureText(b.text, 44) / 2, SCREEN_H / 2 - 38, 44,
-            {r = 255, g = 215, b = 120, a = a}, "ui")
-        if b.sub then
-            DrawText(b.sub, SCREEN_W / 2 - MeasureText(b.sub, 22) / 2, SCREEN_H / 2 + 12, 22,
-                {r = 220, g = 220, b = 230, a = a}, "ui")
-        end
+-- A placement's root by its id, looked up once.
+function Battle:Hud(id)
+    local e = self.hud[id]
+    if not e then
+        e = Widgets.Find(id)
+        self.hud[id] = e
     end
+    return e
+end
+
+local function WithAlpha(c, a) return { r = c.r, g = c.g, b = c.b, a = a } end
+
+function Battle:UpdateHud()
+    local playing = self.state == "battle" or self.state == "over"
+
+    local bar = self:Hud("TopBar")
+    Widgets.SetVisible(bar, playing)
+    if bar and playing then
+        local phase
+        if self.phase == self.me then phase = self.net and "Your phase" or "Player phase"
+        else phase = self.net and "Opponent's phase" or "Enemy phase" end
+        Widgets.ChildText(bar, "Turn", string.format("Turn %d  -  %s", math.max(1, self.turn or 1), phase), nil, 16)
+        Widgets.ChildText(bar, "Counts", string.format("Allies %d   Foes %d", #self:Living(self.me), #self:Living(self.them)),
+            nil, SCREEN_W - 230)
+        Widgets.ChildText(bar, "Hint", self:Hint() or "", nil, 16)
+    end
+
+    local card = self:Hud("UnitCard")
+    local shown = playing and (self.hoverUnit or self.selected or self.focus) or nil
+    Widgets.SetVisible(card, shown ~= nil)
+    if card and shown then
+        local cl = shown.class
+        local c = shown.team == PLAYER and {r = 120, g = 190, b = 255, a = 255} or {r = 255, g = 120, b = 100, a = 255}
+        Widgets.ChildText(card, "Name", shown.name, c, 14)
+        Widgets.ChildText(card, "Hp", string.format("HP %d / %d", shown.hp, shown.maxHp), nil, 14)
+        Widgets.ChildText(card, "Stats", string.format("ATK %d  DEF %d  MOV %d", cl.atk, cl.def, Rules.MoveBudget(shown)), nil, 14)
+        local spell = ""
+        if cl.spell then
+            local r = Rules.SpellRange(shown)
+            spell = string.format("%s: %d power, range %d-%d", cl.spell.name, cl.spell.power, r[1], r[2])
+        end
+        Widgets.ChildText(card, "Spell", spell, nil, 14)
+    end
+
+    local forecast = playing and self:Forecast() or nil
+    local box = self:Hud("Forecast")
+    Widgets.SetVisible(box, forecast ~= nil)
+    if box and forecast then Widgets.ChildText(box, "Text", forecast) end
+
+    -- The action buttons, while the selected unit is choosing; Spell only for casters.
+    local u = self.selected
+    local choosing = playing and u ~= nil and MENU_MODES[self.mode] == true
+    local hasSpell = choosing and u.class.spell ~= nil
+    Widgets.SetVisible(self:Hud("ActionAttack"), choosing)
+    Widgets.SetVisible(self:Hud("ActionWait"), choosing)
+    Widgets.SetVisible(self:Hud("ActionSpell"), hasSpell)
+    if hasSpell then Widgets.ChildText(self:Hud("ActionSpell"), "Label", "2  " .. u.class.spell.name) end
+
+    self:UpdateBanner()
+end
+
+function Battle:Hint()
+    if self.phase ~= self.me or self.co or self.state ~= "battle" then return nil end
+    if not self.selected then return "Click a unit (Tab cycles)   Space: end phase"
+    elseif self.mode == "move" then return "Click in the blue area to move, the unit itself to stay   Right-click: cancel"
+    elseif self.mode == "menu" then return "Choose an action   Right-click: undo move" end
+    return "Click a target   Right-click: back"
+end
+
+-- The banner: the current announcement fading in and out, or the loading notice.
+function Battle:UpdateBanner()
+    local root = self:Hud("Banner")
+    if not root then return end
+    local b = self.banner
+    if self.state == "loading" then b = { text = "Reading the battlefield...", t = 1 } end
+    Widgets.SetVisible(root, b ~= nil)
+    if not b then return end
+    local a = b.duration and math.floor(255 * math.min(1, (b.duration - b.t) * 3, b.t * 4)) or 255
+    a = math.max(0, math.min(255, a))
+    Widgets.SetFill(root, {r = 8, g = 8, b = 14, a = math.floor(a * 0.8)})
+    local mat = GetComponent(root, "Material")
+    local fire = mat and mat:Layer("Fire")
+    if fire then fire:Set("uIntensity", 0.6 * a / 255) end
+    Widgets.ChildText(root, "Text", b.text, WithAlpha({r = 255, g = 215, b = 120}, a))
+    Widgets.ChildText(root, "Sub", b.sub or "", WithAlpha({r = 220, g = 220, b = 230}, a))
 end
 
 return Battle

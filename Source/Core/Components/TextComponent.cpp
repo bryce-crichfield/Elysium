@@ -7,14 +7,15 @@ namespace Elysium {
         : content(text), fontSize(size), color(c) {}
 
     void TextComponent::SaveXml(const TextComponent& c, XMLBuilder& builder) {
-        builder.AddElement("TextComponent")
-            .SetAttribute("text", c.content.c_str())
+        // On the element AddElement returns, not `builder`: that's the parent (the entity).
+        XMLBuilder text = builder.AddElement("TextComponent");
+        text.SetAttribute("text", c.content.c_str())
             .SetAttribute("fontSize", c.fontSize)
             .SetAttribute("r", c.color.r)
             .SetAttribute("g", c.color.g)
             .SetAttribute("b", c.color.b)
             .SetAttribute("a", c.color.a);
-        if (!c.font.empty()) builder.SetAttribute("font", c.font.c_str());
+        if (!c.font.empty()) text.SetAttribute("font", c.font.c_str());
     }
 
     void TextComponent::LoadXml(TextComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
@@ -31,6 +32,12 @@ namespace Elysium {
 
     static Color ObjectToColor(const sol::object& obj) {
         if (obj.is<Color>()) return obj.as<Color>();
+        // The {r, g, b, a} tables scripts write colors as everywhere else.
+        if (obj.is<sol::table>()) {
+            sol::table t = obj.as<sol::table>();
+            return Color{(unsigned char)t.get_or("r", 255), (unsigned char)t.get_or("g", 255),
+                         (unsigned char)t.get_or("b", 255), (unsigned char)t.get_or("a", 255)};
+        }
         return Colors::White;
     }
 

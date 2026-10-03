@@ -1,11 +1,12 @@
 ---@type SceneScript
 -- Versus lobby: host a game or join one at an address. As soon as the two connect, both go to
--- the battle, which finds the connection open and plays versus.
-local Ui = require("Scripts/Menu/Ui")
+-- the battle, which finds the connection open and plays versus. The layout is Scenes/Lobby.xml
+-- (the Address field, Button placements, the title and the Status line).
 local Music = require("Scripts/Menu/Music")
 local Net = require("Scripts/Battler/Net")
 local Settings = require("Scripts/Menu/Settings")
 local Sfx = require("Scripts/Menu/Sfx")
+local Widgets = require("Scripts/Components/Widgets")
 
 local Lobby = {}
 
@@ -13,17 +14,13 @@ function Lobby:Initialize()
     Music.Play(Music.MENU)
     self.time = 0
     self.status, self.state = "Host a game, or join one", "idle"
-    local x = Ui.W / 2 - 220
     local idle = function() return self.state == "idle" end
-    self.widgets = {
-        Ui.Field("Address", x, 250, 440,
-            function() return Settings.joinAddress end, function(v) Settings.joinAddress = v end),
-        Ui.Button("Host", x, 330, 210, 56, function() self:Host() end, idle),
-        Ui.Button("Join", x + 230, 330, 210, 56, function() self:Join() end, idle),
-        Ui.Button("Cancel", x, 410, 440, 52, function() self:Cancel() end,
-            function() return self.state ~= "idle" end),
-        Ui.Button("Back", Ui.W / 2 - 120, 580, 240, 52, function() self:Back() end),
-    }
+    Widgets.ResetHover()
+    Widgets.Bind("Address", function() return Settings.joinAddress end, function(v) Settings.joinAddress = v end)
+    Widgets.BindButton("Host", function() self:Host() end, idle)
+    Widgets.BindButton("Join", function() self:Join() end, idle)
+    Widgets.BindButton("Cancel", function() self:Cancel() end, function() return self.state ~= "idle" end)
+    Widgets.BindButton("Back", function() self:Back() end)
 end
 
 function Lobby:Host()
@@ -67,19 +64,15 @@ function Lobby:Update(dt)
             self.state, self.status = "idle", "Couldn't connect to " .. Settings.joinAddress
         end
     end
-    Ui.Update(self.widgets)
 end
 
 function Lobby:Render()
-    Ui.Background()
-    Ui.Title("Versus", Ui.W / 2, 90, 72, Ui.COLORS.gold)
-    Ui.Draw(self.widgets, self.time)
-    Ui.Title(self.status, Ui.W / 2, 490, 26, Ui.COLORS.text)
+    Widgets.SetText("Status", self.status)
 end
 
 function Lobby:OnEvent(event)
     if event.type ~= "KeyPressed" then return false end
-    if Ui.Key(self.widgets, event.key) then return true end
+    if Widgets.Typing() then return true end  -- the Address field has the keyboard
     if event.key == KEY_ESCAPE then
         Sfx.Play(Sfx.CANCEL)
         self:Back()

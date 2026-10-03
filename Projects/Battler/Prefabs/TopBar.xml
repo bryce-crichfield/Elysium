@@ -1,0 +1,38 @@
+<!-- The battle's top strip: Turn (turn and phase, left), Counts (allies and foes, right) and,
+     under the strip, the Hint for what to do next. BattleScene.lua fills the texts in. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.055000 0.055000 0.086000 0.824000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="TopBar"/>
+            <RectangleComponent width="1280" height="36" cornerRadius="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Turn"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Turn 1  -  Player phase" fontSize="22" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="110" y="18"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Counts"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Allies 3   Foes 4" fontSize="22" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="1110" y="18"/>
+        </Entity>
+        <Entity id="3">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Hint"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="18" r="160" g="160" b="175" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="200" y="52"/>
+        </Entity>
+    </Entities>
+</Prefab>

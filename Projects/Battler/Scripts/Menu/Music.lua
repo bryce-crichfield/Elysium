@@ -11,7 +11,8 @@ local Music = {
 local current, currentId = nil, nil
 
 function Music.Play(track)
-    if track == current then return end
+    -- Unless something else stopped it (switching to the editor and back stops every sound).
+    if track == current and currentId and IsSoundPlaying(currentId) then return end
     Music.Stop()
     current, currentId = track, PlaySound(track, 1.0, true, CHANNEL_MUSIC)
 end
