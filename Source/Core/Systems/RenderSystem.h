@@ -42,8 +42,13 @@ struct CameraView {
     // the ground picture is drawn from; turned away from it, ground layers lie on the ground plane.
     float yaw = 0.0f;
     float pitch = World3D::kDefaultPitch;
+    // A perspective camera (the game's): `fov` degrees vertically. Zoom dollies it: at zoom 1
+    // the focus is drawn one pixel per world unit, as the orthographic camera draws it.
+    bool perspective = false;
+    float fov = 35.0f;
 
-    bool IsDefaultOrientation() const { return yaw == 0.0f && pitch == World3D::kDefaultPitch; }
+    // The orthographic 2D picture's camera, where ground layers are a plain 2D transform.
+    bool IsDefaultOrientation() const { return !perspective && yaw == 0.0f && pitch == World3D::kDefaultPitch; }
 };
 
 // Deferred draw commands issued by Lua scripts
@@ -51,7 +56,7 @@ struct DrawCircleCmd  { std::string layer; float x, y, radius; Color color; };
 struct DrawEllipseCmd { std::string layer; float x, y, radiusH, radiusV; Color color; };
 struct DrawLineCmd    { std::string layer; float x1, y1, x2, y2; Color color; };
 struct DrawRectCmd    { std::string layer; float x, y, width, height; Color color; };
-struct DrawTextCmd    { std::string layer; std::string text; float x, y; int fontSize; Color color; };
+struct DrawTextCmd    { std::string layer; std::string text; float x, y; int fontSize; Color color; std::string font; };
 struct DrawPolygonCmd { std::string layer; std::vector<Vector2> points; Color color; };
 
 using DrawCommand = std::variant<DrawCircleCmd, DrawLineCmd, DrawRectCmd, DrawEllipseCmd, DrawTextCmd, DrawPolygonCmd>;
@@ -160,8 +165,11 @@ private:
     // `enclosingTarget` is the framebuffer already bound by the caller. raylib's
     // EndTextureMode unconditionally drops to the backbuffer, so a shaded entity's detour
     // has to be told what to re-bind afterwards.
+    // `projection`: a World3D ground layer's (World3D::View::GroundProjection), re-applied
+    // after a shaded entity's detour.
     void RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records,
-                       const Matrix& layerTransform, const Framebuffer& enclosingTarget);
+                       const Matrix& layerTransform, const Framebuffer& enclosingTarget,
+                       const Matrix* projection = nullptr);
 
     // An entity's records: through its materials if it has an enabled MaterialComponent,
     // otherwise each record's own Render.
@@ -172,10 +180,11 @@ private:
     // entity's shader — so the shader sees exactly the entity's pixels in texture0, with
     // room around them for glow/outline effects to bleed into.
     // `projection`: re-applied before the blit (World3D cards, whose depth the default
-    // ortho would clip), with depth testing back on.
+    // ortho would clip), with depth testing back on if `depthTested` (cards; ground layers
+    // draw without depth).
     void RenderShadedEntity(RenderContext& ctx, Entity entity, std::span<const RenderRecord> records,
                             const Matrix& layerTransform, const Framebuffer& enclosingTarget,
-                            const Matrix* projection = nullptr);
+                            const Matrix* projection = nullptr, bool depthTested = true);
 
     // Analytic path: each record whose renderable reports SdfGeometry is drawn as one quad
     // per enabled MaterialLayer (in order), through the shader composed from that

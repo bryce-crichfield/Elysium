@@ -482,22 +482,27 @@ std::optional<Vector3> NavMeshSystem::PickFloor(Vector2 p) const {
     return Vector3{p.x, p.y + z * World3D::kPitchCos, z};
 }
 
-std::optional<Vector3> NavMeshSystem::PickFloor(Vector2 p, Vector2 lift) const {
-    if (std::fabs(lift.x) < 1e-4f && std::fabs(lift.y + World3D::kPitchCos) < 1e-4f) return PickFloor(p);
-    if (width_ == 0) return std::nullopt;
-    // March the view ray down from the highest floor: the point at height z drawn at p stands
-    // at ground p - z * lift. The first walkable floor met there is the one nearest the camera.
-    const float reach = std::max(0.05f, std::sqrt(lift.x * lift.x + lift.y * lift.y));
-    const float step = std::max(0.25f, cellSize_ * 0.5f / reach);
+std::optional<Vector3> NavMeshSystem::PickFloor(const World3D::Ray& ray) const {
+    if (width_ == 0 || ray.direction.y > -1e-6f) return std::nullopt;
+    // March down the ray a height step at a time, from above the highest floor: the first
+    // walkable floor at the height the ray is at, where it is, is the one nearest the camera.
+    const float horizontal = std::sqrt(ray.direction.x * ray.direction.x +
+                                       ray.direction.z * ray.direction.z / (World3D::kGroundDepth * World3D::kGroundDepth));
+    const float perHeight = horizontal / -ray.direction.y;  // ground units per unit of height
+    const float step = std::clamp(cellSize_ * 0.5f / std::max(perHeight, 1e-4f), 0.25f, 8.0f);
     for (float z = highestFloor_ + step; z >= lowestFloor_ - step; z -= step) {
-        const Vector2 ground{p.x - z * lift.x, p.y - z * lift.y};
+        const float t = (z - ray.origin.y) / ray.direction.y;
+        if (t < 0.0f) continue;
+        const Vector3 at = ray.At(t);
+        const Vector2 ground{at.x, at.z / World3D::kGroundDepth};
         int cx, cy;
         if (!WorldToCell(ground, cx, cy)) continue;
         const int column = IndexOf(cx, cy);
         for (int f = columnStart_[column]; f < columnStart_[column + 1]; ++f) {
             const Cell& c = floors_[f];
             if (!c.walkable || std::fabs(c.z - z) > step * 0.5f + 0.5f) continue;
-            return Vector3{p.x - c.z * lift.x, p.y - c.z * lift.y, c.z};
+            const Vector3 hit = ray.At((c.z - ray.origin.y) / ray.direction.y);
+            return Vector3{hit.x, hit.z / World3D::kGroundDepth, c.z};
         }
     }
     return std::nullopt;

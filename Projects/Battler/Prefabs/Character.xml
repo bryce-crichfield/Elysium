@@ -1,11 +1,35 @@
 <Prefab>
     <Entities>
         <Entity id="0">
-            <AnimationComponent clip="Animations/Knight/Knight_Idle.anim"/>
+            <AnimationComponent clip="Animations/Hulk/Hulk_Idle.anim"/>
+            <HealthComponent max="100"/>
             <LayerComponent name="entity"/>
-            <ModelComponent model="Models/Characters/Knight/Knight.mesh" scale="10"/>
+            <ModelComponent model="Models/Characters/Hulk/Hulk.mesh" scale="50"/>
             <NameComponent name="Character"/>
+            <TeamComponent team="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <CircleComponent radius="24"/>
+            <LayerComponent name="entity" flat="true"/>
+            <MaterialComponent padding="48" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="6.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.200000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.270000 0.630000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Ring"/>
+            <ParentComponent target="0"/>
             <TransformComponent x="0" y="0"/>
         </Entity>
     </Entities>
+    <PrefabInstance src="HealthBar.xml" id="HealthBar1">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="x" value="0"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-108.582"/>
+    </PrefabInstance>
 </Prefab>

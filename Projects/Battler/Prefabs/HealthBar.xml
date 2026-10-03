@@ -1,0 +1,25 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Meter" enabled="true">
+                    <Uniform name="uEdgeGlow" type="float" value="-1.050000"/>
+                    <Uniform name="uFillColor" type="vec4" value="1.000000 0.300000 0.300000 1.000000"/>
+                    <Uniform name="uTrackColor" type="vec4" value="0.000000 0.000000 0.000000 0.850000"/>
+                    <Uniform name="uProgress" type="float" value="0.550000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.000000 0.000000 0.000000 1.000000"/>
+                    <Uniform name="uWidth" type="float" value="2.900000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="HealthBar"/>
+            <RectangleComponent width="256" height="26" cornerRadius="0"/>
+            <ScriptComponent>
+                <Script name="Scripts/Components/HealthBar.lua"/>
+            </ScriptComponent>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

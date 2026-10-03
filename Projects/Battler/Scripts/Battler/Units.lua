@@ -92,6 +92,11 @@ function Units.Spawn(className, team, tile)
             model.scale = u.rig.scale
         end
     end
+    u.ring = Units.FindRing(e)
+    -- The prefab's HealthBar reads these (Scripts/Components/HealthBar.lua).
+    local teamComp = GetComponent(e, "Team")
+    if teamComp then teamComp.team = team end
+    Units.SyncHealth(u)
     -- Start facing the other side.
     if team == Units.PLAYER then Units.Face(u, u.x + 1, u.y - 1) else Units.Face(u, u.x - 1, u.y + 1) end
     Units.Play(u, "Idle")
@@ -141,7 +146,17 @@ function Units.Face(u, tx, ty)
     end
 end
 
+-- Publish hp to the root's Health, which the HealthBar child draws.
+function Units.SyncHealth(u)
+    local health = GetComponent(u.entity, "Health")
+    if health then
+        health.max = u.maxHp
+        health.current = u.alive and u.hp or 0
+    end
+end
+
 function Units.Update(u, dt)
+    Units.SyncHealth(u)
     u.clipTime = (u.clipTime or 0) + dt
     local anim = u.rig and GetComponent(u.entity, "Animation")
     if anim then
@@ -168,28 +183,37 @@ function Units.Update(u, dt)
     end
 end
 
--- Ring and health bar, drawn on the ground layers.
-function Units.DrawRing(u, active, time)
-    if not u.alive then return end
-    local x, y = Board.Lift(u.x, u.y, u.z)
-    local c = u.team == Units.PLAYER and {r = 70, g = 160, b = 255, a = 150} or {r = 255, g = 70, b = 60, a = 150}
-    if u.acted and u.team == Units.PLAYER then c = {r = 120, g = 120, b = 130, a = 110} end
-    local pulse = active and (1 + 0.08 * math.sin(time * 6)) or 1
-    DrawEllipse(x, y, 30 * pulse, 15 * pulse, c, "overlay")
+-- The prefab's "Ring" child (a flat fire-material circle at the unit's feet), if it has one.
+-- Spawned names are namespaced per placement, so match the end of the name.
+function Units.FindRing(root)
+    for _, e in ipairs(GetChildren(root)) do
+        local n = GetComponent(e, "Name")
+        if n and n.name:sub(-4) == "Ring" then return e end
+    end
+    Log("Battler: no Ring child on unit " .. tostring(root))
+    return nil
 end
 
--- Over the unit's head, on the screen ("ui"), so it stays upright however the camera turns.
-function Units.DrawBar(u)
-    if not u.alive then return end
-    local x, y = ViewProject(u.x, u.y, u.z + Units.HEAD)
-    local w, h = 44, 5
-    local bx, by = x - w / 2, y
-    FillRect(bx - 1, by - 1, w + 2, h + 2, {r = 10, g = 10, b = 14, a = 220}, "ui")
-    local shown = u.shownHp / u.maxHp
-    local fill = u.hp / u.maxHp
-    FillRect(bx, by, w * shown, h, {r = 255, g = 240, b = 200, a = 230}, "ui")
-    local c = u.team == Units.PLAYER and {r = 80, g = 190, b = 255, a = 255} or {r = 235, g = 70, b = 55, a = 255}
-    FillRect(bx, by, w * fill, h, c, "ui")
+local RING_COLORS = {
+    player = {x = 0.27, y = 0.63, z = 1.0},
+    enemy  = {x = 1.0, y = 0.27, z = 0.23},
+    spent  = {x = 0.45, y = 0.45, z = 0.5},
+}
+
+-- The team ring: the prefab's Ring child, its fire in the team's color (grey once a player
+-- unit has acted), flared while active, hidden once dead.
+function Units.DrawRing(u, active, time)
+    if not u.ring then return end
+    local key = u.team == Units.PLAYER and (u.acted and "spent" or "player") or "enemy"
+    local layer = GetComponent(u.ring, "Layer")
+    if layer then layer.isVisible = u.alive end
+    local mat = GetComponent(u.ring, "Material")
+    local fire = mat and mat:Layer("Fire")
+    if fire then
+        fire:Set("uGlowColor", RING_COLORS[key])
+        fire:Set("uIntensity", active and (1.8 + 0.4 * math.sin(time * 6)) or (key == "spent" and 0.6 or 1.1))
+        fire:Set("uGlowRadius", active and 9 or 6)
+    end
 end
 
 return Units

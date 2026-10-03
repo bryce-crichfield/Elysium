@@ -3,6 +3,9 @@
 #include "Core/Shader.h"
 #include "rlgl.h"
 #include <cmath>
+#include <filesystem>
+#include <string>
+#include <unordered_map>
 
 namespace Elysium {
 
@@ -131,6 +134,43 @@ void RenderContext::DrawEllipseLines(float centerX, float centerY, float radiusH
 
 void RenderContext::DrawText(const char* text, float x, float y, int fontSize, Color color) {
     ::DrawText(text, (int)x, (int)y, fontSize, ToRaylib(color));
+}
+
+// Named fonts, loaded once (on the GL thread) at a large base size so they scale down cleanly.
+// A name that fails to load is remembered as missing and falls back to the default font.
+static const ::Font* FindFont(const std::string& name) {
+    if (name.empty()) return nullptr;
+    static std::unordered_map<std::string, ::Font> fonts;
+    auto it = fonts.find(name);
+    if (it == fonts.end()) {
+        ::Font font{};
+        for (const char* ext : {"", ".ttf", ".otf"}) {
+            std::string path = "Assets/Fonts/" + name + ext;
+            if (!std::filesystem::is_regular_file(path)) continue;
+            font = ::LoadFontEx(path.c_str(), 96, nullptr, 0);
+            if (font.texture.id != 0) {
+                ::GenTextureMipmaps(&font.texture);
+                ::SetTextureFilter(font.texture, TEXTURE_FILTER_TRILINEAR);
+                break;
+            }
+        }
+        it = fonts.emplace(name, font).first;
+    }
+    return it->second.texture.id != 0 ? &it->second : nullptr;
+}
+
+static float FontSpacing(int fontSize) { return fontSize / 10.0f; }
+
+void RenderContext::DrawText(const char* text, float x, float y, int fontSize, Color color, const std::string& font) {
+    const ::Font* f = FindFont(font);
+    if (!f) { DrawText(text, x, y, fontSize, color); return; }
+    ::DrawTextEx(*f, text, ::Vector2{x, y}, (float)fontSize, FontSpacing(fontSize), ToRaylib(color));
+}
+
+float RenderContext::MeasureText(const char* text, int fontSize, const std::string& font) {
+    const ::Font* f = FindFont(font);
+    if (!f) return (float)::MeasureText(text, fontSize);
+    return ::MeasureTextEx(*f, text, (float)fontSize, FontSpacing(fontSize)).x;
 }
 
 void RenderContext::DrawTexturePro(const Texture& texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint) {

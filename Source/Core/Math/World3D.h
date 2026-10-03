@@ -62,27 +62,66 @@ std::optional<float> PickDepth(const Matrix& modelMatrix, const Model& model, Ve
 // The default view: the one the ground picture is drawn from.
 inline constexpr float kDefaultPitch = 30.0f;
 
-// An orthographic camera orbiting a ground point. It looks at `focus` (a 2D ground position) from
-// `yaw` degrees around the vertical and `pitch` degrees down, `zoom` framebuffer pixels per
-// world unit, with the focus at the middle of a `width` x `height` framebuffer. At yaw 0 and
-// pitch 30 it is exactly the 2D picture's camera.
+// A ray in GL space; `direction` is unit length.
+struct Ray {
+    Vector3 origin;
+    Vector3 direction;
+    Vector3 At(float t) const { return {origin.x + direction.x * t, origin.y + direction.y * t, origin.z + direction.z * t}; }
+};
+
+// A camera orbiting a ground point: it looks at `focus` (a 2D ground position) from `yaw`
+// degrees around the vertical and `pitch` degrees down, with the focus at the middle of a
+// `width` x `height` framebuffer.
+//  - Orthographic: `zoom` framebuffer pixels per world unit. At yaw 0, pitch 30 it is
+//    exactly the 2D picture's camera.
+//  - Perspective: a `fov` (vertical, degrees) camera `distance` world units from the focus.
+// Framebuffer y runs down.
 struct View {
-    // Framebuffer x, framebuffer y and depth (larger is nearer the camera) of a GL point are
-    // row . (x, y, z, 1).
+    bool perspective = false;
+    float width = 0.0f, height = 0.0f;
+    float zoom = 1.0f;        // orthographic: pixels per unit; perspective: pixels per unit at the focus
+    float pitch = kDefaultPitch, yaw = 0.0f;
+    float fov = 35.0f;        // perspective only
+    float distance = 0.0f;    // perspective only
+    Vector3 focus{};          // GL
+    Vector3 eye{};            // perspective: the camera; orthographic: far back along the view
+    Vector3 right{}, up{}, toward{};  // GL unit axes: screen right, screen up, back toward the camera
+    // GL -> clip space (column-major, GL conventions), the matrix models and cards draw with.
+    Matrix viewProjection;
+
+    // Orthographic only, kept for the editor's camera: framebuffer x, framebuffer y and depth
+    // (larger is nearer the camera) of a GL point are row . (x, y, z, 1). A perspective
+    // view fills them with its picture at the focus (exact there, approximate elsewhere).
     float rowX[4], rowY[4], rowDepth[4];
-    float zoom = 1.0f;
-    float pitch = kDefaultPitch;
 
+    // Orthographic.
     View(Vector2 focus, float zoom, float width, float height, float yaw, float pitch);
+    static View Perspective(Vector2 focus, float distance, float fov, float width, float height, float yaw, float pitch);
 
-    // GL -> (framebuffer x, framebuffer y, depth).
+    // GL -> (framebuffer x, framebuffer y, depth). Depth only orders points: larger is nearer
+    // the camera. A point behind a perspective camera lands far off screen.
     Vector3 Project(Vector3 gl) const;
     // A ground position at height z -> framebuffer pixel.
     Vector2 WorldToFramebuffer(float x, float y, float z = 0.0f) const;
-    // The ground position (height 0) under a framebuffer pixel.
-    Vector2 FramebufferToGround(Vector2 fb) const;
-    // GL direction toward the camera.
-    Vector3 TowardCamera() const { return {rowDepth[0] / zoom, rowDepth[1] / zoom, rowDepth[2] / zoom}; }
+    // The ray from the camera through a framebuffer pixel.
+    Ray RayAt(Vector2 fb) const;
+    // The ground position (at `atHeight`) under a framebuffer pixel. Where the ray never comes
+    // down to it (above the horizon), a point far out along the ray.
+    Vector2 FramebufferToGround(Vector2 fb, float atHeight = 0.0f) const;
+    // GL direction back toward the camera: from `at` for a perspective view; the same
+    // everywhere for an orthographic one (and from the focus with no argument).
+    Vector3 TowardCamera() const { return toward; }
+    Vector3 TowardCamera(Vector3 at) const;
+    // Framebuffer pixels per world unit at GL point `at`.
+    float PixelsPerUnit(Vector3 at) const;
+    // The ground -> clip matrix ground layers draw with: draw-space (x, y) is a ground
+    // position and draw-space z a height; clip depth is always 0 (ground layers draw
+    // without depth).
+    Matrix GroundProjection() const;
+
+   private:
+    View() = default;
+    void FillRows();
 };
 
 }  // namespace World3D

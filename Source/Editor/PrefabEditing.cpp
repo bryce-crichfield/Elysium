@@ -176,7 +176,8 @@ bool SaveFile(World* world, const std::string& fullPath, std::unordered_map<Enti
               const std::vector<PrefabParameter>& parameters, ServiceLocator& services, const Scene* host) {
     // Own entities first get ids: keep existing ones, hand out fresh ones above the max.
     std::vector<Entity> own;
-    for (Entity entity : world->GetLivingEntities()) {
+    // Hierarchy order, so each parent's children reload in their sibling order.
+    for (Entity entity : world->GetHierarchyOrder()) {
         if (!world->HasComponent<PrefabInstanceComponent>(entity)) own.push_back(entity);
     }
     // Forget deleted entities: their Entity values can be recycled for new ones.

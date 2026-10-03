@@ -3,6 +3,7 @@
 #include "Core/Entity.h"
 #include "Core/Math/Polygon.h"
 #include "Core/Math/MathTypes.h"
+#include "Core/Math/World3D.h"
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -57,10 +58,9 @@ public:
     // The walkable floor drawn at picture point `p` (where a click lands): its ground position
     // and height, or nothing.
     std::optional<Vector3> PickFloor(Vector2 p) const;
-    // The same for any camera orbit: `lift` is how far a point's drawn ground position moves
-    // per unit of height (the default camera's is (0, -cos 30)). The floor nearest the camera
-    // along the view ray through `p`.
-    std::optional<Vector3> PickFloor(Vector2 p, Vector2 lift) const;
+    // The same for any camera: the first walkable floor a view ray (GL, from the camera's
+    // side; see World3D::View::RayAt) comes down onto.
+    std::optional<Vector3> PickFloor(const World3D::Ray& ray) const;
 
     // Everywhere a unit can walk within a budget: a Dijkstra flood from where it stands, with
     // distance measured on the ground (a picture y counts isoRatio times an x, so a radius is

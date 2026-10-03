@@ -139,28 +139,105 @@ std::optional<float> PickDepth(const Matrix& modelMatrix, const Model& model, Ve
     return kFar - *distance;
 }
 
-View::View(Vector2 focus, float zoom_, float width, float height, float yaw, float pitch_) : zoom(zoom_), pitch(pitch_) {
-    // Turn the world about the vertical through the focus, tilt it toward the camera, scale.
+namespace {
+
+Vector3 Add(Vector3 a, Vector3 b) { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
+Vector3 Sub(Vector3 a, Vector3 b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }
+Vector3 Scale(Vector3 a, float k) { return {a.x * k, a.y * k, a.z * k}; }
+Vector3 Normalize(Vector3 a) {
+    const float length = std::sqrt(Dot(a, a));
+    return length > 1e-12f ? Scale(a, 1.0f / length) : Vector3{0.0f, 0.0f, 1.0f};
+}
+
+constexpr float kOrthoBack = 50000.0f;   // how far back an orthographic view's rays start
+constexpr float kOrthoDepth = 1.0e6f;    // an orthographic view's depth range, either way
+constexpr float kFarGround = 50000.0f;   // where a ray that never meets the ground is cut
+
+}  // namespace
+
+// Screen right, screen up and back toward the camera, for an orbit `yaw` around the vertical
+// and `pitch` down: turned, x' = cy x + sy z, z' = -sy x + cy z, then tilted.
+static void Axes(float yaw, float pitch, Vector3& right, Vector3& up, Vector3& toward) {
     const float cy = cosf(yaw * DEG2RAD), sy = sinf(yaw * DEG2RAD);
     const float cp = cosf(pitch * DEG2RAD), sp = sinf(pitch * DEG2RAD);
-    const Vector3 f = ToGL(focus.x, focus.y, 0.0f);
-    // Turned: x' = cy x + sy z, z' = -sy x + cy z. Screen x is x', screen y is z' sin p less
-    // the height cos p, depth is the height sin p plus z' cos p.
-    const float x[3] = {zoom * cy, 0.0f, zoom * sy};
-    const float y[3] = {-zoom * sp * sy, -zoom * cp, zoom * sp * cy};
-    const float d[3] = {-zoom * cp * sy, zoom * sp, zoom * cp * cy};
-    auto fill = [&](float* row, const float* c, float offset) {
-        row[0] = c[0]; row[1] = c[1]; row[2] = c[2];
-        row[3] = offset - (c[0] * f.x + c[1] * f.y + c[2] * f.z);
+    right = {cy, 0.0f, sy};
+    up = {sp * sy, cp, -sp * cy};
+    toward = {-cp * sy, sp, cp * cy};
+}
+
+void View::FillRows() {
+    auto fill = [&](float* row, Vector3 axis, float scale, float offset) {
+        row[0] = axis.x * scale; row[1] = axis.y * scale; row[2] = axis.z * scale;
+        row[3] = offset - scale * Dot(axis, focus);
     };
-    fill(rowX, x, width * 0.5f);
-    fill(rowY, y, height * 0.5f);
-    fill(rowDepth, d, 0.0f);
+    fill(rowX, right, zoom, width * 0.5f);
+    fill(rowY, up, -zoom, height * 0.5f);
+    fill(rowDepth, toward, zoom, 0.0f);
+}
+
+View::View(Vector2 focus2D, float zoom_, float width_, float height_, float yaw_, float pitch_) {
+    perspective = false;
+    width = width_; height = height_;
+    zoom = zoom_; yaw = yaw_; pitch = pitch_;
+    focus = ToGL(focus2D.x, focus2D.y, 0.0f);
+    Axes(yaw, pitch, right, up, toward);
+    eye = Add(focus, Scale(toward, kOrthoBack));
+    FillRows();
+    // Framebuffer pixels -> clip (y up), depth -> clip z (nearer is smaller).
+    for (int c = 0; c < 4; ++c) {
+        viewProjection.data[c * 4 + 0] = 2.0f / width * rowX[c] - (c == 3 ? 1.0f : 0.0f);
+        viewProjection.data[c * 4 + 1] = -2.0f / height * rowY[c] + (c == 3 ? 1.0f : 0.0f);
+        viewProjection.data[c * 4 + 2] = -rowDepth[c] / kOrthoDepth;
+        viewProjection.data[c * 4 + 3] = c == 3 ? 1.0f : 0.0f;
+    }
+}
+
+View View::Perspective(Vector2 focus2D, float distance, float fov, float width, float height, float yaw, float pitch) {
+    View v;
+    v.perspective = true;
+    v.width = width; v.height = height;
+    v.yaw = yaw; v.pitch = pitch;
+    v.fov = std::clamp(fov, 5.0f, 150.0f);
+    v.distance = std::max(distance, 1.0f);
+    v.focus = ToGL(focus2D.x, focus2D.y, 0.0f);
+    Axes(yaw, pitch, v.right, v.up, v.toward);
+    v.eye = Add(v.focus, Scale(v.toward, v.distance));
+    const float f = 1.0f / std::tan(v.fov * 0.5f * DEG2RAD);
+    v.zoom = f * height * 0.5f / v.distance;
+    v.FillRows();
+
+    // View (camera space: x right, y up, z back) then a GL perspective projection.
+    const float aspect = width / std::max(height, 1.0f);
+    const float nearPlane = std::max(1.0f, v.distance * 0.01f);
+    const float farPlane = v.distance * 20.0f + 20000.0f;
+    const float a = (farPlane + nearPlane) / (nearPlane - farPlane);
+    const float b = 2.0f * farPlane * nearPlane / (nearPlane - farPlane);
+    const Vector3 axes[3] = {v.right, v.up, v.toward};
+    float rows[3][4];
+    for (int r = 0; r < 3; ++r) {
+        rows[r][0] = axes[r].x; rows[r][1] = axes[r].y; rows[r][2] = axes[r].z;
+        rows[r][3] = -Dot(axes[r], v.eye);
+    }
+    for (int c = 0; c < 4; ++c) {
+        v.viewProjection.data[c * 4 + 0] = f / aspect * rows[0][c];
+        v.viewProjection.data[c * 4 + 1] = f * rows[1][c];
+        v.viewProjection.data[c * 4 + 2] = a * rows[2][c] + (c == 3 ? b : 0.0f);
+        v.viewProjection.data[c * 4 + 3] = -rows[2][c];
+    }
+    return v;
 }
 
 Vector3 View::Project(Vector3 p) const {
-    auto dot = [&](const float* r) { return r[0] * p.x + r[1] * p.y + r[2] * p.z + r[3]; };
-    return {dot(rowX), dot(rowY), dot(rowDepth)};
+    if (!perspective) {
+        auto dot = [&](const float* r) { return r[0] * p.x + r[1] * p.y + r[2] * p.z + r[3]; };
+        return {dot(rowX), dot(rowY), dot(rowDepth)};
+    }
+    const float* m = viewProjection.data;
+    const float x = m[0] * p.x + m[4] * p.y + m[8] * p.z + m[12];
+    const float y = m[1] * p.x + m[5] * p.y + m[9] * p.z + m[13];
+    const float w = m[3] * p.x + m[7] * p.y + m[11] * p.z + m[15];
+    if (w <= 1e-4f) return {-1.0e7f, -1.0e7f, -1.0e30f};
+    return {(x / w + 1.0f) * 0.5f * width, (1.0f - y / w) * 0.5f * height, Dot(Sub(p, eye), toward)};
 }
 
 Vector2 View::WorldToFramebuffer(float x, float y, float z) const {
@@ -168,14 +245,52 @@ Vector2 View::WorldToFramebuffer(float x, float y, float z) const {
     return {p.x, p.y};
 }
 
-Vector2 View::FramebufferToGround(Vector2 fb) const {
-    // On the ground GL y is 0 and z is 2 * ground y: solve the 2x2 of (x, z).
-    const float a = rowX[0], b = rowX[2], c = rowY[0], d = rowY[2];
-    const float det = a * d - b * c;
-    if (std::fabs(det) < 1e-12f) return {0.0f, 0.0f};
-    const float u = fb.x - rowX[3], v = fb.y - rowY[3];
-    const float gx = (d * u - b * v) / det, gz = (a * v - c * u) / det;
-    return {gx, gz / kGroundDepth};
+Ray View::RayAt(Vector2 fb) const {
+    if (!perspective) {
+        Vector3 origin = Add(focus, Scale(right, (fb.x - width * 0.5f) / zoom));
+        origin = Add(origin, Scale(up, (height * 0.5f - fb.y) / zoom));
+        return {Add(origin, Scale(toward, kOrthoBack)), Scale(toward, -1.0f)};
+    }
+    const float t = std::tan(fov * 0.5f * DEG2RAD);
+    const float nx = fb.x / width * 2.0f - 1.0f, ny = 1.0f - fb.y / height * 2.0f;
+    Vector3 direction = Scale(toward, -1.0f);
+    direction = Add(direction, Scale(right, nx * t * width / std::max(height, 1.0f)));
+    direction = Add(direction, Scale(up, ny * t));
+    return {eye, Normalize(direction)};
+}
+
+Vector2 View::FramebufferToGround(Vector2 fb, float atHeight) const {
+    const Ray ray = RayAt(fb);
+    Vector3 hit = ray.At(kFarGround);
+    if (ray.direction.y < -1e-6f) {
+        const float t = (atHeight - ray.origin.y) / ray.direction.y;
+        if (t > 0.0f && t < kFarGround) hit = ray.At(t);
+    }
+    return {hit.x, hit.z / kGroundDepth};
+}
+
+Vector3 View::TowardCamera(Vector3 at) const {
+    return perspective ? Normalize(Sub(eye, at)) : toward;
+}
+
+float View::PixelsPerUnit(Vector3 at) const {
+    if (!perspective) return zoom;
+    const float depth = std::max(1.0f, Dot(Sub(eye, at), toward));
+    return height * 0.5f / std::tan(fov * 0.5f * DEG2RAD) / depth;
+}
+
+Matrix View::GroundProjection() const {
+    // Draw space (x, y, z) is GL (x, z, y * kGroundDepth): columns rearranged.
+    Matrix g;
+    const float* m = viewProjection.data;
+    for (int r = 0; r < 4; ++r) {
+        g.data[0 * 4 + r] = m[0 * 4 + r];
+        g.data[1 * 4 + r] = m[2 * 4 + r] * kGroundDepth;
+        g.data[2 * 4 + r] = m[1 * 4 + r];
+        g.data[3 * 4 + r] = m[3 * 4 + r];
+    }
+    for (int c = 0; c < 4; ++c) g.data[c * 4 + 2] = 0.0f;  // no depth
+    return g;
 }
 
 }  // namespace Elysium::World3D

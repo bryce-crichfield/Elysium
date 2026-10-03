@@ -11,6 +11,7 @@ namespace Elysium {
         c.name = name ? name : "default";
         c.isVisible = el->BoolAttribute("visible", true);
         c.hideInFog = el->BoolAttribute("hideInFog", c.hideInFog);
+        c.flat = el->BoolAttribute("flat", c.flat);
     }
 
     void LayerComponent::SaveXml(const LayerComponent& c, XMLBuilder& builder) {
@@ -18,6 +19,7 @@ namespace Elysium {
             .SetAttribute("name", c.name.c_str());
         if (!c.isVisible) b.SetAttribute("visible", false);
         if (c.hideInFog) b.SetAttribute("hideInFog", true);
+        if (c.flat) b.SetAttribute("flat", true);
     }
 
     FieldList LayerComponent::Fields() {
@@ -25,6 +27,7 @@ namespace Elysium {
             Field("Name", &LayerComponent::name, "name"),
             Field("Visible", &LayerComponent::isVisible, "visible"),
             Field("Hide in Fog", &LayerComponent::hideInFog, "hideInFog"),
+            Field("Lie Flat", &LayerComponent::flat, "flat"),
         };
     }
 
@@ -33,6 +36,7 @@ namespace Elysium {
         ut["isVisible"] = &LayerComponent::isVisible;
         ut["hideInFog"] = &LayerComponent::hideInFog;
         ut["inFog"]     = &LayerComponent::inFog;
+        ut["flat"]      = &LayerComponent::flat;
     }
 
     void LayerComponent::SetFromLua(LayerComponent& c, sol::object v) {

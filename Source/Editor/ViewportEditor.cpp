@@ -467,6 +467,12 @@ void ViewportEditor::DrawWorld(ISceneService& sceneService, EditorApplication& e
     if (auto* scene = editor.GetViewportScene()) {
         if (auto* renderSystem = scene->GetSystem<Systems::RenderSystem>()) {
             renderSystem->PlaceScreenInWorld(view);
+            // A prefab has no game screen to lay out: its screen pixels sit at the origin,
+            // 1:1, so a UI prefab's root at (0, 0) is where the world's origin is.
+            if (const EditorDocument* doc = editor.GetActiveDocumentInfo(); doc && doc->IsPrefab()) {
+                view.screenOrigin = {0.0f, 0.0f};
+                view.screenScale = 1.0f;
+            }
             // The layer drawer's hide/solo, re-pushed every frame. The sorter applies it to its
             // own copy of the layer list, so the scene's SceneLayer flags stay untouched.
             renderSystem->SetHiddenLayerOverride(editor.GetHiddenLayers());

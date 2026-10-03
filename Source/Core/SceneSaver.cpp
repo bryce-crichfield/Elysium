@@ -88,8 +88,8 @@ void SaveEntities(XMLBuilder& builder, World* world) {
 
     const auto& savers = ComponentRegistry::Instance().GetXmlSavers();
 
-    const auto& entities = world->GetLivingEntities();
-    for (Entity entity : entities) {
+    // Hierarchy order, so each parent's children reload in their sibling order.
+    for (Entity entity : world->GetHierarchyOrder()) {
         // Prefab placements are written by PrefabInstances::Save as <PrefabInstance> blocks.
         if (world->HasComponent<PrefabInstanceComponent>(entity)) continue;
 

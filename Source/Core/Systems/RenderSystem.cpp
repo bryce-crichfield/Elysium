@@ -348,7 +348,7 @@ static void RenderDrawEllipseCmd(RenderContext& ctx, const RenderRecord& rec) {
 }
 static void RenderDrawTextCmd(RenderContext& ctx, const RenderRecord& rec) {
     const auto& c = *static_cast<const DrawTextCmd*>(rec.payload);
-    ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color);
+    ctx.DrawText(c.text.c_str(), c.x, c.y, c.fontSize, c.color, c.font);
 }
 static void RenderDrawPolygonCmd(RenderContext& ctx, const RenderRecord& rec) {
     const auto& c = *static_cast<const DrawPolygonCmd*>(rec.payload);
@@ -394,8 +394,15 @@ Matrix RenderProjector::CalculateTransform(const CameraView& view, const SceneLa
 }
 
 World3D::View RenderProjector::View3D(const CameraView& view) {
-    return World3D::View(view.position, view.zoom != 0.0f ? view.zoom : 1.0f, view.viewport.width, view.viewport.height,
-                         view.yaw, view.pitch);
+    const float zoom = view.zoom != 0.0f ? view.zoom : 1.0f;
+    if (view.perspective) {
+        // Far enough that the focus is drawn at `zoom` pixels per unit.
+        const float fov = std::clamp(view.fov, 5.0f, 150.0f);
+        const float distance = view.viewport.height * 0.5f / std::tan(fov * 0.5f * DEG2RAD) / zoom;
+        return World3D::View::Perspective(view.position, distance, fov, view.viewport.width, view.viewport.height,
+                                          view.yaw, view.pitch);
+    }
+    return World3D::View(view.position, zoom, view.viewport.width, view.viewport.height, view.yaw, view.pitch);
 }
 
 Vector2 RenderProjector::WorldToFramebuffer(Vector2 worldPos, const CameraView& view) {
@@ -670,7 +677,8 @@ static bool IsEnabled(const World& world, Entity entity) {
 }
 
 void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records,
-                                     const Matrix& layerTransform, const Framebuffer& enclosingTarget) {
+                                     const Matrix& layerTransform, const Framebuffer& enclosingTarget,
+                                     const Matrix* projection) {
     ProfileN("Render Records");
     const World& world = ctx.GetWorld();
 
@@ -689,13 +697,14 @@ void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderR
         std::span<const RenderRecord> group = records.subspan(index, end - index);
         index = end;
 
-        // Something standing above the ground (Transform z) is drawn that much higher.
+        // Something standing above the ground (Transform z) is drawn at that height: draw-space
+        // z is height in a ground layer's projection (World3D::View::GroundProjection).
         const float lift = (entity != INVALID_ENTITY && group.front().isWorldSpace && world.HasComponent<TransformComponent>(entity))
-                               ? world.GetComponent<TransformComponent>(entity).worldZ * World3D::kPitchCos
+                               ? world.GetComponent<TransformComponent>(entity).worldZ
                                : 0.0f;
         if (lift != 0.0f) {
             ctx.PushMatrix();
-            ctx.Translate(0.0f, -lift, 0.0f);
+            ctx.Translate(0.0f, 0.0f, lift);
         }
         struct PopLift {
             RenderContext& ctx;
@@ -706,7 +715,7 @@ void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderR
         // A ShaderComponent filters the entity after it's drawn: RenderShadedEntity draws
         // it (materials included) into an offscreen buffer and blits that through the shader.
         if (IsEnabled<ShaderComponent>(world, entity)) {
-            RenderShadedEntity(ctx, entity, group, layerTransform, enclosingTarget);
+            RenderShadedEntity(ctx, entity, group, layerTransform, enclosingTarget, projection, false);
         } else {
             RenderEntity(ctx, entity, group);
         }
@@ -832,7 +841,8 @@ void RenderCompositor::RenderMaterialEntity(RenderContext& ctx, Entity entity, s
 
 void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
                                           std::span<const RenderRecord> records, const Matrix& layerTransform,
-                                          const Framebuffer& enclosingTarget, const Matrix* projection) {
+                                          const Framebuffer& enclosingTarget, const Matrix* projection,
+                                          bool depthTested) {
     ProfileN("Render Shaded Entity");
 
     auto& registry = RenderableRegistry::Instance();
@@ -905,7 +915,7 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
         ctx.PopScissorMode();
     }
 
-    if (projection) rlDisableDepthTest();
+    if (projection && depthTested) rlDisableDepthTest();
     ctx.BeginRenderTarget(buffer);
     ctx.ClearTarget(Colors::Transparent);
     ctx.PushMatrix();
@@ -916,7 +926,7 @@ void RenderCompositor::RenderShadedEntity(RenderContext& ctx, Entity entity,
     ctx.BeginRenderTarget(enclosingTarget);  // EndTextureMode drops to the backbuffer
     if (projection) {
         rlSetMatrixProjection(ToRaylib(*projection));
-        rlEnableDepthTest();
+        if (depthTested) rlEnableDepthTest();
     }
 
     if (hadScissor) {
@@ -972,7 +982,9 @@ uniform float uShadowBias;
 uniform vec3 uSunDir;           // toward the sun (GL, unit)
 uniform vec3 uSunColor;         // zero: no sun
 uniform float uRim;
-uniform vec3 uTowardCamera;
+uniform vec3 uTowardCamera;     // orthographic: the same everywhere
+uniform vec3 uEye;              // perspective: the camera
+uniform float uPerspective;
 uniform float uFog;             // 0 off .. 1 the unseen is hidden
 uniform vec3 uFogColor;
 
@@ -1080,7 +1092,8 @@ void main()
     float seen;
     vec3 light = Light3D(fragWorld, n, seen);
     // Rim: brightest where the surface turns edge-on to the camera.
-    float rim = pow(1.0 - max(dot(n, normalize(uTowardCamera)), 0.0), 3.0);
+    vec3 view = uPerspective > 0.5 ? normalize(uEye - fragWorld) : normalize(uTowardCamera);
+    float rim = pow(1.0 - max(dot(n, view), 0.0), 3.0);
     light += uRim * rim * (uAmbient + uSunColor + vec3(0.25));
     finalColor = vec4(Fogged(albedo.rgb * light, seen), albedo.a);
 }
@@ -1237,20 +1250,13 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     auto& assets = ctx.GetServices().Get<Services::IAssetService>();
 
     using World3D::kGroundDepth;
-    const float zoom = view.zoom != 0.0f ? view.zoom : 1.0f;
     const World3D::View view3D = RenderProjector::View3D(view);
     const Vector3 towardCamera = view3D.TowardCamera();
 
-    // GL (x, y up, z toward the default camera) -> framebuffer pixels and depth, through the
-    // orbit (World3D::View).
-    ::Matrix viewMatrix = MatrixIdentity();
-    viewMatrix.m0 = view3D.rowX[0];     viewMatrix.m4 = view3D.rowX[1];     viewMatrix.m8 = view3D.rowX[2];      viewMatrix.m12 = view3D.rowX[3];
-    viewMatrix.m1 = view3D.rowY[0];     viewMatrix.m5 = view3D.rowY[1];     viewMatrix.m9 = view3D.rowY[2];      viewMatrix.m13 = view3D.rowY[3];
-    viewMatrix.m2 = view3D.rowDepth[0]; viewMatrix.m6 = view3D.rowDepth[1]; viewMatrix.m10 = view3D.rowDepth[2]; viewMatrix.m14 = view3D.rowDepth[3];
-
-    constexpr double kDepthRange = 1.0e6;
-    const ::Matrix projection =
-        MatrixOrtho(0.0, rlGetFramebufferWidth(), rlGetFramebufferHeight(), 0.0, -kDepthRange, kDepthRange);
+    // GL (x, y up, z toward the default camera) -> clip, through the view (World3D::View):
+    // all of it in the projection, so the modelview is just each model's matrix.
+    const ::Matrix viewMatrix = MatrixIdentity();
+    const ::Matrix projection = ToRaylib(view3D.viewProjection);
     const ::Matrix previousProjection = rlGetMatrixProjection();
     const ::Matrix previousModelview = rlGetMatrixModelview();
 
@@ -1351,6 +1357,8 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
         const ::Vector3 sunColor{layer.sunColor.r * sunScale, layer.sunColor.g * sunScale, layer.sunColor.b * sunScale};
         const float rim = layer.unlit ? 0.0f : layer.rimLight;
         const ::Vector3 toward{towardCamera.x, towardCamera.y, towardCamera.z};
+        const ::Vector3 eyePosition{view3D.eye.x, view3D.eye.y, view3D.eye.z};
+        const float perspective = view3D.perspective ? 1.0f : 0.0f;
         const ::Vector3 fogColor{layer.fogColor.r / 255.0f, layer.fogColor.g / 255.0f, layer.fogColor.b / 255.0f};
         const int unit = kShadowUnit3D;
         for (::Shader* shader : {&ModelShader(), &SkinnedModelShader(), &CardShader()}) {
@@ -1369,6 +1377,8 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             set("uSunColor", &sunColor, SHADER_UNIFORM_VEC3);
             set("uRim", &rim, SHADER_UNIFORM_FLOAT);
             set("uTowardCamera", &toward, SHADER_UNIFORM_VEC3);
+            set("uEye", &eyePosition, SHADER_UNIFORM_VEC3);
+            set("uPerspective", &perspective, SHADER_UNIFORM_FLOAT);
             set("uFogColor", &fogColor, SHADER_UNIFORM_VEC3);
             if (lightCount > 0) {
                 SetShaderValueV(*shader, GetShaderLocation(*shader, "uLightPos"), positions, SHADER_UNIFORM_VEC3, lightCount);
@@ -1408,6 +1418,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
         float groundY;  // 2D y of its anchor's ground position
         float height;   // its anchor's Transform z
         float groundX;
+        bool flat = false;  // lies on the ground (LayerComponent::flat)
     };
     std::vector<Card> cards;
     rlSetMatrixModelview(viewMatrix);
@@ -1433,7 +1444,8 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
                 ToRaylib(World3D::ModelMatrix(world.GetComponent<TransformComponent>(entity), component, *model));
             bool occluding = false;
             for (const ::Vector3& eye : eyes) {
-                if (World3D::RayHits(FromRaylib(transform), *model, Vector3{eye.x, eye.y, eye.z}, towardCamera)) {
+                const Vector3 from{eye.x, eye.y, eye.z};
+                if (World3D::RayHits(FromRaylib(transform), *model, from, view3D.TowardCamera(from))) {
                     occluding = true;
                     break;
                 }
@@ -1476,7 +1488,9 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
 
         Card card{group, entity, group.front().y, 0.0f, group.front().x};
         if (entity != INVALID_ENTITY) {
-            const Entity anchor = CardAnchor(world, entity);
+            // A flat card lies at its own position; a standing one at its root's.
+            card.flat = world.HasComponent<LayerComponent>(entity) && world.GetComponent<LayerComponent>(entity).flat;
+            const Entity anchor = card.flat ? entity : CardAnchor(world, entity);
             if (world.HasComponent<TransformComponent>(anchor)) {
                 const auto& transform = world.GetComponent<TransformComponent>(anchor);
                 card.groundX = transform.worldX;
@@ -1489,26 +1503,37 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     rlDrawRenderBatchActive();
     rlSetMatrixModelview(previousModelview);
 
-    // Cards, far to near, drawn in 2D world units, screen-facing at their anchor. A point drawn
-    // at 2D y above the card's base y0 is (y0 - y) / cos(pitch) up the upright card, so that much
-    // times sin(pitch) nearer the camera: a tall sprite leans out of the wall behind it rather
-    // than into it. Each card's matrix is that, an affine map of 2D y into depth.
-    const float lean = zoom * std::tan(view3D.pitch * DEG2RAD);
+    // Cards, far to near: billboards facing the camera, standing at their anchor. A card is
+    // drawn in 2D world units around its anchor's ground position; one unit across is one unit
+    // along the camera's right, one unit up the picture one unit along the camera's up, so at
+    // the focus of a zoom-1 view a card is drawn pixel for pixel as the 2D picture drew it.
     auto anchorOf = [&](const Card& card) { return view3D.Project(World3D::ToGL(card.groundX, card.groundY, card.height)); };
     std::stable_sort(cards.begin(), cards.end(), [&](const Card& a, const Card& b) { return anchorOf(a).z < anchorOf(b).z; });
     rlDisableDepthMask();
     auto& registry = RenderableRegistry::Instance();
     const Framebuffer& sceneFramebuffer = ctx.GetServices().Get<Services::ISceneService>().GetFramebuffer();
     for (const Card& card : cards) {
-        const Vector3 anchor = anchorOf(card);
+        const Vector3 a = World3D::ToGL(card.groundX, card.groundY, card.height);
+        const Vector3 r = view3D.right, u = view3D.up;
+        // GL = a + r (x - groundX) - u (y - groundY).
         ::Matrix m = MatrixIdentity();
-        m.m0 = zoom;
-        m.m12 = anchor.x - zoom * card.groundX;
-        m.m5 = zoom;
-        m.m13 = anchor.y - zoom * card.groundY;
-        m.m6 = -lean;
-        m.m10 = 1.0f;
-        m.m14 = anchor.z + lean * card.groundY;
+        m.m0 = r.x;  m.m1 = r.y;  m.m2 = r.z;
+        m.m4 = -u.x; m.m5 = -u.y; m.m6 = -u.z;
+        m.m8 = 0.0f; m.m9 = 0.0f; m.m10 = 0.0f;
+        m.m12 = a.x - r.x * card.groundX + u.x * card.groundY;
+        m.m13 = a.y - r.y * card.groundX + u.y * card.groundY;
+        m.m14 = a.z - r.z * card.groundX + u.z * card.groundY;
+        if (card.flat) {
+            // On the ground: GL = a + (x - groundX, lift, y - groundY), a circle drawn round
+            // in GL (the 2:1 ellipse on the ground picture), lifted off the floor it lies on.
+            constexpr float kDecalLift = 0.5f;
+            m = MatrixIdentity();
+            m.m10 = 0.0f;
+            m.m4 = 0.0f; m.m5 = 0.0f; m.m6 = 1.0f;
+            m.m12 = a.x - card.groundX;
+            m.m13 = a.y + kDecalLift;
+            m.m14 = a.z - card.groundY;
+        }
         ctx.PushMatrix();
         rlLoadIdentity();
         ctx.MultiplyMatrix(FromRaylib(m));
@@ -1557,23 +1582,38 @@ void RenderCompositor::RenderImmediate(RenderContext& ctx, const CameraView& vie
         return;
     }
 
-    Matrix viewProjectionTransform = RenderProjector::CalculateTransform(view, layer);
+    // A World3D ground layer draws in ground coordinates through the view's ground projection
+    // (perspective included); a screen layer through its plain 2D transform.
+    const bool ground = layer.space == SceneLayerSpace::World3D;
+    const Matrix groundProjection = ground ? RenderProjector::View3D(view).GroundProjection() : Matrix::Identity();
+    Matrix viewProjectionTransform = ground ? Matrix::Identity() : RenderProjector::CalculateTransform(view, layer);
+    const ::Matrix previousProjection = rlGetMatrixProjection();
+    if (ground) {
+        rlDrawRenderBatchActive();
+        rlSetMatrixProjection(ToRaylib(groundProjection));
+    }
     PushBlend(ctx, layer.layerBlend);
     ctx.PushMatrix();
     ctx.MultiplyMatrix(viewProjectionTransform);
 
     auto& sceneService = ctx.GetServices().Get<Services::ISceneService>();
-    RenderRecords(ctx, records, viewProjectionTransform, sceneService.GetFramebuffer());
+    RenderRecords(ctx, records, viewProjectionTransform, sceneService.GetFramebuffer(), ground ? &groundProjection : nullptr);
 
     ctx.PopMatrix();
     ctx.PopBlendMode();
+    if (ground) {
+        rlDrawRenderBatchActive();
+        rlSetMatrixProjection(previousProjection);
+    }
 }
 
 void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& view,
                                          const SceneLayer& layer, std::span<const RenderRecord> records) {
     ProfileN("Render Composited Layer");
 
-    Matrix layerTransform = RenderProjector::CalculateTransform(view, layer);
+    const bool ground = layer.space == SceneLayerSpace::World3D;
+    const Matrix groundProjection = ground ? RenderProjector::View3D(view).GroundProjection() : Matrix::Identity();
+    Matrix layerTransform = ground ? Matrix::Identity() : RenderProjector::CalculateTransform(view, layer);
 
     int w = (int)view.viewport.width;
     int h = (int)view.viewport.height;
@@ -1583,12 +1623,13 @@ void RenderCompositor::RenderComposited(RenderContext& ctx, const CameraView& vi
 
     ctx.BeginRenderTarget(compositionBuffer);
     ctx.ClearTarget(layer.ambient);
+    if (ground) rlSetMatrixProjection(ToRaylib(groundProjection));
 
     PushBlend(ctx, layer.layerBlend);
     ctx.PushMatrix();
     ctx.MultiplyMatrix(layerTransform);
 
-    RenderRecords(ctx, records, layerTransform, compositionBuffer);
+    RenderRecords(ctx, records, layerTransform, compositionBuffer, ground ? &groundProjection : nullptr);
 
     ctx.PopMatrix();
     ctx.PopBlendMode();
@@ -1732,10 +1773,12 @@ void RenderSystem::PlaceScreenInWorld(CameraView& view) {
     if (camera == INVALID_ENTITY) return;
 
     CameraView game = MakeCameraView(camera);
-    // Screen pixels are framebuffer pixels; the game camera shows world position
-    // FramebufferToWorld(p) at pixel p, so that is where the screen goes.
+    // Screen pixels are framebuffer pixels, laid out around the ground point the game camera
+    // shows in the middle of its picture, at its scale there.
     view.screenScale = 1.0f / game.zoom;
-    view.screenOrigin = RenderProjector::FramebufferToWorld({0.0f, 0.0f}, game);
+    const Vector2 center = RenderProjector::FramebufferToWorld({game.viewport.width * 0.5f, game.viewport.height * 0.5f}, game);
+    view.screenOrigin = {center.x - game.viewport.width * 0.5f * view.screenScale,
+                         center.y - game.viewport.height * 0.5f * view.screenScale};
 }
 
 void RenderSystem::FindCameras() {
@@ -1763,6 +1806,8 @@ CameraView RenderSystem::MakeCameraView(Entity cameraEntity) {
     CameraView view{ position, camera.zoom != 0.0f ? camera.zoom : 1.0f, camera.viewport };
     view.yaw = camera.yaw;
     view.pitch = std::clamp(camera.pitch, 5.0f, 89.0f);
+    view.perspective = camera.fov > 0.0f;
+    view.fov = camera.fov;
     return view;
 }
 
@@ -1824,6 +1869,20 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
     Vector2 screenPos = RenderProjector::FramebufferToScreen(fbPos, view);
     const World3D::View view3D = RenderProjector::View3D(view);
 
+    // Models (World3D) aren't in depth order in the paint queue: sorted after everything else,
+    // nearest the camera first, by where the view ray through the cursor meets their meshes.
+    auto modelDepth = [&](Entity e) -> std::optional<float> {
+        if (!world->HasComponent<ModelComponent>(e) || !world->HasComponent<TransformComponent>(e)) return std::nullopt;
+        const auto& component = world->GetComponent<ModelComponent>(e);
+        if (!component.loaded || !component.loaded->native) return std::nullopt;
+        // Nearer the camera is larger.
+        const World3D::Ray ray = view3D.RayAt(fbPos);
+        const auto distance = World3D::RayDistance(
+            World3D::ModelMatrix(world->GetComponent<TransformComponent>(e), component, *component.loaded), *component.loaded,
+            ray.origin, ray.direction);
+        if (!distance) return std::nullopt;
+        return -*distance;
+    };
     const auto& queue = _sorter.GetQueue();
     auto& registry = RenderableRegistry::Instance();
 
@@ -1834,32 +1893,35 @@ std::vector<Entity> RenderSystem::Pick(Vector2 fbPos, const CameraView& view) {
         if (!type.Pick || IsStale(*world, rec, type)) continue;
 
         Vector2 testPos = rec.isWorldSpace ? worldPos : screenPos;
-        // A card in a turned view stands screen-facing at its anchor (see Render3D): undo that
-        // instead of the ground plane. Ground layers lie on it.
+        // A card stands camera-facing at its anchor (see Render3D): where the ray through the
+        // cursor crosses its plane, in its own 2D units. Ground layers lie on the ground plane.
         if (rec.isWorldSpace && !view.IsDefaultOrientation() && rec.entity != INVALID_ENTITY &&
             rec.layerIndex < _sorter.GetLayers().size() && _sorter.GetLayers()[rec.layerIndex].IsLit()) {
             const Entity anchor = CardAnchor(*world, rec.entity);
             if (world->HasComponent<TransformComponent>(anchor)) {
                 const auto& t = world->GetComponent<TransformComponent>(anchor);
-                const Vector2 at = view3D.WorldToFramebuffer(t.worldX, t.worldY, t.worldZ);
-                testPos = {(fbPos.x - at.x) / view3D.zoom + t.worldX, (fbPos.y - at.y) / view3D.zoom + t.worldY};
+                const Vector3 a = World3D::ToGL(t.worldX, t.worldY, t.worldZ);
+                const World3D::Ray ray = view3D.RayAt(fbPos);
+                const Vector3 n = view3D.toward;
+                const float facing = ray.direction.x * n.x + ray.direction.y * n.y + ray.direction.z * n.z;
+                if (std::fabs(facing) > 1e-6f) {
+                    const float k = ((a.x - ray.origin.x) * n.x + (a.y - ray.origin.y) * n.y + (a.z - ray.origin.z) * n.z) / facing;
+                    const Vector3 p = ray.At(k);
+                    const Vector3 d{p.x - a.x, p.y - a.y, p.z - a.z};
+                    const Vector3 r = view3D.right, u = view3D.up;
+                    testPos = {t.worldX + d.x * r.x + d.y * r.y + d.z * r.z, t.worldY - (d.x * u.x + d.y * u.y + d.z * u.z)};
+                }
             }
         }
-        if (type.Pick(*world, rec, testPos)) {
+        // A model in a turned or perspective view: hit where the ray meets its meshes.
+        const bool rayPicked = rec.isWorldSpace && !view.IsDefaultOrientation() && rec.entity != INVALID_ENTITY &&
+                               world->HasComponent<ModelComponent>(rec.entity);
+        if (rayPicked ? modelDepth(rec.entity).has_value() : type.Pick(*world, rec, testPos)) {
             // Records for the same entity are adjacent in the sort — dedup via last-pushed.
             if (hits.empty() || hits.back() != rec.entity) hits.push_back(rec.entity);
         }
     }
 
-    // Models (World3D) aren't in depth order in the paint queue: after everything else,
-    // nearest the camera first, by where the view ray through the cursor meets their meshes.
-    auto modelDepth = [&](Entity e) -> std::optional<float> {
-        if (!world->HasComponent<ModelComponent>(e) || !world->HasComponent<TransformComponent>(e)) return std::nullopt;
-        const auto& component = world->GetComponent<ModelComponent>(e);
-        if (!component.loaded || !component.loaded->native) return std::nullopt;
-        return World3D::PickDepth(World3D::ModelMatrix(world->GetComponent<TransformComponent>(e), component, *component.loaded),
-                                  *component.loaded, World3D::ToGL(worldPos.x, worldPos.y, 0.0f), view3D.TowardCamera());
-    };
     std::vector<std::pair<float, Entity>> models;
     std::erase_if(hits, [&](Entity e) {
         auto depth = modelDepth(e);

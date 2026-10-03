@@ -10,7 +10,7 @@
         <System type="RenderSystem"/>
     </Systems>
     <SceneConfiguration width="1280" height="720">
-        <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#6A7090FF" sunColor="#FFE2BEFF" sunIntensity="0.85" sunYaw="-40" sunPitch="50" rimLight="0.7" shadows="true" shadowBias="12" fogOfWar="0" fogColor="#06060CFF"/>
+        <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#6A7090FF" sunColor="#FFE2BEFF" sunIntensity="0.85000002" sunYaw="-40" sunPitch="50" rimLight="0.69999999" shadows="true" shadowBias="12" fogOfWar="0.2" fogColor="#06060CFF"/>
         <SceneLayer name="overlay" z="3" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
         <SceneLayer name="fx" z="4" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
         <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
@@ -22,6 +22,24 @@
             <CameraComponent/>
         </Entity>
     </Entities>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame1">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="x" value="12"/>
+        <Override entity="0" component="TransformComponent" field="y" value="104.40845"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame2">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="x" value="12"/>
+        <Override entity="0" component="TransformComponent" field="y" value="176.73364"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame3">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="x" value="12"/>
+        <Override entity="0" component="TransformComponent" field="y" value="245.302"/>
+    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar0">
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>

@@ -9,6 +9,9 @@ namespace Elysium {
         bool isVisible = true;
         // Hidden while no vision light (LightComponent::vision) can see it: see VisibilitySystem.
         bool hideInFog = false;
+        // In a standing World3D layer: lie on the ground at its own position (a decal under a
+        // unit, depth-tested against the models) instead of standing as a card facing the camera.
+        bool flat = false;
         bool inFog = false;     // runtime: VisibilitySystem's verdict, never saved
 
         LayerComponent(const std::string& name = "default", bool isVisible = true);

@@ -104,10 +104,13 @@ void LoadEntities(XMLElement* root, World* world, ServiceLocator& services) {
 // After all entities are spawned, walk every ParentComponent.targetName,
 // resolve it to an Entity ID, and populate the World's hierarchy adjacency.
 void ResolveHierarchy(World* world) {
-    world->Query<ParentComponent>([&](Entity child, ParentComponent& pc) {
-        if (pc.targetName.empty()) return;
+    // In entity (file) order: AddChild appends, so this sets sibling order.
+    for (Entity child : std::vector<Entity>(world->GetLivingEntities())) {
+        if (!world->HasComponent<ParentComponent>(child)) continue;
+        auto& pc = world->GetComponent<ParentComponent>(child);
+        if (pc.targetName.empty()) continue;
         // Already linked directly (intra-prefab parents resolve by local id).
-        if (pc.parent != INVALID_ENTITY) return;
+        if (pc.parent != INVALID_ENTITY) continue;
         Entity parent = INVALID_ENTITY;
         if (world->GetEntityByName(pc.targetName, &parent)) {
             world->AddChild(parent, child);
@@ -115,7 +118,7 @@ void ResolveHierarchy(World* world) {
             LOG_WARNINGF("Scene", "Hierarchy: could not resolve parent name '%s' for entity %zu",
                          pc.targetName.c_str(), child);
         }
-    });
+    }
 }
 
 void LoadSystems(XMLElement* root, Scene& scene) {

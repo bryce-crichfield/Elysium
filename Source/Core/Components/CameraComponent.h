@@ -11,6 +11,9 @@ namespace Elysium {
         // and degrees down from the horizon. Yaw 0, pitch 30 is the iso picture.
         float yaw = 0.0f;
         float pitch = 30.0f;
+        // Vertical field of view in degrees: a perspective camera. 0 is orthographic. Zoom
+        // dollies a perspective camera in and out.
+        float fov = 35.0f;
         int renderOrder = 0;         // for multi-camera setups
         bool isVisible = true;
 

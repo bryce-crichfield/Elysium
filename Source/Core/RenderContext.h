@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 #include <vector>
 #include "Core/Graphics.h"
@@ -55,6 +56,10 @@ public:
     void DrawEllipse(float centerX, float centerY, float radiusH, float radiusV, Color color);
     void DrawEllipseLines(float centerX, float centerY, float radiusH, float radiusV, Color color);
     void DrawText(const char* text, float x, float y, int fontSize, Color color);
+    // Text in a named font from Assets/Fonts ("Ancient-Medium", with or without the
+    // extension), loaded on first use. An empty or unknown name is the default font.
+    void DrawText(const char* text, float x, float y, int fontSize, Color color, const std::string& font);
+    static float MeasureText(const char* text, int fontSize, const std::string& font);
     void DrawTexturePro(const Texture& texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
     // Draws raylib DrawTriangle for each consecutive triple of vertices (3 per triangle).
     void DrawTriangleList(const std::vector<Vector2>& triangleVerts, Color color);

@@ -1,5 +1,6 @@
 #include "Entity.h"
 #include <algorithm>
+#include <unordered_set>
 #include "Sprite.h"
 #include "ComponentRegistry.h"
 #include "Core/Components.h"
@@ -344,6 +345,21 @@ size_t World::GetEntityCount() const {
 
 const std::vector<Entity>& World::GetLivingEntities() const {
     return entityManager->GetLivingEntities();
+}
+
+std::vector<Entity> World::GetHierarchyOrder() const {
+    const auto& living = GetLivingEntities();
+    const std::unordered_set<Entity> alive(living.begin(), living.end());
+    std::vector<Entity> order;
+    order.reserve(living.size());
+    for (Entity entity : living) {
+        const Entity parent = GetParent(entity);
+        if (parent != INVALID_ENTITY && alive.contains(parent)) continue;
+        for (Entity e : GetSubtree(entity)) {
+            if (alive.contains(e)) order.push_back(e);
+        }
+    }
+    return order;
 }
 
 bool World::IsAlive(Entity entity) const {

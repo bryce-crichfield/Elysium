@@ -28,18 +28,27 @@ function Board.ToTile(x, y)
     return math.floor((u + v) / 2 + 0.5), math.floor((v - u) / 2 + 0.5)
 end
 
--- Where a point on the ground at height z appears in the (flat, ground-layer) picture.
--- Where ground layers draw the point (x, y) at height z: shifted by `z * lift`. The lift
--- follows the camera's orbit (Board.SyncView, once a frame); the default camera's is
--- (0, -cos 30).
-Board.liftX, Board.liftY = 0, -Board.PITCH_COS
-function Board.SyncView()
-    if not ViewLift then return end
-    local x0, y0 = ViewLift(0, 0, 0)
-    local x1, y1 = ViewLift(0, 0, 1)
-    Board.liftX, Board.liftY = x1 - x0, y1 - y0
+-- Where ground layers draw the point (x, y) at height z: the ground point the camera sees
+-- behind it, on the same screen pixel. Exact for points, so lines and polygons through lifted
+-- points land right under any camera (perspective included).
+function Board.SyncView() end  -- nothing to sync: the engine asks the camera each time
+function Board.Lift(x, y, z)
+    if ViewLift then return ViewLift(x, y, z) end
+    return x, y - z * Board.PITCH_COS
 end
-function Board.Lift(x, y, z) return x + z * Board.liftX, y + z * Board.liftY end
+
+-- A ground circle of radius r around (x, y) at height z, filled, as a lifted polygon (a
+-- ground circle is half as tall in ground y).
+function Board.Disc(x, y, z, r, color, layer, segments)
+    local pts = {}
+    local n = segments or 32
+    for k = 1, n do
+        local a = k / n * math.pi * 2
+        local px, py = Board.Lift(x + math.cos(a) * r, y + math.sin(a) * r * 0.5, z)
+        pts[k] = { x = px, y = py }
+    end
+    DrawPolygon(pts, color, layer or "overlay")
+end
 
 function Board.new()
     return setmetatable({ tiles = {}, count = 0, linkCount = 0 }, Board)

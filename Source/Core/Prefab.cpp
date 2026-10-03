@@ -118,8 +118,10 @@ PrefabSpawnResult Prefab::Spawn(World* world, const std::string& instanceId, Ser
         });
     }
 
-    // Intra-prefab parent links by local id, independent of (namespaced) names.
-    for (auto& [localId, entity] : result.ids) {
+    // Intra-prefab parent links by local id, independent of (namespaced) names. In file
+    // order (`spawned` holds only the direct entities so far): AddChild appends, so this
+    // is what sets sibling order. (`ids` is unordered.)
+    for (Entity entity : std::vector<Entity>(result.spawned)) {
         if (!world->HasComponent<ParentComponent>(entity)) continue;
         int targetId = 0;
         if (!ParseInt(world->GetComponent<ParentComponent>(entity).targetName, targetId)) continue;

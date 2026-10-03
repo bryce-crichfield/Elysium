@@ -12,6 +12,7 @@ local Battle = {}
 
 local PLAYER, ENEMY = Units.PLAYER, Units.ENEMY
 local SCREEN_W, SCREEN_H = 1280, 720
+local BANNER_FONT = "Ancient-Medium"  -- Assets/Fonts
 local SPEED = 215          -- ground units a second
 local CELL = 8             -- the navmesh's cellSize (BattleFree.xml), for drawing reach runs
 local COS = Board.PITCH_COS
@@ -58,8 +59,7 @@ local function GroundCircle(x, y, z, r, color, layer)
 end
 
 local function GroundDisc(x, y, z, r, color, layer)
-    local cx, cy = Board.Lift(x, y, z)
-    DrawEllipse(cx, cy, r, r * 0.5, color, layer or "overlay")
+    Board.Disc(x, y, z, r, color, layer)
 end
 
 -- --- Lifecycle ----------------------------------------------------------------------------
@@ -97,9 +97,26 @@ end
 
 function Battle:Run(fn) self.co = coroutine.create(fn) end
 
+-- The HUD's hero frames (Scripts/Components/HeroFrame.lua): the player units, top to
+-- bottom, each frame lit while its unit is selected.
+function Battle:UpdateHeroFrames()
+    if not HeroFrames then return end
+    local heroes = {}
+    for _, u in ipairs(self.units or {}) do
+        if u.team == Units.PLAYER then heroes[#heroes + 1] = u end
+    end
+    for i, frame in ipairs(HeroFrames.Frames()) do
+        local u = heroes[i]
+        local binding = HeroFrames.bindings[frame]
+        if not binding or binding.unit ~= u then HeroFrames.Bind(frame, u); binding = HeroFrames.bindings[frame] end
+        if binding then binding.selected = u == self.selected end
+    end
+end
+
 function Battle:Update(dt)
     self.time = self.time + dt
     self:UpdateCamera(dt)
+    self:UpdateHeroFrames()
 
     if self.state == "loading" then
         self.loadTimer = self.loadTimer + dt
@@ -161,7 +178,7 @@ function Battle:PollInput(mouse, w)
     end
 end
 
--- WASD / arrows / middle drag pan, the wheel zooms, Q/E turn the camera 45 degrees, Z/X tilt it.
+-- WASD / arrows / middle drag pan, the wheel zooms, Q/E turn the camera 45 degrees, Z/X or right drag tilt it.
 function Battle:UpdateCamera(dt)
     local cam = self:Camera()
     if not cam then return end
@@ -182,7 +199,17 @@ function Battle:UpdateCamera(dt)
     if IsKeyDown(KEY_S) or IsKeyDown(KEY_DOWN) then py = py + speed end
     if IsKeyDown(KEY_A) or IsKeyDown(KEY_LEFT) then px = px - speed end
     if IsKeyDown(KEY_D) or IsKeyDown(KEY_RIGHT) then px = px + speed end
-    if px ~= 0 or py ~= 0 then Pan(px, py) end
+    if px ~= 0 or py ~= 0 then
+        Pan(px, py)
+        self.follow = nil  -- the player took the camera
+    end
+
+    -- The director: glide toward whatever the action is about (a unit, or a point it moves).
+    if self.follow then
+        local k = 1 - math.exp(-6 * dt)
+        t.localX = t.localX + (self.follow.x - t.localX) * k
+        t.localY = t.localY + (self.follow.y - t.localY) * k
+    end
 
     self.zoomTarget = self.zoomTarget or c.zoom
     local wheel = GetMouseWheelMove()
@@ -196,6 +223,16 @@ function Battle:UpdateCamera(dt)
     if IsKeyPressed(KEY_E) then self.yawTarget = self.yawTarget + 45 end
     if IsKeyDown(KEY_Z) then self.pitchTarget = math.max(15, self.pitchTarget - 40 * dt) end
     if IsKeyDown(KEY_X) then self.pitchTarget = math.min(75, self.pitchTarget + 40 * dt) end
+    -- Right drag tilts: dragging down looks more from above.
+    local rm = GetMousePosition()
+    if IsMouseButtonDown(MOUSE_RIGHT) then
+        if self.tiltAnchor then
+            self.pitchTarget = math.max(15, math.min(75, self.pitchTarget + (rm.y - self.tiltAnchor) * 0.25))
+        end
+        self.tiltAnchor = rm.y
+    else
+        self.tiltAnchor = nil
+    end
     local ease = 1 - math.exp(-10 * dt)
     c.yaw = c.yaw + (self.yawTarget - c.yaw) * ease
     c.pitch = c.pitch + (self.pitchTarget - c.pitch) * ease
@@ -209,6 +246,7 @@ function Battle:UpdateCamera(dt)
 
     local m = GetMousePosition()
     if IsMouseButtonDown(MOUSE_MIDDLE) then
+        self.follow = nil
         if self.panAnchor then Pan(self.panAnchor.x - m.x, self.panAnchor.y - m.y) end
         self.panAnchor = { x = m.x, y = m.y }
     else
@@ -216,20 +254,52 @@ function Battle:UpdateCamera(dt)
     end
 end
 
+-- --- Camera direction ---------------------------------------------------------------------
+
+-- Keep the camera on `target` (anything with x, y: a unit, or a point the caller moves).
+function Battle:Follow(target) self.follow = target end
+
+-- A close, low shot across two units: the camera turns (the shorter way) until the line
+-- between them runs across the screen, so both are seen side on. Returns the shot to undo.
+function Battle:ActionShot(a, b)
+    local c = self:Camera() and GetComponent(self:Camera(), "Camera")
+    if not c then return nil end
+    self.zoomTarget = self.zoomTarget or c.zoom
+    self.yawTarget = self.yawTarget or c.yaw
+    self.pitchTarget = self.pitchTarget or c.pitch
+    local home = { zoom = self.zoomTarget, yaw = self.yawTarget, pitch = self.pitchTarget, follow = self.follow }
+
+    self:Follow({ x = (a.x + b.x) / 2, y = (a.y + b.y) / 2 })
+    -- Screen right on the ground is (cos yaw, sin yaw / 2): a ground y unit is half an x unit.
+    local dx, dy = b.x - a.x, b.y - a.y
+    if dx * dx + dy * dy > 1 then
+        local yaw = math.deg(math.atan(2 * dy, dx))
+        yaw = yaw + 180 * math.floor((home.yaw - yaw) / 180 + 0.5)
+        self.yawTarget = yaw
+    end
+    self.pitchTarget = math.max(15, home.pitch - 10)
+    self.zoomTarget = math.min(2.2, home.zoom * 1.35)
+    return home
+end
+
+function Battle:EndShot(home)
+    if not home then return end
+    self.zoomTarget, self.yawTarget, self.pitchTarget = home.zoom, home.yaw, home.pitch
+    self.follow = home.follow
+end
+
 -- The unit whose body is under a picture point (nearest the camera), else one standing right
 -- at the floor point there.
 function Battle:UnitUnder(wx, wy)
     -- The body is a box on the screen from the feet up, however the camera faces.
     local m = self.mouse or GetMousePosition()
-    local cam = self:Camera()
-    local camera = cam and GetComponent(cam, "Camera")
-    local zoom = camera and camera.zoom or 1
     local best, bestY = nil, -1e9
     for _, u in ipairs(self.units) do
         if u.alive then
             local fx, fy = ViewProject(u.x, u.y, u.z)
             local _, hy = ViewProject(u.x, u.y, u.z + 105)
-            if math.abs(m.x - fx) <= 22 * zoom and m.y <= fy + 8 * zoom and m.y >= hy and fy > bestY then
+            local tall = fy - hy   -- the body's height on screen, which sets its width too
+            if math.abs(m.x - fx) <= tall * 0.24 and m.y <= fy + tall * 0.08 and m.y >= hy and fy > bestY then
                 best, bestY = u, fy
             end
         end
@@ -294,7 +364,8 @@ function Battle:EnemyPhase()
             local plan = Rules.Plan(self.units, u)
             if plan then
                 self.focus = u
-                Wait(0.25)
+                self:Follow(u)
+                Wait(0.45)  -- look at who's acting before they go
                 if #plan.path > 0 then self:MoveAlong(u, plan.path) end
                 if plan.action == "attack" and plan.target.alive then
                     self:Attack(u, plan.target)
@@ -322,6 +393,7 @@ end
 
 -- Walks the waypoints at a steady ground speed, the clip and facing following each leg.
 function Battle:MoveAlong(u, path)
+    self:Follow(u)
     Units.Play(u, "Walk")
     for _, p in ipairs(path) do
         local x0, y0, z0 = u.x, u.y, u.z
@@ -358,16 +430,20 @@ function Battle:Hurt(target, dmg)
 end
 
 function Battle:Attack(att, def)
+    local home = self:ActionShot(att, def)
     Units.Face(att, def.x, def.y)
+    Wait(0.3)  -- let the camera settle in
     Units.Play(att, "Attack")
     local length = Units.ClipLength("Attack", att)
     Wait(length * 0.55)
     self:Hurt(def, Rules.Damage(att, att, def, def, Rules.AttackPower(att)))
-    Wait(length * 0.45 + 0.15)
+    Wait(length * 0.45 + (def.alive and 0.3 or 0.8))  -- linger on a kill
+    self:EndShot(home)
 end
 
 function Battle:CastBolt(caster, at)
     local spell = caster.class.spell
+    local home = self:ActionShot(caster, at)
     Units.Face(caster, at.x, at.y)
     Units.Play(caster, spell.cast or "Attack")
     self:Float(spell.name .. "!", caster.x, caster.y, caster.z + 20, {r = 170, g = 210, b = 255, a = 255})
@@ -377,10 +453,15 @@ function Battle:CastBolt(caster, at)
     local ex, ey, ez = at.x, at.y, at.z + 30
     local bolt = SpawnPrefab("Prefabs/Bolt.xml", sx, sy, sz)
     local flight = 0.35 + Rules.Distance(caster, at) / 1100
+    -- Ride along: the camera leans from the shot's middle toward where the bolt lands.
+    local mid = { x = (sx + ex) / 2, y = (sy + ey) / 2 }
+    local eye = { x = mid.x, y = mid.y }
+    self:Follow(eye)
     local t = 0
     while t < flight do
         t = t + coroutine.yield()
         local k = math.min(1, t / flight)
+        eye.x, eye.y = Lerp(mid.x, ex, k * 0.6), Lerp(mid.y, ey, k * 0.6)
         local tr = bolt and GetComponent(bolt, "Transform")
         if tr then
             tr.localX, tr.localY = Lerp(sx, ex, k), Lerp(sy, ey, k)
@@ -394,7 +475,8 @@ function Battle:CastBolt(caster, at)
             self:Hurt(v, Rules.Damage(caster, caster, v, v, Rules.SplashPower(caster, v, at)))
         end
     end
-    Wait(0.6)
+    Wait(0.8)
+    self:EndShot(home)
 end
 
 function Battle:PlayerAction(fn)
@@ -418,6 +500,7 @@ function Battle:Busy() return self.co ~= nil or self.state ~= "battle" or self.p
 
 function Battle:Select(u)
     self.selected = u
+    self:Follow({ x = u.x, y = u.y })  -- centre once; don't chase the move preview
     self.origin = { x = u.x, y = u.y, z = u.z }
     self.mode = "move"
     self.reach = Rules.Reach(self.units, u)
@@ -609,9 +692,13 @@ end---------------------------------------------------------------------------
 function Battle:DrawReach(u)
     local budget = Rules.MoveBudget(u)
     for _, run in ipairs(self.runs or {}) do
-        local x, y = Board.Lift(run.x0, run.y, run.z)
         local c = run.cost > budget * 0.5 and COLORS.moveFar or COLORS.move
-        FillRect(x, y - CELL * 0.5, run.x1 - run.x0, CELL, c, "overlay")
+        local y0, y1 = run.y - CELL * 0.5, run.y + CELL * 0.5
+        local ax, ay = Board.Lift(run.x0, y0, run.z)
+        local bx, by = Board.Lift(run.x1, y0, run.z)
+        local cx, cy = Board.Lift(run.x1, y1, run.z)
+        local dx, dy = Board.Lift(run.x0, y1, run.z)
+        DrawPolygon({ { x = ax, y = ay }, { x = bx, y = by }, { x = cx, y = cy }, { x = dx, y = dy } }, c, "overlay")
     end
 end
 
@@ -669,7 +756,6 @@ function Battle:Render()
 
     for _, v in ipairs(self.units) do
         Units.DrawRing(v, v == self.selected or v == self.focus or v == self.hoverUnit, self.time)
-        Units.DrawBar(v)
     end
 
     for _, f in ipairs(self.floaters) do
@@ -757,9 +843,11 @@ function Battle:DrawHud()
         local a = b.duration and math.floor(255 * math.min(1, (b.duration - b.t) * 3, b.t * 4)) or 255
         a = math.max(0, math.min(255, a))
         FillRect(0, SCREEN_H / 2 - 50, SCREEN_W, 100, {r = 8, g = 8, b = 14, a = math.floor(a * 0.8)}, "ui")
-        DrawText(b.text, SCREEN_W / 2 - #b.text * 13, SCREEN_H / 2 - 36, 44, {r = 255, g = 215, b = 120, a = a}, "ui")
+        DrawText(b.text, SCREEN_W / 2 - MeasureText(b.text, 44, BANNER_FONT) / 2, SCREEN_H / 2 - 38, 44,
+            {r = 255, g = 215, b = 120, a = a}, "ui", BANNER_FONT)
         if b.sub then
-            DrawText(b.sub, SCREEN_W / 2 - #b.sub * 5, SCREEN_H / 2 + 14, 20, {r = 220, g = 220, b = 230, a = a}, "ui")
+            DrawText(b.sub, SCREEN_W / 2 - MeasureText(b.sub, 22, BANNER_FONT) / 2, SCREEN_H / 2 + 12, 22,
+                {r = 220, g = 220, b = 230, a = a}, "ui", BANNER_FONT)
         end
     end
 end

@@ -23,6 +23,7 @@
 #include "Core/Systems/MovementSystem.h"
 #include "Core/Systems/NavMeshSystem.h"
 #include "Core/Systems/RenderSystem.h"
+#include "Core/RenderContext.h"
 #include <algorithm>
 #include <optional>
 #include <tuple>
@@ -158,6 +159,8 @@ static std::optional<Elysium::Systems::CameraView> ActiveCameraView() {
         Elysium::Systems::CameraView v{position, cameraComp.zoom != 0.0f ? cameraComp.zoom : 1.0f, cameraComp.viewport};
         v.yaw = cameraComp.yaw;
         v.pitch = std::clamp(cameraComp.pitch, 5.0f, 89.0f);
+        v.perspective = cameraComp.fov > 0.0f;
+        v.fov = cameraComp.fov;
         view = v;
     });
     return view;
@@ -236,6 +239,17 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("CreateEntity", []() -> Entity {
         auto* world = GetActiveWorld();
         return world ? world->CreateEntity() : 0;
+    });
+
+    // GetChildren(entity) -> { child, ... }: its direct children, in order.
+    lua.set_function("GetChildren", [](Entity entity, sol::this_state s) -> sol::table {
+        sol::state_view lua(s);
+        sol::table result = lua.create_table();
+        auto* world = GetActiveWorld();
+        if (!world) return result;
+        int index = 1;
+        for (Entity child : world->GetChildren(entity)) result[index++] = child;
+        return result;
     });
 
     lua.set_function("DestroyEntity", [](Entity entity) {
@@ -501,8 +515,14 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("NavPick", [this, topNav](float x, float y) -> sol::object {
         auto* nav = topNav();
         if (!nav) return sol::nil;
-        const Vector2 lift = ViewLift(0.0f, 0.0f, 1.0f) - ViewLift(0.0f, 0.0f, 0.0f);
-        auto p = nav->PickFloor({x, y}, lift);
+        // The view ray through the ground point (x, y): what the camera sees there.
+        std::optional<Vector3> p;
+        if (auto view = ActiveCameraView(); view && !view->IsDefaultOrientation()) {
+            const auto v = Elysium::Systems::RenderProjector::View3D(*view);
+            p = nav->PickFloor(v.RayAt(v.WorldToFramebuffer(x, y, 0.0f)));
+        } else {
+            p = nav->PickFloor({x, y});
+        }
         if (!p) return sol::nil;
         sol::table t = lua.create_table();
         t["x"] = p->x; t["y"] = p->y; t["z"] = p->z;
@@ -657,10 +677,15 @@ void ScriptService::BindEntityAPI() {
         rs->IssueDrawCommand(std::move(cmd));
     });
 
-    lua.set_function("DrawText", [tableToColor](const std::string& text, float x, float y, int fontSize, sol::table color, const std::string& layer) {
+    // DrawText(text, x, y, size, color, layer [, font]): font names a file in Assets/Fonts.
+    lua.set_function("DrawText", [tableToColor](const std::string& text, float x, float y, int fontSize, sol::table color, const std::string& layer, sol::optional<std::string> font) {
         if (auto* rs = GetCurrentRenderSystem()) {
-            rs->IssueDrawCommand(Elysium::Systems::DrawTextCmd{layer, text, x, y, fontSize, tableToColor(color)});
+            rs->IssueDrawCommand(Elysium::Systems::DrawTextCmd{layer, text, x, y, fontSize, tableToColor(color), font.value_or("")});
         }
+    });
+    // MeasureText(text, size [, font]): the drawn width, for centering.
+    lua.set_function("MeasureText", [](const std::string& text, int fontSize, sol::optional<std::string> font) {
+        return Elysium::RenderContext::MeasureText(text.c_str(), fontSize, font.value_or(""));
     });
 
     lua.set_function("FillRect", [tableToColor](float x, float y, float width, float height, sol::table color, const std::string& layer) {
