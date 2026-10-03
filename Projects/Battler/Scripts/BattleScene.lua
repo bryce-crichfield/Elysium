@@ -1,5 +1,5 @@
 ---@type SceneScript
--- Battler POC, free movement: the same skirmish as Battle.lua, but off the grid. A unit moves
+-- Battler POC: a skirmish with free movement. A unit moves
 -- anywhere within a walking budget on the navmesh (NavReach), and ranges and blasts are radii.
 --   Left-click a blue-ringed unit, then anywhere in the blue area to move (or on the unit to
 --   stay put). Then 1 Attack / 2 Spell / 3 Wait. Right-click / Esc backs out.
@@ -11,7 +11,7 @@
 -- ends with { kind = "end" } and a checksum of the units, to catch the two drifting apart.
 local Board = require("Scripts/Battler/Board")
 local Units = require("Scripts/Battler/Units")
-local Rules = require("Scripts/Battler/FreeRules")
+local Rules = require("Scripts/Battler/Rules")
 local Net = require("Scripts/Battler/Net")
 
 local Battle = {}

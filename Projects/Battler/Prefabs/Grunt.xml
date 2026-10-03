@@ -1,4 +1,4 @@
-<!-- A battler unit. Battle.lua drives it: position, facing, animation, health. -->
+<!-- A battler unit. BattleScene.lua drives it: position, facing, animation, health. -->
 <Prefab>
     <Entities>
         <Entity id="0">

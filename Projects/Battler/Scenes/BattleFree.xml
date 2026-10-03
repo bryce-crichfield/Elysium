@@ -1,5 +1,5 @@
 <Scene>
-    <SceneScript path="Scripts/BattleFree.lua"/>
+    <SceneScript path="Scripts/BattleScene.lua"/>
     <EditorMetadata gridDivisor="1" gridHeight="64" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="128"/>
     <Systems>
         <System type="ScriptSystem"/>
