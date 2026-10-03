@@ -35,6 +35,7 @@ void RegisterComponentInspectors(InspectorRegistry& registry) {
 
     registry.Register<CameraComponent>(InspectorOrder::Rendering);
     registry.Register<LightComponent>(InspectorOrder::Rendering);
+    registry.Register<RevealComponent>(InspectorOrder::Rendering);
     registry.Register<UiComponent>(InspectorOrder::Rendering, &InspectUi);
 
     registry.Register<ColliderComponent>(InspectorOrder::Physics);

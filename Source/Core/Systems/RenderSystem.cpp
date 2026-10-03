@@ -11,6 +11,7 @@
 #include "Core/Components/EllipseComponent.h"
 #include "Core/Components/LayerComponent.h"
 #include "Core/Components/LightComponent.h"
+#include "Core/Components/RevealComponent.h"
 #include "Core/Components/LineComponent.h"
 #include "Core/Components/MaterialComponent.h"
 #include "Core/Components/ModelComponent.h"
@@ -1393,15 +1394,17 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
         rlActiveTextureSlot(0);
     }
 
-    // Fade the models standing between the camera and the player's eyes (vision lights, the same
-    // ones that clear the fog of war): a ray from chest height toward the camera, against each
-    // model's meshes. Floors never fade (the ray goes up).
+    // Fade the models standing between the camera and what it must keep in view (RevealComponent):
+    // a ray from its height toward the camera, against each model's meshes. Floors never fade
+    // (the ray goes up), and an entity never fades its own model.
     constexpr float kFadedAlpha = 0.3f, kFadeSeconds = 0.25f;
-    std::vector<::Vector3> eyes;
-    const_cast<World&>(world).Query<TransformComponent, LightComponent>([&](Entity, const auto& transform, const auto& light) {
-        if (!light.vision) return;
-        const Vector3 at = World3D::ToGL(transform.worldX, transform.worldY, transform.worldZ + 32.0f);
-        eyes.push_back({at.x, at.y, at.z});
+    struct Eye {
+        Vector3 at;
+        Entity owner;
+    };
+    std::vector<Eye> eyes;
+    const_cast<World&>(world).Query<TransformComponent, RevealComponent>([&](Entity entity, const auto& transform, const auto& reveal) {
+        eyes.push_back({World3D::ToGL(transform.worldX, transform.worldY, transform.worldZ + reveal.height), entity});
     });
     std::erase_if(modelFade_, [&](const auto& entry) { return !world.IsAlive(entry.first); });
     const double fadeNow = ::GetTime();
@@ -1443,9 +1446,9 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             const ::Matrix transform =
                 ToRaylib(World3D::ModelMatrix(world.GetComponent<TransformComponent>(entity), component, *model));
             bool occluding = false;
-            for (const ::Vector3& eye : eyes) {
-                const Vector3 from{eye.x, eye.y, eye.z};
-                if (World3D::RayHits(FromRaylib(transform), *model, from, view3D.TowardCamera(from))) {
+            for (const Eye& eye : eyes) {
+                if (eye.owner == entity) continue;
+                if (World3D::RayHits(FromRaylib(transform), *model, eye.at, view3D.TowardCamera(eye.at))) {
                     occluding = true;
                     break;
                 }

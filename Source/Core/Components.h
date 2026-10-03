@@ -22,6 +22,7 @@
 #include "Core/Components/PrefabInstanceComponent.h"
 #include "Core/Components/ColliderComponent.h"
 #include "Core/Components/LightComponent.h"
+#include "Core/Components/RevealComponent.h"
 #include "Core/Components/NavAreaComponent.h"
 #include "Core/Components/AnimationComponent.h"
 #include "Core/Components/ModelComponent.h"

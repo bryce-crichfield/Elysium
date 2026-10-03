@@ -6,6 +6,7 @@
             <LayerComponent name="entity"/>
             <ModelComponent model="Models/Characters/Hulk/Hulk.mesh" scale="50"/>
             <NameComponent name="Character"/>
+            <RevealComponent height="32"/>
             <TeamComponent team="0"/>
             <TransformComponent x="0" y="0"/>
         </Entity>

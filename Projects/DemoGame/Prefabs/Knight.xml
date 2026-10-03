@@ -9,6 +9,7 @@
             <KinematicsComponent friction="5" maxSpeed="140"/>
             <LayerComponent name="entity"/>
             <LightComponent color="#FFFFFFFF" intensity="1" radius="500" height="24" flicker="0" vision="true"/>
+            <RevealComponent height="32"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Texture" enabled="true" texture="Textures/Sprites/Knight/Knight_idle.png">
                     <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
