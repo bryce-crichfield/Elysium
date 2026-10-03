@@ -45,7 +45,7 @@ constexpr Field<Palette, ImVec4> ColorFields[] = {
     FIELD(Palette, CameraBounds), FIELD(Palette, Selection),     FIELD(Palette, ViewportBackground),
     FIELD(Palette, AssetFolder),  FIELD(Palette, AssetScene),    FIELD(Palette, AssetPrefab),
     FIELD(Palette, AssetScript),  FIELD(Palette, AssetSound),    FIELD(Palette, AssetSprite),
-    FIELD(Palette, AssetTexture), FIELD(Palette, AssetShader),  FIELD(Palette, AssetModel), FIELD(Palette, AssetAnimation),
+    FIELD(Palette, AssetTexture), FIELD(Palette, AssetShader),  FIELD(Palette, AssetModel), FIELD(Palette, AssetAnimation), FIELD(Palette, AssetFont),
 };
 constexpr Field<Theme, ImVec2> Vec2Fields[] = {
     FIELD(Theme, WindowPadding), FIELD(Theme, FramePadding), FIELD(Theme, ItemSpacing),

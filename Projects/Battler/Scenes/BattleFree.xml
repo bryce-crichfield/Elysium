@@ -40,6 +40,30 @@
         <Override entity="0" component="TransformComponent" field="x" value="12"/>
         <Override entity="0" component="TransformComponent" field="y" value="245.302"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame1">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1204"/>
+        <Override entity="0" component="TransformComponent" field="y" value="104.40845"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame2">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1204"/>
+        <Override entity="0" component="TransformComponent" field="y" value="176.73364"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame3">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1204"/>
+        <Override entity="0" component="TransformComponent" field="y" value="245.302"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame4">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1204"/>
+        <Override entity="0" component="TransformComponent" field="y" value="315.6"/>
+    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar0">
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>

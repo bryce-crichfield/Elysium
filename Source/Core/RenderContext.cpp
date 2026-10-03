@@ -1,4 +1,5 @@
 #include "Core/RenderContext.h"
+#include "Core/Path.h"
 #include "Core/RaylibConvert.h"
 #include "Core/Shader.h"
 #include "rlgl.h"
@@ -136,16 +137,19 @@ void RenderContext::DrawText(const char* text, float x, float y, int fontSize, C
     ::DrawText(text, (int)x, (int)y, fontSize, ToRaylib(color));
 }
 
-// Named fonts, loaded once (on the GL thread) at a large base size so they scale down cleanly.
-// A name that fails to load is remembered as missing and falls back to the default font.
+// Fonts, loaded once (on the GL thread) at a large base size so they scale down cleanly. A
+// path with a folder ("Fonts/EnchantedLand-Regular.ttf") is a project font asset; a bare name
+// is an engine font in Assets/Fonts. One that fails to load is remembered as missing and falls
+// back to the default font.
 static const ::Font* FindFont(const std::string& name) {
     if (name.empty()) return nullptr;
     static std::unordered_map<std::string, ::Font> fonts;
     auto it = fonts.find(name);
     if (it == fonts.end()) {
         ::Font font{};
+        const bool projectFont = name.find('/') != std::string::npos;
         for (const char* ext : {"", ".ttf", ".otf"}) {
-            std::string path = "Assets/Fonts/" + name + ext;
+            std::string path = projectFont ? Path(name).GetFullPath() + ext : "Assets/Fonts/" + name + ext;
             if (!std::filesystem::is_regular_file(path)) continue;
             font = ::LoadFontEx(path.c_str(), 96, nullptr, 0);
             if (font.texture.id != 0) {

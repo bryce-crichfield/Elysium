@@ -17,6 +17,7 @@ const std::vector<AssetKindFolder>& AssetKindFolders() {
         {"Shaders", AssetKind::Shader, {".fs", ".vs", ".glsl"}},
         {"Models", AssetKind::Model, {".glb", ".gltf", ".obj", ".mesh"}},
         {"Animations", AssetKind::Animation, {".anim"}},
+        {"Fonts", AssetKind::Font, {".ttf", ".otf"}},
     };
     return folders;
 }

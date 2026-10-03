@@ -212,7 +212,7 @@ void AssetEditor::Draw() {
                 if (!here) {
                     if (ImGui::MenuItem(ICON_FA_FILE_CIRCLE_PLUS "  Create File...")) createDialog_.OpenNew();
                 } else if (here->kind != AssetKind::Sound && here->kind != AssetKind::Texture && here->kind != AssetKind::Model &&
-                           here->kind != AssetKind::Animation) {
+                           here->kind != AssetKind::Animation && here->kind != AssetKind::Font) {
                     const AssetStyle style = StyleOf(here->kind);
                     ImGui::PushStyleColor(ImGuiCol_Text, style.color);
                     const bool create = ImGui::MenuItem((std::string(style.icon) + "  Create " + style.label + "...").c_str());
@@ -436,7 +436,7 @@ void AssetEditor::HandleItem(const DiskFile& file, IAsset* asset, bool clicked, 
     selectedFile_ = file.relativePath;
     auto& assetService = services_.Get<IAssetService>();
     const Path path(file.relativePath);
-    if (file.kind != AssetKind::Sound && ImGui::MenuItem(ICON_FA_PEN_TO_SQUARE "  Open")) Open(file);
+    if (file.kind != AssetKind::Sound && file.kind != AssetKind::Font && ImGui::MenuItem(ICON_FA_PEN_TO_SQUARE "  Open")) Open(file);
     if (file.kind == AssetKind::Prefab) {
         auto& editor = editor_;
         ImGui::BeginDisabled(!editor.GetWorld());

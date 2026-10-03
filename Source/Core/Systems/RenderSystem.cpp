@@ -285,7 +285,7 @@ static void RenderTextImpl(RenderContext& ctx, const RenderRecord& rec) {
     }
 
     int scaledFontSize = (int)(component.fontSize * ((scaleX + scaleY) * 0.5f));
-    int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
+    int textWidth = (int)RenderContext::MeasureText(component.content.c_str(), scaledFontSize, component.font);
 
     float drawX, drawY;
     if (!rec.isWorldSpace && world.HasComponent<RectangleComponent>(rec.entity)) {
@@ -297,7 +297,7 @@ static void RenderTextImpl(RenderContext& ctx, const RenderRecord& rec) {
         drawY = rec.y - scaledFontSize * 0.5f;
     }
 
-    ctx.DrawText(component.content.c_str(), drawX, drawY, scaledFontSize, component.color);
+    ctx.DrawText(component.content.c_str(), drawX, drawY, scaledFontSize, component.color, component.font);
 }
 
 static bool PickTextImpl(const World& world, const RenderRecord& rec, Vector2 testPos) {
@@ -310,7 +310,7 @@ static bool PickTextImpl(const World& world, const RenderRecord& rec, Vector2 te
         scaleY = transform.worldScaleY;
     }
     int scaledFontSize = (int)(component.fontSize * ((scaleX + scaleY) * 0.5f));
-    int textWidth = MeasureText(component.content.c_str(), scaledFontSize);
+    int textWidth = (int)RenderContext::MeasureText(component.content.c_str(), scaledFontSize, component.font);
 
     float left, top;
     if (!rec.isWorldSpace && world.HasComponent<RectangleComponent>(rec.entity)) {

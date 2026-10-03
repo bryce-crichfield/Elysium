@@ -12,7 +12,7 @@ local Battle = {}
 
 local PLAYER, ENEMY = Units.PLAYER, Units.ENEMY
 local SCREEN_W, SCREEN_H = 1280, 720
-local BANNER_FONT = "Ancient-Medium"  -- Assets/Fonts
+local FONT = "Fonts/EnchantedLand-Regular.ttf"  -- every HUD line is drawn in it
 local SPEED = 215          -- ground units a second
 local CELL = 8             -- the navmesh's cellSize (BattleFree.xml), for drawing reach runs
 local COS = Board.PITCH_COS
@@ -35,7 +35,18 @@ local COLORS = {
     panel = {r = 14, g = 14, b = 22, a = 210}, gold = {r = 255, g = 210, b = 110, a = 255},
 }
 
+-- Health bar fills for the hero frames, by team.
+local FRAME_FILLS = {
+    [PLAYER] = {r = 70, g = 160, b = 255, a = 255},
+    [ENEMY]  = {r = 235, g = 70, b = 60, a = 255},
+}
+
 -- --- Helpers ------------------------------------------------------------------------------
+
+-- The HUD font everywhere unless a call names another.
+local RawDrawText, RawMeasureText = DrawText, MeasureText
+local function DrawText(text, x, y, size, color, layer, font) RawDrawText(text, x, y, size, color, layer, font or FONT) end
+local function MeasureText(text, size, font) return RawMeasureText(text, size, font or FONT) end
 
 local function Wait(seconds)
     local t = 0
@@ -91,25 +102,59 @@ function Battle:StartBattle()
         end
     end
     self.turn = 0
-    self.selected, self.mode, self.reach = nil, nil, nil
+    self.selected, self.mode, self.reach, self.viewed = nil, nil, nil, nil
     self:Run(function() self:PlayerPhase() end)
 end
 
 function Battle:Run(fn) self.co = coroutine.create(fn) end
 
--- The HUD's hero frames (Scripts/Components/HeroFrame.lua): the player units, top to
--- bottom, each frame lit while its unit is selected.
+-- Whether a unit's ring (and so its hero frame) is lit: it's selected, acting, hovered (on the
+-- field or by its frame), or the unit last picked out by clicking its frame.
+function Battle:IsLit(u)
+    return u == self.selected or u == self.focus or u == self.hoverUnit or u == self.viewed
+end
+
+-- The HUD's hero frames (Scripts/Components/HeroFrame.lua): the player units in the frames on
+-- the left of the screen, the enemies in those on the right, top to bottom, each in its team's
+-- colors and lit with its unit's ring.
 function Battle:UpdateHeroFrames()
     if not HeroFrames then return end
-    local heroes = {}
+    local teams = { [PLAYER] = {}, [ENEMY] = {} }
     for _, u in ipairs(self.units or {}) do
-        if u.team == Units.PLAYER then heroes[#heroes + 1] = u end
+        local list = teams[u.team]
+        if list then list[#list + 1] = u end
     end
-    for i, frame in ipairs(HeroFrames.Frames()) do
-        local u = heroes[i]
+    local slots = { [PLAYER] = 0, [ENEMY] = 0 }
+    for _, frame in ipairs(HeroFrames.Frames()) do
+        local x, _, w = HeroFrames.Rect(frame)
+        local team = x + w / 2 < SCREEN_W / 2 and PLAYER or ENEMY
+        slots[team] = slots[team] + 1
+        local u = teams[team][slots[team]]
         local binding = HeroFrames.bindings[frame]
-        if not binding or binding.unit ~= u then HeroFrames.Bind(frame, u); binding = HeroFrames.bindings[frame] end
-        if binding then binding.selected = u == self.selected end
+        if not binding or binding.unit ~= u then
+            local glow = Units.RING_COLORS[team == PLAYER and "player" or "enemy"]
+            HeroFrames.Bind(frame, u, glow, FRAME_FILLS[team])
+            binding = HeroFrames.bindings[frame]
+        end
+        if binding then binding.lit = self:IsLit(u) end
+    end
+end
+
+-- Clicking a hero frame: while aiming, it targets that unit, as clicking it on the field would.
+-- Otherwise a ready player unit is selected and any other unit is picked out to look at; either
+-- way the camera glides over to it.
+function Battle:ClickFrame(u)
+    if self.selected and (self.mode == "attack" or self.mode == "spell") then
+        self:Click()  -- the hovered unit is the frame's
+        return
+    end
+    local ready = u.team == PLAYER and not u.acted and (self.mode == nil or self.mode == "move")
+    if ready then
+        self.viewed = nil
+        self:Select(u)
+    else
+        self.viewed = u
+        self:Follow({ x = u.x, y = u.y })
     end
 end
 
@@ -158,8 +203,13 @@ function Battle:Update(dt)
     local mouse = GetMousePosition()
     local w = ScreenToWorld(mouse)
     self.mouse = mouse
-    self.hoverPoint = NavPick(w.x, w.y)
-    self.hoverUnit = self:UnitUnder(w.x, w.y)
+    self.frameUnit = HeroFrames and HeroFrames.At(mouse.x, mouse.y)
+    if self.frameUnit then
+        self.hoverPoint, self.hoverUnit = nil, self.frameUnit
+    else
+        self.hoverPoint = NavPick(w.x, w.y)
+        self.hoverUnit = self:UnitUnder(w.x, w.y)
+    end
     self:UpdatePreview()
     self:PollInput(mouse, w)
 end
@@ -347,6 +397,25 @@ function Battle:PlayerPhase()
     for _, u in ipairs(self.units) do u.moved, u.acted = false, false end
     self:ShowBanner("PLAYER PHASE", "Turn " .. self.turn, 1.2)
     Wait(0.9)
+    self:SelectNext()
+end
+
+-- The next player unit still to act, in roster order after `after` (wrapping), else nil.
+function Battle:NextReady(after)
+    local list = self:Living(PLAYER)
+    local start = 0
+    for i, u in ipairs(list) do if u == after then start = i end end
+    for k = 1, #list do
+        local u = list[(start + k - 1) % #list + 1]
+        if not u.acted then return u end
+    end
+    return nil
+end
+
+-- Hands the turn to the next unit in the queue: selects it, and the camera glides over.
+function Battle:SelectNext(after)
+    local u = self:NextReady(after)
+    if u then self:Select(u) end
 end
 
 function Battle:EndPlayerPhase()
@@ -490,6 +559,9 @@ function Battle:PlayerAction(fn)
         if self:AllPlayersDone() then
             Wait(0.3)
             self:EnemyPhase()
+        else
+            Wait(0.15)
+            self:SelectNext(u)
         end
     end)
 end
@@ -499,7 +571,7 @@ end
 function Battle:Busy() return self.co ~= nil or self.state ~= "battle" or self.phase ~= PLAYER end
 
 function Battle:Select(u)
-    self.selected = u
+    self.selected, self.viewed = u, nil
     self:Follow({ x = u.x, y = u.y })  -- centre once; don't chase the move preview
     self.origin = { x = u.x, y = u.y, z = u.z }
     self.mode = "move"
@@ -555,7 +627,7 @@ function Battle:Back()
         u.x, u.y, u.z, u.moved = self.origin.x, self.origin.y, self.origin.z, false
         self:Select(u)
     else
-        self.selected, self.mode, self.reach = nil, nil, nil
+        self.selected, self.mode, self.reach, self.viewed = nil, nil, nil, nil
     end
 end
 
@@ -630,6 +702,7 @@ function Battle:HandleEvent(event)
         if self:Busy() then return false end
         if event.button == MOUSE_RIGHT then self:Back() return true end
         if event.button ~= MOUSE_LEFT then return false end
+        if self.frameUnit then self:ClickFrame(self.frameUnit) return true end
         if self.mode == "menu" or self.mode == "attack" or self.mode == "spell" then
             for _, item in ipairs(self:MenuItems()) do
                 if event.x >= item.x and event.x <= item.x + item.w and event.y >= item.y and event.y <= item.y + item.h then
@@ -755,7 +828,7 @@ function Battle:Render()
     end
 
     for _, v in ipairs(self.units) do
-        Units.DrawRing(v, v == self.selected or v == self.focus or v == self.hoverUnit, self.time)
+        Units.DrawRing(v, self:IsLit(v), self.time)
     end
 
     for _, f in ipairs(self.floaters) do
@@ -843,11 +916,11 @@ function Battle:DrawHud()
         local a = b.duration and math.floor(255 * math.min(1, (b.duration - b.t) * 3, b.t * 4)) or 255
         a = math.max(0, math.min(255, a))
         FillRect(0, SCREEN_H / 2 - 50, SCREEN_W, 100, {r = 8, g = 8, b = 14, a = math.floor(a * 0.8)}, "ui")
-        DrawText(b.text, SCREEN_W / 2 - MeasureText(b.text, 44, BANNER_FONT) / 2, SCREEN_H / 2 - 38, 44,
-            {r = 255, g = 215, b = 120, a = a}, "ui", BANNER_FONT)
+        DrawText(b.text, SCREEN_W / 2 - MeasureText(b.text, 44) / 2, SCREEN_H / 2 - 38, 44,
+            {r = 255, g = 215, b = 120, a = a}, "ui")
         if b.sub then
-            DrawText(b.sub, SCREEN_W / 2 - MeasureText(b.sub, 22, BANNER_FONT) / 2, SCREEN_H / 2 + 12, 22,
-                {r = 220, g = 220, b = 230, a = a}, "ui", BANNER_FONT)
+            DrawText(b.sub, SCREEN_W / 2 - MeasureText(b.sub, 22) / 2, SCREEN_H / 2 + 12, 22,
+                {r = 220, g = 220, b = 230, a = a}, "ui")
         end
     end
 end

@@ -1,19 +1,17 @@
 ---@type EntityScript
 ---@class HeroFrame
--- A hero's portrait frame on the HUD. The battle binds a unit to it (HeroFrame.Bind); the
--- frame then shows that unit's name and health, and lights its Selection ring while the
--- unit is selected. Unbound frames are hidden.
+-- A unit's portrait frame on the HUD. The battle binds a unit to it (HeroFrame.Bind) with its
+-- team's colors; the frame then shows that unit's name and health, and lights its Selection
+-- ring whenever the unit's own ring is lit. Unbound frames are hidden. HeroFrame.At finds the
+-- unit whose frame is under a screen point, for clicks.
 local HeroFrame = {}
 
--- Shared across every frame (one Lua state): frame root entity -> { unit, selected }.
+-- Shared across every frame (one Lua state): frame root entity -> { unit, lit, glow, fill }.
 HeroFrames = HeroFrames or { bindings = {}, frames = {} }
 
 local DRAIN = 0.8  -- of the bar per second
-local HEALTH_COLORS = {
-    high = {r = 80, g = 220, b = 110, a = 255},
-    mid  = {r = 235, g = 190, b = 60, a = 255},
-    low  = {r = 235, g = 70, b = 55, a = 255},
-}
+local SIZE = 256   -- the prefab's frame, before the placement's scale
+local DEFAULT_FILL = {r = 80, g = 220, b = 110, a = 255}
 
 -- Spawned names are namespaced per placement, so match the end of the name.
 local function FindChild(root, name)
@@ -64,21 +62,42 @@ function HeroFrame:Update(entity, dt)
     local meter = mat and mat:Layer("Meter")
     if meter then
         meter:Set("uProgress", self.shown)
-        meter:Set("uFillColor", fraction > 0.5 and HEALTH_COLORS.high or (fraction > 0.25 and HEALTH_COLORS.mid or HEALTH_COLORS.low))
+        meter:Set("uFillColor", binding.fill or DEFAULT_FILL)
     end
 
-    -- Selection: the ring's fire burns while the unit is selected.
+    -- Selection: the frame's fire burns while the unit's ring is lit, in the team's color.
     local sel = self.selection and GetComponent(self.selection, "Material")
     if sel then
-        sel.enabled = binding.selected and u.alive
+        sel.enabled = binding.lit and u.alive
         local fire = sel:Layer("Fire")
-        if fire and sel.enabled then fire:Set("uIntensity", 2.4 + 0.5 * math.sin(self.time * 6)) end
+        if fire and sel.enabled then
+            if binding.glow then fire:Set("uGlowColor", binding.glow) end
+            fire:Set("uIntensity", 2.4 + 0.5 * math.sin(self.time * 6))
+        end
     end
 end
 
--- Binds `unit` (a Units table, or nil to clear) to the frame rooted at `frame`.
-function HeroFrame.Bind(frame, unit)
-    HeroFrames.bindings[frame] = unit and { unit = unit, selected = false } or nil
+-- Binds `unit` (a Units table, or nil to clear) to the frame rooted at `frame`; `glow` (an
+-- {x, y, z} color) tints its Selection fire and `fill` (an {r, g, b, a}) its health bar.
+function HeroFrame.Bind(frame, unit, glow, fill)
+    HeroFrames.bindings[frame] = unit and { unit = unit, lit = false, glow = glow, fill = fill } or nil
+end
+
+-- The frame's rectangle on screen: x, y, w, h.
+function HeroFrame.Rect(frame)
+    local t = GetComponent(frame, "Transform")
+    return t.worldX, t.worldY, SIZE * t.worldScaleX, SIZE * t.worldScaleY
+end
+
+-- The unit whose frame is under the screen point (x, y), if any.
+function HeroFrame.At(x, y)
+    for frame, binding in pairs(HeroFrames.bindings) do
+        if binding.unit and binding.unit.alive and HasComponent(frame, "Transform") then
+            local fx, fy, fw, fh = HeroFrame.Rect(frame)
+            if x >= fx and x <= fx + fw and y >= fy and y <= fy + fh then return binding.unit end
+        end
+    end
+    return nil
 end
 
 -- The frames on screen, top to bottom.
@@ -92,5 +111,6 @@ function HeroFrame.Frames()
 end
 
 HeroFrames.Bind, HeroFrames.Frames = HeroFrame.Bind, HeroFrame.Frames
+HeroFrames.Rect, HeroFrames.At = HeroFrame.Rect, HeroFrame.At
 
 return HeroFrame

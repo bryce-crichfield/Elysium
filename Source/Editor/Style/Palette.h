@@ -60,6 +60,7 @@ struct Palette {
     ImVec4 AssetShader  = Hex(0x5CC8D0);
     ImVec4 AssetModel   = Hex(0xE05CC8);
     ImVec4 AssetAnimation = Hex(0x7F63C9);  // a deeper Sprite
+    ImVec4 AssetFont    = Hex(0xF2B33D);  // amber, between Script and Texture
 
     // Derived from the colors above after a theme loads, unless the theme sets them.
     ImVec4 AccentSoft;     // selected-row fill

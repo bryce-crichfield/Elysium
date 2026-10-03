@@ -45,7 +45,7 @@
             <LayerComponent name="ui"/>
             <NameComponent name="NameText"/>
             <ParentComponent target="0"/>
-            <TextComponent text="Name" fontSize="4" r="255" g="255" b="255" a="255"/>
+            <TextComponent text="Name" fontSize="64" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
             <TransformComponent x="126.755" y="17.225616"/>
         </Entity>
         <Entity id="4">
@@ -58,8 +58,8 @@
             </MaterialComponent>
             <NameComponent name="HealthBar"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="128" height="36" cornerRadius="0"/>
-            <TransformComponent x="16.756332" y="227.55998" scaleX="1.74" scaleY="0.44"/>
+            <RectangleComponent width="223" height="16" cornerRadius="0"/>
+            <TransformComponent x="16.756332" y="227.55998"/>
         </Entity>
     </Entities>
 </Prefab>

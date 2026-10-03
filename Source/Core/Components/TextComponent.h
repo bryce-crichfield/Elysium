@@ -8,6 +8,7 @@ namespace Elysium {
         std::string content;
         int fontSize;
         Color color;
+        std::string font;  // a font asset (Fonts/...), or empty for the default font
 
         TextComponent(const std::string& text = "", int size = 20, Color c = {});
 

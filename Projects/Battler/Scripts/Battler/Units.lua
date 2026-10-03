@@ -199,6 +199,7 @@ local RING_COLORS = {
     enemy  = {x = 1.0, y = 0.27, z = 0.23},
     spent  = {x = 0.45, y = 0.45, z = 0.5},
 }
+Units.RING_COLORS = RING_COLORS
 
 -- The team ring: the prefab's Ring child, its fire in the team's color (grey once a player
 -- unit has acted), flared while active, hidden once dead.
