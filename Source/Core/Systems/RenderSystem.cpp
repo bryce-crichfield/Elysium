@@ -1332,8 +1332,18 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
         ctx.BeginRenderTarget(ctx.GetServices().Get<Services::ISceneService>().GetFramebuffer());
     }
 
+    // Models antialiased: drawn into a multisampled target, resolved after (below). Only
+    // under Normal blending, since the resolve composites them over the scene as alpha.
+    const Framebuffer& sceneTarget = ctx.GetServices().Get<Services::ISceneService>().GetFramebuffer();
+    const bool msaa = msaaSamples_ > 1 && layer.layerBlend == SceneLayerBlend::Normal && sceneTarget.IsValid();
     rlDrawRenderBatchActive();
-    ClearDepth();
+    if (msaa) {
+        msaaBuffer_.Ensure(sceneTarget.Width(), sceneTarget.Height(), msaaSamples_, sceneTarget);
+        msaaResolve_.Resize(sceneTarget.Width(), sceneTarget.Height());
+        msaaBuffer_.Begin();
+    } else {
+        ClearDepth();
+    }
     rlEnableDepthTest();
     rlDisableBackfaceCulling();  // imported models aren't always closed or consistently wound
     rlSetMatrixProjection(projection);
@@ -1505,6 +1515,19 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     }
     rlDrawRenderBatchActive();
     rlSetMatrixModelview(previousModelview);
+    if (msaa && msaaBuffer_.IsValid()) {
+        // Resolve: the models' color (premultiplied by coverage, over transparent) onto the
+        // scene, and their depth into the scene's, for the cards.
+        msaaBuffer_.Resolve(&msaaResolve_, &sceneTarget);
+        rlDisableDepthTest();
+        rlSetMatrixProjection(MatrixOrtho(0, sceneTarget.Width(), sceneTarget.Height(), 0, -1, 1));
+        rlSetBlendMode(RL_BLEND_ALPHA_PREMULTIPLY);
+        ctx.DrawFramebuffer(msaaResolve_, Rectangle{0, 0, (float)sceneTarget.Width(), (float)sceneTarget.Height()}, Colors::White);
+        rlDrawRenderBatchActive();
+        rlSetBlendMode(RL_BLEND_ALPHA);
+        rlSetMatrixProjection(projection);
+        rlEnableDepthTest();
+    }
 
     // Cards, far to near: billboards facing the camera, standing at their anchor. A card is
     // drawn in 2D world units around its anchor's ground position; one unit across is one unit
@@ -1670,6 +1693,7 @@ RenderSystem::~RenderSystem() {
 SystemParameters RenderSystem::DefaultParameters() const {
     return {
         {"hierarchySort", Value{true}},
+        {"msaa", Value{4}},  // samples per pixel antialiasing World3D models; 0 off
     };
 }
 
@@ -1677,6 +1701,7 @@ void RenderSystem::OnParametersChanged() {
     _sorter.SetSortOptions({
         .hierarchySort = GetParameter("hierarchySort", true),
     });
+    _compositor.SetMsaaSamples(GetParameter("msaa", 4));
 }
 
 void RenderSystem::IssueDrawCommand(DrawCommand cmd) {
@@ -1750,11 +1775,17 @@ void RenderSystem::CollectLights() {
             ground.x += 1.5f * light.flicker * std::sin(time * 9.1f + seed * 4.0f);
             ground.y += 1.0f * light.flicker * std::sin(time * 8.3f + seed * 5.0f);
         }
+        // A light carried by a unit (a child of its model) belongs to that model, so the unit
+        // doesn't shadow its own light.
+        Entity owner = entity;
+        while (owner != INVALID_ENTITY && !world->HasComponent<ModelComponent>(owner))
+            owner = world->HasComponent<ParentComponent>(owner) ? world->GetComponent<ParentComponent>(owner).parent : INVALID_ENTITY;
+        if (owner == INVALID_ENTITY) owner = entity;
         // Standing on its entity's height (Transform z, which is GL y as World3D models use it).
         lights.push_back({WorldTo3D(ground, light.height + transform.worldZ * kIsoCos),
                           Vector3{light.color.r / 255.0f * brightness, light.color.g / 255.0f * brightness,
                                   light.color.b / 255.0f * brightness},
-                          light.radius, light.vision, entity, steady});
+                          light.radius, light.vision, owner, steady});
     });
     lightFade_ = std::move(fades);
     _compositor.SetLights(std::move(lights));

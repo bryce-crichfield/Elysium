@@ -3,6 +3,10 @@
 #include "raylib.h"
 #include "rlgl.h"
 
+#include <algorithm>
+#include <type_traits>
+#include <utility>
+
 // raylib's rlGenTextureMipmaps logs every call, which is too noisy for buffers that rebuild
 // their mips every frame; call GL directly (GLFW is linked into raylib on desktop).
 extern "C" void* glfwGetProcAddress(const char* name);
@@ -108,6 +112,172 @@ void Framebuffer::Destroy() {
     depthBufferId_ = 0;
     width_ = 0;
     height_ = 0;
+}
+
+// =============================================================================
+// MultisampleFramebuffer: rlgl has no multisampled targets, so this is plain GL.
+// =============================================================================
+
+namespace {
+
+constexpr unsigned int kFramebuffer = 0x8D40;          // GL_FRAMEBUFFER
+constexpr unsigned int kReadFramebuffer = 0x8CA8;      // GL_READ_FRAMEBUFFER
+constexpr unsigned int kDrawFramebuffer = 0x8CA9;      // GL_DRAW_FRAMEBUFFER
+constexpr unsigned int kRenderbuffer = 0x8D41;         // GL_RENDERBUFFER
+constexpr unsigned int kRgba8 = 0x8058;                // GL_RGBA8
+constexpr unsigned int kDepth24 = 0x81A6;              // GL_DEPTH_COMPONENT24
+constexpr unsigned int kColorAttachment0 = 0x8CE0;     // GL_COLOR_ATTACHMENT0
+constexpr unsigned int kDepthAttachment = 0x8D00;      // GL_DEPTH_ATTACHMENT
+constexpr unsigned int kColorBufferBit = 0x00004000;   // GL_COLOR_BUFFER_BIT
+constexpr unsigned int kDepthBufferBit = 0x00000100;   // GL_DEPTH_BUFFER_BIT
+constexpr unsigned int kNearest = 0x2600;              // GL_NEAREST
+constexpr unsigned int kInternalFormat = 0x8D44;       // GL_RENDERBUFFER_INTERNAL_FORMAT
+constexpr unsigned int kMaxSamples = 0x8D57;           // GL_MAX_SAMPLES
+
+struct Gl {
+    void (*genFramebuffers)(int, unsigned int*);
+    void (*deleteFramebuffers)(int, const unsigned int*);
+    void (*bindFramebuffer)(unsigned int, unsigned int);
+    void (*genRenderbuffers)(int, unsigned int*);
+    void (*deleteRenderbuffers)(int, const unsigned int*);
+    void (*bindRenderbuffer)(unsigned int, unsigned int);
+    void (*renderbufferStorageMultisample)(unsigned int, int, unsigned int, int, int);
+    void (*getRenderbufferParameteriv)(unsigned int, unsigned int, int*);
+    void (*framebufferRenderbuffer)(unsigned int, unsigned int, unsigned int, unsigned int);
+    void (*blitFramebuffer)(int, int, int, int, int, int, int, int, unsigned int, unsigned int);
+    void (*clearColor)(float, float, float, float);
+    void (*clearDepth)(double);
+    void (*clear)(unsigned int);
+    void (*getIntegerv)(unsigned int, int*);
+
+    bool Loaded() const {
+        return genFramebuffers && deleteFramebuffers && bindFramebuffer && genRenderbuffers && deleteRenderbuffers &&
+               bindRenderbuffer && renderbufferStorageMultisample && getRenderbufferParameteriv &&
+               framebufferRenderbuffer && blitFramebuffer && clearColor && clearDepth && clear && getIntegerv;
+    }
+};
+
+const Gl& GL() {
+    static const Gl gl = [] {
+        Gl g{};
+        auto load = [](auto& fn, const char* name) { fn = reinterpret_cast<std::remove_reference_t<decltype(fn)>>(glfwGetProcAddress(name)); };
+        load(g.genFramebuffers, "glGenFramebuffers");
+        load(g.deleteFramebuffers, "glDeleteFramebuffers");
+        load(g.bindFramebuffer, "glBindFramebuffer");
+        load(g.genRenderbuffers, "glGenRenderbuffers");
+        load(g.deleteRenderbuffers, "glDeleteRenderbuffers");
+        load(g.bindRenderbuffer, "glBindRenderbuffer");
+        load(g.renderbufferStorageMultisample, "glRenderbufferStorageMultisample");
+        load(g.getRenderbufferParameteriv, "glGetRenderbufferParameteriv");
+        load(g.framebufferRenderbuffer, "glFramebufferRenderbuffer");
+        load(g.blitFramebuffer, "glBlitFramebuffer");
+        load(g.clearColor, "glClearColor");
+        load(g.clearDepth, "glClearDepth");
+        load(g.clear, "glClear");
+        load(g.getIntegerv, "glGetIntegerv");
+        return g;
+    }();
+    return gl;
+}
+
+}  // namespace
+
+MultisampleFramebuffer::MultisampleFramebuffer(int width, int height, int samples, unsigned int depthFormat) {
+    const Gl& gl = GL();
+    if (!gl.Loaded() || width <= 0 || height <= 0 || samples <= 0) return;
+    depthFormat_ = depthFormat ? depthFormat : kDepth24;
+    gl.genFramebuffers(1, &id_);
+    gl.bindFramebuffer(kFramebuffer, id_);
+    gl.genRenderbuffers(1, &colorBufferId_);
+    gl.bindRenderbuffer(kRenderbuffer, colorBufferId_);
+    gl.renderbufferStorageMultisample(kRenderbuffer, samples, kRgba8, width, height);
+    gl.framebufferRenderbuffer(kFramebuffer, kColorAttachment0, kRenderbuffer, colorBufferId_);
+    gl.genRenderbuffers(1, &depthBufferId_);
+    gl.bindRenderbuffer(kRenderbuffer, depthBufferId_);
+    gl.renderbufferStorageMultisample(kRenderbuffer, samples, depthFormat_, width, height);
+    gl.framebufferRenderbuffer(kFramebuffer, kDepthAttachment, kRenderbuffer, depthBufferId_);
+    gl.bindRenderbuffer(kRenderbuffer, 0);
+    gl.bindFramebuffer(kFramebuffer, 0);
+    width_ = width;
+    height_ = height;
+    samples_ = samples;
+}
+
+MultisampleFramebuffer::~MultisampleFramebuffer() { Destroy(); }
+
+MultisampleFramebuffer::MultisampleFramebuffer(MultisampleFramebuffer&& other) noexcept { *this = std::move(other); }
+
+MultisampleFramebuffer& MultisampleFramebuffer::operator=(MultisampleFramebuffer&& other) noexcept {
+    if (this != &other) {
+        Destroy();
+        id_ = std::exchange(other.id_, 0);
+        colorBufferId_ = std::exchange(other.colorBufferId_, 0);
+        depthBufferId_ = std::exchange(other.depthBufferId_, 0);
+        depthFormat_ = std::exchange(other.depthFormat_, 0);
+        width_ = std::exchange(other.width_, 0);
+        height_ = std::exchange(other.height_, 0);
+        samples_ = std::exchange(other.samples_, 0);
+    }
+    return *this;
+}
+
+void MultisampleFramebuffer::Ensure(int width, int height, int samples, const Framebuffer& depthOf) {
+    const Gl& gl = GL();
+    if (!gl.Loaded()) return;
+    static const int maxSamples = [&] {
+        int n = 0;
+        gl.getIntegerv(kMaxSamples, &n);
+        return n;
+    }();
+    samples = std::min(samples, maxSamples);
+    unsigned int depthFormat = kDepth24;
+    if (depthOf.DepthBufferId() != 0) {
+        int format = 0;
+        gl.bindRenderbuffer(kRenderbuffer, depthOf.DepthBufferId());
+        gl.getRenderbufferParameteriv(kRenderbuffer, kInternalFormat, &format);
+        gl.bindRenderbuffer(kRenderbuffer, 0);
+        if (format != 0) depthFormat = (unsigned int)format;
+    }
+    if (id_ != 0 && width_ == width && height_ == height && samples_ == samples && depthFormat_ == depthFormat) return;
+    *this = MultisampleFramebuffer(width, height, samples, depthFormat);
+}
+
+void MultisampleFramebuffer::Begin() {
+    if (id_ == 0) return;
+    const Gl& gl = GL();
+    rlDrawRenderBatchActive();
+    gl.bindFramebuffer(kFramebuffer, id_);
+    gl.clearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    gl.clearDepth(1.0);
+    gl.clear(kColorBufferBit | kDepthBufferBit);
+}
+
+void MultisampleFramebuffer::Resolve(const Framebuffer* color, const Framebuffer* depth) {
+    if (id_ == 0) return;
+    const Gl& gl = GL();
+    rlDrawRenderBatchActive();
+    gl.bindFramebuffer(kReadFramebuffer, id_);
+    if (color && color->IsValid()) {
+        gl.bindFramebuffer(kDrawFramebuffer, color->Id());
+        gl.blitFramebuffer(0, 0, width_, height_, 0, 0, color->Width(), color->Height(), kColorBufferBit, kNearest);
+    }
+    if (depth && depth->IsValid()) {
+        gl.bindFramebuffer(kDrawFramebuffer, depth->Id());
+        gl.blitFramebuffer(0, 0, width_, height_, 0, 0, depth->Width(), depth->Height(), kDepthBufferBit, kNearest);
+    }
+    const Framebuffer* bound = depth ? depth : color;
+    gl.bindFramebuffer(kFramebuffer, bound ? bound->Id() : 0);
+}
+
+void MultisampleFramebuffer::Destroy() {
+    const Gl& gl = GL();
+    if (gl.Loaded()) {
+        if (colorBufferId_) gl.deleteRenderbuffers(1, &colorBufferId_);
+        if (depthBufferId_) gl.deleteRenderbuffers(1, &depthBufferId_);
+        if (id_) gl.deleteFramebuffers(1, &id_);
+    }
+    id_ = colorBufferId_ = depthBufferId_ = 0;
+    width_ = height_ = samples_ = 0;
 }
 
 }  // namespace Elysium

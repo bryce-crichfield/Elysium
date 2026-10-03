@@ -141,6 +141,8 @@ public:
         Vector3 shadowPosition;         // `position` without the flicker: shadow maps stay cached
     };
     void SetLights(std::vector<PointLight> lights) { lights_ = std::move(lights); }
+    // Antialiases World3D models with this many samples per pixel (MSAA); 0 or 1 is off.
+    void SetMsaaSamples(int samples) { msaaSamples_ = samples; }
 
     void RenderLayer(RenderContext& ctx, const CameraView& view,
                       const SceneLayer& layer, std::span<const RenderRecord> records);
@@ -198,6 +200,11 @@ private:
     const Framebuffer& EnsureEntityBuffer(Entity entity, int width, int height);
 
     Framebuffer compositeBuffer_;
+    // World3D models draw multisampled, then resolve into msaaResolve_ (color, composited over
+    // the scene) and the scene framebuffer's depth (which the cards test against).
+    int msaaSamples_ = 4;
+    MultisampleFramebuffer msaaBuffer_;
+    Framebuffer msaaResolve_;
     // This frame's point lights, shared by every World3D layer.
     std::vector<PointLight> lights_;
     // One retained buffer per shaded entity, resized when its bounds change. Kept across
