@@ -1,15 +1,13 @@
-<!-- Blocks its tile: the collider carves the navmesh, so the board leaves the tile out. -->
 <Prefab>
     <Entities>
         <Entity id="0">
-            <NameComponent name="Pillar"/>
-            <TransformComponent x="0" y="0" scaleX="1.5" scaleY="1.5"/>
+            <ColliderComponent width="32" height="16" offsetX="0" offsetY="0" isTrigger="false" points="0,-8 16,0 0,8 -16,0"/>
             <LayerComponent name="entity"/>
-            <RectangleComponent width="32" height="56" cornerRadius="0" originX="0.5" originY="0.8570"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/pillar.png"/>
-            </MaterialComponent>
-            <ColliderComponent points="0,-8 16,0 0,8 -16,0"/>
+            <MaterialComponent padding="0" enabled="true"/>
+            <ModelComponent model="Models/stone_pillar.glb" scale="0.20100001"/>
+            <NameComponent name="Pillar"/>
+            <RectangleComponent width="32" height="56" cornerRadius="0" originX="0.5" originY="0.85699999"/>
+            <TransformComponent x="0" y="0" scaleX="1.5" scaleY="1.5"/>
         </Entity>
     </Entities>
 </Prefab>

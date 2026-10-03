@@ -4,6 +4,8 @@
 #include <cstring>
 #include <type_traits>
 #include <unordered_set>
+#include "Core/Animation.h"
+#include "Core/Components/AnimationComponent.h"
 #include "Core/Components/CameraComponent.h"
 #include "Core/Components/CircleComponent.h"
 #include "Core/Components/EllipseComponent.h"
@@ -967,6 +969,10 @@ uniform sampler2D uShadowAtlas;
 uniform float uShadowRows;
 uniform float uShadowTile;
 uniform float uShadowBias;
+uniform vec3 uSunDir;           // toward the sun (GL, unit)
+uniform vec3 uSunColor;         // zero: no sun
+uniform float uRim;
+uniform vec3 uTowardCamera;
 uniform float uFog;             // 0 off .. 1 the unseen is hidden
 uniform vec3 uFogColor;
 
@@ -1010,6 +1016,7 @@ vec3 Light3D(vec3 p, vec3 n, out float seen)
     bool card = dot(n, n) < 0.5;
     vec3 lifted = p + n * uShadowBias;
     vec3 total = uAmbient * (card ? 1.0 : 0.75 + 0.25 * n.y);
+    total += uSunColor * (card ? 0.6 : max(dot(n, uSunDir), 0.0));
     seen = 0.0;
     for (int i = 0; i < 16; i++) {
         if (i >= uLightCount) break;
@@ -1072,6 +1079,9 @@ void main()
     vec3 n = normalize(fragNormal);
     float seen;
     vec3 light = Light3D(fragWorld, n, seen);
+    // Rim: brightest where the surface turns edge-on to the camera.
+    float rim = pow(1.0 - max(dot(n, normalize(uTowardCamera)), 0.0), 3.0);
+    light += uRim * rim * (uAmbient + uSunColor + vec3(0.25));
     finalColor = vec4(Fogged(albedo.rgb * light, seen), albedo.a);
 }
 )";
@@ -1080,6 +1090,53 @@ void main()
     static const std::string fragment = std::string(kModelFragmentHead) + kLight3DSource + kModelFragmentMain;
     static ::Shader shader = LoadShaderFromMemory(kModelVertexSource, fragment.c_str());
     return shader;
+}
+
+// ModelShader for skinned meshes: each vertex moved by up to four bones' skin matrices
+// (raylib uploads Mesh::boneMatrices to boneMatrices and binds the bone attributes).
+constexpr int kMaxSkinBones = 128;
+const char* kSkinnedVertexSource = R"(#version 330
+in vec3 vertexPosition;
+in vec2 vertexTexCoord;
+in vec3 vertexNormal;
+in vec4 vertexColor;
+in vec4 vertexBoneIds;
+in vec4 vertexBoneWeights;
+uniform mat4 mvp;
+uniform mat4 matNormal;
+uniform mat4 matModel;
+uniform mat4 boneMatrices[128];
+out vec2 fragTexCoord;
+out vec3 fragNormal;
+out vec3 fragWorld;
+void main()
+{
+    mat4 skin = boneMatrices[int(vertexBoneIds.x)] * vertexBoneWeights.x
+              + boneMatrices[int(vertexBoneIds.y)] * vertexBoneWeights.y
+              + boneMatrices[int(vertexBoneIds.z)] * vertexBoneWeights.z
+              + boneMatrices[int(vertexBoneIds.w)] * vertexBoneWeights.w;
+    vec4 position = skin * vec4(vertexPosition, 1.0);
+    vec3 normal = mat3(skin) * vertexNormal;
+    fragTexCoord = vertexTexCoord;
+    fragWorld = vec3(matModel * position);
+    fragNormal = normalize(vec3(matNormal * vec4(normal, 0.0)));
+    gl_Position = mvp * position;
+}
+)";
+
+::Shader& SkinnedModelShader() {
+    static const std::string fragment = std::string(kModelFragmentHead) + kLight3DSource + kModelFragmentMain;
+    static ::Shader shader = LoadShaderFromMemory(kSkinnedVertexSource, fragment.c_str());
+    return shader;
+}
+
+// The entity's pose for `model`, if it's skinned and an AnimationComponent has posed it.
+const std::vector<Matrix>* SkinOf(const World& world, Entity entity, const Model& model) {
+    if (!model.skeleton || !world.HasComponent<AnimationComponent>(entity)) return nullptr;
+    const auto& animation = world.GetComponent<AnimationComponent>(entity);
+    const size_t bones = model.skeleton->bones.size();
+    if (animation.skin.size() != bones || bones > (size_t)kMaxSkinBones) return nullptr;
+    return &animation.skin;
 }
 
 // The batch's default shader, lit at one point (uCardPos, GL) for the whole card.
@@ -1108,13 +1165,31 @@ void main()
     return shader;
 }
 
-// The model's meshes as GL-space triangles, three vertices each.
-void AppendTriangles(const ::Model& model, const ::Matrix& transform, std::vector<Vector3>& out) {
+// The model's meshes as GL-space triangles, three vertices each; posed by `skin` (one
+// matrix per bone) where its meshes are skinned.
+void AppendTriangles(const ::Model& model, const ::Matrix& transform, std::vector<Vector3>& out,
+                     const std::vector<Matrix>* skin = nullptr) {
+    std::vector<::Matrix> bones;
+    if (skin) {
+        for (const Matrix& m : *skin) bones.push_back(ToRaylib(m));
+    }
     for (int m = 0; m < model.meshCount; ++m) {
         const ::Mesh& mesh = model.meshes[m];
         if (!mesh.vertices) continue;
+        const bool skinned = !bones.empty() && mesh.boneIds && mesh.boneWeights;
         auto vertex = [&](int i) {
-            const ::Vector3 v = Vector3Transform({mesh.vertices[i * 3], mesh.vertices[i * 3 + 1], mesh.vertices[i * 3 + 2]}, transform);
+            ::Vector3 v = {mesh.vertices[i * 3], mesh.vertices[i * 3 + 1], mesh.vertices[i * 3 + 2]};
+            if (skinned) {
+                ::Vector3 posed = {0.0f, 0.0f, 0.0f};
+                for (int j = 0; j < 4; ++j) {
+                    const float weight = mesh.boneWeights[i * 4 + j];
+                    const int bone = mesh.boneIds[i * 4 + j];
+                    if (weight <= 0.0f || bone >= (int)bones.size()) continue;
+                    posed = Vector3Add(posed, Vector3Scale(Vector3Transform(v, bones[bone]), weight));
+                }
+                v = posed;
+            }
+            v = Vector3Transform(v, transform);
             out.push_back({v.x, v.y, v.z});
         };
         if (mesh.indices) {
@@ -1192,6 +1267,9 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             const Model* model = assets.Get<Model>(Path(component.modelPath));
             if (!model || !model->native) return;
             const Matrix matrix = World3D::ModelMatrix(transform, component, *model);
+            // Posed (animated) models cast nothing, as sprites don't: re-skinning them on the CPU
+            // and redrawing every light that sees them each frame costs far too much.
+            if (SkinOf(world, entity, *model)) return;
             ModelTriangles& cached = modelTriangles_[entity];
             if (cached.model != model || std::memcmp(&cached.matrix, &matrix, sizeof(Matrix)) != 0) {
                 // The lights that saw it where it was.
@@ -1266,9 +1344,16 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
         }
         const float rows = (float)shadowAtlas3D_.Rows(), tile = (float)ShadowAtlas::kTileSize;
         const float bias = layer.shadowBias, fog = layer.fogOfWar;
+        // The sun: yaw around the vertical from the default camera's side (+z), pitch up.
+        const float sunYaw = layer.sunYaw * DEG2RAD, sunPitch = layer.sunPitch * DEG2RAD;
+        const ::Vector3 sunDir{std::cos(sunPitch) * std::sin(sunYaw), std::sin(sunPitch), std::cos(sunPitch) * std::cos(sunYaw)};
+        const float sunScale = layer.unlit ? 0.0f : layer.sunIntensity / 255.0f;
+        const ::Vector3 sunColor{layer.sunColor.r * sunScale, layer.sunColor.g * sunScale, layer.sunColor.b * sunScale};
+        const float rim = layer.unlit ? 0.0f : layer.rimLight;
+        const ::Vector3 toward{towardCamera.x, towardCamera.y, towardCamera.z};
         const ::Vector3 fogColor{layer.fogColor.r / 255.0f, layer.fogColor.g / 255.0f, layer.fogColor.b / 255.0f};
         const int unit = kShadowUnit3D;
-        for (::Shader* shader : {&ModelShader(), &CardShader()}) {
+        for (::Shader* shader : {&ModelShader(), &SkinnedModelShader(), &CardShader()}) {
             auto set = [&](const char* name, const void* value, int type) {
                 SetShaderValue(*shader, GetShaderLocation(*shader, name), value, type);
             };
@@ -1280,6 +1365,10 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             set("uShadowTile", &tile, SHADER_UNIFORM_FLOAT);
             set("uShadowBias", &bias, SHADER_UNIFORM_FLOAT);
             set("uFog", &fog, SHADER_UNIFORM_FLOAT);
+            set("uSunDir", &sunDir, SHADER_UNIFORM_VEC3);
+            set("uSunColor", &sunColor, SHADER_UNIFORM_VEC3);
+            set("uRim", &rim, SHADER_UNIFORM_FLOAT);
+            set("uTowardCamera", &toward, SHADER_UNIFORM_VEC3);
             set("uFogColor", &fogColor, SHADER_UNIFORM_VEC3);
             if (lightCount > 0) {
                 SetShaderValueV(*shader, GetShaderLocation(*shader, "uLightPos"), positions, SHADER_UNIFORM_VEC3, lightCount);
@@ -1309,6 +1398,8 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     const float fadeStep = (float)std::clamp(fadeNow - modelFadeTime_, 0.0, 0.25) / kFadeSeconds;
     modelFadeTime_ = fadeNow;
     const int alphaLoc = GetShaderLocation(ModelShader(), "uAlpha");
+    const int skinnedAlphaLoc = GetShaderLocation(SkinnedModelShader(), "uAlpha");
+    std::vector<::Matrix> bones;
 
     // Models now; everything else is collected as cards. An entity's records are contiguous.
     struct Card {
@@ -1352,16 +1443,31 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             const float alpha = fadeIt->second;
             SetShaderValue(ModelShader(), alphaLoc, &alpha, SHADER_UNIFORM_FLOAT);
 
+            // Posed: the skinned meshes draw with this entity's bones (the mesh is shared, so
+            // they go on a copy of it).
+            const std::vector<Matrix>* skin = SkinOf(world, entity, *model);
+            bones.clear();
+            if (skin) {
+                SetShaderValue(SkinnedModelShader(), skinnedAlphaLoc, &alpha, SHADER_UNIFORM_FLOAT);
+                for (const Matrix& m : *skin) bones.push_back(ToRaylib(m));
+            }
+
             ::Model& native = *static_cast<::Model*>(model->native);
             for (int i = 0; i < native.meshCount; ++i) {
                 ::Material& material = native.materials[native.meshMaterial[i]];
                 const ::Shader shader = material.shader;
                 const ::Color color = material.maps[MATERIAL_MAP_DIFFUSE].color;
-                material.shader = ModelShader();
+                ::Mesh mesh = native.meshes[i];
+                const bool skinned = skin && mesh.boneIds && mesh.boneWeights;
+                if (skinned) {
+                    mesh.boneMatrices = bones.data();
+                    mesh.boneCount = (int)bones.size();
+                }
+                material.shader = skinned ? SkinnedModelShader() : ModelShader();
                 material.maps[MATERIAL_MAP_DIFFUSE].color = ::Color{
                     (unsigned char)(color.r * component.tint.r / 255), (unsigned char)(color.g * component.tint.g / 255),
                     (unsigned char)(color.b * component.tint.b / 255), (unsigned char)(color.a * component.tint.a / 255)};
-                DrawMesh(native.meshes[i], material, transform);
+                DrawMesh(mesh, material, transform);
                 material.shader = shader;
                 material.maps[MATERIAL_MAP_DIFFUSE].color = color;
             }
@@ -1654,7 +1760,10 @@ CameraView RenderSystem::MakeCameraView(Entity cameraEntity) {
         auto& transform = world->GetComponent<TransformComponent>(cameraEntity);
         position = { transform.worldX, transform.worldY };
     }
-    return CameraView{ position, camera.zoom != 0.0f ? camera.zoom : 1.0f, camera.viewport };
+    CameraView view{ position, camera.zoom != 0.0f ? camera.zoom : 1.0f, camera.viewport };
+    view.yaw = camera.yaw;
+    view.pitch = std::clamp(camera.pitch, 5.0f, 89.0f);
+    return view;
 }
 
 void RenderSystem::RenderView(RenderContext& ctx, const CameraView& view) {

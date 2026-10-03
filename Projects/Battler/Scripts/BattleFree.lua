@@ -18,8 +18,8 @@ local COS = Board.PITCH_COS
 
 -- Start spots, by the old board's tile coordinates.
 local ROSTER = {
-    { "Fighter", PLAYER, 1, 2 }, { "Fighter", PLAYER, 2, 1 }, { "Mage", PLAYER, 1, 1 },
-    { "Grunt", ENEMY, 9, 9 }, { "Grunt", ENEMY, 10, 7 }, { "Grunt", ENEMY, 7, 10 }, { "Hexer", ENEMY, 10, 10 },
+    { "Fighter", PLAYER, 1, 2 }, { "Archer", PLAYER, 2, 1 }, { "Mage", PLAYER, 1, 1 },
+    { "Grunt", ENEMY, 9, 9 }, { "Poacher", ENEMY, 10, 7 }, { "Grunt", ENEMY, 7, 10 }, { "Hexer", ENEMY, 10, 10 },
 }
 
 local COLORS = {
@@ -137,6 +137,7 @@ function Battle:Update(dt)
         if self.banner.duration and self.banner.t > self.banner.duration then self.banner = nil end
     end
 
+    Board.SyncView()
     local mouse = GetMousePosition()
     local w = ScreenToWorld(mouse)
     self.mouse = mouse
@@ -160,29 +161,55 @@ function Battle:PollInput(mouse, w)
     end
 end
 
+-- WASD / arrows / middle drag pan, the wheel zooms, Q/E turn the camera 45 degrees, Z/X tilt it.
 function Battle:UpdateCamera(dt)
     local cam = self:Camera()
     if not cam then return end
     local t = GetComponent(cam, "Transform")
     local c = GetComponent(cam, "Camera")
     if not t or not c then return end
-    local speed = 500 / c.zoom
-    if IsKeyDown(KEY_W) or IsKeyDown(KEY_UP) then t.localY = t.localY - speed * dt end
-    if IsKeyDown(KEY_S) or IsKeyDown(KEY_DOWN) then t.localY = t.localY + speed * dt end
-    if IsKeyDown(KEY_A) or IsKeyDown(KEY_LEFT) then t.localX = t.localX - speed * dt end
-    if IsKeyDown(KEY_D) or IsKeyDown(KEY_RIGHT) then t.localX = t.localX + speed * dt end
+
+    -- Pans in screen directions, whichever way the camera faces: a screen offset (in pixels)
+    -- as a ground offset.
+    local function Pan(px, py)
+        local a = ScreenToWorld(Vector2.new(SCREEN_W / 2, SCREEN_H / 2))
+        local b = ScreenToWorld(Vector2.new(SCREEN_W / 2 + px, SCREEN_H / 2 + py))
+        t.localX, t.localY = t.localX + (b.x - a.x), t.localY + (b.y - a.y)
+    end
+    local speed = 500 * dt
+    local px, py = 0, 0
+    if IsKeyDown(KEY_W) or IsKeyDown(KEY_UP) then py = py - speed end
+    if IsKeyDown(KEY_S) or IsKeyDown(KEY_DOWN) then py = py + speed end
+    if IsKeyDown(KEY_A) or IsKeyDown(KEY_LEFT) then px = px - speed end
+    if IsKeyDown(KEY_D) or IsKeyDown(KEY_RIGHT) then px = px + speed end
+    if px ~= 0 or py ~= 0 then Pan(px, py) end
 
     self.zoomTarget = self.zoomTarget or c.zoom
     local wheel = GetMouseWheelMove()
     if wheel ~= 0 then self.zoomTarget = math.max(0.5, math.min(2.2, self.zoomTarget * 1.15 ^ wheel)) end
     c.zoom = c.zoom + (self.zoomTarget - c.zoom) * (1 - math.exp(-12 * dt))
 
+    -- Turn and tilt, eased toward their targets.
+    self.yawTarget = self.yawTarget or c.yaw
+    self.pitchTarget = self.pitchTarget or c.pitch
+    if IsKeyPressed(KEY_Q) then self.yawTarget = self.yawTarget - 45 end
+    if IsKeyPressed(KEY_E) then self.yawTarget = self.yawTarget + 45 end
+    if IsKeyDown(KEY_Z) then self.pitchTarget = math.max(15, self.pitchTarget - 40 * dt) end
+    if IsKeyDown(KEY_X) then self.pitchTarget = math.min(75, self.pitchTarget + 40 * dt) end
+    local ease = 1 - math.exp(-10 * dt)
+    c.yaw = c.yaw + (self.yawTarget - c.yaw) * ease
+    c.pitch = c.pitch + (self.pitchTarget - c.pitch) * ease
+    -- Land exactly, so the default view (yaw 0, pitch 30) is the iso picture again.
+    if math.abs(self.yawTarget - c.yaw) < 0.01 then c.yaw = self.yawTarget end
+    if math.abs(self.pitchTarget - c.pitch) < 0.01 then c.pitch = self.pitchTarget end
+    if c.yaw >= 360 or c.yaw <= -360 then
+        local wrap = c.yaw >= 360 and -360 or 360
+        c.yaw, self.yawTarget = c.yaw + wrap, self.yawTarget + wrap
+    end
+
     local m = GetMousePosition()
     if IsMouseButtonDown(MOUSE_MIDDLE) then
-        if self.panAnchor then
-            t.localX = t.localX - (m.x - self.panAnchor.x) / c.zoom
-            t.localY = t.localY - (m.y - self.panAnchor.y) / c.zoom
-        end
+        if self.panAnchor then Pan(self.panAnchor.x - m.x, self.panAnchor.y - m.y) end
         self.panAnchor = { x = m.x, y = m.y }
     else
         self.panAnchor = nil
@@ -192,12 +219,18 @@ end
 -- The unit whose body is under a picture point (nearest the camera), else one standing right
 -- at the floor point there.
 function Battle:UnitUnder(wx, wy)
+    -- The body is a box on the screen from the feet up, however the camera faces.
+    local m = self.mouse or GetMousePosition()
+    local cam = self:Camera()
+    local camera = cam and GetComponent(cam, "Camera")
+    local zoom = camera and camera.zoom or 1
     local best, bestY = nil, -1e9
     for _, u in ipairs(self.units) do
         if u.alive then
-            local x, y = Board.Lift(u.x, u.y, u.z)
-            if math.abs(wx - x) <= 22 and wy <= y + 8 and wy >= y - 90 and y > bestY then
-                best, bestY = u, y
+            local fx, fy = ViewProject(u.x, u.y, u.z)
+            local _, hy = ViewProject(u.x, u.y, u.z + 105)
+            if math.abs(m.x - fx) <= 22 * zoom and m.y <= fy + 8 * zoom and m.y >= hy and fy > bestY then
+                best, bestY = u, fy
             end
         end
     end
@@ -319,21 +352,24 @@ function Battle:Hurt(target, dmg)
         target.alive = false
         Units.Play(target, "Death")
         self:Float("DEFEATED", target.x, target.y, target.z + 20, {r = 255, g = 90, b = 80, a = 255})
+    elseif target.alive then
+        Units.Play(target, "Hurt")
     end
 end
 
 function Battle:Attack(att, def)
     Units.Face(att, def.x, def.y)
     Units.Play(att, "Attack")
-    Wait(Units.ClipLength("Attack") * 0.55)
+    local length = Units.ClipLength("Attack", att)
+    Wait(length * 0.55)
     self:Hurt(def, Rules.Damage(att, att, def, def, Rules.AttackPower(att)))
-    Wait(Units.ClipLength("Attack") * 0.45 + 0.15)
+    Wait(length * 0.45 + 0.15)
 end
 
 function Battle:CastBolt(caster, at)
     local spell = caster.class.spell
     Units.Face(caster, at.x, at.y)
-    Units.Play(caster, "Attack")
+    Units.Play(caster, spell.cast or "Attack")
     self:Float(spell.name .. "!", caster.x, caster.y, caster.z + 20, {r = 170, g = 210, b = 255, a = 255})
     Wait(0.35)
 
@@ -547,8 +583,7 @@ function Battle:BuildCover(u, range)
             if z and Rules.Reaches(range, u, { x = x, y = y, z = z }) then
                 local pts = {}
                 for _, c in ipairs({ { r, a0 }, { r1, a0 }, { r1, a1 }, { r, a1 } }) do
-                    local px, py = Board.Lift(u.x + math.cos(c[2]) * c[1], u.y + math.sin(c[2]) * c[1] * 0.5, z)
-                    pts[#pts + 1] = { x = px, y = py }
+                    pts[#pts + 1] = { x = u.x + math.cos(c[2]) * c[1], y = u.y + math.sin(c[2]) * c[1] * 0.5, z = z }
                 end
                 cells[#cells + 1] = pts
             end
@@ -559,7 +594,15 @@ function Battle:BuildCover(u, range)
 end
 
 function Battle:DrawCover(color)
-    for _, pts in ipairs(self.cover or {}) do DrawPolygon(pts, color, "overlay") end
+    -- Lifted as drawn, so the cells follow the camera as it turns.
+    for _, cell in ipairs(self.cover or {}) do
+        local pts = {}
+        for k, p in ipairs(cell) do
+            local x, y = Board.Lift(p.x, p.y, p.z)
+            pts[k] = { x = x, y = y }
+        end
+        DrawPolygon(pts, color, "overlay")
+    end
 end---------------------------------------------------------------------------
 
 -- The reach as row runs, each lifted to its height; the far part of the budget a shade lighter.
@@ -630,9 +673,9 @@ function Battle:Render()
     end
 
     for _, f in ipairs(self.floaters) do
-        local x, y = Board.Lift(f.x, f.y, f.z)
+        local x, y = ViewProject(f.x, f.y, f.z + Units.HEAD + 15)
         local a = math.floor(255 * math.max(0, 1 - f.t / 1.1))
-        DrawText(f.text, x - 10, y - 130 - f.t * 40, 22, { r = f.color.r, g = f.color.g, b = f.color.b, a = a }, "fx")
+        DrawText(f.text, x - 10, y - 15 - f.t * 40, 22, { r = f.color.r, g = f.color.g, b = f.color.b, a = a }, "ui")
     end
 
     self:DrawHud()

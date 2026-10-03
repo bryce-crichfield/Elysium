@@ -185,6 +185,19 @@ void SceneSettings::DrawLayers(Scene& scene) {
                 };
                 colorRow("Ambient Light", "##lightAmbient", layer.lightAmbient);
                 ItemTooltip("Light everywhere, before any Light component. White looks unlit");
+                colorRow("Sun", "##sunColor", layer.sunColor);
+                ItemTooltip("Light from one direction everywhere, like daylight or a moon. Black: off");
+                if (layer.sunColor.r || layer.sunColor.g || layer.sunColor.b) {
+                    PropertyLabel("Sun Intensity");
+                    ImGui::DragFloat("##sunIntensity", &layer.sunIntensity, 0.01f, 0.0f, 8.0f, "%.2f");
+                    PropertyLabel("Sun Direction");
+                    ImGui::DragFloat("##sunYaw", &layer.sunYaw, 0.5f, -360.0f, 360.0f, "%.0f deg around");
+                    PropertyLabel("Sun Height");
+                    ImGui::SliderFloat("##sunPitch", &layer.sunPitch, 1.0f, 90.0f, "%.0f deg up");
+                }
+                PropertyLabel("Rim Light");
+                ImGui::SliderFloat("##rimLight", &layer.rimLight, 0.0f, 2.0f, "%.2f");
+                ItemTooltip("A bright edge on models where they turn away from the camera. 0: off");
                 PropertyLabel("Shadows");
                 ImGui::Checkbox("##shadows", &layer.shadows);
                 ItemTooltip("Models cast shadows from the lights");

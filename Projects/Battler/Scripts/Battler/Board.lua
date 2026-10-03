@@ -29,7 +29,17 @@ function Board.ToTile(x, y)
 end
 
 -- Where a point on the ground at height z appears in the (flat, ground-layer) picture.
-function Board.Lift(x, y, z) return x, y - z * Board.PITCH_COS end
+-- Where ground layers draw the point (x, y) at height z: shifted by `z * lift`. The lift
+-- follows the camera's orbit (Board.SyncView, once a frame); the default camera's is
+-- (0, -cos 30).
+Board.liftX, Board.liftY = 0, -Board.PITCH_COS
+function Board.SyncView()
+    if not ViewLift then return end
+    local x0, y0 = ViewLift(0, 0, 0)
+    local x1, y1 = ViewLift(0, 0, 1)
+    Board.liftX, Board.liftY = x1 - x0, y1 - y0
+end
+function Board.Lift(x, y, z) return x + z * Board.liftX, y + z * Board.liftY end
 
 function Board.new()
     return setmetatable({ tiles = {}, count = 0, linkCount = 0 }, Board)

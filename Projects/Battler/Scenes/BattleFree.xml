@@ -4,12 +4,13 @@
     <Systems>
         <System type="ScriptSystem"/>
         <System type="SpriteSystem"/>
+        <System type="AnimationSystem"/>
         <System type="TransformSystem"/>
         <System type="NavMeshSystem" cellSize="8.000000" debugDraw="false" stepHeight="20.000000"/>
         <System type="RenderSystem"/>
     </Systems>
     <SceneConfiguration width="1280" height="720">
-        <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#8C8CA8FF" shadows="true" shadowBias="12" fogOfWar="0" fogColor="#06060CFF"/>
+        <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#6A7090FF" sunColor="#FFE2BEFF" sunIntensity="0.85" sunYaw="-40" sunPitch="50" rimLight="0.7" shadows="true" shadowBias="12" fogOfWar="0" fogColor="#06060CFF"/>
         <SceneLayer name="overlay" z="3" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
         <SceneLayer name="fx" z="4" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
         <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>

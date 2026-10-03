@@ -50,6 +50,14 @@ struct SceneLayer {
     // Lighting, for World3D layers' models and cards (RenderCompositor::Render3D): the ambient,
     // plus every LightComponent in reach, shadowed by the models.
     Color lightAmbient{96, 96, 112, 255};   // light everywhere, before any light
+    // A sun: light from one direction everywhere (no shadows of its own). Black is off.
+    Color sunColor{0, 0, 0, 255};
+    float sunIntensity = 1.0f;
+    float sunYaw = -45.0f;    // degrees around the vertical it shines from (0: from the camera's side)
+    float sunPitch = 50.0f;   // degrees above the horizon
+    // Models: a bright edge where a surface turns away from the camera, so characters stand
+    // out of dark ground. 0 off.
+    float rimLight = 0.0f;
     bool shadows = true;                    // the models cast shadows
     float shadowBias = 12.0f;               // world units a point is lifted off its surface before the shadow test
     // How far what no vision light (LightComponent::vision) can see fades to fogColor. 0 off,

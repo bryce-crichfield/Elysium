@@ -66,6 +66,11 @@ void SaveLayers(XMLBuilder& builder, const Scene& scene) {
         if (layer.ground) layerBuilder.SetAttribute("ground", true);
         if (layer.IsLit()) {
             layerBuilder.SetAttribute("lightAmbient", ColorToHex(layer.lightAmbient).c_str())
+                .SetAttribute("sunColor", ColorToHex(layer.sunColor).c_str())
+                .SetAttribute("sunIntensity", layer.sunIntensity)
+                .SetAttribute("sunYaw", layer.sunYaw)
+                .SetAttribute("sunPitch", layer.sunPitch)
+                .SetAttribute("rimLight", layer.rimLight)
                 .SetAttribute("shadows", layer.shadows)
                 .SetAttribute("shadowBias", layer.shadowBias)
                 .SetAttribute("fogOfWar", layer.fogOfWar)

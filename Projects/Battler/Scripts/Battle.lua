@@ -14,8 +14,8 @@ local SCREEN_W, SCREEN_H = 1280, 720
 local STEP_TIME = 0.42
 
 local ROSTER = {
-    { "Fighter", PLAYER, 1, 2 }, { "Fighter", PLAYER, 2, 1 }, { "Mage", PLAYER, 1, 1 },
-    { "Grunt", ENEMY, 9, 9 }, { "Grunt", ENEMY, 10, 7 }, { "Grunt", ENEMY, 7, 10 }, { "Hexer", ENEMY, 10, 10 },
+    { "Fighter", PLAYER, 1, 2 }, { "Archer", PLAYER, 2, 1 }, { "Mage", PLAYER, 1, 1 },
+    { "Grunt", ENEMY, 9, 9 }, { "Poacher", ENEMY, 10, 7 }, { "Grunt", ENEMY, 7, 10 }, { "Hexer", ENEMY, 10, 10 },
 }
 
 local COLORS = {
@@ -296,21 +296,24 @@ function Battle:Hurt(target, dmg)
         target.alive = false
         Units.Play(target, "Death")
         self:Float("DEFEATED", target.x, target.y, target.z + 20, {r = 255, g = 90, b = 80, a = 255})
+    elseif target.alive then
+        Units.Play(target, "Hurt")
     end
 end
 
 function Battle:Attack(att, def)
     Units.Face(att, def.x, def.y)
     Units.Play(att, "Attack")
-    Wait(Units.ClipLength("Attack") * 0.55)
+    local length = Units.ClipLength("Attack", att)
+    Wait(length * 0.55)
     self:Hurt(def, Rules.Damage(att, att.tile, def, def.tile, Rules.AttackPower(att)))
-    Wait(Units.ClipLength("Attack") * 0.45 + 0.15)
+    Wait(length * 0.45 + 0.15)
 end
 
 function Battle:CastBolt(caster, tile)
     local spell = caster.class.spell
     Units.Face(caster, tile.x, tile.y)
-    Units.Play(caster, "Attack")
+    Units.Play(caster, spell.cast or "Attack")
     self:Float(spell.name .. "!", caster.x, caster.y, caster.z + 20, {r = 170, g = 210, b = 255, a = 255})
     Wait(0.35)
 

@@ -21,6 +21,7 @@ void RegisterComponentInspectors(InspectorRegistry& registry) {
     registry.Register<EllipseComponent>(InspectorOrder::Geometry);
     registry.Register<LineComponent>(InspectorOrder::Geometry);
     registry.Register<ModelComponent>(InspectorOrder::Geometry);
+    registry.Register<AnimationComponent>(InspectorOrder::Geometry);
     registry.Register<PolygonComponent>(InspectorOrder::Geometry, &InspectPolygon);
     registry.Register<RectangleComponent>(InspectorOrder::Geometry);
     registry.Register<SpriteComponent>(InspectorOrder::Geometry, &InspectSprite);

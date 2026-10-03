@@ -1,18 +1,11 @@
-<!-- A battler unit. Battle.lua drives it: position, facing, animation, health. -->
 <Prefab>
     <Entities>
         <Entity id="0">
+            <AnimationComponent clip="Animations/Idle.anim"/>
             <LayerComponent name="entity"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Militia/Idle.png">
-                    <Uniform name="uSourceRect" type="vec4" value="0.000000 0.000000 128.000000 128.000000"/>
-                </Layer>
-            </MaterialComponent>
+            <ModelComponent model="Models/Knight.mesh" scale="25"/>
             <NameComponent name="Fighter"/>
-            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
-            <SpriteComponent spriteName="Sprites/Militia.xml" sheetName="Idle" sequenceName="south"/>
-            <HealthComponent current="10" max="10"/>
-            <TransformComponent x="0" y="0" scaleX="0.9" scaleY="0.9"/>
+            <TransformComponent x="0" y="0" scaleX="0.89999998" scaleY="0.89999998"/>
         </Entity>
     </Entities>
 </Prefab>

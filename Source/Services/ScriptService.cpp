@@ -23,6 +23,9 @@
 #include "Core/Systems/MovementSystem.h"
 #include "Core/Systems/NavMeshSystem.h"
 #include "Core/Systems/RenderSystem.h"
+#include <algorithm>
+#include <optional>
+#include <tuple>
 
 
 namespace Elysium::Services {
@@ -140,64 +143,50 @@ static Elysium::Systems::RenderSystem* GetCurrentRenderSystem() {
     return scene ? scene->GetSystem<Elysium::Systems::RenderSystem>() : nullptr;
 }
 
-static Vector2 WorldToScreen(const Vector2& worldPos) {
+// The first visible camera's view (orbit included), or nothing.
+static std::optional<Elysium::Systems::CameraView> ActiveCameraView() {
     auto* world = GetActiveWorld();
-    if (!world) return worldPos;
-
-    Vector2 cameraPos = {0, 0};
-    float zoom = 1.0f;  
-    Vector2 viewportCenter = {0, 0};
-    bool foundCamera = false;
-
+    if (!world) return std::nullopt;
+    std::optional<Elysium::Systems::CameraView> view;
     world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
-        if (!foundCamera && cameraComp.isVisible) {
-            if (world->HasComponent<TransformComponent>(camEnt)) {
-                auto& transform = world->GetComponent<TransformComponent>(camEnt);
-                cameraPos = { transform.worldX, transform.worldY };
-            }
-            zoom = cameraComp.zoom;
-            viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
-            foundCamera = true;
+        if (view || !cameraComp.isVisible) return;
+        Vector2 position = {0, 0};
+        if (world->HasComponent<TransformComponent>(camEnt)) {
+            auto& transform = world->GetComponent<TransformComponent>(camEnt);
+            position = {transform.worldX, transform.worldY};
         }
+        Elysium::Systems::CameraView v{position, cameraComp.zoom != 0.0f ? cameraComp.zoom : 1.0f, cameraComp.viewport};
+        v.yaw = cameraComp.yaw;
+        v.pitch = std::clamp(cameraComp.pitch, 5.0f, 89.0f);
+        view = v;
     });
+    return view;
+}
 
-    if (foundCamera) {
-        return {
-            ((worldPos.x - cameraPos.x) * zoom) + viewportCenter.x,
-            ((worldPos.y - cameraPos.y) * zoom) + viewportCenter.y
-        };
-    }
-    return worldPos;
+static Vector2 WorldToScreen(const Vector2& worldPos) {
+    auto view = ActiveCameraView();
+    return view ? Elysium::Systems::RenderProjector::WorldToFramebuffer(worldPos, *view) : worldPos;
 }
 
 static Vector2 ScreenToWorld(Vector2 screenPos) {
-    auto* world = GetActiveWorld();
-    if (!world) return screenPos;
+    auto view = ActiveCameraView();
+    return view ? Elysium::Systems::RenderProjector::FramebufferToWorld(screenPos, *view) : screenPos;
+}
 
-    Vector2 cameraPos = {0, 0};
-    float zoom = 1.0f;
-    Vector2 viewportCenter = {0, 0};
-    bool foundCamera = false;
+// Where ground layers draw the 3D point (x, y) at height z: the ground-plane point on the same
+// view ray. The default camera's is (x, y - z cos 30).
+static Vector2 ViewLift(float x, float y, float z) {
+    auto view = ActiveCameraView();
+    if (!view || view->IsDefaultOrientation()) return {x, y - z * Elysium::World3D::kPitchCos};
+    const Elysium::World3D::View v = Elysium::Systems::RenderProjector::View3D(*view);
+    return v.FramebufferToGround(v.WorldToFramebuffer(x, y, z));
+}
 
-    world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
-        if (!foundCamera && cameraComp.isVisible) {
-            if (world->HasComponent<TransformComponent>(camEnt)) {
-                auto& transform = world->GetComponent<TransformComponent>(camEnt);
-                cameraPos = { transform.worldX, transform.worldY };
-            }
-            zoom = cameraComp.zoom;
-            viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
-            foundCamera = true;
-        }
-    });
-
-    if (foundCamera) {
-        return {
-            ((screenPos.x - viewportCenter.x) / zoom) + cameraPos.x,
-            ((screenPos.y - viewportCenter.y) / zoom) + cameraPos.y
-        };
-    }
-    return screenPos;
+// The screen pixel of the 3D point (x, y) at height z.
+static Vector2 ViewProject(float x, float y, float z) {
+    auto view = ActiveCameraView();
+    if (!view) return {x, y - z * Elysium::World3D::kPitchCos};
+    return Elysium::Systems::RenderProjector::View3D(*view).WorldToFramebuffer(x, y, z);
 }
 
 void ScriptService::BindComponents() {
@@ -319,6 +308,17 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("ScreenToWorld", [](const Vector2& screenPos) {
         Vector2 worldPos = ScreenToWorld(screenPos);
         return worldPos;
+    });
+    // ViewLift(x, y, z) -> x, y: where ground layers ("overlay", "fx") draw the point (x, y) at
+    // height z under the current camera, so overlays at a height line up as it turns.
+    lua.set_function("ViewLift", [](float x, float y, float z) {
+        const Vector2 p = ViewLift(x, y, z);
+        return std::make_tuple(p.x, p.y);
+    });
+    // ViewProject(x, y, z) -> x, y: the screen pixel of that point, for Screen2D ("ui") drawing.
+    lua.set_function("ViewProject", [](float x, float y, float z) {
+        const Vector2 p = ViewProject(x, y, z);
+        return std::make_tuple(p.x, p.y);
     });
 
     // GetComponent
@@ -501,7 +501,8 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("NavPick", [this, topNav](float x, float y) -> sol::object {
         auto* nav = topNav();
         if (!nav) return sol::nil;
-        auto p = nav->PickFloor({x, y});
+        const Vector2 lift = ViewLift(0.0f, 0.0f, 1.0f) - ViewLift(0.0f, 0.0f, 0.0f);
+        auto p = nav->PickFloor({x, y}, lift);
         if (!p) return sol::nil;
         sol::table t = lua.create_table();
         t["x"] = p->x; t["y"] = p->y; t["z"] = p->z;

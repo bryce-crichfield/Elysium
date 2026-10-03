@@ -57,6 +57,10 @@ public:
     // The walkable floor drawn at picture point `p` (where a click lands): its ground position
     // and height, or nothing.
     std::optional<Vector3> PickFloor(Vector2 p) const;
+    // The same for any camera orbit: `lift` is how far a point's drawn ground position moves
+    // per unit of height (the default camera's is (0, -cos 30)). The floor nearest the camera
+    // along the view ray through `p`.
+    std::optional<Vector3> PickFloor(Vector2 p, Vector2 lift) const;
 
     // Everywhere a unit can walk within a budget: a Dijkstra flood from where it stands, with
     // distance measured on the ground (a picture y counts isoRatio times an x, so a radius is
@@ -183,6 +187,7 @@ private:
     int width_ = 0, height_ = 0;
     Rectangle bounds_{0, 0, 0, 0};
     float highestFloor_ = 0.0f;
+    float lowestFloor_ = 0.0f;
     uint64_t lastSignature_ = 0;
     uint64_t bakeCount_ = 0;
     std::vector<Area> sightBlockers_;  // the static colliders, unpadded, from the last bake

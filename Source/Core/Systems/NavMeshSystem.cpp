@@ -226,6 +226,7 @@ void NavMeshSystem::BuildFloors(const Inputs& inputs) {
     floorColumn_.clear();
     columnStart_.assign(columns + 1, 0);
     highestFloor_ = 0.0f;
+    lowestFloor_ = 0.0f;
 
     if (inputs.surfaces.empty()) {
         // One flat floor everywhere, walkable unless painted regions say where it is.
@@ -283,6 +284,7 @@ void NavMeshSystem::BuildFloors(const Inputs& inputs) {
             floors_.push_back({h[i], true, 1.0f});
             floorColumn_.push_back(column);
             highestFloor_ = std::max(highestFloor_, h[i]);
+            lowestFloor_ = std::min(lowestFloor_, h[i]);
             ++kept;
         }
     }
@@ -478,6 +480,27 @@ std::optional<Vector3> NavMeshSystem::PickFloor(Vector2 p) const {
     // The floor is drawn z * cos higher than its ground position.
     const float z = floors_[f].z;
     return Vector3{p.x, p.y + z * World3D::kPitchCos, z};
+}
+
+std::optional<Vector3> NavMeshSystem::PickFloor(Vector2 p, Vector2 lift) const {
+    if (std::fabs(lift.x) < 1e-4f && std::fabs(lift.y + World3D::kPitchCos) < 1e-4f) return PickFloor(p);
+    if (width_ == 0) return std::nullopt;
+    // March the view ray down from the highest floor: the point at height z drawn at p stands
+    // at ground p - z * lift. The first walkable floor met there is the one nearest the camera.
+    const float reach = std::max(0.05f, std::sqrt(lift.x * lift.x + lift.y * lift.y));
+    const float step = std::max(0.25f, cellSize_ * 0.5f / reach);
+    for (float z = highestFloor_ + step; z >= lowestFloor_ - step; z -= step) {
+        const Vector2 ground{p.x - z * lift.x, p.y - z * lift.y};
+        int cx, cy;
+        if (!WorldToCell(ground, cx, cy)) continue;
+        const int column = IndexOf(cx, cy);
+        for (int f = columnStart_[column]; f < columnStart_[column + 1]; ++f) {
+            const Cell& c = floors_[f];
+            if (!c.walkable || std::fabs(c.z - z) > step * 0.5f + 0.5f) continue;
+            return Vector3{p.x - c.z * lift.x, p.y - c.z * lift.y, c.z};
+        }
+    }
+    return std::nullopt;
 }
 
 bool NavMeshSystem::HasLineOfSight(Vector2 a, Vector2 b, float z) const {
