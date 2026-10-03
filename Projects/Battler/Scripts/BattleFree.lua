@@ -3,7 +3,7 @@
 -- anywhere within a walking budget on the navmesh (NavReach), and ranges and blasts are radii.
 --   Left-click a blue-ringed unit, then anywhere in the blue area to move (or on the unit to
 --   stay put). Then 1 Attack / 2 Spell / 3 Wait. Right-click / Esc backs out.
---   Space ends the player phase. WASD / middle-drag pans, wheel zooms. R restarts.
+--   Space ends the player phase. Middle-drag pans, right-drag turns, wheel zooms (and tilts). R restarts.
 local Board = require("Scripts/Battler/Board")
 local Units = require("Scripts/Battler/Units")
 local Rules = require("Scripts/Battler/FreeRules")
@@ -220,15 +220,29 @@ function Battle:PollInput(mouse, w)
         local ok, err = pcall(self.HandleEvent, self, event)
         if not ok then Log("Battler input error: " .. tostring(err)) end
     end
-    for _, button in ipairs({ MOUSE_LEFT, MOUSE_RIGHT }) do
-        if IsMouseButtonPressed(button) then Feed({ type = "MouseButtonPressed", button = button }) end
+    if IsMouseButtonPressed(MOUSE_LEFT) then Feed({ type = "MouseButtonPressed", button = MOUSE_LEFT }) end
+    -- Right drag turns the camera (UpdateCamera), so a right click is one released without dragging.
+    if IsMouseButtonPressed(MOUSE_RIGHT) then self.rightDragged = false end
+    if IsMouseButtonReleased(MOUSE_RIGHT) and not self.rightDragged then
+        Feed({ type = "MouseButtonPressed", button = MOUSE_RIGHT })
     end
     for _, key in ipairs({ KEY_R, KEY_ESCAPE, KEY_SPACE, KEY_TAB, KEY_1, KEY_2, KEY_3 }) do
         if IsKeyPressed(key) then Feed({ type = "KeyPressed", key = key }) end
     end
 end
 
--- WASD / arrows / middle drag pan, the wheel zooms, Q/E turn the camera 45 degrees, Z/X or right drag tilt it.
+-- Middle drag pans, right drag turns, the wheel zooms. Pitch follows zoom: zoomed out looks
+-- down from above, zoomed in looks across the ground.
+local ZOOM_MIN, ZOOM_MAX = 0.5, 2.2
+local PITCH_OUT, PITCH_IN = 75, 15  -- degrees, at ZOOM_MIN and ZOOM_MAX
+local DRAG_THRESHOLD = 6            -- pixels a right press moves before it's a drag, not a click
+
+local function PitchFor(zoom)
+    local k = (math.log(zoom) - math.log(ZOOM_MIN)) / (math.log(ZOOM_MAX) - math.log(ZOOM_MIN))
+    k = math.max(0, math.min(1, k))
+    return PITCH_OUT + (PITCH_IN - PITCH_OUT) * k
+end
+
 function Battle:UpdateCamera(dt)
     local cam = self:Camera()
     if not cam then return end
@@ -243,16 +257,6 @@ function Battle:UpdateCamera(dt)
         local b = ScreenToWorld(Vector2.new(SCREEN_W / 2 + px, SCREEN_H / 2 + py))
         t.localX, t.localY = t.localX + (b.x - a.x), t.localY + (b.y - a.y)
     end
-    local speed = 500 * dt
-    local px, py = 0, 0
-    if IsKeyDown(KEY_W) or IsKeyDown(KEY_UP) then py = py - speed end
-    if IsKeyDown(KEY_S) or IsKeyDown(KEY_DOWN) then py = py + speed end
-    if IsKeyDown(KEY_A) or IsKeyDown(KEY_LEFT) then px = px - speed end
-    if IsKeyDown(KEY_D) or IsKeyDown(KEY_RIGHT) then px = px + speed end
-    if px ~= 0 or py ~= 0 then
-        Pan(px, py)
-        self.follow = nil  -- the player took the camera
-    end
 
     -- The director: glide toward whatever the action is about (a unit, or a point it moves).
     if self.follow then
@@ -263,40 +267,34 @@ function Battle:UpdateCamera(dt)
 
     self.zoomTarget = self.zoomTarget or c.zoom
     local wheel = GetMouseWheelMove()
-    if wheel ~= 0 then self.zoomTarget = math.max(0.5, math.min(2.2, self.zoomTarget * 1.15 ^ wheel)) end
+    if wheel ~= 0 then self.zoomTarget = math.max(ZOOM_MIN, math.min(ZOOM_MAX, self.zoomTarget * 1.15 ^ wheel)) end
     c.zoom = c.zoom + (self.zoomTarget - c.zoom) * (1 - math.exp(-12 * dt))
+    c.pitch = PitchFor(c.zoom)
 
-    -- Turn and tilt, eased toward their targets.
+    -- Right drag turns: the camera follows the mouse sideways.
+    local m = GetMousePosition()
     self.yawTarget = self.yawTarget or c.yaw
-    self.pitchTarget = self.pitchTarget or c.pitch
-    if IsKeyPressed(KEY_Q) then self.yawTarget = self.yawTarget - 45 end
-    if IsKeyPressed(KEY_E) then self.yawTarget = self.yawTarget + 45 end
-    if IsKeyDown(KEY_Z) then self.pitchTarget = math.max(15, self.pitchTarget - 40 * dt) end
-    if IsKeyDown(KEY_X) then self.pitchTarget = math.min(75, self.pitchTarget + 40 * dt) end
-    -- Right drag tilts: dragging down looks more from above.
-    local rm = GetMousePosition()
     if IsMouseButtonDown(MOUSE_RIGHT) then
-        if self.tiltAnchor then
-            self.pitchTarget = math.max(15, math.min(75, self.pitchTarget + (rm.y - self.tiltAnchor) * 0.25))
+        self.turnPress = self.turnPress or { x = m.x, y = m.y }
+        if math.abs(m.x - self.turnPress.x) + math.abs(m.y - self.turnPress.y) > DRAG_THRESHOLD then
+            self.rightDragged = true
         end
-        self.tiltAnchor = rm.y
+        if self.rightDragged and self.turnAnchor then
+            self.yawTarget = self.yawTarget + (m.x - self.turnAnchor) * 0.3
+        end
+        self.turnAnchor = m.x
     else
-        self.tiltAnchor = nil
+        self.turnPress, self.turnAnchor = nil, nil
     end
-    local ease = 1 - math.exp(-10 * dt)
-    c.yaw = c.yaw + (self.yawTarget - c.yaw) * ease
-    c.pitch = c.pitch + (self.pitchTarget - c.pitch) * ease
-    -- Land exactly, so the default view (yaw 0, pitch 30) is the iso picture again.
+    c.yaw = c.yaw + (self.yawTarget - c.yaw) * (1 - math.exp(-14 * dt))
     if math.abs(self.yawTarget - c.yaw) < 0.01 then c.yaw = self.yawTarget end
-    if math.abs(self.pitchTarget - c.pitch) < 0.01 then c.pitch = self.pitchTarget end
     if c.yaw >= 360 or c.yaw <= -360 then
         local wrap = c.yaw >= 360 and -360 or 360
         c.yaw, self.yawTarget = c.yaw + wrap, self.yawTarget + wrap
     end
 
-    local m = GetMousePosition()
     if IsMouseButtonDown(MOUSE_MIDDLE) then
-        self.follow = nil
+        self.follow = nil  -- the player took the camera
         if self.panAnchor then Pan(self.panAnchor.x - m.x, self.panAnchor.y - m.y) end
         self.panAnchor = { x = m.x, y = m.y }
     else
@@ -316,8 +314,7 @@ function Battle:ActionShot(a, b)
     if not c then return nil end
     self.zoomTarget = self.zoomTarget or c.zoom
     self.yawTarget = self.yawTarget or c.yaw
-    self.pitchTarget = self.pitchTarget or c.pitch
-    local home = { zoom = self.zoomTarget, yaw = self.yawTarget, pitch = self.pitchTarget, follow = self.follow }
+    local home = { zoom = self.zoomTarget, yaw = self.yawTarget, follow = self.follow }
 
     self:Follow({ x = (a.x + b.x) / 2, y = (a.y + b.y) / 2 })
     -- Screen right on the ground is (cos yaw, sin yaw / 2): a ground y unit is half an x unit.
@@ -327,14 +324,14 @@ function Battle:ActionShot(a, b)
         yaw = yaw + 180 * math.floor((home.yaw - yaw) / 180 + 0.5)
         self.yawTarget = yaw
     end
-    self.pitchTarget = math.max(15, home.pitch - 10)
-    self.zoomTarget = math.min(2.2, home.zoom * 1.35)
+    -- Closer, and so lower (pitch follows zoom).
+    self.zoomTarget = math.min(ZOOM_MAX, home.zoom * 1.35)
     return home
 end
 
 function Battle:EndShot(home)
     if not home then return end
-    self.zoomTarget, self.yawTarget, self.pitchTarget = home.zoom, home.yaw, home.pitch
+    self.zoomTarget, self.yawTarget = home.zoom, home.yaw
     self.follow = home.follow
 end
 

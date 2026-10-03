@@ -151,6 +151,10 @@ function IsMouseButtonDown(button) end
 ---@return boolean
 function IsMouseButtonPressed(button) end
 
+---@param button integer
+---@return boolean
+function IsMouseButtonReleased(button) end
+
 --- Returns current mouse position in world coordinates.
 ---@return Vector2
 function GetMousePosition() end

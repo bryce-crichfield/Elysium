@@ -307,6 +307,7 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("IsKeyPressed", [](int key) { return Input::IsKeyPressed(static_cast<Key>(key)); });
     lua.set_function("IsMouseButtonDown", [](int button) { return Input::IsMouseButtonDown(static_cast<MouseButton>(button)); });
     lua.set_function("IsMouseButtonPressed", [](int button) { return Input::IsMouseButtonPressed(static_cast<MouseButton>(button)); });
+    lua.set_function("IsMouseButtonReleased", [](int button) { return Input::IsMouseButtonReleased(static_cast<MouseButton>(button)); });
     lua.set_function("GetMouseWheelMove", []() { return Input::GetMouseWheelMove(); });
     lua.set_function("GetMousePosition", [this]() {
         Vector2 m = this->_mousePosition; // Cached by SceneService from Input polling each frame
