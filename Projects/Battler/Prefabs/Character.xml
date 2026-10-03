@@ -2,6 +2,7 @@
     <Entities>
         <Entity id="0">
             <AnimationComponent clip="Animations/Hulk/Hulk_Idle.anim"/>
+            <HealthComponent max="100"/>
             <LayerComponent name="entity"/>
             <ModelComponent model="Models/Characters/Hulk/Hulk.mesh" scale="50"/>
             <NameComponent name="Character"/>

@@ -8,6 +8,11 @@ namespace Elysium {
         c.current = maxVal;
     }
 
+    void HealthComponent::SaveXml(const HealthComponent& c, XMLBuilder& builder) {
+        builder.AddElement("HealthComponent")
+            .SetAttribute("max", c.max);
+    }
+
     FieldList HealthComponent::Fields() {
         return {
             Field("Max", &HealthComponent::max, "max").Range(1.0f, 100000.0f),
