@@ -35,8 +35,10 @@ void AssetService::Shutdown() {
 void AssetService::Update(float deltaTime) {
     Profile;
 
-    // Finalize a batch once every background load's continuation has landed.
-    if (needsFinalization_ && outstandingLoads_ == 0) {
+    // Finalize whatever has landed, every frame. Waiting for every outstanding load first let one
+    // slow load (a long music decode) hold back everything else: a scene's floors arrived late
+    // enough that the battle started on an empty navmesh.
+    if (needsFinalization_) {
         FinalizeAssets();
         needsFinalization_ = false;
     }

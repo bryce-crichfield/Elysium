@@ -100,6 +100,8 @@ bool Application::Initialize(const std::string& configPath) {
         std::make_unique<TaskService>(serviceLocator_));
     serviceLocator_.Register<Services::AssetService, Services::IAssetService>(
         std::make_unique<Services::AssetService>(serviceLocator_));
+    serviceLocator_.Register<Services::AudioService, Services::IAudioService>(
+        std::make_unique<Services::AudioService>(serviceLocator_));
     serviceLocator_.Register<Services::SceneService, Services::ISceneService>(
         std::make_unique<Services::SceneService>(serviceLocator_));
     serviceLocator_.Register<Services::ScriptService, Services::IScriptService>(
@@ -114,8 +116,6 @@ bool Application::Initialize(const std::string& configPath) {
 
     window_ = Window(config_.windowWidth, config_.windowHeight, config_.windowTitle);
     window_.Maximize();
-
-    // Audio device init deferred until the real audio backend (miniaudio) lands.
 
     for (auto service : serviceLocator_.GetAllServices()) {
         service->Initialize();

@@ -4,6 +4,7 @@
 -- of the party follows the leader. A band of brigands idles to the east (the battle trigger,
 -- once transitions are in). Wheel zooms, middle-drag / WASD pans, Esc goes back to the menu.
 local Units = require("Scripts/Battler/Units")
+local Sfx = require("Scripts/Menu/Sfx")
 
 local Overworld = {}
 
@@ -80,7 +81,10 @@ function Overworld:OnEvent(event)
     local w = ScreenToWorld(GetMousePosition())
     if event.button == MOUSE_LEFT then
         local u = self:PartyMemberAt(w.x, w.y)
-        if u then self.selected = u end
+        if u then
+            if u ~= self.selected then Sfx.Play(Sfx.SELECT) end
+            self.selected = u
+        end
         return u ~= nil
     elseif event.button == MOUSE_RIGHT and self.selected then
         local p = NavPick(w.x, w.y)

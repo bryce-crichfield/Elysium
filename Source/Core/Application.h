@@ -55,6 +55,7 @@ class Application {
     ServiceLocator& GetServiceLocator() { return serviceLocator_; }
 
     bool ShouldClose() const;
+    void RequestClose() { shouldClose_ = true; }
 
     void SetMode(AppMode mode);
     AppMode GetMode() const { return mode_; }

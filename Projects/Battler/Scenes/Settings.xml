@@ -19,21 +19,31 @@
     <PrefabInstance src="../Prefabs/Slider.xml" id="MasterVolume">
         <Param name="Label" value="Master volume"/>
         <Override entity="0" component="TransformComponent" field="x" value="420"/>
-        <Override entity="0" component="TransformComponent" field="y" value="240"/>
+        <Override entity="0" component="TransformComponent" field="y" value="200"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Slider.xml" id="MusicVolume">
         <Param name="Label" value="Music"/>
         <Override entity="0" component="TransformComponent" field="x" value="420"/>
-        <Override entity="0" component="TransformComponent" field="y" value="320"/>
+        <Override entity="0" component="TransformComponent" field="y" value="270"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Slider.xml" id="SfxVolume">
+    <PrefabInstance src="../Prefabs/Slider.xml" id="EffectsVolume">
         <Param name="Label" value="Effects"/>
         <Override entity="0" component="TransformComponent" field="x" value="420"/>
-        <Override entity="0" component="TransformComponent" field="y" value="400"/>
+        <Override entity="0" component="TransformComponent" field="y" value="340"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="AmbientVolume">
+        <Param name="Label" value="Ambient"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="410"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="DialogueVolume">
+        <Param name="Label" value="Dialogue"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="480"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Checkbox.xml" id="Msaa">
         <Param name="Label" value="Antialiasing (MSAA)"/>
         <Override entity="0" component="TransformComponent" field="x" value="420"/>
-        <Override entity="0" component="TransformComponent" field="y" value="460"/>
+        <Override entity="0" component="TransformComponent" field="y" value="540"/>
     </PrefabInstance>
 </Scene>

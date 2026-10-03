@@ -11,7 +11,7 @@ const std::vector<AssetKindFolder>& AssetKindFolders() {
         {"Scenes", AssetKind::Scene, {".xml"}},
         {"Prefabs", AssetKind::Prefab, {".xml"}},
         {"Scripts", AssetKind::Script, {".lua"}},
-        {"Sounds", AssetKind::Sound, {".wav", ".mp3", ".ogg"}},
+        {"Sounds", AssetKind::Sound, {".wav", ".mp3", ".ogg", ".flac"}},
         {"Sprites", AssetKind::Sprite, {".xml"}},
         {"Textures", AssetKind::Texture, {".png", ".jpg", ".jpeg"}},
         {"Shaders", AssetKind::Shader, {".fs", ".vs", ".glsl"}},

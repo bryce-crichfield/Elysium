@@ -420,7 +420,7 @@ bool EditorApplication::RenameScene(Scene& scene, const std::string& newName) {
 
 void EditorApplication::OpenAsset(const std::string& fullPath) {
     const std::optional<AssetKind> kind = AssetKindOf(Path::FromFullPath(fullPath).GetRelativePath());
-    if (!kind || *kind == AssetKind::Folder || *kind == AssetKind::Sound || *kind == AssetKind::Font) return;
+    if (!kind || *kind == AssetKind::Folder || *kind == AssetKind::Font) return;
     if (*kind == AssetKind::Prefab) return OpenPrefab(fullPath);
     if (*kind == AssetKind::Scene) {
         return OpenSceneFile(fullPath);

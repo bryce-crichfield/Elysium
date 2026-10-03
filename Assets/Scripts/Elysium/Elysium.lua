@@ -219,6 +219,43 @@ function SetMsaaEnabled(enabled) end
 ---@return boolean
 function IsMsaaEnabled() end
 
+-- Audio =======================================================================
+
+--- Play a sound asset (project-relative, e.g. "Sounds/Hit.wav"; .wav .mp3 .ogg .flac),
+--- loading it first if needed, on a mixer channel. Returns an id for StopSound.
+---@param asset string
+---@param volume? number 0..1, default 1
+---@param loop? boolean default false
+---@param channel? integer a CHANNEL_* constant, default CHANNEL_MASTER
+---@return integer
+function PlaySound(asset, volume, loop, channel) end
+
+--- Stop a playing sound early (a loop). Ids that already finished are ignored.
+---@param id integer
+function StopSound(id) end
+
+--- Stop every sound.
+function StopAllSounds() end
+
+-- Mixer channels. Every channel mixes into Master, whose volume scales them all.
+CHANNEL_MASTER = 0
+CHANNEL_MUSIC = 1
+CHANNEL_EFFECTS = 2
+CHANNEL_AMBIENT = 3
+CHANNEL_DIALOGUE = 4
+
+--- Set a channel's volume, 0..1.
+---@param channel integer
+---@param volume number
+function SetChannelVolume(channel, volume) end
+
+---@param channel integer
+---@return number
+function GetChannelVolume(channel) end
+
+--- Close the game after this frame.
+function Quit() end
+
 -- Utility =====================================================================
 
 --- Print a message to the engine log.

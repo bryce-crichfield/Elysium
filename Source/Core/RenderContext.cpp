@@ -2,6 +2,7 @@
 #include "Core/Path.h"
 #include "Core/RaylibConvert.h"
 #include "Core/Shader.h"
+#include "Services/LogService.h"
 #include "rlgl.h"
 #include <cmath>
 #include <filesystem>
@@ -157,6 +158,10 @@ static const ::Font* FindFont(const std::string& name) {
                 ::SetTextureFilter(font.texture, TEXTURE_FILTER_TRILINEAR);
                 break;
             }
+        }
+        if (font.texture.id == 0) {
+            LOG_WARNINGF("RenderContext", "Font '%s' not found or failed to load (looked for %s); using the default font",
+                         name.c_str(), projectFont ? Path(name).GetFullPath().c_str() : ("Assets/Fonts/" + name).c_str());
         }
         it = fonts.emplace(name, font).first;
     }

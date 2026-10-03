@@ -16,10 +16,12 @@ end
 
 function Widgets.Binding(id) return bindings[id] end
 
--- The placement id a spawned entity belongs to: its name is namespaced "<id>::<name>".
+-- The placement id a spawned entity belongs to. The placement's root is named the id itself;
+-- the entities under it are namespaced "<id>::<name>".
 function Widgets.PlacementId(entity)
     local n = GetComponent(entity, "Name")
-    return n and n.name:match("^(.-)::") or nil
+    if not n then return nil end
+    return n.name:match("^(.-)::") or n.name
 end
 
 -- The child whose (namespaced) name ends with `name`.

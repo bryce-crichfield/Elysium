@@ -3,7 +3,9 @@
 #include "Services/ScriptService.h"
 #include "Core/Common.h"
 #include "Core/Script.h"
+#include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
+#include "Interfaces/IAudioService.h"
 #include "Interfaces/ISceneService.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
@@ -775,6 +777,33 @@ void ScriptService::BindEntityAPI() {
     // SetMsaaEnabled(on) / IsMsaaEnabled(): the antialiasing setting, for every scene.
     lua.set_function("SetMsaaEnabled", [](bool enabled) { Elysium::Systems::RenderCompositor::SetMsaaEnabled(enabled); });
     lua.set_function("IsMsaaEnabled", []() { return Elysium::Systems::RenderCompositor::IsMsaaEnabled(); });
+
+    // PlaySound(asset [, volume [, loop [, channel]]]) -> id: plays "Sounds/Hit.wav"
+    // (project-relative) on a CHANNEL_* (default CHANNEL_MASTER), loading it first if it has to.
+    // StopSound(id) ends one early (a loop), StopAllSounds() all.
+    lua.set_function("PlaySound", [](const std::string& asset, sol::optional<float> volume, sol::optional<bool> loop,
+                                     sol::optional<int> channel) {
+        return s_services->Get<IAudioService>().Play(Path(asset), volume.value_or(1.0f), loop.value_or(false),
+                                                     (ChannelId)channel.value_or(AudioChannel::Master));
+    });
+    lua.set_function("StopSound", [](SoundId id) { s_services->Get<IAudioService>().Stop(id); });
+    lua.set_function("StopAllSounds", []() { s_services->Get<IAudioService>().StopAll(); });
+    // SetChannelVolume(channel, 0..1) / GetChannelVolume(channel): a mixer channel's volume;
+    // CHANNEL_MASTER's scales everything.
+    lua["CHANNEL_MASTER"] = (int)AudioChannel::Master;
+    lua["CHANNEL_MUSIC"] = (int)AudioChannel::Music;
+    lua["CHANNEL_EFFECTS"] = (int)AudioChannel::Effects;
+    lua["CHANNEL_AMBIENT"] = (int)AudioChannel::Ambient;
+    lua["CHANNEL_DIALOGUE"] = (int)AudioChannel::Dialogue;
+    lua.set_function("SetChannelVolume", [](int channel, float volume) {
+        s_services->Get<IAudioService>().SetChannelVolume((ChannelId)channel, volume);
+    });
+    lua.set_function("GetChannelVolume", [](int channel) {
+        return s_services->Get<IAudioService>().GetChannelVolume((ChannelId)channel);
+    });
+
+    // Quit(): closes the game after this frame.
+    lua.set_function("Quit", []() { s_services->Get<IApplicationService>().RequestClose(); });
 
     lua.set_function("FillRect", [tableToColor](float x, float y, float width, float height, sol::table color, const std::string& layer) {
         if (auto* rs = GetCurrentRenderSystem()) {

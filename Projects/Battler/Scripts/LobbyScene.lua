@@ -2,12 +2,15 @@
 -- Versus lobby: host a game or join one at an address. As soon as the two connect, both go to
 -- the battle, which finds the connection open and plays versus.
 local Ui = require("Scripts/Menu/Ui")
+local Music = require("Scripts/Menu/Music")
 local Net = require("Scripts/Battler/Net")
 local Settings = require("Scripts/Menu/Settings")
+local Sfx = require("Scripts/Menu/Sfx")
 
 local Lobby = {}
 
 function Lobby:Initialize()
+    Music.Play(Music.MENU)
     self.time = 0
     self.status, self.state = "Host a game, or join one", "idle"
     local x = Ui.W / 2 - 220
@@ -78,6 +81,7 @@ function Lobby:OnEvent(event)
     if event.type ~= "KeyPressed" then return false end
     if Ui.Key(self.widgets, event.key) then return true end
     if event.key == KEY_ESCAPE then
+        Sfx.Play(Sfx.CANCEL)
         self:Back()
         return true
     end

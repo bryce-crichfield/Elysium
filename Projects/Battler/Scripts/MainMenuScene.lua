@@ -1,16 +1,21 @@
 ---@type SceneScript
 -- Main menu: the title and the way into everything else.
 local Ui = require("Scripts/Menu/Ui")
+local Music = require("Scripts/Menu/Music")
+local Settings = require("Scripts/Menu/Settings")
 
 local MainMenu = {}
 
 function MainMenu:Initialize()
+    Music.Play(Music.MENU)
+    Settings.Apply()  -- the volume settings, not the engine's default of 1
     self.time = 0
     self.widgets = Ui.Column(Ui.W / 2, 300, 320, 56, 16, {
         { "Adventure", function() SceneReplace("Overworld") end },
         { "Skirmish", function() SceneReplace("BattleFree") end },
         { "Versus", function() SceneReplace("Lobby") end },
         { "Settings", function() SceneReplace("Settings") end },
+        { "Quit", function() Quit() end },
     })
 end
 

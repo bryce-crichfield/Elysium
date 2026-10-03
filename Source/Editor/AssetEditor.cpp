@@ -436,7 +436,7 @@ void AssetEditor::HandleItem(const DiskFile& file, IAsset* asset, bool clicked, 
     selectedFile_ = file.relativePath;
     auto& assetService = services_.Get<IAssetService>();
     const Path path(file.relativePath);
-    if (file.kind != AssetKind::Sound && file.kind != AssetKind::Font && ImGui::MenuItem(ICON_FA_PEN_TO_SQUARE "  Open")) Open(file);
+    if (file.kind != AssetKind::Font && ImGui::MenuItem(ICON_FA_PEN_TO_SQUARE "  Open")) Open(file);
     if (file.kind == AssetKind::Prefab) {
         auto& editor = editor_;
         ImGui::BeginDisabled(!editor.GetWorld());

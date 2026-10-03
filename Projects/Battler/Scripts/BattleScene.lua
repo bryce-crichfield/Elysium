@@ -14,8 +14,33 @@ local Board = require("Scripts/Battler/Board")
 local Units = require("Scripts/Battler/Units")
 local Rules = require("Scripts/Battler/Rules")
 local Net = require("Scripts/Battler/Net")
+local Music = require("Scripts/Menu/Music")
+local Sfx = require("Scripts/Menu/Sfx")
 
 local Battle = {}
+
+-- Sound effects (project-relative, under Sounds/).
+local SFX = {
+    ambiance = "Sounds/sfx_battle_ambiance_loop.wav",  -- looped under the whole battle
+    select = Sfx.SELECT,                -- a unit picked up (click, Tab, hero frame, next in line)
+    order = Sfx.ORDER,                  -- an action committed (attack / spell / wait)
+    click = Sfx.CLICK,                  -- an action menu item chosen
+    cancel = Sfx.CANCEL,                -- backing out a step
+    run = "Sounds/sfx_battle_unit_run.wav",          -- footsteps, looped while a unit walks
+    swing = "Sounds/sfx_battle_knight_swing.wav",    -- a melee attack's swing
+    hit = "Sounds/sfx_battle_unit_hit.wav",          -- a melee attack landing
+    release = "Sounds/sfx_archer_release.mp3",       -- a ranged attack's arrow leaving the bow
+    arrowHit = "Sounds/sfx_arrow_hit.wav",           -- the arrow landing
+    cast = "Sounds/sfx_spell_cast_mage.wav",         -- a spell cast
+    boltImpact = "Sounds/sfx_spell_bolt_impact.wav", -- the bolt landing
+    phasePlayer = "Sounds/sfx_battle_phase_player.wav",  -- our phase begins
+    phaseEnemy = "Sounds/sfx_battle_phase_enemy.wav",    -- the enemy's / opponent's phase begins
+    victory = "Sounds/sfx_battle_victory.wav",
+    defeat = "Sounds/sfx_battle_defeat.wav",
+}
+
+-- An effect on the Effects channel.
+local function Play(sound, volume) Sfx.Play(sound, volume) end
 
 local PLAYER, ENEMY = Units.PLAYER, Units.ENEMY
 local SCREEN_W, SCREEN_H = 1280, 720
@@ -83,6 +108,7 @@ end
 -- --- Lifecycle ----------------------------------------------------------------------------
 
 function Battle:Initialize()
+    Music.Play(Music.BATTLE)
     self.time = 0
     self.board = Board.new()   -- only to know when the navmesh has settled
     self.state = "loading"
@@ -92,6 +118,7 @@ function Battle:Initialize()
     self.inbox = {}               -- the opponent's commands, applied in order by RemotePhase
     self.me, self.them = PLAYER, ENEMY
     self.net = false              -- a versus game (true) or solo against the AI
+    self.ambiance = nil           -- the looping ambiance's sound id, once the battle starts
     Log("Battler (free): waiting for the navmesh...")
 end
 
@@ -99,6 +126,7 @@ end
 
 -- Once the navmesh is ready: versus if the Lobby left a connection open, else solo.
 function Battle:Begin()
+    if not self.ambiance then self.ambiance = PlaySound(SFX.ambiance, 0.5, true, CHANNEL_AMBIENT) end
     if Net.Active() then
         self:BeginVersus(Net.IsHost())
     else
@@ -110,6 +138,8 @@ end
 
 -- Back to the main menu, closing any versus connection.
 function Battle:Leave()
+    self:StopSteps()
+    if self.ambiance then StopSound(self.ambiance) self.ambiance = nil end
     if Net.Active() then Net.Stop() end
     SceneReplace("MainMenu")
 end
@@ -124,6 +154,7 @@ function Battle:BeginVersus(host)
 end
 
 function Battle:Restart()
+    self:StopSteps()
     self.co, self.inbox = nil, {}
     self.state = "battle"
     self.banner = nil
@@ -134,6 +165,7 @@ function Battle:PollNetwork()
     for _, e in ipairs(Net.Poll()) do
         if e.type == "disconnected" and self.net then
             Net.Stop()
+            self:StopSteps()
             self.co, self.state = nil, "over"
             self:ShowBanner("Your opponent left", "Esc  Menu")
         elseif e.type == "message" then
@@ -466,10 +498,12 @@ function Battle:CheckOver()
     local again = self.net and "R  Rematch     Esc  Leave" or "R  Fight again     Esc  Menu"
     if #self:Living(self.them) == 0 then
         self.state = "over"
+        Play(SFX.victory)
         self:ShowBanner("VICTORY", again)
         return true
     elseif #self:Living(self.me) == 0 then
         self.state = "over"
+        Play(SFX.defeat)
         self:ShowBanner("DEFEAT", again)
         return true
     end
@@ -481,6 +515,7 @@ end
 function Battle:BeginPhase(team)
     if team == PLAYER then self.turn = self.turn + 1 end
     self.phase = team
+    Play(team == self.me and SFX.phasePlayer or SFX.phaseEnemy)
     for _, u in ipairs(self.units) do u.moved, u.acted = false, false end
     if team == self.me then
         self:ShowBanner(self.net and "YOUR PHASE" or "PLAYER PHASE", "Turn " .. self.turn, 1.2)
@@ -607,9 +642,17 @@ end
 -- --- Actions ------------------------------------------------------------------------------
 
 -- Walks the waypoints at a steady ground speed, the clip and facing following each leg.
+-- The footsteps loop of the unit walking, if any. A move cut short (restart, leaving, the
+-- opponent dropping) never reaches its own stop, so those stop it here too.
+function Battle:StopSteps()
+    if self.steps then StopSound(self.steps) self.steps = nil end
+end
+
 function Battle:MoveAlong(u, path)
     self:Follow(u)
     Units.Play(u, "Walk")
+    self:StopSteps()
+    self.steps = PlaySound(SFX.run, 0.6, true, CHANNEL_EFFECTS)
     for _, p in ipairs(path) do
         local x0, y0, z0 = u.x, u.y, u.z
         Units.Face(u, p.x, p.y)
@@ -623,6 +666,7 @@ function Battle:MoveAlong(u, path)
         end
         u.x, u.y, u.z = p.x, p.y, p.z
     end
+    self:StopSteps()
     Units.Play(u, "Idle")
     u.moved = true
 end
@@ -650,7 +694,17 @@ function Battle:Attack(att, def)
     Wait(0.3)  -- let the camera settle in
     Units.Play(att, "Attack")
     local length = Units.ClipLength("Attack", att)
-    Wait(length * 0.55)
+    local ranged = att.class.range[2] > 1
+    if ranged then
+        Wait(length * 0.45)
+        Play(SFX.release)
+        Wait(length * 0.10)
+        Play(SFX.arrowHit)
+    else
+        Play(SFX.swing)
+        Wait(length * 0.55)
+        Play(SFX.hit)
+    end
     self:Hurt(def, Rules.Damage(att, att, def, def, Rules.AttackPower(att)))
     Wait(length * 0.45 + (def.alive and 0.3 or 0.8))  -- linger on a kill
     self:EndShot(home)
@@ -661,6 +715,7 @@ function Battle:CastBolt(caster, at)
     local home = self:ActionShot(caster, at)
     Units.Face(caster, at.x, at.y)
     Units.Play(caster, spell.cast or "Attack")
+    Play(SFX.cast)
     self:Float(spell.name .. "!", caster.x, caster.y, caster.z + 20, {r = 170, g = 210, b = 255, a = 255})
     Wait(0.35)
 
@@ -684,6 +739,7 @@ function Battle:CastBolt(caster, at)
         end
     end
     if bolt then DestroyEntity(bolt) end
+    Play(SFX.boltImpact)
 
     for _, v in ipairs(Rules.Splash(self.units, at, Rules.SplashRadius(caster))) do
         if v.team ~= caster.team then
@@ -698,6 +754,7 @@ end
 -- while `fn` plays it here.
 function Battle:PlayerAction(cmd, fn)
     local u = self.selected
+    Play(SFX.order)
     self:Send(cmd)
     self.mode, self.reach = nil, nil
     self:Run(function()
@@ -721,6 +778,7 @@ function Battle:Busy() return self.co ~= nil or self.state ~= "battle" or self.p
 
 function Battle:Select(u)
     self.selected, self.viewed = u, nil
+    Play(SFX.select)
     self:Follow({ x = u.x, y = u.y })  -- centre once; don't chase the move preview
     self.origin = { x = u.x, y = u.y, z = u.z }
     self.mode = "move"
@@ -761,6 +819,7 @@ function Battle:Choose(mode)
     elseif mode == "spell" and not u.class.spell then
         return
     else
+        Play(SFX.click)
         self.mode = mode
         local range = mode == "spell" and Rules.SpellRange(u) or Rules.AttackRange(u)
         self.cover = self:BuildCover(u, range)
@@ -770,6 +829,7 @@ end
 function Battle:Back()
     local u = self.selected
     if not u then return end
+    Play(SFX.cancel)
     if self.mode == "attack" or self.mode == "spell" then
         self.mode = "menu"
     elseif self.mode == "menu" then

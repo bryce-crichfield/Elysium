@@ -2,6 +2,8 @@
 -- and slider are prefabs instead (Prefabs/Checkbox.xml, Slider.xml). A scene script builds its
 -- widgets once, calls Ui.Update(widgets) from Update and Ui.Draw(widgets) from Render. Coordinates are
 -- game-screen pixels (1280 x 720).
+local Sfx = require("Scripts/Menu/Sfx")
+
 local Ui = {}
 
 Ui.W, Ui.H = 1280, 720
@@ -86,11 +88,16 @@ function Ui.Update(widgets)
     local m = GetMousePosition()
     local pressed, released = IsMouseButtonPressed(MOUSE_LEFT), IsMouseButtonReleased(MOUSE_LEFT)
     for _, w in ipairs(widgets) do
+        local wasHover = w.hover
         w.hover = Inside(w, m) and Enabled(w)
         if w.kind == "button" then
+            if w.hover and not wasHover and wasHover ~= nil then Sfx.Play(Sfx.HOVER, 0.5) end
             if pressed and w.hover then w.armed = true end
             if released then
-                if w.armed and w.hover and w.onClick then w.onClick() end
+                if w.armed and w.hover and w.onClick then
+                    Sfx.Play(Sfx.CLICK)
+                    w.onClick()
+                end
                 w.armed = false
             end
         elseif w.kind == "field" then

@@ -10,7 +10,7 @@ namespace Elysium {
 struct EditorDocument;
 
 // What the Viewport shows for an open asset that has no world (scripts, shaders, textures,
-// sprites): one per open tab, created when the tab first shows and kept until it closes.
+// sprites, models, sounds): one per open tab, created when the tab first shows and kept until it closes.
 // Scenes and prefabs are drawn by the Viewport itself.
 class ContentPane {
    public:
@@ -35,5 +35,6 @@ std::unique_ptr<ContentPane> MakeCodePane(ServiceLocator& services, const Editor
 std::unique_ptr<ContentPane> MakeTexturePane(ServiceLocator& services, const EditorDocument& document);
 std::unique_ptr<ContentPane> MakeSpritePane(ServiceLocator& services, const EditorDocument& document);
 std::unique_ptr<ContentPane> MakeModelPane(ServiceLocator& services, const EditorDocument& document);
+std::unique_ptr<ContentPane> MakeSoundPane(ServiceLocator& services, const EditorDocument& document);
 
 }  // namespace Elysium

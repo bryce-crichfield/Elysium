@@ -695,6 +695,7 @@ std::unique_ptr<ContentPane> MakeContentPane(ServiceLocator& services, const Edi
         case AssetKind::Texture: return MakeTexturePane(services, document);
         case AssetKind::Sprite: return MakeSpritePane(services, document);
         case AssetKind::Model: return MakeModelPane(services, document);
+        case AssetKind::Sound: return MakeSoundPane(services, document);
         default: return nullptr;
     }
 }

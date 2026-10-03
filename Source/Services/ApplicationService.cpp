@@ -26,6 +26,8 @@ bool ApplicationService::ShouldClose() const {
     return app_.ShouldClose();
 }
 
+void ApplicationService::RequestClose() { app_.RequestClose(); }
+
 int ApplicationService::GetWindowWidth() const {
     return app_.GetWindowWidth();
 }

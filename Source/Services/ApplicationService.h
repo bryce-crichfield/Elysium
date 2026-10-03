@@ -22,6 +22,7 @@ class ApplicationService : public IApplicationService {
     void SetMode(AppMode mode) override;
     float GetTime() const override;
     bool ShouldClose() const override;
+    void RequestClose() override;
     int GetWindowWidth() const override;
     int GetWindowHeight() const override;
 
