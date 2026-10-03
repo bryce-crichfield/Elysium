@@ -1,0 +1,25 @@
+<!-- A spell in flight: a glowing orb that lights what it passes. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="entity"/>
+            <LightComponent color="#5AA8FFFF" intensity="2.5" radius="260" height="0" flicker="0.2" vision="false"/>
+            <NameComponent name="Bolt"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <CircleComponent radius="6"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="160" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uGlowColor" type="vec3" value="0.25 0.6 1.0"/>
+                    <Uniform name="uIntensity" type="float" value="2.0"/>
+                    <Uniform name="uGlowRadius" type="float" value="6.0"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Orb"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

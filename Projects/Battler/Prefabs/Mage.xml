@@ -1,0 +1,18 @@
+<!-- A battler unit. Battle.lua drives it: position, facing, animation, health. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Bishop/Idle.png">
+                    <Uniform name="uSourceRect" type="vec4" value="0.000000 0.000000 128.000000 128.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Mage"/>
+            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5" originY="0.6875"/>
+            <SpriteComponent spriteName="Sprites/Bishop.xml" sheetName="Idle" sequenceName="south"/>
+            <HealthComponent current="10" max="10"/>
+            <TransformComponent x="0" y="0" scaleX="0.9" scaleY="0.9"/>
+        </Entity>
+    </Entities>
+</Prefab>

@@ -56,6 +56,8 @@ namespace Elysium {
         ut["sheet"] = &SpriteComponent::sheetName;
         ut["sequence"] = &SpriteComponent::sequenceName;
         ut["duration"] = &SpriteComponent::frameDuration;
+        // The frame within the sequence; set to 0 to restart a clip.
+        ut["frame"] = &SpriteComponent::sequenceIndex;
     }
 
     void SpriteComponent::SetFromLua(SpriteComponent& c, sol::object v) {

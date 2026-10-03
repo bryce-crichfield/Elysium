@@ -5,6 +5,7 @@
 #include "Core/Math/MathTypes.h"
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -49,6 +50,46 @@ public:
     // the height of the floor there (z), with one wherever the height along the way bends (the
     // foot and top of the stairs, not each step), so lerping between them follows the floor.
     std::vector<Vector3> FindPath(Vector2 start, Vector2 end, float startZ = 0.0f) const;
+
+    // The height of the walkable floor a unit at height `z` would stand on at `worldPos` (the
+    // nearest one within a couple of cells), or nothing.
+    std::optional<float> FloorHeight(Vector2 worldPos, float z = 0.0f) const;
+    // The walkable floor drawn at picture point `p` (where a click lands): its ground position
+    // and height, or nothing.
+    std::optional<Vector3> PickFloor(Vector2 p) const;
+
+    // Everywhere a unit can walk within a budget: a Dijkstra flood from where it stands, with
+    // distance measured on the ground (a picture y counts isoRatio times an x, so a radius is
+    // a circle on the ground, not on the screen). `blockers` are {x, y, radius} circles the
+    // unit can't enter (other units). Only valid until the next bake; queries then return
+    // nothing.
+    struct Reach {
+        uint64_t bake = 0;
+        float budget = 0.0f;
+        Vector2 origin{0, 0};
+        int start = -1;
+        std::vector<float> cost;       // per floor; > budget where unreached
+        std::vector<int> parent;       // per floor
+        std::vector<uint8_t> blocked;  // per column
+        int minX = 0, minY = 0, maxX = -1, maxY = -1;  // the cells reached
+    };
+    // A horizontal run of reached cells on one floor height, for drawing: ground x from x0 to
+    // x1, row centre y, height z, and the run's largest cost.
+    struct ReachRun { float x0, x1, y, z, cost; };
+
+    Reach ComputeReach(Vector2 start, float z, float budget, const std::vector<Vector3>& blockers) const;
+    // The cost to walk to ground point `p` on the floor nearest height `z`, or nothing if it
+    // isn't reached.
+    std::optional<float> ReachCost(const Reach& reach, Vector2 p, float z) const;
+    // The way from the reach's origin to `p`, as FindPath gives it (origin excluded), kept
+    // clear of the blockers. Empty if `p` isn't reached.
+    std::vector<Vector3> ReachPath(const Reach& reach, Vector2 p, float z) const;
+    std::vector<ReachRun> ReachRuns(const Reach& reach) const;
+    // Whether a straight sight line from `a` to `b` (ground x, y and an eye height z) is clear:
+    // no floor rises above it and no static collider stands in it. For attacks, not walking.
+    bool CanSee(Vector3 a, Vector3 b) const;
+    // The ground distance between two ground points (the metric reach budgets are in).
+    float GroundDistance(Vector2 a, Vector2 b) const;
 
     int Width() const { return width_; }
     int Height() const { return height_; }
@@ -143,6 +184,8 @@ private:
     Rectangle bounds_{0, 0, 0, 0};
     float highestFloor_ = 0.0f;
     uint64_t lastSignature_ = 0;
+    uint64_t bakeCount_ = 0;
+    std::vector<Area> sightBlockers_;  // the static colliders, unpadded, from the last bake
     std::unordered_map<Entity, Vector2> lastWalkablePos_;
 };
 

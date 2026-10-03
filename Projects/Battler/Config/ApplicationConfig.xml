@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GameConfig>
+    <Window>
+        <Width>1280</Width>
+        <Height>720</Height>
+        <Title>Elysium - Battler</Title>
+        <Fullscreen>false</Fullscreen>
+        <VSync>true</VSync>
+        <TargetFPS>60</TargetFPS>
+        <BackgroundColor>
+            <r>12</r>
+            <g>12</g>
+            <b>18</b>
+        </BackgroundColor>
+        <Framebuffer>
+            <Width>1280</Width>
+            <Height>720</Height>
+        </Framebuffer>
+    </Window>
+    <Debug>
+        <ShowDemoWindow>false</ShowDemoWindow>
+        <ShowMetrics>false</ShowMetrics>
+        <LogLevel>INFO</LogLevel>
+    </Debug>
+</GameConfig>

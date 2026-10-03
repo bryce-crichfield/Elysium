@@ -12,6 +12,7 @@
 #include "Core/Component.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Path.h"
+#include "Core/Prefab.h"
 #include "Core/Input.h"
 #include <memory>
 #include <limits>
@@ -107,7 +108,7 @@ std::vector<Entity> ScriptService::FilterEntities(const std::string& filterFunct
 }
 
 void ScriptService::InitLuaContext() {
-    lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::table, sol::lib::string, sol::lib::math, sol::lib::debug);
+    lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::table, sol::lib::string, sol::lib::math, sol::lib::coroutine, sol::lib::debug);
 
     // Configure package.path so require("Scripts/Foo") resolves Lua modules two ways:
     // first against the current project's own asset root (game scripts), falling
@@ -256,6 +257,27 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("CloneEntity", [](Entity entity) {
         auto* world = GetActiveWorld();
         return world ? world->CloneEntity(entity) : 0;
+    });
+
+    // SpawnPrefab(path [, x, y, z]): spawns a project-relative prefab, its root placed at
+    // (x, y, z). Returns the root entity, or nil.
+    lua.set_function("SpawnPrefab", [this](const std::string& path, sol::optional<float> x, sol::optional<float> y,
+                                           sol::optional<float> z) -> sol::object {
+        auto* world = GetActiveWorld();
+        if (!world) return sol::nil;
+        const Prefab* prefab = Prefab::Get(s_services->Get<IAssetService>(), Path(path).GetFullPath());
+        if (!prefab) return sol::nil;
+        static int spawnCount = 0;
+        PrefabSpawnResult result = prefab->Spawn(world, "Spawn" + std::to_string(++spawnCount), *s_services);
+        if (result.spawned.empty()) return sol::nil;
+        const Entity root = result.ids.count(0) ? result.ids.at(0) : result.spawned.front();
+        if (world->HasComponent<TransformComponent>(root)) {
+            auto& t = world->GetComponent<TransformComponent>(root);
+            t.localX = x.value_or(t.localX);
+            t.localY = y.value_or(t.localY);
+            t.localZ = z.value_or(t.localZ);
+        }
+        return sol::make_object(lua, root);
     });
 
     // Random
@@ -459,19 +481,116 @@ void ScriptService::BindEntityAPI() {
         if (!scene) return;
         if (auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>()) nav->SetParameter("debugDraw", Value{enabled});
     });
-    lua.set_function("NavFindPath", [this](float x1, float y1, float x2, float y2) -> sol::table {
+    auto topNav = []() -> Elysium::Systems::NavMeshSystem* {
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
+        return scene ? scene->GetSystem<Elysium::Systems::NavMeshSystem>() : nullptr;
+    };
+    // NavFloorHeight(x, y [, z]): the walkable floor's height there (nearest `z`), or nil.
+    lua.set_function("NavFloorHeight", [this, topNav](float x, float y, sol::optional<float> z) -> sol::object {
+        auto* nav = topNav();
+        if (!nav) return sol::nil;
+        if (auto h = nav->FloorHeight({x, y}, z.value_or(0.0f))) return sol::make_object(lua, *h);
+        return sol::nil;
+    });
+    // NavCanWalk(x1, y1, x2, y2 [, z]): whether a unit at height z walks straight from 1 to 2.
+    lua.set_function("NavCanWalk", [topNav](float x1, float y1, float x2, float y2, sol::optional<float> z) -> bool {
+        auto* nav = topNav();
+        return nav && nav->HasLineOfSight({x1, y1}, {x2, y2}, z.value_or(0.0f));
+    });
+    // NavPick(x, y): the walkable floor drawn at picture point (x, y), as {x, y, z}, or nil.
+    lua.set_function("NavPick", [this, topNav](float x, float y) -> sol::object {
+        auto* nav = topNav();
+        if (!nav) return sol::nil;
+        auto p = nav->PickFloor({x, y});
+        if (!p) return sol::nil;
+        sol::table t = lua.create_table();
+        t["x"] = p->x; t["y"] = p->y; t["z"] = p->z;
+        return t;
+    });
+    // NavFindPath(x1, y1, x2, y2 [, z1]): waypoints {x, y, z}; empty if there's no way.
+    lua.set_function("NavFindPath", [this](float x1, float y1, float x2, float y2, sol::optional<float> z1) -> sol::table {
         sol::table result = lua.create_table();
         auto* scene = s_services->Get<ISceneService>().GetTopScene();
         if (!scene) return result;
         auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>();
         if (!nav) return result;
         int i = 1;
-        for (const auto& p : nav->FindPath({x1, y1}, {x2, y2})) {
+        for (const auto& p : nav->FindPath({x1, y1}, {x2, y2}, z1.value_or(0.0f))) {
             sol::table pt = lua.create_table();
             pt["x"] = p.x; pt["y"] = p.y; pt["z"] = p.z;
             result[i++] = pt;
         }
         return result;
+    });
+
+    // NavReach(x, y, z, budget [, blockers]): everywhere a unit at (x, y, z) walks within
+    // `budget` ground units, kept out of `blockers` ({ {x, y, r}, ... }). Returns a reach map:
+    //   reach:Cost(x, y, z)   -> the walking cost to that ground point, or nil
+    //   reach:PathTo(x, y, z) -> waypoints {x, y, z} to it (start excluded), empty if unreached
+    //   reach:Runs()          -> { {x0, x1, y, z, cost}, ... } row runs of reached ground, to draw
+    using Reach = Elysium::Systems::NavMeshSystem::Reach;
+    auto reachType = lua.new_usertype<Reach>("NavReachMap", sol::no_constructor);
+    reachType["budget"] = sol::readonly(&Reach::budget);
+    reachType["Cost"] = [topNav](const Reach& r, float x, float y, sol::optional<float> z) -> sol::optional<float> {
+        auto* nav = topNav();
+        if (!nav) return sol::nullopt;
+        if (auto c = nav->ReachCost(r, {x, y}, z.value_or(0.0f))) return *c;
+        return sol::nullopt;
+    };
+    reachType["PathTo"] = [this, topNav](const Reach& r, float x, float y, sol::optional<float> z) -> sol::table {
+        sol::table result = lua.create_table();
+        auto* nav = topNav();
+        if (!nav) return result;
+        int i = 1;
+        for (const auto& p : nav->ReachPath(r, {x, y}, z.value_or(0.0f))) {
+            sol::table pt = lua.create_table();
+            pt["x"] = p.x; pt["y"] = p.y; pt["z"] = p.z;
+            result[i++] = pt;
+        }
+        return result;
+    };
+    reachType["Runs"] = [this, topNav](const Reach& r) -> sol::table {
+        sol::table result = lua.create_table();
+        auto* nav = topNav();
+        if (!nav) return result;
+        int i = 1;
+        for (const auto& run : nav->ReachRuns(r)) {
+            sol::table t = lua.create_table();
+            t["x0"] = run.x0; t["x1"] = run.x1; t["y"] = run.y; t["z"] = run.z; t["cost"] = run.cost;
+            result[i++] = t;
+        }
+        return result;
+    };
+    lua.set_function("NavReach", [topNav](float x, float y, float z, float budget, sol::optional<sol::table> blockers)
+                                     -> std::shared_ptr<Reach> {
+        auto* nav = topNav();
+        if (!nav) return nullptr;
+        std::vector<Vector3> circles;
+        if (blockers) {
+            for (auto& [_, v] : *blockers) {
+                if (!v.is<sol::table>()) continue;
+                sol::table b = v.as<sol::table>();
+                circles.push_back({b.get_or("x", 0.0f), b.get_or("y", 0.0f), b.get_or("r", 0.0f)});
+            }
+        }
+        auto reach = std::make_shared<Reach>(nav->ComputeReach({x, y}, z, budget, circles));
+        if (reach->start < 0) return nullptr;
+        return reach;
+    });
+    // NavCanSee(x1, y1, z1, x2, y2, z2): whether the sight line between the two points (z is
+    // the eye height, not the floor's) is clear of terrain and static colliders.
+    lua.set_function("NavCanSee", [topNav](float x1, float y1, float z1, float x2, float y2, float z2) -> bool {
+        auto* nav = topNav();
+        return !nav || nav->CanSee({x1, y1, z1}, {x2, y2, z2});
+    });
+    // NavGroundDistance(x1, y1, x2, y2): distance on the ground (the metric NavReach budgets use).
+    lua.set_function("NavGroundDistance", [topNav](float x1, float y1, float x2, float y2) -> float {
+        auto* nav = topNav();
+        if (!nav) {
+            const float dx = x2 - x1, dy = (y2 - y1) * 2.0f;
+            return std::sqrt(dx * dx + dy * dy);
+        }
+        return nav->GroundDistance({x1, y1}, {x2, y2});
     });
 
     lua.set_function("GetCollisions", [this](Entity entity) -> sol::table {

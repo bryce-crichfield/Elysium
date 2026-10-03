@@ -323,12 +323,14 @@ void NavMeshSystem::Rasterise(const Inputs& inputs) {
 
 void NavMeshSystem::Bake() {
     const auto started = std::chrono::steady_clock::now();
+    ++bakeCount_;
     floors_.clear();
     floorColumn_.clear();
     columnStart_.clear();
     width_ = height_ = 0;
 
     Inputs inputs = GatherInputs();
+    sightBlockers_ = inputs.obstacles;
     if (!AllocateGrid(inputs)) return;
     BuildFloors(inputs);
     Rasterise(inputs);
@@ -464,6 +466,20 @@ int NavMeshSystem::Walk(int from, Vector2 a, Vector2 b, const WalkVisitor& visit
     return current;
 }
 
+std::optional<float> NavMeshSystem::FloorHeight(Vector2 p, float z) const {
+    const int f = NearestFloor(p, z, cellSize_ * 2.0f);
+    if (f < 0) return std::nullopt;
+    return floors_[f].z;
+}
+
+std::optional<Vector3> NavMeshSystem::PickFloor(Vector2 p) const {
+    const int f = FloorInPicture(p);
+    if (f < 0) return std::nullopt;
+    // The floor is drawn z * cos higher than its ground position.
+    const float z = floors_[f].z;
+    return Vector3{p.x, p.y + z * World3D::kPitchCos, z};
+}
+
 bool NavMeshSystem::HasLineOfSight(Vector2 a, Vector2 b, float z) const {
     int cx, cy;
     if (!WorldToCell(a, cx, cy)) return false;
@@ -592,6 +608,192 @@ std::vector<Vector3> NavMeshSystem::FindPath(Vector2 start, Vector2 end, float s
         anchor = farthest;
     }
     return pulled;
+}
+
+// --- Sight ------------------------------------------------------------------------------
+
+bool NavMeshSystem::CanSee(Vector3 a, Vector3 b) const {
+    const Vector2 a2{a.x, a.y}, b2{b.x, b.y};
+    const int steps = std::max(1, (int)std::ceil((b2 - a2).Length() / (cellSize_ * 0.5f)));
+    for (int i = 1; i < steps; ++i) {
+        const float t = (float)i / steps;
+        const Vector2 p = a2 + (b2 - a2) * t;
+        const float z = a.z + (b.z - a.z) * t;
+        int cx, cy;
+        if (WorldToCell(p, cx, cy)) {
+            const int column = IndexOf(cx, cy);
+            for (int f = columnStart_[column]; f < columnStart_[column + 1]; ++f) {
+                if (floors_[f].z > z) return false;
+            }
+        }
+        for (const Area& o : sightBlockers_) {
+            if (z < o.low || z > o.high) continue;
+            if (p.x < o.bounds.x || p.y < o.bounds.y || p.x > o.bounds.x + o.bounds.width ||
+                p.y > o.bounds.y + o.bounds.height) continue;
+            if (o.polygon.Contains(p)) return false;
+        }
+    }
+    return true;
+}
+
+// --- Reach ------------------------------------------------------------------------------
+
+float NavMeshSystem::GroundDistance(Vector2 a, Vector2 b) const {
+    const float dx = b.x - a.x, dy = (b.y - a.y) * isoRatio_;
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+NavMeshSystem::Reach NavMeshSystem::ComputeReach(Vector2 start, float z, float budget,
+                                                 const std::vector<Vector3>& blockers) const {
+    Reach r;
+    r.bake = bakeCount_;
+    r.budget = budget;
+    r.origin = start;
+    if (width_ == 0) return r;
+    r.start = NearestFloor(start, z, cellSize_ * 4.0f);
+    if (r.start < 0) return r;
+
+    r.cost.assign(floors_.size(), 1e30f);
+    r.parent.assign(floors_.size(), -1);
+    r.blocked.assign((size_t)width_ * height_, 0);
+    for (const Vector3& b : blockers) {
+        const int x0 = std::max(0, (int)std::floor((b.x - b.z - bounds_.x) / cellSize_));
+        const int x1 = std::min(width_ - 1, (int)std::floor((b.x + b.z - bounds_.x) / cellSize_));
+        const float ry = b.z / isoRatio_;
+        const int y0 = std::max(0, (int)std::floor((b.y - ry - bounds_.y) / cellSize_));
+        const int y1 = std::min(height_ - 1, (int)std::floor((b.y + ry - bounds_.y) / cellSize_));
+        for (int y = y0; y <= y1; ++y)
+            for (int x = x0; x <= x1; ++x)
+                if (GroundDistance(CellCenter(x, y), {b.x, b.y}) < b.z) r.blocked[IndexOf(x, y)] = 1;
+    }
+
+    // Step lengths on the ground: along x, along y, diagonal.
+    const float stepX = cellSize_, stepY = cellSize_ * isoRatio_;
+    const float stepD = std::sqrt(stepX * stepX + stepY * stepY);
+
+    struct Node { float g; int index; bool operator>(const Node& o) const { return g > o.g; } };
+    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open;
+    r.cost[r.start] = 0.0f;
+    open.push({0.0f, r.start});
+    r.minX = r.maxX = floorColumn_[r.start] % width_;
+    r.minY = r.maxY = floorColumn_[r.start] / width_;
+    while (!open.empty()) {
+        const Node node = open.top();
+        open.pop();
+        const int current = node.index;
+        if (node.g > r.cost[current]) continue;
+        const int cx = floorColumn_[current] % width_, cy = floorColumn_[current] / width_;
+        r.minX = std::min(r.minX, cx); r.maxX = std::max(r.maxX, cx);
+        r.minY = std::min(r.minY, cy); r.maxY = std::max(r.maxY, cy);
+        const float fz = floors_[current].z;
+        for (int k = 0; k < 8; ++k) {
+            const int nx = cx + kNeighbourDX[k], ny = cy + kNeighbourDY[k];
+            if (nx < 0 || ny < 0 || nx >= width_ || ny >= height_) continue;
+            if (r.blocked[IndexOf(nx, ny)]) continue;
+            const int next = FloorNear(IndexOf(nx, ny), fz);
+            if (next < 0) continue;
+            const bool diagonal = k >= 4;
+            if (diagonal && (FloorNear(IndexOf(nx, cy), fz) < 0 || FloorNear(IndexOf(cx, ny), fz) < 0 ||
+                             r.blocked[IndexOf(nx, cy)] || r.blocked[IndexOf(cx, ny)])) continue;
+            const float step = diagonal ? stepD : (kNeighbourDX[k] != 0 ? stepX : stepY);
+            const float ng = r.cost[current] + step * floors_[next].cost;
+            if (ng <= budget && ng < r.cost[next]) {
+                r.cost[next] = ng;
+                r.parent[next] = current;
+                open.push({ng, next});
+            }
+        }
+    }
+    return r;
+}
+
+std::optional<float> NavMeshSystem::ReachCost(const Reach& r, Vector2 p, float z) const {
+    if (r.bake != bakeCount_ || r.start < 0) return std::nullopt;
+    int cx, cy;
+    if (!WorldToCell(p, cx, cy)) return std::nullopt;
+    const int f = FloorNear(IndexOf(cx, cy), z);
+    if (f < 0 || r.cost[f] > r.budget) return std::nullopt;
+    return r.cost[f];
+}
+
+std::vector<Vector3> NavMeshSystem::ReachPath(const Reach& r, Vector2 p, float z) const {
+    if (r.bake != bakeCount_ || r.start < 0) return {};
+    int cx, cy;
+    if (!WorldToCell(p, cx, cy)) return {};
+    const int goal = FloorNear(IndexOf(cx, cy), z);
+    if (goal < 0 || r.cost[goal] > r.budget) return {};
+    if (goal == r.start) return {{p.x, p.y, floors_[goal].z}};
+
+    std::vector<int> nodes;
+    for (int f = goal; f != -1; f = r.parent[f]) nodes.push_back(f);
+    std::reverse(nodes.begin(), nodes.end());
+
+    auto centerOf = [&](int floor) { return CellCenter(floorColumn_[floor] % width_, floorColumn_[floor] / width_); };
+    std::vector<Vector2> raw;
+    raw.reserve(nodes.size());
+    for (int f : nodes) raw.push_back(centerOf(f));
+    raw.front() = r.origin;
+    raw.back() = p;
+
+    // String pulling, as FindPath does, but never across a blocker.
+    auto clear = [&](size_t i, size_t j) {
+        bool ok = true;
+        const int end = Walk(nodes[i], raw[i], raw[j], [&](Vector2, int f) {
+            if (r.blocked[floorColumn_[f]]) ok = false;
+        });
+        return ok && end == nodes[j];
+    };
+    std::vector<Vector3> pulled;
+    size_t anchor = 0;
+    while (anchor < raw.size() - 1) {
+        size_t farthest = anchor + 1;
+        for (size_t j = raw.size() - 1; j > anchor + 1; --j) {
+            if (clear(anchor, j)) { farthest = j; break; }
+        }
+        AppendHeightBends(nodes[anchor], raw[anchor], nodes[farthest], raw[farthest], pulled);
+        anchor = farthest;
+    }
+    return pulled;
+}
+
+std::vector<NavMeshSystem::ReachRun> NavMeshSystem::ReachRuns(const Reach& r) const {
+    std::vector<ReachRun> runs;
+    if (r.bake != bakeCount_ || r.start < 0) return runs;
+    struct Open { ReachRun run; int lastX; };
+    for (int y = r.minY; y <= r.maxY; ++y) {
+        // One open run per floor height in this row; a run closes at the first cell it skips.
+        std::vector<Open> open;
+        for (int x = r.minX; x <= r.maxX + 1; ++x) {
+            if (x <= r.maxX) {
+                const int column = IndexOf(x, y);
+                for (int f = columnStart_[column]; f < columnStart_[column + 1]; ++f) {
+                    if (r.cost[f] > r.budget) continue;
+                    const float fz = floors_[f].z;
+                    bool joined = false;
+                    for (Open& o : open) {
+                        if (o.lastX == x - 1 && std::fabs(o.run.z - fz) < 0.5f) {
+                            o.run.x1 = bounds_.x + (x + 1) * cellSize_;
+                            o.run.cost = std::max(o.run.cost, r.cost[f]);
+                            o.lastX = x;
+                            joined = true;
+                            break;
+                        }
+                    }
+                    if (!joined) {
+                        const float x0 = bounds_.x + x * cellSize_;
+                        open.push_back({{x0, x0 + cellSize_, CellCenter(x, y).y, fz, r.cost[f]}, x});
+                    }
+                }
+            }
+            for (size_t k = open.size(); k-- > 0;) {
+                if (open[k].lastX < x) {
+                    runs.push_back(open[k].run);
+                    open.erase(open.begin() + (long)k);
+                }
+            }
+        }
+    }
+    return runs;
 }
 
 // --- Movers -----------------------------------------------------------------------------
