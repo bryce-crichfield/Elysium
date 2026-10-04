@@ -21,7 +21,7 @@ local DIM = {r = 120, g = 120, b = 130, a = 255}
 local TITLE = {r = 255, g = 225, b = 160, a = 255}
 local BODY = {r = 225, g = 225, b = 232, a = 255}
 local FACE = { "Title", "Art", "Body", "BlueCost" }
-local BACK = { "Back", "Emblem" }
+local BACK = { "Back" }
 
 local function SetLayerName(entity, name)
     local layer = GetComponent(entity, "Layer")

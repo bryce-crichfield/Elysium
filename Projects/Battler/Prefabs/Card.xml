@@ -59,33 +59,12 @@
         <Entity id="10">
             <LayerComponent name="ui" visible="false"/>
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Gradient" enabled="true">
-                    <Uniform name="uColorA" type="vec4" value="0.180000 0.060000 0.060000 1.000000"/>
-                    <Uniform name="uColorB" type="vec4" value="0.050000 0.030000 0.080000 1.000000"/>
-                    <Uniform name="uAngle" type="float" value="45.000000"/>
-                </Layer>
-                <Layer material="Stroke" enabled="true">
-                    <Uniform name="uWidth" type="float" value="2.000000"/>
-                    <Uniform name="uColor" type="vec4" value="0.600000 0.480000 0.250000 1.000000"/>
-                </Layer>
+                <Layer material="Texture" enabled="true" texture="Textures/Ui/card_back.png"/>
             </MaterialComponent>
             <NameComponent name="Back"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="140" height="200" cornerRadius="0.079999998"/>
             <TransformComponent x="0" y="0"/>
-        </Entity>
-        <Entity id="11">
-            <LayerComponent name="ui" visible="false"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Stroke" enabled="true">
-                    <Uniform name="uWidth" type="float" value="2.000000"/>
-                    <Uniform name="uColor" type="vec4" value="0.600000 0.480000 0.250000 1.000000"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Emblem"/>
-            <ParentComponent target="0"/>
-            <RectangleComponent width="60" height="60" cornerRadius="1"/>
-            <TransformComponent x="40" y="70"/>
         </Entity>
         <Entity id="13">
             <LayerComponent name="ui"/>
