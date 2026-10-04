@@ -4,11 +4,12 @@
 -- own cards (Prefabs/Card.xml) and binds each one's view; the scene only says what's in it:
 --
 --   Widgets.BindView("Hand", {
---       show = function() return { cards = {...}, faceUp = true, owner = "Marsh",
---                                  deck = 23, discard = 4 } end,   -- or nil: no hand shown
+--       show = function() return { cards = {...}, faceUp = true, owner = "Marsh" } end,
+--                                                    -- or nil: no hand shown
 --       playable = function(slot) return true end,   -- (optional) can be paid for now
 --       chosen = function() return slot end,         -- (optional) the card being played
 --       hidden = function() return true end,         -- (optional) the hand slides out of view
+--       peek = function() return true end,           -- (optional) it sinks to just its top edges
 --       onPlay = function(slot) end,                 -- a face-up card clicked
 --       flights = {},                                -- see below
 --   })
@@ -32,6 +33,7 @@ local PREVIEW = 1.4          -- the hovered card's scale
 local SCREEN_H, MARGIN = 720, 8
 local HELD = { x = 1060, y = 380, s = 1.2 }   -- where the chosen card waits for its target
 local DROP = 330             -- how far the hand slides down out of view
+local PEEK = 36              -- how much of the cards' tops shows while peeking
 local FLIGHT = 0.38          -- seconds a played card takes to reach its target
 
 local function Clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
@@ -103,7 +105,9 @@ function Hand:Update(entity, dt)
     if binding and binding.flights then self:Launch(binding.flights) end
     self:Fly(dt)
     local hidden = binding and binding.hidden and binding.hidden() or false
-    self.drop = Widgets.Ease(self.drop, hidden and DROP or 0, 10, dt)
+    local peek = not hidden and binding and binding.peek and binding.peek() or false
+    self.drop = Widgets.Ease(self.drop, hidden and DROP or peek and (SCREEN_H - PEEK - ay) or 0, 10, dt)
+    hidden = hidden or peek  -- either way, nothing to hover or click
 
     for _, child in ipairs(GetChildren(entity)) do
         local layer = GetComponent(child, "Layer")
@@ -182,8 +186,6 @@ function Hand:Update(entity, dt)
     end
 
     if info then
-        Widgets.ChildText(entity, "Owner", info.owner or "", nil, -520)
-        Widgets.ChildText(entity, "Piles", string.format("Deck %d   Discard %d", info.deck or 0, info.discard or 0), nil, -520)
         local left = math.max(0, math.ceil(self.scroll - (VISIBLE + 1) / 2 - 0.05))
         local right = math.max(0, math.ceil(n - self.scroll - (VISIBLE - 1) / 2 - 0.05))
         Widgets.ChildText(entity, "LeftMore", left > 0 and ("< " .. left) or "")

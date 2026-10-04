@@ -1,6 +1,7 @@
 <!-- A unit's frame on the battle HUD (Scripts/Components/HeroFrame.lua): its portrait, name,
      health (red bar), stamina (green bar) and mana crystals (blue; one per crystal it has grown,
-     lit while full). The battle binds a unit to it with HeroFrame.Bind; an unbound frame hides.
+     lit while full), and its piles: cards in hand (gold), left in the deck (blue) and discarded
+     (grey). The battle binds a unit to it with HeroFrame.Bind; an unbound frame hides.
      The root burns (its Fire layer) while the unit is selected, acting or hovered.
      Placeholder shapes until there's art. -->
 <Prefab>
@@ -25,7 +26,7 @@
                 </Layer>
             </MaterialComponent>
             <NameComponent name="HeroFrame"/>
-            <RectangleComponent width="236" height="74" cornerRadius="0.15"/>
+            <RectangleComponent width="236" height="90" cornerRadius="0.15"/>
             <ScriptComponent>
                 <Script name="Scripts/Components/HeroFrame.lua"/>
             </ScriptComponent>
@@ -39,7 +40,7 @@
             <NameComponent name="Portrait"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="64" height="64" cornerRadius="0.15"/>
-            <TransformComponent x="5" y="5"/>
+            <TransformComponent x="5" y="13"/>
         </Entity>
         <Entity id="2">
             <LayerComponent name="ui"/>
@@ -244,6 +245,75 @@
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
             <TransformComponent x="213" y="55"/>
+        </Entity>
+        <Entity id="30">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.820000 0.430000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.930000 0.700000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="HandIcon"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="10" height="13" cornerRadius="0.3"/>
+            <TransformComponent x="78" y="72"/>
+        </Entity>
+        <Entity id="31">
+            <LayerComponent name="ui"/>
+            <NameComponent name="HandCount"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="92" y="70"/>
+        </Entity>
+        <Entity id="32">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.420000 0.750000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.700000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="DeckIcon"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="10" height="13" cornerRadius="0.3"/>
+            <TransformComponent x="128" y="72"/>
+        </Entity>
+        <Entity id="33">
+            <LayerComponent name="ui"/>
+            <NameComponent name="DeckCount"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="142" y="70"/>
+        </Entity>
+        <Entity id="34">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.350000 0.350000 0.400000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.600000 0.650000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="DiscardIcon"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="10" height="13" cornerRadius="0.3"/>
+            <TransformComponent x="178" y="72"/>
+        </Entity>
+        <Entity id="35">
+            <LayerComponent name="ui"/>
+            <NameComponent name="DiscardCount"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="192" y="70"/>
         </Entity>
     </Entities>
 </Prefab>

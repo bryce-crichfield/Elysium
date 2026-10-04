@@ -1,8 +1,8 @@
 <!-- A hand of cards along the bottom of a Screen2D layer (Scripts/Components/Hand.lua). The root
      is the middle of the wheel the cards sit on; it spawns its own cards (Prefabs/Card.xml).
      The scene binds what it holds by the placement id: Widgets.BindView(id, { show, playable,
-     chosen, onPlay }); see Hand.lua. Owner and Piles name whose hand it is and what's left in
-     their deck; LeftMore / RightMore count the cards scrolled off either side. -->
+     chosen, onPlay }); see Hand.lua. LeftMore / RightMore count the cards
+     scrolled off either side. -->
 <Prefab>
     <Entities>
         <Entity id="0">
@@ -11,20 +11,6 @@
                 <Script name="Scripts/Components/Hand.lua"/>
             </ScriptComponent>
             <TransformComponent x="640" y="560"/>
-        </Entity>
-        <Entity id="1">
-            <LayerComponent name="ui"/>
-            <NameComponent name="Owner"/>
-            <ParentComponent target="0"/>
-            <TextComponent text="" fontSize="26" r="255" g="225" b="160" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="-520" y="84"/>
-        </Entity>
-        <Entity id="2">
-            <LayerComponent name="ui"/>
-            <NameComponent name="Piles"/>
-            <ParentComponent target="0"/>
-            <TextComponent text="" fontSize="20" r="160" g="160" b="175" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="-520" y="114"/>
         </Entity>
         <Entity id="3">
             <LayerComponent name="ui"/>

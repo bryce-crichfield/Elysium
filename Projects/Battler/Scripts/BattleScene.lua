@@ -76,6 +76,8 @@ local COLORS = {
 }
 
 -- Health bar fills for the hero frames, by team.
+local HURT_FLASH = 1.6     -- seconds a hurt unit's frame stays open, to watch its health drain
+local HOVER_LINGER = 0.6   -- seconds a hovered unit's frame stays open after the pointer leaves
 local FRAME_FILLS = {
     [PLAYER] = {r = 70, g = 160, b = 255, a = 255},
     [ENEMY]  = {r = 235, g = 70, b = 60, a = 255},
@@ -299,14 +301,21 @@ function Battle:UpdateHeroFrames()
         if binding then
             binding.lit = self:IsLit(u)
             binding.open = u ~= nil and u == self:OpenFrameUnit()
+            binding.flash = u ~= nil and (u.flashUntil or 0) > self.time
         end
     end
 end
 
 -- The one unit whose hero frame is open: the one being hovered (its frame, else on the field),
--- else the one selected, acting or looked at. The rest stay tucked, rings still lit.
+-- else the one selected, acting or looked at. The rest stay tucked, rings still lit. A hovered
+-- frame stays open HOVER_LINGER seconds after the pointer leaves it, so sliding from one frame
+-- to the next doesn't flash the selected unit's open in between.
 function Battle:OpenFrameUnit()
-    return self.frameUnit or self.hoverUnit or self.selected or self.focus or self.viewed
+    local hovered = self.frameUnit or self.hoverUnit
+    if hovered then return hovered end
+    local last = self.lastHover
+    if last and last.unit.alive and self.time - last.t < HOVER_LINGER then return last.unit end
+    return self.selected or self.focus or self.viewed
 end
 
 -- Clicking a hero frame: while aiming a card, it targets that unit, as clicking it on the field
@@ -379,8 +388,12 @@ function Battle:Update(dt)
         self.hoverPoint, self.hoverUnit = nil, self.frameUnit
     else
         self.hoverPoint = NavPick(w.x, w.y)
-        self.hoverUnit = self:UnitUnder(w.x, w.y)
+        -- On the field only in our phase: in theirs the pointer sits still while the camera
+        -- follows the action, and units slide under it. Their frames still answer the pointer.
+        self.hoverUnit = self.phase == self.me and self:UnitUnder(w.x, w.y) or nil
     end
+    local hovered = self.frameUnit or self.hoverUnit
+    if hovered then self.lastHover = { unit = hovered, t = self.time } end
     self:UpdatePreview()
     self:PollInput(mouse, w)
 end
@@ -774,6 +787,7 @@ end
 function Battle:Hurt(target, dmg)
     target.hp = math.max(0, target.hp - dmg)
     target.shake = 0.25
+    target.flashUntil = self.time + HURT_FLASH  -- its frame opens to show the bar drop
     self:Float(tostring(dmg), target.x, target.y, target.z, {r = 255, g = 225, b = 120, a = 255})
     if target.hp <= 0 and target.alive then
         target.alive = false
@@ -785,6 +799,7 @@ function Battle:Hurt(target, dmg)
 end
 
 function Battle:Attack(att, def, card)
+    def.flashUntil = math.huge  -- its frame stays open through the blow (Hurt starts the close)
     local home = self:ActionShot(att, def)
     Units.Face(att, def.x, def.y)
     Wait(0.3)  -- let the camera settle in
@@ -807,6 +822,10 @@ function Battle:Attack(att, def, card)
 end
 
 function Battle:CastBolt(caster, at, card)
+    -- Whoever the blast will catch has their frame open from the cast (Hurt starts the close).
+    for _, v in ipairs(Rules.Splash(self.units, at, Rules.SplashRadius(card))) do
+        if v.team ~= caster.team then v.flashUntil = math.huge end
+    end
     local home = self:ActionShot(caster, at)
     Units.Face(caster, at.x, at.y)
     Units.Play(caster, caster.class.cast or "Attack")
@@ -1187,7 +1206,7 @@ function Battle:Forecast()
 end
 
 -- --- HUD ---
--- The HUD is prefab placements in Scenes/Battle.xml (TopBar, UnitCard, Forecast, the hero
+-- The HUD is prefab placements in Scenes/Battle.xml (TopBar, Forecast, the hero
 -- frames, the Hand, EndTurn and the Banner); this binds the Hand and the button and fills the
 -- rest in each frame.
 
@@ -1205,8 +1224,7 @@ function Battle:BindHud()
         show = function()
             local u = self.state ~= "loading" and self:HandUnit()
             if not u then return nil end
-            return { cards = u.piles.hand, faceUp = u.team == self.me, owner = u.name,
-                     deck = #u.piles.draw, discard = #u.piles.discard }
+            return { cards = u.piles.hand, faceUp = u.team == self.me, owner = u.name }
         end,
         playable = function(slot)
             local u = self:HandUnit()
@@ -1216,6 +1234,8 @@ function Battle:BindHud()
         chosen = function() return self.card and self.card.slot end,
         -- Out of the way while a card is aimed or playing out.
         hidden = function() return self.card ~= nil or (self.co ~= nil and self.phase == self.me) end,
+        -- The other side's phase: just the tops of the cards, to keep the field clear.
+        peek = function() return self.phase ~= self.me end,
         onPlay = function(slot) self:PlayCard(slot) end,
         flights = self.flights,
     })
@@ -1246,20 +1266,6 @@ function Battle:UpdateHud()
         Widgets.ChildText(bar, "Counts", string.format("Allies %d   Foes %d", #self:Living(self.me), #self:Living(self.them)),
             nil, SCREEN_W - 230)
         Widgets.ChildText(bar, "Hint", self:Hint() or "", nil, 16)
-    end
-
-    local card = self:Hud("UnitCard")
-    local shown = playing and (self.hoverUnit or self.selected or self.focus) or nil
-    Widgets.SetVisible(card, shown ~= nil)
-    if card and shown then
-        local cl = shown.class
-        local c = shown.team == PLAYER and {r = 120, g = 190, b = 255, a = 255} or {r = 255, g = 120, b = 100, a = 255}
-        Widgets.ChildText(card, "Name", shown.name .. "  the " .. cl.role, c, 14)
-        Widgets.ChildText(card, "Hp", string.format("HP %d/%d   ST %d/%d   MP %d/%d", shown.hp, shown.maxHp,
-            shown.stamina, shown.maxStamina, shown.mana, shown.manaMax), nil, 14)
-        Widgets.ChildText(card, "Stats", string.format("STR %d   INT %d   AGI %d", cl.str, cl.int, cl.agi), nil, 14)
-        Widgets.ChildText(card, "Spell", string.format("Hand %d   Deck %d   Discard %d", #shown.piles.hand,
-            #shown.piles.draw, #shown.piles.discard), nil, 14)
     end
 
     local forecast = playing and self:Forecast() or nil

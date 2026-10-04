@@ -2,14 +2,15 @@
 ---@class HeroFrame
 -- Prefabs/HeroFrame.xml: a unit's frame on the HUD. The battle binds a unit to it
 -- (HeroFrame.Bind) with its team's colors; the frame then shows that unit's name, health,
--- stamina and mana crystals, and burns whenever the unit's own ring is lit. Unbound frames are
+-- stamina, mana crystals and piles (cards in hand, left in the deck, discarded), and burns whenever the unit's own ring is lit. Unbound frames are
 -- hidden. HeroFrame.At finds the unit whose frame is under a screen point, for clicks.
 --
 -- Tucked away it shows only the portrait; it opens out while its binding says `open` (the
--- battle keeps that to one frame at a time), and tucks back EXPAND_HOLD seconds after. A frame on the right half of
+-- battle keeps that to one frame at a time) or `flash` (just hurt, even fatally), and tucks back EXPAND_HOLD seconds after. A frame on the right half of
 -- the screen opens leftward, so it stays against its edge.
 --
--- It reads the unit's hp/maxHp, stamina/maxStamina and mana/manaMax (crystals grown so far).
+-- It reads the unit's hp/maxHp, stamina/maxStamina, mana/manaMax (crystals grown so far) and
+-- piles ({ hand, draw, discard }, if it has them).
 local Widgets = require("Scripts/Components/Widgets")
 
 local HeroFrame = {}
@@ -25,7 +26,8 @@ local CRYSTAL_FULL = {r = 80, g = 150, b = 255, a = 255}
 local CRYSTAL_EMPTY = {r = 20, g = 30, b = 60, a = 255}
 local OPEN_W, TUCKED_W = 236, 74   -- the panel's width, open and tucked (just the portrait)
 local EXPAND_HOLD = 0.12           -- seconds it stays open after it's told to close (no flicker)
-local DETAIL = { "NameText", "Vitals", "HealthBar", "StaminaBar" }
+local DETAIL = { "NameText", "Vitals", "HealthBar", "StaminaBar",
+                 "HandIcon", "HandCount", "DeckIcon", "DeckCount", "DiscardIcon", "DiscardCount" }
 
 function HeroFrame:Initialize(entity)
     self.health = Widgets.Child(entity, "HealthBar")
@@ -67,7 +69,7 @@ function HeroFrame:Update(entity, dt)
     local t = GetComponent(entity, "Transform")
     local rect = GetComponent(entity, "Rectangle")
     self.homeX = self.homeX or t.localX
-    if binding.open and u.alive then self.hold = EXPAND_HOLD
+    if (binding.open and u.alive) or binding.flash then self.hold = EXPAND_HOLD
     else self.hold = math.max(0, self.hold - dt) end
     self.open = Widgets.Ease(self.open, self.hold > 0 and 1 or 0, 16, dt)
     local width = TUCKED_W + (OPEN_W - TUCKED_W) * self.open
@@ -83,6 +85,10 @@ function HeroFrame:Update(entity, dt)
     Widgets.ChildText(entity, "Vitals", string.format("%d/%d", u.alive and u.hp or 0, u.maxHp))
     self:Bar("health", self.health, u.alive and u.hp or 0, u.maxHp, dt, binding.fill or DEFAULT_FILL)
     self:Bar("stamina", self.stamina, u.stamina or 0, u.maxStamina or 0, dt)
+    local piles = u.piles or {}
+    Widgets.ChildText(entity, "HandCount", tostring(#(piles.hand or {})), nil, 92)
+    Widgets.ChildText(entity, "DeckCount", tostring(#(piles.draw or {})), nil, 142)
+    Widgets.ChildText(entity, "DiscardCount", tostring(#(piles.discard or {})), nil, 192)
 
     -- One crystal per crystal grown; the first `mana` of them full.
     for k, crystal in ipairs(self.crystals) do

@@ -29,15 +29,15 @@
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame2">
         <Override entity="0" component="TransformComponent" field="x" value="1032"/>
-        <Override entity="0" component="TransformComponent" field="y" value="148"/>
+        <Override entity="0" component="TransformComponent" field="y" value="164"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame3">
         <Override entity="0" component="TransformComponent" field="x" value="1032"/>
-        <Override entity="0" component="TransformComponent" field="y" value="232"/>
+        <Override entity="0" component="TransformComponent" field="y" value="264"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame4">
         <Override entity="0" component="TransformComponent" field="x" value="1032"/>
-        <Override entity="0" component="TransformComponent" field="y" value="316"/>
+        <Override entity="0" component="TransformComponent" field="y" value="364"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame1">
         <Override entity="0" component="TransformComponent" field="x" value="12"/>
@@ -45,16 +45,13 @@
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame2">
         <Override entity="0" component="TransformComponent" field="x" value="12"/>
-        <Override entity="0" component="TransformComponent" field="y" value="148"/>
+        <Override entity="0" component="TransformComponent" field="y" value="164"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame3">
         <Override entity="0" component="TransformComponent" field="x" value="12"/>
-        <Override entity="0" component="TransformComponent" field="y" value="232"/>
+        <Override entity="0" component="TransformComponent" field="y" value="264"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/TopBar.xml" id="TopBar"/>
-    <PrefabInstance src="../Prefabs/UnitCard.xml" id="UnitCard">
-        <Override entity="0" component="TransformComponent" field="y" value="404"/>
-    </PrefabInstance>
     <PrefabInstance src="../Prefabs/Forecast.xml" id="Forecast">
         <Override entity="0" component="TransformComponent" field="y" value="470"/>
     </PrefabInstance>
