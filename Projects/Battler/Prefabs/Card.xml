@@ -2,15 +2,6 @@
     <Entities>
         <Entity id="0">
             <LayerComponent name="ui"/>
-            <MaterialComponent padding="30" enabled="true">
-                <Layer material="Fire" enabled="true">
-                    <Uniform name="uIntensity" type="float" value="0.000000"/>
-                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
-                    <Uniform name="uGlowRadius" type="float" value="10.000000"/>
-                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
-                </Layer>
-                <Layer material="Texture" enabled="true" texture="Textures/Ui/card_frame.png"/>
-            </MaterialComponent>
             <NameComponent name="Card"/>
             <RectangleComponent width="140" height="200" cornerRadius="0.079999998"/>
             <ScriptComponent>
@@ -18,28 +9,38 @@
             </ScriptComponent>
             <TransformComponent x="0" y="0"/>
         </Entity>
-        <Entity id="1">
-            <LayerComponent name="ui"/>
-            <NameComponent name="Title"/>
-            <ParentComponent target="0"/>
-            <TextComponent text="Card" fontSize="24" r="255" g="225" b="160" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="69.999992" y="99.073982"/>
-        </Entity>
         <Entity id="2">
             <LayerComponent name="ui"/>
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Flat" enabled="true">
-                    <Uniform name="uColor" type="vec4" value="0.300000 0.300000 0.340000 1.000000"/>
-                </Layer>
-                <Layer material="Stroke" enabled="true">
-                    <Uniform name="uColor" type="vec4" value="0.000000 0.000000 0.000000 0.600000"/>
-                    <Uniform name="uWidth" type="float" value="1.000000"/>
-                </Layer>
+                <Layer material="Texture" enabled="true"/>
             </MaterialComponent>
             <NameComponent name="Art"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="120" height="78" cornerRadius="0.079999998"/>
             <TransformComponent x="9.4262829" y="16.501282"/>
+        </Entity>
+        <Entity id="12">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="30" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="10.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
+                    <Uniform name="uIntensity" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Texture" enabled="true" texture="Textures/Ui/card_frame.png"/>
+            </MaterialComponent>
+            <NameComponent name="Frame"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="140" height="200" cornerRadius="0.079999998"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Title"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Card" fontSize="20" r="255" g="225" b="160" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="67.956146" y="100.14916"/>
         </Entity>
         <Entity id="3">
             <LayerComponent name="ui"/>
@@ -48,38 +49,24 @@
             <TextComponent text="" fontSize="16" r="225" g="225" b="232" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
             <TransformComponent x="70" y="138"/>
         </Entity>
-        <Entity id="7">
-            <LayerComponent name="ui"/>
-            <NameComponent name="RedCost"/>
-            <ParentComponent target="0"/>
-            <TextComponent text="-" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="119.36308" y="179.99698"/>
-        </Entity>
-        <Entity id="8">
-            <LayerComponent name="ui"/>
-            <NameComponent name="GreenCost"/>
-            <ParentComponent target="0"/>
-            <TextComponent text="-" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="20.946239" y="180"/>
-        </Entity>
         <Entity id="9">
             <LayerComponent name="ui"/>
             <NameComponent name="BlueCost"/>
             <ParentComponent target="0"/>
             <TextComponent text="-" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="22.637794" y="23.372177"/>
+            <TransformComponent x="18.687828" y="18.763874"/>
         </Entity>
         <Entity id="10">
             <LayerComponent name="ui" visible="false"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Gradient" enabled="true">
-                    <Uniform name="uAngle" type="float" value="45.000000"/>
-                    <Uniform name="uColorB" type="vec4" value="0.050000 0.030000 0.080000 1.000000"/>
                     <Uniform name="uColorA" type="vec4" value="0.180000 0.060000 0.060000 1.000000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.050000 0.030000 0.080000 1.000000"/>
+                    <Uniform name="uAngle" type="float" value="45.000000"/>
                 </Layer>
                 <Layer material="Stroke" enabled="true">
-                    <Uniform name="uColor" type="vec4" value="0.600000 0.480000 0.250000 1.000000"/>
                     <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.480000 0.250000 1.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="Back"/>
@@ -91,8 +78,8 @@
             <LayerComponent name="ui" visible="false"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Stroke" enabled="true">
-                    <Uniform name="uColor" type="vec4" value="0.600000 0.480000 0.250000 1.000000"/>
                     <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.480000 0.250000 1.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="Emblem"/>

@@ -57,14 +57,11 @@ Units.Classes = {
                 str = 3, int = 0, agi = 4, portrait = "Textures/Portraits/Militia.jpg" },
 }
 
--- What a class's stats make of its vitals: health (from Strength), stamina and its refill each
--- turn (from Agility), and how many mana crystals it grows to (from Intellect, at most 10).
+-- What a class's stats make of its vitals: health (from Strength) and how many mana crystals it grows to (from Intellect, at most 10).
 -- Mana starts at one crystal and grows by one a turn, refilling, until it reaches the cap.
 function Units.Vitals(c)
     return {
         hp = 12 + 3 * c.str,
-        stamina = 6 + 2 * c.agi,
-        staminaRegen = 2 + math.ceil(c.agi / 2),
         manaCap = math.min(10, 3 + c.int),
     }
 end
@@ -93,7 +90,6 @@ function Units.Spawn(className, team, tile)
     local u = {
         entity = e, class = c, name = c.label, team = team,
         hp = v.hp, maxHp = v.hp, tile = tile,
-        stamina = v.stamina, maxStamina = v.stamina, staminaRegen = v.staminaRegen,
         mana = 0, manaMax = 0, manaCap = v.manaCap,   -- the first turn grows the first crystal
         piles = { draw = {}, hand = {}, discard = {} },
         x = tile.x, y = tile.y, z = tile.z,

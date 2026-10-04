@@ -2,14 +2,14 @@
 ---@class HeroFrame
 -- Prefabs/HeroFrame.xml: a unit's frame on the HUD. The battle binds a unit to it
 -- (HeroFrame.Bind) with its team's colors; the frame then shows that unit's name, health,
--- stamina, mana crystals and piles (cards in hand, left in the deck, discarded), and burns whenever the unit's own ring is lit. Unbound frames are
+-- mana crystals (Prefabs/Crystal.xml) and piles (cards in hand, left in the deck, discarded), and burns whenever the unit's own ring is lit. Unbound frames are
 -- hidden. HeroFrame.At finds the unit whose frame is under a screen point, for clicks.
 --
 -- Tucked away it shows only the portrait; it opens out while its binding says `open` (the
 -- battle keeps that to one frame at a time) or `flash` (just hurt, even fatally), and tucks back EXPAND_HOLD seconds after. A frame on the right half of
 -- the screen opens leftward, so it stays against its edge.
 --
--- It reads the unit's hp/maxHp, stamina/maxStamina, mana/manaMax (crystals grown so far) and
+-- It reads the unit's hp/maxHp, mana/manaMax (crystals grown so far) and
 -- piles ({ hand, draw, discard }, if it has them).
 local Widgets = require("Scripts/Components/Widgets")
 
@@ -22,18 +22,23 @@ local DRAIN = 0.8   -- of a bar per second
 local CRYSTALS = 10
 local NAME_LEFT = 10
 local DEFAULT_FILL = {r = 255, g = 77, b = 77, a = 255}
-local CRYSTAL_FULL = {r = 80, g = 150, b = 255, a = 255}
-local CRYSTAL_EMPTY = {r = 20, g = 30, b = 60, a = 255}
 local OPEN_W, TUCKED_W = 236, 74   -- the panel's width, open and tucked (just the portrait)
 local EXPAND_HOLD = 0.12           -- seconds it stays open after it's told to close (no flicker)
-local DETAIL = { "NameText", "Vitals", "HealthBar", "StaminaBar",
+local DETAIL = { "Vitals", "HealthBar",
                  "HandIcon", "HandCount", "DeckIcon", "DeckCount", "DiscardIcon", "DiscardCount" }
 
 function HeroFrame:Initialize(entity)
     self.health = Widgets.Child(entity, "HealthBar")
-    self.stamina = Widgets.Child(entity, "StaminaBar")
+    -- Each crystal reads its view by its root's name (see Crystal.lua).
     self.crystals = {}
-    for k = 1, CRYSTALS do self.crystals[k] = Widgets.Child(entity, "Crystal" .. k) end
+    for k = 1, CRYSTALS do
+        local e = Widgets.Child(entity, "Crystal" .. k)
+        if e then
+            local view = { charged = true }
+            Widgets.BindView(GetComponent(e, "Name").name, view)
+            self.crystals[k] = { entity = e, view = view }
+        end
+    end
     self.shown = {}
     self.time = 0
     self.detail = {}
@@ -91,18 +96,15 @@ function HeroFrame:Update(entity, dt)
     Widgets.ChildText(entity, "NameText", u.name, nil, NAME_LEFT)
     Widgets.ChildText(entity, "Vitals", string.format("%d/%d", u.alive and u.hp or 0, u.maxHp))
     self:Bar("health", self.health, u.alive and u.hp or 0, u.maxHp, dt, binding.fill or DEFAULT_FILL)
-    self:Bar("stamina", self.stamina, u.stamina or 0, u.maxStamina or 0, dt)
     local piles = u.piles or {}
     Widgets.ChildText(entity, "HandCount", tostring(#(piles.hand or {})), nil, 92)
     Widgets.ChildText(entity, "DeckCount", tostring(#(piles.draw or {})), nil, 142)
     Widgets.ChildText(entity, "DiscardCount", tostring(#(piles.discard or {})), nil, 192)
 
     -- One crystal per crystal grown; the first `mana` of them full.
-    for k, crystal in ipairs(self.crystals) do
-        local grown = k <= (u.manaMax or 0)
-        local layer = GetComponent(crystal, "Layer")
-        if layer then layer.isVisible = grown and detailed end
-        if grown then Widgets.SetFill(crystal, k <= (u.mana or 0) and CRYSTAL_FULL or CRYSTAL_EMPTY) end
+    for k, crystal in pairs(self.crystals) do
+        Widgets.SetVisible(crystal.entity, k <= (u.manaMax or 0) and detailed)
+        crystal.view.charged = k <= (u.mana or 0)
     end
 
     -- The root burns while the unit's ring is lit, in the team's color.

@@ -1,8 +1,7 @@
 ---@type SceneScript
 -- Battler POC: a skirmish with free movement, fought with cards. Each unit has its own deck
--- (Scripts/Battler/Cards.lua) and hand, and acts by playing cards it can pay for from its
--- vitals: health, stamina and mana. Every phase a side's units grow a mana crystal (refilled),
--- get some stamina back and draw a card.
+-- (Scripts/Battler/Cards.lua) and hand, and acts by playing cards it can pay for with mana.
+-- Every phase a side's units grow a mana crystal (refilled) and draw a card.
 --   Click a blue-ringed unit to see its hand (Prefabs/Hand.xml), then click a card: Move asks
 --   for a spot in the blue area, Strike for a foe, Bolt for a spot to blast. Right-click / Esc
 --   puts the card back. End Turn (or Space) ends the phase. Middle-drag pans, right-drag
@@ -226,7 +225,7 @@ end
 function Battle:Checksum()
     local parts = {}
     for i, u in ipairs(self.units) do
-        parts[#parts + 1] = string.format("%d:%d:%d:%d:%d:%.2f:%.2f", i, u.hp, u.stamina, u.mana, #u.piles.hand, u.x, u.y)
+        parts[#parts + 1] = string.format("%d:%d:%d:%d:%.2f:%.2f", i, u.hp, u.mana, #u.piles.hand, u.x, u.y)
     end
     return table.concat(parts, "|")
 end
@@ -592,8 +591,7 @@ end
 
 -- Starts `team`'s phase: ours takes input, the other side's is the AI's (solo) or replays the
 -- opponent's commands (versus). The blue team moves first, so its phase starts a new turn.
--- Each of the team's units grows a mana crystal and refills its mana, gets some stamina back,
--- and (after the opening hand) draws a card.
+-- Each of the team's units grows a mana crystal and refills its mana, and (after the opening hand) draws a card.
 function Battle:BeginPhase(team)
     if team == PLAYER then self.turn = self.turn + 1 end
     self.phase = team
@@ -601,7 +599,6 @@ function Battle:BeginPhase(team)
         u.done = false
         u.manaMax = math.min(u.manaCap, u.manaMax + 1)
         u.mana = u.manaMax
-        u.stamina = math.min(u.maxStamina, u.stamina + u.staminaRegen)
         if self.turn > 1 then Cards.Draw(u.piles, 1, self.rng) end
     end
     Play(team == self.me and SFX.phasePlayer or SFX.phaseEnemy)
@@ -1207,7 +1204,7 @@ function Battle:Forecast()
 end
 
 -- --- HUD ---
--- The HUD is prefab placements in Scenes/Battle.xml (TopBar, Forecast, the hero
+-- The HUD is prefab placements in Scenes/Battle.xml (TurnLabel, Forecast, the hero
 -- frames, the Hand, EndTurn and the Banner); this binds the Hand and the button and fills the
 -- rest in each frame.
 
@@ -1257,7 +1254,7 @@ local function WithAlpha(c, a) return { r = c.r, g = c.g, b = c.b, a = a } end
 -- The HUD is laid out for the layout size; on a bigger screen each piece keeps to its edge.
 -- (The hero frames keep to theirs themselves: Scripts/Components/HeroFrame.lua.)
 function Battle:AnchorHud()
-    Widgets.Anchor(self:Hud("TopBar"), "stretch", "top")
+    Widgets.Anchor(self:Hud("TurnLabel"), "left", "bottom")
     Widgets.Anchor(self:Hud("Forecast"), "center", "bottom")
     Widgets.Anchor(self:Hud("Wait"), "right", "bottom")
     Widgets.Anchor(self:Hud("EndTurn"), "right", "bottom")
@@ -1271,16 +1268,13 @@ function Battle:UpdateHud()
     local playing = self.state == "battle" or self.state == "over"
     self:AnchorHud()
 
-    local bar = self:Hud("TopBar")
-    Widgets.SetVisible(bar, playing)
-    if bar and playing then
+    local label = self:Hud("TurnLabel")
+    Widgets.SetVisible(label, playing)
+    if label and playing then
         local phase
         if self.phase == self.me then phase = self.net and "Your phase" or "Player phase"
         else phase = self.net and "Opponent's phase" or "Enemy phase" end
-        Widgets.ChildText(bar, "Turn", string.format("Turn %d  -  %s", math.max(1, self.turn or 1), phase), nil, 16)
-        Widgets.ChildText(bar, "Counts", string.format("Allies %d   Foes %d", #self:Living(self.me), #self:Living(self.them)),
-            nil, (GetScreenSize()) - 230)
-        Widgets.ChildText(bar, "Hint", self:Hint() or "", nil, 16)
+        Widgets.ChildText(label, "Turn", string.format("Turn %d  -  %s", math.max(1, self.turn or 1), phase), nil, 16)
     end
 
     local forecast = playing and self:Forecast() or nil
@@ -1294,15 +1288,6 @@ function Battle:UpdateHud()
     Widgets.SetVisible(self:Hud("Wait"), ours and self.selected ~= nil)
 
     self:UpdateBanner()
-end
-
-function Battle:Hint()
-    if self.phase ~= self.me or self.co or self.state ~= "battle" then return nil end
-    if not self.selected then return "Click a unit (Tab cycles)   Space: end turn"
-    elseif self.mode == "move" then return "Click in the blue area to move   Right-click: put the card back"
-    elseif self.mode then return "Click a target   Right-click: put the card back"
-    elseif not self:CanPlayAny(self.selected) then return "Nothing left to play: Tab to the next unit, or End Turn" end
-    return "Play a card from the hand   Tab: next unit   Space: end turn"
 end
 
 -- The banner: the current announcement fading in and out, or the loading notice.

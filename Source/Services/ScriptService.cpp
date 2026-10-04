@@ -16,6 +16,7 @@
 #include "Core/Path.h"
 #include "Core/Prefab.h"
 #include "Core/Input.h"
+#include "Core/Graphics.h"
 #include <memory>
 #include <limits>
 #include <cmath>
@@ -825,6 +826,13 @@ void ScriptService::BindEntityAPI() {
     });
     lua.set_function("GetChannelVolume", [](int channel) {
         return s_services->Get<IAudioService>().GetChannelVolume((ChannelId)channel);
+    });
+
+    // LoadTexture(path): starts loading a texture (project-relative) so a material layer can
+    // be pointed at it (layer.texture = path); a no-op once it's loaded or loading.
+    lua.set_function("LoadTexture", [](const std::string& path) {
+        auto& assets = s_services->Get<IAssetService>();
+        if (!assets.GetAsset(Path(path))) assets.LoadAsset<Texture>(Path(path));
     });
 
     // Quit(): closes the game after this frame.

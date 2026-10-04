@@ -2,7 +2,7 @@
 -- piles (draw, hand, discard). Everything random goes through a seeded generator, so both sides
 -- of a versus game shuffle the same way (lockstep).
 --
--- A card's cost is paid from the three vitals: health (red), stamina (green), mana (blue).
+-- A card costs mana (`cost`), paid from its user's crystals.
 -- `kind` is what playing it asks for:
 --   move   - pick a spot within `move` tiles to walk to
 --   attack - pick a foe within `range` tiles to hit for `power` + the user's `stat`
@@ -13,14 +13,14 @@ Cards.HAND_START = 7
 Cards.HAND_MAX = 10
 Cards.DECK_SIZE = 30
 
--- `art` is the placeholder picture's color until there's real art.
+-- `art` is the picture on its face (Textures/Cards).
 Cards.Catalog = {
     Move = { name = "Move", class = "Basic", kind = "move", move = 3,
-             cost = { stamina = 2 }, text = "Walk up to 3 tiles.", art = {r = 70, g = 150, b = 90, a = 255} },
+             cost = 1, text = "Walk up to 3 tiles.", art = "Textures/Cards/run.png" },
     Attack = { name = "Strike", class = "Basic", kind = "attack", range = {1, 1}, power = 2, stat = "str",
-               cost = { stamina = 1 }, text = "Hit an adjacent foe\nfor 2 + STR.", art = {r = 170, g = 70, b = 60, a = 255} },
+               cost = 1, text = "Hit an adjacent foe\nfor 2 + STR.", art = "Textures/Cards/attack.png" },
     Bolt = { name = "Bolt", class = "Mage", kind = "bolt", range = {2, 5}, splash = 1, power = 3, stat = "int",
-             cost = { mana = 2 }, text = "Blast a spot 2-5 tiles\naway for 3 + INT.", art = {r = 80, g = 110, b = 220, a = 255} },
+             cost = 2, text = "Blast a spot 2-5 tiles\naway for 3 + INT.", art = "Textures/Cards/magic_missile.png" },
 }
 for id, card in pairs(Cards.Catalog) do card.id = id end
 
@@ -93,20 +93,12 @@ end
 
 -- --- Costs ----------------------------------------------------------------------------------
 
-function Cards.Cost(card, vital) return card.cost[vital] or 0 end
+function Cards.Cost(card) return card.cost or 0 end
 
--- Whether `u` can pay for `card` now. Health can't be spent down to nothing.
-function Cards.Affordable(u, card)
-    return Cards.Cost(card, "health") < u.hp
-        and Cards.Cost(card, "stamina") <= u.stamina
-        and Cards.Cost(card, "mana") <= u.mana
-end
+-- Whether `u` has the mana for `card` now.
+function Cards.Affordable(u, card) return Cards.Cost(card) <= u.mana end
 
-function Cards.Pay(u, card)
-    u.hp = u.hp - Cards.Cost(card, "health")
-    u.stamina = u.stamina - Cards.Cost(card, "stamina")
-    u.mana = u.mana - Cards.Cost(card, "mana")
-end
+function Cards.Pay(u, card) u.mana = u.mana - Cards.Cost(card) end
 
 -- The first card of `kind` in `u`'s hand it can pay for: slot, card.
 function Cards.Find(u, kind)
