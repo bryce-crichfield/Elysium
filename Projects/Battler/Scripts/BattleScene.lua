@@ -1,19 +1,23 @@
 ---@type SceneScript
--- Battler POC: a skirmish with free movement. A unit moves
--- anywhere within a walking budget on the navmesh (NavReach), and ranges and blasts are radii.
---   Left-click a blue-ringed unit, then anywhere in the blue area to move (or on the unit to
---   stay put). Then 1 Attack / 2 Spell / 3 Wait. Right-click / Esc backs out.
---   Space ends the player phase. Middle-drag pans, right-drag turns, wheel zooms (and tilts). R restarts.
+-- Battler POC: a skirmish with free movement, fought with cards. Each unit has its own deck
+-- (Scripts/Battler/Cards.lua) and hand, and acts by playing cards it can pay for from its
+-- vitals: health, stamina and mana. Every phase a side's units grow a mana crystal (refilled),
+-- get some stamina back and draw a card.
+--   Click a blue-ringed unit to see its hand (Prefabs/Hand.xml), then click a card: Move asks
+--   for a spot in the blue area, Strike for a foe, Bolt for a spot to blast. Right-click / Esc
+--   puts the card back. End Turn (or Space) ends the phase. Middle-drag pans, right-drag
+--   turns, wheel zooms (and tilts). R restarts.
 -- Versus: entered from the Lobby scene with the connection already open (Skirmish comes in with
 -- none and plays the AI). The host plays the blue team and moves first,
--- the joiner plays red. Every order goes across as a command the moment it's issued (a move,
--- undoing one, an action) and the other side replays it with the same rules, so both run the
--- same battle (lockstep); a phase
+-- the joiner plays red. Every card played goes across as a command the moment it's played and
+-- the other side replays it with the same rules (and the same shuffles: the decks are dealt
+-- from a seed both sides share), so both run the same battle (lockstep); a phase
 -- ends with { kind = "end" } and a checksum of the units, to catch the two drifting apart.
 local Board = require("Scripts/Battler/Board")
 local Units = require("Scripts/Battler/Units")
 local Rules = require("Scripts/Battler/Rules")
 local Net = require("Scripts/Battler/Net")
+local Cards = require("Scripts/Battler/Cards")
 local Music = require("Scripts/Menu/Music")
 local Sfx = require("Scripts/Menu/Sfx")
 local Widgets = require("Scripts/Components/Widgets")
@@ -23,9 +27,9 @@ local Battle = {}
 -- Sound effects (project-relative, under Sounds/).
 local SFX = {
     ambiance = "Sounds/sfx_battle_ambiance_loop.wav",  -- looped under the whole battle
-    select = Sfx.SELECT,                -- a unit picked up (click, Tab, hero frame, next in line)
-    order = Sfx.ORDER,                  -- an action committed (attack / spell / wait)
-    click = Sfx.CLICK,                  -- an action menu item chosen
+    select = Sfx.SELECT,                -- a unit picked up (click, Tab, hero frame)
+    order = Sfx.ORDER,                  -- a card played on its target
+    click = Sfx.CLICK,                  -- a card picked up to play
     cancel = Sfx.CANCEL,                -- backing out a step
     run = "Sounds/sfx_battle_unit_run.wav",          -- footsteps, looped while a unit walks
     swing = "Sounds/sfx_battle_knight_swing.wav",    -- a melee attack's swing
@@ -52,15 +56,18 @@ local COS = Board.PITCH_COS
 
 -- Start spots, by the old board's tile coordinates.
 local ROSTER = {
-    { "Fighter", PLAYER, 1, 2 }, { "Archer", PLAYER, 2, 1 }, { "Mage", PLAYER, 1, 1 },
-    { "Grunt", ENEMY, 9, 9 }, { "Poacher", ENEMY, 10, 7 }, { "Grunt", ENEMY, 7, 10 }, { "Hexer", ENEMY, 10, 10 },
+    { "Marsh", PLAYER, 1, 2 }, { "Gryphon", PLAYER, 2, 1 }, { "Alexa", PLAYER, 1, 1 },
+    { "Brigand", ENEMY, 9, 9 }, { "Poacher", ENEMY, 10, 7 }, { "Brigand", ENEMY, 7, 10 }, { "Hexer", ENEMY, 10, 10 },
 }
+
+-- The kinds of card that ask for a target before they're played (Scripts/Battler/Cards.lua).
+local AIMED = { attack = true, bolt = true }
 
 local COLORS = {
     move = {r = 60, g = 140, b = 255, a = 60}, moveFar = {r = 60, g = 140, b = 255, a = 35},
     moveEdge = {r = 120, g = 190, b = 255, a = 200},
     attack = {r = 255, g = 60, b = 50, a = 45}, attackEdge = {r = 255, g = 110, b = 90, a = 200},
-    spell = {r = 170, g = 90, b = 255, a = 40}, spellEdge = {r = 200, g = 150, b = 255, a = 200},
+    bolt = {r = 170, g = 90, b = 255, a = 40}, boltEdge = {r = 200, g = 150, b = 255, a = 200},
     splash = {r = 255, g = 170, b = 60, a = 90}, splashEdge = {r = 255, g = 200, b = 120, a = 220},
     target = {r = 255, g = 230, b = 120, a = 230}, bad = {r = 255, g = 80, b = 70, a = 200},
     path = {r = 255, g = 255, b = 255, a = 200}, ghost = {r = 255, g = 255, b = 255, a = 120},
@@ -119,6 +126,7 @@ function Battle:Initialize()
     self.me, self.them = PLAYER, ENEMY
     self.net = false              -- a versus game (true) or solo against the AI
     self.ambiance = nil           -- the looping ambiance's sound id, once the battle starts
+    self.matches = 0              -- battles fought this visit; with versus, seeds the decks
     self:BindHud()
     Log("Battler (free): waiting for the navmesh...")
 end
@@ -155,6 +163,7 @@ function Battle:BeginVersus(host)
 end
 
 function Battle:Restart()
+    self.matches = self.matches + 1
     self:StopSteps()
     self.co, self.inbox = nil, {}
     self.state = "battle"
@@ -173,7 +182,7 @@ function Battle:PollNetwork()
             local msg = e.msg
             if msg.kind == "restart" and self.net then
                 self:Restart()
-            elseif msg.kind == "move" or msg.kind == "undo" or msg.kind == "act" or msg.kind == "end" then
+            elseif msg.kind == "play" or msg.kind == "end" then
                 self.inbox[#self.inbox + 1] = msg
             end
         end
@@ -184,18 +193,9 @@ end
 function Battle:Checksum()
     local parts = {}
     for i, u in ipairs(self.units) do
-        parts[#parts + 1] = string.format("%d:%d:%.2f:%.2f", i, u.hp, u.x, u.y)
+        parts[#parts + 1] = string.format("%d:%d:%d:%d:%d:%.2f:%.2f", i, u.hp, u.stamina, u.mana, #u.piles.hand, u.x, u.y)
     end
     return table.concat(parts, "|")
-end
-
--- The command for the selected unit's action, sent when it's chosen: what it does, and where it
--- stands doing it.
-function Battle:Command(action, extra)
-    local u = self.selected
-    local cmd = { kind = "act", unit = u.index, action = action, x = u.x, y = u.y, z = u.z }
-    for k, v in pairs(extra or {}) do cmd[k] = v end
-    return cmd
 end
 
 -- Sends a command to the opponent, in a versus game.
@@ -211,6 +211,9 @@ end
 function Battle:StartBattle()
     for _, u in ipairs(self.units) do DestroyEntity(u.entity) end
     self.units = {}
+    -- Versus: both sides deal from the same seed (and count rematches the same way).
+    local seed = self.net and (7919 + self.matches * 104729) or (os and os.time and os.time() or Random(1, 1000000))
+    local rng = Cards.NewRng(seed)
     for _, r in ipairs(ROSTER) do
         local x, y = Board.Center(r[3], r[4])
         local z = NavFloorHeight(x, y, 0)
@@ -219,11 +222,14 @@ function Battle:StartBattle()
             if u then
                 self.units[#self.units + 1] = u
                 u.index = #self.units  -- how commands name it; the roster spawns the same on both sides
+                u.piles = Cards.NewPiles(u.class.deck, rng)
             end
         end
     end
+    self.rng = rng
     self.turn = 0
-    self.selected, self.mode, self.reach, self.viewed = nil, nil, nil, nil
+    self:ClearOrders()
+    self.selected, self.viewed = nil, nil
     self:Run(function() self:BeginPhase(PLAYER) end)
 end
 
@@ -257,21 +263,28 @@ function Battle:UpdateHeroFrames()
             HeroFrames.Bind(frame, u, glow, FRAME_FILLS[team])
             binding = HeroFrames.bindings[frame]
         end
-        if binding then binding.lit = self:IsLit(u) end
+        if binding then
+            binding.lit = self:IsLit(u)
+            binding.open = u ~= nil and u == self:OpenFrameUnit()
+        end
     end
 end
 
--- Clicking a hero frame: while aiming, it targets that unit, as clicking it on the field would.
--- Otherwise a ready player unit is selected and any other unit is picked out to look at; either
--- way the camera glides over to it.
+-- The one unit whose hero frame is open: the one being hovered (its frame, else on the field),
+-- else the one selected, acting or looked at. The rest stay tucked, rings still lit.
+function Battle:OpenFrameUnit()
+    return self.frameUnit or self.hoverUnit or self.selected or self.focus or self.viewed
+end
+
+-- Clicking a hero frame: while aiming a card, it targets that unit, as clicking it on the field
+-- would. Otherwise one of ours is selected (in our phase) and any other unit is picked out to
+-- look at (its hand shows, face down); either way the camera glides over to it.
 function Battle:ClickFrame(u)
-    if self.selected and (self.mode == "attack" or self.mode == "spell") then
+    if self.selected and AIMED[self.mode] then
         self:Click()  -- the hovered unit is the frame's
         return
     end
-    local ready = u.team == self.me and self.phase == self.me and not u.acted and (self.mode == nil or self.mode == "move")
-    if ready then
-        self.viewed = nil
+    if u.team == self.me and self.phase == self.me then
         self:Select(u)
     else
         self.viewed = u
@@ -308,7 +321,10 @@ function Battle:Update(dt)
         end
     end
 
-    for _, u in ipairs(self.units) do Units.Update(u, dt) end
+    for _, u in ipairs(self.units) do
+        Units.Update(u, dt)
+        u.spent = u.done or not self:CanPlayAny(u)
+    end
     for i = #self.floaters, 1, -1 do
         local f = self.floaters[i]
         f.t = f.t + dt
@@ -348,7 +364,7 @@ function Battle:PollInput(mouse, w)
     if IsMouseButtonReleased(MOUSE_RIGHT) and not self.rightDragged then
         Feed({ type = "MouseButtonPressed", button = MOUSE_RIGHT })
     end
-    for _, key in ipairs({ KEY_R, KEY_ESCAPE, KEY_SPACE, KEY_TAB, KEY_1, KEY_2, KEY_3 }) do
+    for _, key in ipairs({ KEY_R, KEY_ESCAPE, KEY_SPACE, KEY_TAB }) do
         if IsKeyPressed(key) then Feed({ type = "KeyPressed", key = key }) end
     end
 end
@@ -388,7 +404,7 @@ function Battle:UpdateCamera(dt)
     end
 
     self.zoomTarget = self.zoomTarget or c.zoom
-    local wheel = GetMouseWheelMove()
+    local wheel = Widgets.PointerOverUi() and 0 or GetMouseWheelMove()  -- over the hand, the wheel scrolls it
     if wheel ~= 0 then self.zoomTarget = math.max(ZOOM_MIN, math.min(ZOOM_MAX, self.zoomTarget * 1.15 ^ wheel)) end
     c.zoom = c.zoom + (self.zoomTarget - c.zoom) * (1 - math.exp(-12 * dt))
     c.pitch = PitchFor(c.zoom)
@@ -515,15 +531,24 @@ end
 
 -- Starts `team`'s phase: ours takes input, the other side's is the AI's (solo) or replays the
 -- opponent's commands (versus). The blue team moves first, so its phase starts a new turn.
+-- Each of the team's units grows a mana crystal and refills its mana, gets some stamina back,
+-- and (after the opening hand) draws a card.
 function Battle:BeginPhase(team)
     if team == PLAYER then self.turn = self.turn + 1 end
     self.phase = team
+    for _, u in ipairs(self:Living(team)) do
+        u.done = false
+        u.manaMax = math.min(u.manaCap, u.manaMax + 1)
+        u.mana = u.manaMax
+        u.stamina = math.min(u.maxStamina, u.stamina + u.staminaRegen)
+        if self.turn > 1 then Cards.Draw(u.piles, 1, self.rng) end
+    end
     Play(team == self.me and SFX.phasePlayer or SFX.phaseEnemy)
-    for _, u in ipairs(self.units) do u.moved, u.acted = false, false end
     if team == self.me then
         self:ShowBanner(self.net and "YOUR PHASE" or "PLAYER PHASE", "Turn " .. self.turn, 1.2)
         Wait(0.9)
-        self:SelectNext()
+        local first = self:Living(self.me)[1]
+        if first then self:Select(first) end
     elseif self.net then
         self:ShowBanner("OPPONENT'S PHASE", "Turn " .. self.turn, 1.2)
         self:RemotePhase()
@@ -534,7 +559,8 @@ end
 
 -- Our phase is over: tell the other side (with our checksum) and hand it over.
 function Battle:EndMyPhase()
-    self.selected, self.mode, self.reach = nil, nil, nil
+    self:ClearOrders()
+    self.selected = nil
     if self.net then Net.Send({ kind = "end", sum = self:Checksum() }) end
     self:BeginPhase(self.them)
 end
@@ -545,7 +571,7 @@ function Battle:RemotePhase()
         local msg = table.remove(self.inbox, 1)
         if not msg then
             coroutine.yield()
-        elseif msg.kind == "move" or msg.kind == "undo" or msg.kind == "act" then
+        elseif msg.kind == "play" then
             self:Replay(msg)
             if self:CheckOver() then self.focus = nil return end
         elseif msg.kind == "end" then
@@ -559,87 +585,108 @@ function Battle:RemotePhase()
     end
 end
 
--- Plays one of the opponent's commands as they issued it. Each lands the unit exactly where
--- the sender had it (x, y, z), so the two sides never drift.
---   move: walk the path.   undo: snap back to before the move.   act: attack / spell / wait.
+-- Plays one of the opponent's cards as they played it: the same card from the same slot of
+-- the same unit's hand, paid for the same way, landing the unit exactly where the sender had
+-- it (x, y, z) so the two sides never drift.
 function Battle:Replay(cmd)
     local u = self.units[cmd.unit]
     if not u or not u.alive then return end
+    local card = u.piles.hand[cmd.slot]
+    if not card or card.id ~= cmd.card then
+        Log("Battler: DESYNC: " .. u.name .. " has no " .. tostring(cmd.card) .. " in slot " .. tostring(cmd.slot))
+        return
+    end
     self.focus = u
-    if cmd.kind == "move" then
-        self:Follow(u)
-        if #cmd.path > 0 then self:MoveAlong(u, cmd.path) end
-        u.x, u.y, u.z = cmd.x, cmd.y, cmd.z
-    elseif cmd.kind == "undo" then
-        u.x, u.y, u.z, u.moved = cmd.x, cmd.y, cmd.z, false
-    else
-        u.x, u.y, u.z = cmd.x, cmd.y, cmd.z
+    self:Follow(u)
+    Cards.Pay(u, card)
+    Cards.Discard(u.piles, cmd.slot)
+    self:Perform(u, card, cmd)
+    u.x, u.y, u.z = cmd.x, cmd.y, cmd.z
+    Wait(0.2)
+end
+
+-- Plays `card` for `u` on its target, already paid for: cmd.path for a move, cmd.target (a
+-- unit index) for an attack, cmd.at for a bolt.
+function Battle:Perform(u, card, cmd)
+    if card.kind == "move" then
+        if cmd.path and #cmd.path > 0 then self:MoveAlong(u, cmd.path) end
+    elseif card.kind == "attack" then
         local target = cmd.target and self.units[cmd.target]
-        if cmd.action == "attack" and target then
-            self:Attack(u, target)
-        elseif cmd.action == "spell" and cmd.at then
-            self:CastBolt(u, cmd.at)
-        end
-        u.acted, u.moved = true, true
-        Wait(0.2)
+        if target and target.alive then self:Attack(u, target, card) end
+    elseif card.kind == "bolt" and cmd.at then
+        self:CastBolt(u, cmd.at, card)
     end
 end
 
--- The next unit of ours still to act, in roster order after `after` (wrapping), else nil.
-function Battle:NextReady(after)
-    local list = self:Living(self.me)
-    local start = 0
-    for i, u in ipairs(list) do if u == after then start = i end end
-    for k = 1, #list do
-        local u = list[(start + k - 1) % #list + 1]
-        if not u.acted then return u end
+function Battle:EndPlayerPhase()
+    self:ClearOrders()
+    self.selected = nil
+    self:Run(function() self:EndMyPhase() end)
+end
+
+-- Whether `u` can pay for any card in its hand.
+function Battle:CanPlayAny(u)
+    for _, card in ipairs(u.piles.hand) do
+        if Cards.Affordable(u, card) then return true end
+    end
+    return false
+end
+
+-- The attack cards in `u`'s hand it can pay for, one of each, for Rules.Plan.
+function Battle:AiOptions(u)
+    local list, seen = {}, {}
+    for _, card in ipairs(u.piles.hand) do
+        if AIMED[card.kind] and not seen[card.id] and Cards.Affordable(u, card) then
+            seen[card.id] = true
+            list[#list + 1] = { card = card }
+        end
+    end
+    return list
+end
+
+-- The AI plays the first `id` card in `u`'s hand: pays, discards, and returns it.
+function Battle:AiPlay(u, id)
+    for slot, card in ipairs(u.piles.hand) do
+        if card.id == id and Cards.Affordable(u, card) then
+            Cards.Pay(u, card)
+            Cards.Discard(u.piles, slot)
+            return card
+        end
     end
     return nil
 end
 
--- Hands the turn to the next unit in the queue: selects it, and the camera glides over.
-function Battle:SelectNext(after)
-    local u = self:NextReady(after)
-    if u then self:Select(u) end
-end
-
-function Battle:EndPlayerPhase()
-    self.selected, self.mode, self.reach = nil, nil, nil
-    self:Run(function() self:EndMyPhase() end)
-end
+local AI_PLAYS = 4  -- the most attack cards an AI unit plays in a phase
 
 -- The AI's phase, solo only.
 function Battle:EnemyPhase()
     self:ShowBanner("ENEMY PHASE", nil, 1.2)
     Wait(1.0)
     for _, u in ipairs(self:Living(self.them)) do
-        if u.alive then
-            local plan = Rules.Plan(self.units, u)
-            if plan then
-                self.focus = u
-                self:Follow(u)
-                Wait(0.45)  -- look at who's acting before they go
-                if #plan.path > 0 then self:MoveAlong(u, plan.path) end
-                if plan.action == "attack" and plan.target.alive then
-                    self:Attack(u, plan.target)
-                elseif plan.action == "spell" and plan.target.alive then
-                    self:CastBolt(u, { x = plan.target.x, y = plan.target.y, z = plan.target.z })
-                end
-                u.acted = true
-                Wait(0.2)
-                if self:CheckOver() then self.focus = nil return end
+        -- Walk (if it holds a move card) to where its best attack card reaches, then keep
+        -- playing attack cards from there while it can pay and someone's in reach.
+        local _, move = Cards.Find(u, "move")
+        local budget = move and Rules.MoveBudget(move) or 0
+        for play = 1, AI_PLAYS do
+            if not u.alive then break end
+            local plan = Rules.Plan(self.units, u, play == 1 and budget or 0, self:AiOptions(u))
+            if not plan or (#plan.path == 0 and not plan.option) then break end
+            self.focus = u
+            self:Follow(u)
+            if play == 1 then Wait(0.45) end  -- look at who's acting before they go
+            if #plan.path > 0 and self:AiPlay(u, "Move") then self:MoveAlong(u, plan.path) end
+            local card = plan.option and plan.target.alive and self:AiPlay(u, plan.option.card.id)
+            if card then
+                local at = { x = plan.target.x, y = plan.target.y, z = plan.target.z }
+                self:Perform(u, card, { target = plan.target.index, at = at })
             end
+            Wait(0.2)
+            if self:CheckOver() then self.focus = nil return end
+            if not card then break end
         end
     end
     self.focus = nil
     self:BeginPhase(self.me)
-end
-
-function Battle:AllPlayersDone()
-    for _, u in ipairs(self:Living(self.me)) do
-        if not u.acted then return false end
-    end
-    return true
 end
 
 -- --- Actions ------------------------------------------------------------------------------
@@ -671,7 +718,6 @@ function Battle:MoveAlong(u, path)
     end
     self:StopSteps()
     Units.Play(u, "Idle")
-    u.moved = true
 end
 
 function Battle:Float(text, x, y, z, color)
@@ -691,13 +737,13 @@ function Battle:Hurt(target, dmg)
     end
 end
 
-function Battle:Attack(att, def)
+function Battle:Attack(att, def, card)
     local home = self:ActionShot(att, def)
     Units.Face(att, def.x, def.y)
     Wait(0.3)  -- let the camera settle in
     Units.Play(att, "Attack")
     local length = Units.ClipLength("Attack", att)
-    local ranged = att.class.range[2] > 1
+    local ranged = card.range[2] > 1
     if ranged then
         Wait(length * 0.45)
         Play(SFX.release)
@@ -708,18 +754,17 @@ function Battle:Attack(att, def)
         Wait(length * 0.55)
         Play(SFX.hit)
     end
-    self:Hurt(def, Rules.Damage(att, att, def, def, Rules.AttackPower(att)))
+    self:Hurt(def, Rules.Damage(att, def, Rules.Power(att, card)))
     Wait(length * 0.45 + (def.alive and 0.3 or 0.8))  -- linger on a kill
     self:EndShot(home)
 end
 
-function Battle:CastBolt(caster, at)
-    local spell = caster.class.spell
+function Battle:CastBolt(caster, at, card)
     local home = self:ActionShot(caster, at)
     Units.Face(caster, at.x, at.y)
-    Units.Play(caster, spell.cast or "Attack")
+    Units.Play(caster, caster.class.cast or "Attack")
     Play(SFX.cast)
-    self:Float(spell.name .. "!", caster.x, caster.y, caster.z + 20, {r = 170, g = 210, b = 255, a = 255})
+    self:Float(card.name .. "!", caster.x, caster.y, caster.z + 20, {r = 170, g = 210, b = 255, a = 255})
     Wait(0.35)
 
     local sx, sy, sz = caster.x, caster.y, caster.z + 55
@@ -744,52 +789,32 @@ function Battle:CastBolt(caster, at)
     if bolt then DestroyEntity(bolt) end
     Play(SFX.boltImpact)
 
-    for _, v in ipairs(Rules.Splash(self.units, at, Rules.SplashRadius(caster))) do
+    for _, v in ipairs(Rules.Splash(self.units, at, Rules.SplashRadius(card))) do
         if v.team ~= caster.team then
-            self:Hurt(v, Rules.Damage(caster, caster, v, v, Rules.SplashPower(caster, v, at)))
+            self:Hurt(v, Rules.Damage(caster, v, Rules.SplashPower(caster, card, v, at)))
         end
     end
     Wait(0.8)
     self:EndShot(home)
 end
 
--- Commits the selected unit's turn: `cmd` (Battle:Command) goes to the opponent, who replays it,
--- while `fn` plays it here.
-function Battle:PlayerAction(cmd, fn)
-    local u = self.selected
-    Play(SFX.order)
-    self:Send(cmd)
-    self.mode, self.reach = nil, nil
-    self:Run(function()
-        fn()
-        u.acted, u.moved = true, true
-        self.selected = nil
-        if self:CheckOver() then return end
-        if self:AllPlayersDone() then
-            Wait(0.3)
-            self:EndMyPhase()
-        else
-            Wait(0.15)
-            self:SelectNext(u)
-        end
-    end)
-end
-
 -- --- Input --------------------------------------------------------------------------------
 
 function Battle:Busy() return self.co ~= nil or self.state ~= "battle" or self.phase ~= self.me end
 
-function Battle:Select(u)
-    self.selected, self.viewed = u, nil
-    Play(SFX.select)
-    self:Follow({ x = u.x, y = u.y })  -- centre once; don't chase the move preview
-    self.origin = { x = u.x, y = u.y, z = u.z }
-    self.mode = "move"
-    self.reach = Rules.Reach(self.units, u)
-    self.runs = self.reach and self.reach:Runs() or {}
+-- Forgets any card being played and what it was showing.
+function Battle:ClearOrders()
+    self.mode, self.card, self.reach, self.runs, self.cover, self.preview = nil, nil, nil, nil, nil, nil
 end
 
--- What clicking the hovered point would do in move mode: the path there and its cost.
+function Battle:Select(u)
+    if self.selected ~= u then Play(SFX.select) end
+    self:ClearOrders()
+    self.selected, self.viewed = u, nil
+    self:Follow({ x = u.x, y = u.y })  -- centre once; don't chase the move preview
+end
+
+-- What clicking the hovered point would do with a move card held: the path there and its cost.
 function Battle:UpdatePreview()
     self.preview = nil
     local u, p = self.selected, self.hoverPoint
@@ -803,50 +828,95 @@ function Battle:UpdatePreview()
     end
 end
 
-function Battle:MenuItems()
-    local u = self.selected
-    if not u then return {} end
-    local items = { { key = "1", label = "Attack", mode = "attack" } }
-    if u.class.spell then items[#items + 1] = { key = "2", label = u.class.spell.name, mode = "spell" } end
-    items[#items + 1] = { key = "3", label = "Wait", mode = "wait" }
-    return items
+-- Whose hand shows: the unit selected, else the one picked out to look at, else whoever's
+-- acting in the other side's phase.
+function Battle:HandUnit()
+    local u = self.selected or self.viewed or self.focus
+    return u and u.alive and u or nil
 end
 
--- `fromButton`: the action button already played its click.
-function Battle:Choose(mode, fromButton)
+-- A card clicked in the selected unit's hand: picked up to play (clicked again, put back).
+-- A card that needs a target waits for one (Click); the mode shows where it reaches.
+function Battle:PlayCard(slot)
     local u = self.selected
-    if mode == "wait" then
-        self:PlayerAction(self:Command("wait"), function() end)
-    elseif mode == "spell" and not u.class.spell then
+    if self:Busy() or not u or self:HandUnit() ~= u then return end
+    local card = u.piles.hand[slot]
+    if not card then return end
+    if self.card and self.card.slot == slot then
+        Play(SFX.cancel)
+        self:ClearOrders()
         return
-    else
-        if not fromButton then Play(SFX.click) end
-        self.mode = mode
-        local range = mode == "spell" and Rules.SpellRange(u) or Rules.AttackRange(u)
-        self.cover = self:BuildCover(u, range)
     end
+    if not Cards.Affordable(u, card) then
+        Play(SFX.cancel)
+        return
+    end
+    Play(SFX.click)
+    self:ClearOrders()
+    self.card, self.mode = { slot = slot, card = card }, card.kind
+    if card.kind == "move" then
+        self.reach = Rules.Reach(self.units, u, Rules.MoveBudget(card))
+        self.runs = self.reach and self.reach:Runs() or {}
+    elseif AIMED[card.kind] then
+        self.cover = self:BuildCover(u, Rules.Range(card))
+    end
+end
+
+-- Plays the card being held on its target: pays for it, discards it, plays it out, then tells
+-- the opponent (`extra`: the target, as Battle:Perform reads it, plus where the unit ended up).
+function Battle:Commit(extra)
+    local u, held = self.selected, self.card
+    local cmd = { kind = "play", unit = u.index, slot = held.slot, card = held.card.id }
+    for k, v in pairs(extra) do cmd[k] = v end
+    Play(SFX.order)
+    -- The card flies from where it waits into the screen at its target.
+    local to = (extra.path and extra.path[#extra.path]) or (extra.target and self.units[extra.target]) or extra.at
+    if to then
+        local sx, sy = ViewProject(to.x, to.y, to.z + 40)
+        self.flights[#self.flights + 1] = { slot = held.slot, x = sx, y = sy }
+    end
+    Cards.Pay(u, held.card)
+    Cards.Discard(u.piles, held.slot)
+    self:ClearOrders()
+    self:Run(function()
+        self:Perform(u, held.card, cmd)
+        cmd.x, cmd.y, cmd.z = u.x, u.y, u.z
+        self:Send(cmd)
+        self:CheckOver()
+    end)
+end
+
+-- Wait: the selected unit is done for this phase (its ring greys); the next one still to go is
+-- selected, and once everyone's done the phase ends.
+function Battle:WaitUnit()
+    local u = self.selected
+    if not u then return end
+    u.done = true
+    local list = self:Living(self.me)
+    local at = 0
+    for i, v in ipairs(list) do if v == u then at = i end end
+    for k = 1, #list do
+        local v = list[(at + k - 1) % #list + 1]
+        if not v.done then self:Select(v) return end
+    end
+    self:EndPlayerPhase()
 end
 
 function Battle:Back()
-    local u = self.selected
-    if not u then return end
+    if not self.selected then return end
     Play(SFX.cancel)
-    if self.mode == "attack" or self.mode == "spell" then
-        self.mode = "menu"
-    elseif self.mode == "menu" then
-        u.x, u.y, u.z, u.moved = self.origin.x, self.origin.y, self.origin.z, false
-        self:Send({ kind = "undo", unit = u.index, x = u.x, y = u.y, z = u.z })
-        self:Select(u)
+    if self.card then
+        self:ClearOrders()
     else
-        self.selected, self.mode, self.reach, self.viewed = nil, nil, nil, nil
+        self.selected, self.viewed = nil, nil
     end
 end
 
--- Where a spell aimed at the hovered point would land, if it's in range.
-function Battle:SpellTarget()
+-- Where a bolt aimed at the hovered point would land, if it's in range.
+function Battle:BoltTarget()
     local u = self.selected
     local p = self.hoverUnit and { x = self.hoverUnit.x, y = self.hoverUnit.y, z = self.hoverUnit.z } or self.hoverPoint
-    if u and p and Rules.Reaches(Rules.SpellRange(u), u, p) then return p end
+    if u and p and self.card and Rules.Reaches(Rules.Range(self.card.card), u, p) then return p end
     return nil
 end
 
@@ -854,36 +924,25 @@ function Battle:Click()
     local u = self.selected
     local there = self.hoverUnit
 
-    if self.mode == nil or self.mode == "move" then
-        if there and there.team == self.me and not there.acted and there ~= u then
+    if self.mode == nil then
+        if there and there.team == self.me then
             self:Select(there)
-            return
+        elseif there then
+            self.viewed = there
         end
-        if not u then return end
-        if there == u then
-            self.mode = "menu"
-        elseif self.preview and not self.preview.out and #self.preview.path > 0 then
-            local path = self.preview.path
-            self.mode, self.preview = nil, nil
+    elseif self.mode == "move" then
+        if self.preview and not self.preview.out and #self.preview.path > 0 then
             local walk = {}
-            for _, p in ipairs(path) do walk[#walk + 1] = { x = p.x, y = p.y, z = p.z } end
-            local last = walk[#walk]
-            self:Send({ kind = "move", unit = u.index, path = walk, x = last.x, y = last.y, z = last.z })
-            self:Run(function()
-                self:MoveAlong(u, path)
-                self.mode = "menu"
-            end)
+            for _, p in ipairs(self.preview.path) do walk[#walk + 1] = { x = p.x, y = p.y, z = p.z } end
+            self:Commit({ path = walk })
         end
     elseif self.mode == "attack" then
-        if there and there.team ~= u.team and Rules.Reaches(Rules.AttackRange(u), u, there) then
-            self:PlayerAction(self:Command("attack", { target = there.index }), function() self:Attack(u, there) end)
+        if there and there.team ~= u.team and Rules.Reaches(Rules.Range(self.card.card), u, there) then
+            self:Commit({ target = there.index })
         end
-    elseif self.mode == "spell" then
-        local at = self:SpellTarget()
-        if at then
-            at = { x = at.x, y = at.y, z = at.z }
-            self:PlayerAction(self:Command("spell", { at = at }), function() self:CastBolt(u, at) end)
-        end
+    elseif self.mode == "bolt" then
+        local at = self:BoltTarget()
+        if at then self:Commit({ at = { x = at.x, y = at.y, z = at.z } }) end
     end
 end
 
@@ -904,27 +963,27 @@ function Battle:HandleEvent(event)
         if event.key == KEY_ESCAPE then self:Back() return true end
         if event.key == KEY_SPACE then self:EndPlayerPhase() return true end
         if event.key == KEY_TAB then
-            for _, u in ipairs(self:Living(self.me)) do
-                if not u.acted and u ~= self.selected then self:Select(u) break end
-            end
+            local list = self:Living(self.me)
+            local at = 0
+            for i, u in ipairs(list) do if u == self.selected then at = i end end
+            if #list > 0 then self:Select(list[at % #list + 1]) end
             return true
         end
-        if self.mode == "menu" then
-            for _, item in ipairs(self:MenuItems()) do
-                if (item.key == "1" and event.key == KEY_1) or (item.key == "2" and event.key == KEY_2)
-                    or (item.key == "3" and event.key == KEY_3) then
-                    self:Choose(item.mode)
-                    return true
-                end
-            end
-        end
     elseif event.type == "MouseButtonPressed" then
-        if self:Busy() then return false end
-        if event.button == MOUSE_RIGHT then self:Back() return true end
+        if event.button == MOUSE_RIGHT then
+            if not self:Busy() then self:Back() end
+            return true
+        end
         if event.button ~= MOUSE_LEFT then return false end
-        if Widgets.PointerOverUi() then return true end  -- a HUD button takes it on release
-        if self.frameUnit then self:ClickFrame(self.frameUnit) return true end
-        if self.mode == "menu" then return true end
+        if Widgets.PointerOverUi() then return true end  -- a card or button takes it
+        if self.frameUnit then
+            if self:Busy() then self.viewed = self.frameUnit else self:ClickFrame(self.frameUnit) end
+            return true
+        end
+        if self:Busy() then
+            if self.hoverUnit then self.viewed = self.hoverUnit end
+            return true
+        end
         self:Click()
         return true
     end
@@ -976,7 +1035,7 @@ end---------------------------------------------------------------------------
 
 -- The reach as row runs, each lifted to its height; the far part of the budget a shade lighter.
 function Battle:DrawReach(u)
-    local budget = Rules.MoveBudget(u)
+    local budget = Rules.MoveBudget(self.card.card)
     for _, run in ipairs(self.runs or {}) do
         local c = run.cost > budget * 0.5 and COLORS.moveFar or COLORS.move
         local y0, y1 = run.y - CELL * 0.5, run.y + CELL * 0.5
@@ -1013,23 +1072,23 @@ function Battle:Render()
             GroundCircle(pv.at.x, pv.at.y, pv.at.z, Rules.UNIT_RADIUS, COLORS.bad)
         end
     elseif u and self.mode == "attack" then
-        local r = Rules.AttackRange(u)
+        local r = Rules.Range(self.card.card)
         self:DrawCover(COLORS.attack)
         for _, v in ipairs(self:Living()) do
             if v.team ~= u.team and Rules.Reaches(r, u, v) then
                 GroundCircle(v.x, v.y, v.z, Rules.UNIT_RADIUS + 6, COLORS.target)
             end
         end
-    elseif u and self.mode == "spell" then
-        self:DrawCover(COLORS.spell)
-        local at = self:SpellTarget()
+    elseif u and self.mode == "bolt" then
+        self:DrawCover(COLORS.bolt)
+        local at = self:BoltTarget()
         if at then
-            local radius = Rules.SplashRadius(u)
+            local radius = Rules.SplashRadius(self.card.card)
             GroundDisc(at.x, at.y, at.z, radius, COLORS.splash)
             GroundCircle(at.x, at.y, at.z, radius, COLORS.splashEdge)
             local sx, sy = Board.Lift(u.x, u.y, u.z)
             local tx, ty = Board.Lift(at.x, at.y, at.z)
-            DrawLine(sx, sy, tx, ty, COLORS.spellEdge, "overlay")
+            DrawLine(sx, sy, tx, ty, COLORS.boltEdge, "overlay")
         elseif self.hoverPoint then
             local p = self.hoverPoint
             local sx, sy = Board.Lift(u.x, u.y, u.z)
@@ -1052,42 +1111,60 @@ end
 
 function Battle:Forecast()
     local u, v = self.selected, self.hoverUnit
-    if not u then return nil end
-    if self.mode == "attack" and v and v.team ~= u.team and Rules.Reaches(Rules.AttackRange(u), u, v) then
-        return string.format("%s -> %s: %d damage", u.name, v.name, Rules.Damage(u, u, v, v, Rules.AttackPower(u)))
-    elseif self.mode == "spell" then
-        local at = self:SpellTarget()
+    if not u or not self.card then return nil end
+    local card = self.card.card
+    if self.mode == "attack" and v and v.team ~= u.team and Rules.Reaches(Rules.Range(card), u, v) then
+        return string.format("%s -> %s: %d damage", card.name, v.name, Rules.Damage(u, v, Rules.Power(u, card)))
+    elseif self.mode == "bolt" then
+        local at = self:BoltTarget()
         if not at then return nil end
         local total, n = 0, 0
-        for _, w in ipairs(Rules.Splash(self.units, at, Rules.SplashRadius(u))) do
+        for _, w in ipairs(Rules.Splash(self.units, at, Rules.SplashRadius(card))) do
             if w.team ~= u.team then
-                total, n = total + Rules.Damage(u, u, w, w, Rules.SplashPower(u, w, at)), n + 1
+                total, n = total + Rules.Damage(u, w, Rules.SplashPower(u, card, w, at)), n + 1
             end
         end
-        return n > 0 and string.format("%s hits %d for %d total", u.class.spell.name, n, total) or "No targets"
+        return n > 0 and string.format("%s hits %d for %d total", card.name, n, total) or "No targets"
     elseif self.mode == "move" and self.preview then
         if self.preview.out then return "Too far" end
-        return string.format("Move %d / %d", math.floor(self.preview.cost), Rules.MoveBudget(u))
+        return string.format("Move %d / %d", math.floor(self.preview.cost), Rules.MoveBudget(card))
     end
     return nil
 end
 
 -- --- HUD ---
--- The HUD is prefab placements in Scenes/BattleFree.xml (TopBar, UnitCard, Forecast, the
--- Action* buttons and the Banner); this binds the buttons and fills the rest in each frame.
-
-local MENU_MODES = { menu = true, attack = true, spell = true }
-local ACTION_BUTTONS = { attack = "ActionAttack", spell = "ActionSpell", wait = "ActionWait" }
+-- The HUD is prefab placements in Scenes/BattleFree.xml (TopBar, UnitCard, Forecast, the hero
+-- frames, the Hand, EndTurn and the Banner); this binds the Hand and the button and fills the
+-- rest in each frame.
 
 function Battle:BindHud()
     Widgets.ResetHover()
     self.hud = {}
-    for mode, id in pairs(ACTION_BUTTONS) do
-        Widgets.BindButton(id,
-            function() self:Choose(mode, true) end,
-            function() return not self:Busy() and self.selected ~= nil end,
-            function() return self.mode == mode end)
-    end
+    self.flights = {}   -- played cards for the Hand to fly out (Battle:Commit)
+    Widgets.BindButton("Wait",
+        function() self:WaitUnit() end,
+        function() return not self:Busy() and self.selected ~= nil and not self.card end)
+    Widgets.BindButton("EndTurn",
+        function() self:EndPlayerPhase() end,
+        function() return not self:Busy() end)
+    Widgets.BindView("Hand", {
+        show = function()
+            local u = self.state ~= "loading" and self:HandUnit()
+            if not u then return nil end
+            return { cards = u.piles.hand, faceUp = u.team == self.me, owner = u.name,
+                     deck = #u.piles.draw, discard = #u.piles.discard }
+        end,
+        playable = function(slot)
+            local u = self:HandUnit()
+            local card = u and u.piles.hand[slot]
+            return card ~= nil and u == self.selected and not self:Busy() and Cards.Affordable(u, card)
+        end,
+        chosen = function() return self.card and self.card.slot end,
+        -- Out of the way while a card is aimed or playing out.
+        hidden = function() return self.card ~= nil or (self.co ~= nil and self.phase == self.me) end,
+        onPlay = function(slot) self:PlayCard(slot) end,
+        flights = self.flights,
+    })
 end
 
 -- A placement's root by its id, looked up once.
@@ -1123,15 +1200,12 @@ function Battle:UpdateHud()
     if card and shown then
         local cl = shown.class
         local c = shown.team == PLAYER and {r = 120, g = 190, b = 255, a = 255} or {r = 255, g = 120, b = 100, a = 255}
-        Widgets.ChildText(card, "Name", shown.name, c, 14)
-        Widgets.ChildText(card, "Hp", string.format("HP %d / %d", shown.hp, shown.maxHp), nil, 14)
-        Widgets.ChildText(card, "Stats", string.format("ATK %d  DEF %d  MOV %d", cl.atk, cl.def, Rules.MoveBudget(shown)), nil, 14)
-        local spell = ""
-        if cl.spell then
-            local r = Rules.SpellRange(shown)
-            spell = string.format("%s: %d power, range %d-%d", cl.spell.name, cl.spell.power, r[1], r[2])
-        end
-        Widgets.ChildText(card, "Spell", spell, nil, 14)
+        Widgets.ChildText(card, "Name", shown.name .. "  the " .. cl.role, c, 14)
+        Widgets.ChildText(card, "Hp", string.format("HP %d/%d   ST %d/%d   MP %d/%d", shown.hp, shown.maxHp,
+            shown.stamina, shown.maxStamina, shown.mana, shown.manaMax), nil, 14)
+        Widgets.ChildText(card, "Stats", string.format("STR %d   INT %d   AGI %d", cl.str, cl.int, cl.agi), nil, 14)
+        Widgets.ChildText(card, "Spell", string.format("Hand %d   Deck %d   Discard %d", #shown.piles.hand,
+            #shown.piles.draw, #shown.piles.discard), nil, 14)
     end
 
     local forecast = playing and self:Forecast() or nil
@@ -1139,24 +1213,21 @@ function Battle:UpdateHud()
     Widgets.SetVisible(box, forecast ~= nil)
     if box and forecast then Widgets.ChildText(box, "Text", forecast) end
 
-    -- The action buttons, while the selected unit is choosing; Spell only for casters.
-    local u = self.selected
-    local choosing = playing and u ~= nil and MENU_MODES[self.mode] == true
-    local hasSpell = choosing and u.class.spell ~= nil
-    Widgets.SetVisible(self:Hud("ActionAttack"), choosing)
-    Widgets.SetVisible(self:Hud("ActionWait"), choosing)
-    Widgets.SetVisible(self:Hud("ActionSpell"), hasSpell)
-    if hasSpell then Widgets.ChildText(self:Hud("ActionSpell"), "Label", "2  " .. u.class.spell.name) end
+    -- The turn buttons step aside while a card is aimed.
+    local ours = playing and self.phase == self.me and self.state == "battle" and not self.card
+    Widgets.SetVisible(self:Hud("EndTurn"), ours)
+    Widgets.SetVisible(self:Hud("Wait"), ours and self.selected ~= nil)
 
     self:UpdateBanner()
 end
 
 function Battle:Hint()
     if self.phase ~= self.me or self.co or self.state ~= "battle" then return nil end
-    if not self.selected then return "Click a unit (Tab cycles)   Space: end phase"
-    elseif self.mode == "move" then return "Click in the blue area to move, the unit itself to stay   Right-click: cancel"
-    elseif self.mode == "menu" then return "Choose an action   Right-click: undo move" end
-    return "Click a target   Right-click: back"
+    if not self.selected then return "Click a unit (Tab cycles)   Space: end turn"
+    elseif self.mode == "move" then return "Click in the blue area to move   Right-click: put the card back"
+    elseif self.mode then return "Click a target   Right-click: put the card back"
+    elseif not self:CanPlayAny(self.selected) then return "Nothing left to play: Tab to the next unit, or End Turn" end
+    return "Play a card from the hand   Tab: next unit   Space: end turn"
 end
 
 -- The banner: the current announcement fading in and out, or the loading notice.

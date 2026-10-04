@@ -21,10 +21,10 @@ local ZOOM_SMOOTH = 14     -- how fast zoom converges on the target, per second
 
 -- Where everyone starts (the old Knight placements).
 local PARTY = {
-    { "Fighter", -20.6, -19.5 }, { "Archer", -139.7, 19.0 }, { "Mage", -47.2, 63.0 },
+    { "Marsh", -20.6, -19.5 }, { "Gryphon", -139.7, 19.0 }, { "Alexa", -47.2, 63.0 },
 }
 local BAND = {
-    { "Grunt", 747.4, 364.5 }, { "Poacher", 628.3, 403.0 }, { "Hexer", 720.8, 447.0 },
+    { "Brigand", 747.4, 364.5 }, { "Poacher", 628.3, 403.0 }, { "Hexer", 720.8, 447.0 },
 }
 
 local TEXT = {r = 235, g = 235, b = 240, a = 255}

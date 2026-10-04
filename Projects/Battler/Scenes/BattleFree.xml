@@ -14,6 +14,7 @@
         <SceneLayer name="overlay" z="3" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
         <SceneLayer name="fx" z="4" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
         <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="uiTop" z="11" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
     </SceneConfiguration>
     <Entities>
         <Entity name="CAMERA">
@@ -23,46 +24,32 @@
         </Entity>
     </Entities>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame1">
-        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1204"/>
-        <Override entity="0" component="TransformComponent" field="y" value="104.40845"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
+        <Override entity="0" component="TransformComponent" field="y" value="64"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame2">
-        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1204"/>
-        <Override entity="0" component="TransformComponent" field="y" value="176.73364"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
+        <Override entity="0" component="TransformComponent" field="y" value="148"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame3">
-        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1204"/>
-        <Override entity="0" component="TransformComponent" field="y" value="245.302"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
+        <Override entity="0" component="TransformComponent" field="y" value="232"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame4">
-        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1204"/>
-        <Override entity="0" component="TransformComponent" field="y" value="315.60001"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
+        <Override entity="0" component="TransformComponent" field="y" value="316"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame1">
-        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
         <Override entity="0" component="TransformComponent" field="x" value="12"/>
-        <Override entity="0" component="TransformComponent" field="y" value="104.40845"/>
+        <Override entity="0" component="TransformComponent" field="y" value="64"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame2">
-        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
         <Override entity="0" component="TransformComponent" field="x" value="12"/>
-        <Override entity="0" component="TransformComponent" field="y" value="176.73364"/>
+        <Override entity="0" component="TransformComponent" field="y" value="148"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame3">
-        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
-        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
         <Override entity="0" component="TransformComponent" field="x" value="12"/>
-        <Override entity="0" component="TransformComponent" field="y" value="245.302"/>
+        <Override entity="0" component="TransformComponent" field="y" value="232"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar0">
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
@@ -660,31 +647,28 @@
         <Override entity="0" component="TransformComponent" field="z" value="64.668457"/>
     </PrefabInstance>
     <PrefabInstance src="../Prefabs/TopBar.xml" id="TopBar"/>
-    <PrefabInstance src="../Prefabs/UnitCard.xml" id="UnitCard"/>
-    <PrefabInstance src="../Prefabs/Forecast.xml" id="Forecast"/>
-    <PrefabInstance src="../Prefabs/Button.xml" id="ActionAttack">
-        <Param name="Label" value="1  Attack"/>
-        <Param name="Width" value="200"/>
-        <Param name="Height" value="36"/>
-        <Param name="Font Size" value="22"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1050"/>
-        <Override entity="0" component="TransformComponent" field="y" value="576"/>
+    <PrefabInstance src="../Prefabs/UnitCard.xml" id="UnitCard">
+        <Override entity="0" component="TransformComponent" field="y" value="404"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Button.xml" id="ActionSpell">
-        <Param name="Label" value="2  Spell"/>
-        <Param name="Width" value="200"/>
-        <Param name="Height" value="36"/>
-        <Param name="Font Size" value="22"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1050"/>
-        <Override entity="0" component="TransformComponent" field="y" value="618"/>
+    <PrefabInstance src="../Prefabs/Forecast.xml" id="Forecast">
+        <Override entity="0" component="TransformComponent" field="y" value="470"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Button.xml" id="ActionWait">
-        <Param name="Label" value="3  Wait"/>
-        <Param name="Width" value="200"/>
-        <Param name="Height" value="36"/>
-        <Param name="Font Size" value="22"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1050"/>
-        <Override entity="0" component="TransformComponent" field="y" value="660"/>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Wait">
+        <Param name="Label" value="Wait"/>
+        <Param name="Width" value="170"/>
+        <Param name="Height" value="44"/>
+        <Param name="Font Size" value="24"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
+        <Override entity="0" component="TransformComponent" field="y" value="612"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="EndTurn">
+        <Param name="Label" value="End Turn"/>
+        <Param name="Width" value="170"/>
+        <Param name="Height" value="44"/>
+        <Param name="Font Size" value="24"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
+        <Override entity="0" component="TransformComponent" field="y" value="664"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Hand.xml" id="Hand"/>
     <PrefabInstance src="../Prefabs/Banner.xml" id="Banner"/>
 </Scene>

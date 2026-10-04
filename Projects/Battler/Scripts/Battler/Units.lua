@@ -39,22 +39,35 @@ Units.Rigs = {
     },
 }
 
--- range: {min, max} tiles for the basic attack. spell: an optional area attack, played with
--- the rig's `cast` clip. rig: a 3D character (Units.Rigs); without one the prefab's sprite plays.
+-- The classes: three stats, red Strength, blue Intellect and green Agility, and the deck the
+-- unit fights with (Cards.Decks). rig: a 3D character (Units.Rigs). The vitals come from the
+-- stats (Units.Vitals).
 Units.Classes = {
-    Fighter = { prefab = "Prefabs/Character.xml", rig = "Knight", label = "Knight", hp = 26, atk = 8, def = 3, move = 4,
-                range = {1, 1} },
-    Mage    = { prefab = "Prefabs/Character.xml", rig = "Vampire", label = "Vampire", hp = 17, atk = 4, def = 1, move = 3,
-                range = {1, 1}, spell = { name = "Bolt", power = 9, range = {2, 5}, splash = 1, cast = "Cast1" } },
-    Archer  = { prefab = "Prefabs/Character.xml", rig = "Archer", label = "Archer", hp = 18, atk = 6, def = 1, move = 4,
-                range = {2, 5} },
-    Grunt   = { prefab = "Prefabs/Character.xml", rig = "Knight", label = "Brigand", hp = 20, atk = 7, def = 1, move = 4,
-                range = {1, 1} },
-    Hexer   = { prefab = "Prefabs/Character.xml", rig = "Vampire", label = "Hexer", hp = 14, atk = 3, def = 0, move = 3,
-                range = {1, 1}, spell = { name = "Bolt", power = 7, range = {2, 4}, splash = 0, cast = "Cast2" } },
-    Poacher = { prefab = "Prefabs/Character.xml", rig = "Archer", label = "Poacher", hp = 15, atk = 5, def = 0, move = 4,
-                range = {2, 4} },
+    Marsh   = { prefab = "Prefabs/Character.xml", rig = "Knight", label = "Marsh", role = "Warrior", deck = "Warrior",
+                str = 6, int = 1, agi = 3, portrait = "Textures/Portraits/Knight.jpg" },
+    Alexa   = { prefab = "Prefabs/Character.xml", rig = "Vampire", label = "Alexa", role = "Mage", deck = "Mage",
+                str = 1, int = 6, agi = 3, portrait = "Textures/Portraits/Bishop.jpg", cast = "Cast1" },
+    Gryphon = { prefab = "Prefabs/Character.xml", rig = "Archer", label = "Gryphon", role = "Rogue", deck = "Rogue",
+                str = 3, int = 1, agi = 6, portrait = "Textures/Portraits/Archer.jpg" },
+    Brigand = { prefab = "Prefabs/Character.xml", rig = "Knight", label = "Brigand", role = "Warrior", deck = "Warrior",
+                str = 4, int = 0, agi = 2, portrait = "Textures/Portraits/Militia.jpg" },
+    Hexer   = { prefab = "Prefabs/Character.xml", rig = "Vampire", label = "Hexer", role = "Mage", deck = "Mage",
+                str = 1, int = 4, agi = 2, portrait = "Textures/Portraits/Worker.jpg", cast = "Cast2" },
+    Poacher = { prefab = "Prefabs/Character.xml", rig = "Archer", label = "Poacher", role = "Rogue", deck = "Rogue",
+                str = 3, int = 0, agi = 4, portrait = "Textures/Portraits/Militia.jpg" },
 }
+
+-- What a class's stats make of its vitals: health (from Strength), stamina and its refill each
+-- turn (from Agility), and how many mana crystals it grows to (from Intellect, at most 10).
+-- Mana starts at one crystal and grows by one a turn, refilling, until it reaches the cap.
+function Units.Vitals(c)
+    return {
+        hp = 12 + 3 * c.str,
+        stamina = 6 + 2 * c.agi,
+        staminaRegen = 2 + math.ceil(c.agi / 2),
+        manaCap = math.min(10, 3 + c.int),
+    }
+end
 
 local CLIP = { Idle = 0.12, Walk = 0.07, Attack = 0.065, Death = 0.085 }
 
@@ -76,13 +89,17 @@ function Units.Spawn(className, team, tile)
         Log("Battler: couldn't spawn " .. c.prefab)
         return nil
     end
+    local v = Units.Vitals(c)
     local u = {
         entity = e, class = c, name = c.label, team = team,
-        hp = c.hp, maxHp = c.hp, tile = tile,
+        hp = v.hp, maxHp = v.hp, tile = tile,
+        stamina = v.stamina, maxStamina = v.stamina, staminaRegen = v.staminaRegen,
+        mana = 0, manaMax = 0, manaCap = v.manaCap,   -- the first turn grows the first crystal
+        piles = { draw = {}, hand = {}, discard = {} },
         x = tile.x, y = tile.y, z = tile.z,
         facing = team == Units.PLAYER and "northeast" or "southwest",
-        clip = "Idle", moved = false, acted = false, alive = true,
-        shake = 0, flash = 0, shownHp = c.hp,
+        clip = "Idle", alive = true,
+        shake = 0, flash = 0, shownHp = v.hp,
         rig = c.rig and Units.Rigs[c.rig],
     }
     if u.rig then
@@ -202,10 +219,10 @@ local RING_COLORS = {
 Units.RING_COLORS = RING_COLORS
 
 -- The team ring: the prefab's Ring child, its fire in the team's color (grey once a player
--- unit has acted), flared while active, hidden once dead.
+-- unit has nothing left it can play), flared while active, hidden once dead.
 function Units.DrawRing(u, active, time)
     if not u.ring then return end
-    local key = u.team == Units.PLAYER and (u.acted and "spent" or "player") or "enemy"
+    local key = u.team == Units.PLAYER and (u.spent and "spent" or "player") or "enemy"
     local layer = GetComponent(u.ring, "Layer")
     if layer then layer.isVisible = u.alive end
     local mat = GetComponent(u.ring, "Material")

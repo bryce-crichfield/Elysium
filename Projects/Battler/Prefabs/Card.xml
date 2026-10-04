@@ -1,0 +1,153 @@
+<!-- One card, for Screen2D (Scripts/Components/Card.lua). Whoever lays it out (Prefabs/Hand.xml)
+     binds what it shows by its placement id: Widgets.Bind(id, view), where view is
+     { card, faceUp, hover, chosen, playable, hidden, top }. The face: Title, an Art placeholder,
+     Body text, and the cost along the bottom in three zones, red health, green stamina and blue
+     mana ("-" when it costs none). Back covers the face when it's face down. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="30" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="0.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
+                    <Uniform name="uGlowRadius" type="float" value="10.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.030000 0.030000 0.050000 0.970000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.160000 0.120000 0.070000 0.950000"/>
+                    <Uniform name="uAngle" type="float" value="90.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Card"/>
+            <RectangleComponent width="140" height="200" cornerRadius="0.08"/>
+            <ScriptComponent>
+                <Script name="Scripts/Components/Card.lua"/>
+            </ScriptComponent>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Title"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Card" fontSize="24" r="255" g="225" b="160" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="70" y="18"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.300000 0.340000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.000000 0.000000 0.000000 0.600000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Art"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="120" height="78" cornerRadius="0.08"/>
+            <TransformComponent x="10" y="34"/>
+        </Entity>
+        <Entity id="3">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Body"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="16" r="225" g="225" b="232" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="70" y="138"/>
+        </Entity>
+        <Entity id="4">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.700000 0.180000 0.160000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="RedZone"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="40" height="24" cornerRadius="0.3"/>
+            <TransformComponent x="7" y="168"/>
+        </Entity>
+        <Entity id="5">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.180000 0.560000 0.240000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="GreenZone"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="40" height="24" cornerRadius="0.3"/>
+            <TransformComponent x="50" y="168"/>
+        </Entity>
+        <Entity id="6">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.200000 0.340000 0.780000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="BlueZone"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="40" height="24" cornerRadius="0.3"/>
+            <TransformComponent x="93" y="168"/>
+        </Entity>
+        <Entity id="7">
+            <LayerComponent name="ui"/>
+            <NameComponent name="RedCost"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="-" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="27" y="180"/>
+        </Entity>
+        <Entity id="8">
+            <LayerComponent name="ui"/>
+            <NameComponent name="GreenCost"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="-" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="70" y="180"/>
+        </Entity>
+        <Entity id="9">
+            <LayerComponent name="ui"/>
+            <NameComponent name="BlueCost"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="-" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="113" y="180"/>
+        </Entity>
+        <Entity id="10">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.180000 0.060000 0.060000 1.000000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.050000 0.030000 0.080000 1.000000"/>
+                    <Uniform name="uAngle" type="float" value="45.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.480000 0.250000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Back"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="140" height="200" cornerRadius="0.08"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="11">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.480000 0.250000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Emblem"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="60" height="60" cornerRadius="1"/>
+            <TransformComponent x="40" y="70"/>
+        </Entity>
+    </Entities>
+</Prefab>

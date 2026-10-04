@@ -1,7 +1,31 @@
+<!-- A unit's frame on the battle HUD (Scripts/Components/HeroFrame.lua): its portrait, name,
+     health (red bar), stamina (green bar) and mana crystals (blue; one per crystal it has grown,
+     lit while full). The battle binds a unit to it with HeroFrame.Bind; an unbound frame hides.
+     The root burns (its Fire layer) while the unit is selected, acting or hovered.
+     Placeholder shapes until there's art. -->
 <Prefab>
     <Entities>
         <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="30" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="0.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.270000 0.630000 1.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="8.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.000000 0.000000 0.000000 0.920000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.450000"/>
+                    <Uniform name="uAngle" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
             <NameComponent name="HeroFrame"/>
+            <RectangleComponent width="236" height="74" cornerRadius="0.15"/>
             <ScriptComponent>
                 <Script name="Scripts/Components/HeroFrame.lua"/>
             </ScriptComponent>
@@ -10,46 +34,216 @@
         <Entity id="1">
             <LayerComponent name="ui"/>
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Portraits/Archer.jpg"/>
+                <Layer material="Texture" enabled="true" texture="Textures/Portraits/Archer128.jpg"/>
             </MaterialComponent>
             <NameComponent name="Portrait"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="256" height="256" cornerRadius="0.15000001"/>
-            <TransformComponent x="0" y="0"/>
+            <RectangleComponent width="64" height="64" cornerRadius="0.15"/>
+            <TransformComponent x="5" y="5"/>
         </Entity>
-        <Entity id="5">
-            <LayerComponent name="ui"/>
-            <MaterialComponent padding="89" enabled="true">
-                <Layer material="Fire" enabled="true" texture="Textures/Ui/HeroFrame.png">
-                    <Uniform name="uGlowColor" type="vec3" value="0.050000 0.766045 1.000000"/>
-                    <Uniform name="uIntensity" type="float" value="2.700000"/>
-                    <Uniform name="uGlowRadius" type="float" value="3.550000"/>
-                </Layer>
-            </MaterialComponent>
-            <NameComponent name="Selection"/>
-            <ParentComponent target="0"/>
-            <RectangleComponent width="256" height="256" cornerRadius="0.15000001"/>
-            <TransformComponent x="0" y="0"/>
-        </Entity>
-        <Entity id="3">
+        <Entity id="2">
             <LayerComponent name="ui"/>
             <NameComponent name="NameText"/>
             <ParentComponent target="0"/>
-            <TextComponent text="Name" fontSize="64" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="126.755" y="17.225616"/>
+            <TextComponent text="Name" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="150" y="13"/>
+        </Entity>
+        <Entity id="3">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Vitals"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="16" r="170" g="170" b="185" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="190" y="13"/>
         </Entity>
         <Entity id="4">
             <LayerComponent name="ui"/>
             <MaterialComponent padding="0" enabled="true">
                 <Layer material="Meter" enabled="true">
                     <Uniform name="uFillColor" type="vec4" value="1.000000 0.300000 0.300000 1.000000"/>
+                    <Uniform name="uTrackColor" type="vec4" value="0.000000 0.000000 0.000000 0.600000"/>
                     <Uniform name="uEdgeGlow" type="float" value="-0.300000"/>
+                    <Uniform name="uProgress" type="float" value="1.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="HealthBar"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="223" height="16" cornerRadius="0"/>
-            <TransformComponent x="16.756332" y="227.55998"/>
+            <RectangleComponent width="146" height="11" cornerRadius="0.4"/>
+            <TransformComponent x="78" y="27"/>
+        </Entity>
+        <Entity id="5">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Meter" enabled="true">
+                    <Uniform name="uFillColor" type="vec4" value="0.350000 0.850000 0.400000 1.000000"/>
+                    <Uniform name="uTrackColor" type="vec4" value="0.000000 0.000000 0.000000 0.600000"/>
+                    <Uniform name="uEdgeGlow" type="float" value="-0.300000"/>
+                    <Uniform name="uProgress" type="float" value="1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="StaminaBar"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="146" height="7" cornerRadius="0.4"/>
+            <TransformComponent x="78" y="42"/>
+        </Entity>
+        <Entity id="10">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal1"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="78" y="55"/>
+        </Entity>
+        <Entity id="11">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal2"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="93" y="55"/>
+        </Entity>
+        <Entity id="12">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal3"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="108" y="55"/>
+        </Entity>
+        <Entity id="13">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal4"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="123" y="55"/>
+        </Entity>
+        <Entity id="14">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal5"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="138" y="55"/>
+        </Entity>
+        <Entity id="15">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal6"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="153" y="55"/>
+        </Entity>
+        <Entity id="16">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal7"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="168" y="55"/>
+        </Entity>
+        <Entity id="17">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal8"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="183" y="55"/>
+        </Entity>
+        <Entity id="18">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal9"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="198" y="55"/>
+        </Entity>
+        <Entity id="19">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Crystal10"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="12" height="12" cornerRadius="1"/>
+            <TransformComponent x="213" y="55"/>
         </Entity>
     </Entities>
 </Prefab>

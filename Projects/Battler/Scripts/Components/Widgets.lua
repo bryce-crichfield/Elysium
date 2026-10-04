@@ -20,6 +20,12 @@ function Widgets.BindButton(id, onClick, enabled, active)
     bindings[id] = { onClick = onClick, enabled = enabled, active = active }
 end
 
+-- Anything else a prefab reads from its scene, as a table it defines (a Hand's show/onPlay,
+-- a Card's view). The binder may keep changing the table's fields; the prefab reads them live.
+function Widgets.BindView(id, view)
+    bindings[id] = view
+end
+
 -- Whether the pointer is over a shown button, so a scene doesn't also take the click as a
 -- click on the world. Buttons report themselves each frame.
 local hovered = {}

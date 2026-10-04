@@ -13,18 +13,21 @@ function Rules.Distance(a, b) return NavGroundDistance(a.x, a.y, b.x, b.y) end
 
 local function Levels(from, to) return math.floor((from.z - to.z) / LEVEL + 0.5) end
 
-function Rules.MoveBudget(u) return u.class.move * Rules.TILE end
+-- Everything below reads the card being played (Scripts/Battler/Cards.lua): its reach in
+-- tiles, its power, and the stat of the user's that adds to it.
 
--- The class's ranges, in ground units: {min, max}.
-function Rules.AttackRange(u)
-    if u.class.range[2] <= 1 then return { 0, Rules.MELEE } end
-    return { u.class.range[1] * Rules.TILE, u.class.range[2] * Rules.TILE }
+-- How far a move card walks, in ground units.
+function Rules.MoveBudget(card) return card.move * Rules.TILE end
+
+-- A card's reach, in ground units: {min, max}. A reach of one tile is melee.
+function Rules.Range(card)
+    if card.range[2] <= 1 then return { 0, Rules.MELEE } end
+    return { card.range[1] * Rules.TILE - 30, card.range[2] * Rules.TILE }
 end
-function Rules.SpellRange(u)
-    local s = u.class.spell
-    return { s.range[1] * Rules.TILE - 30, s.range[2] * Rules.TILE }
-end
-function Rules.SplashRadius(u) return u.class.spell.splash * Rules.TILE * 0.8 + 30 end
+
+function Rules.SplashRadius(card) return card.splash * Rules.TILE * 0.8 + 30 end
+
+function Rules.Power(u, card) return card.power + (card.stat and u.class[card.stat] or 0) end
 
 Rules.EYE = 44      -- where an attacker looks from, above its floor
 Rules.AIM = 24      -- where it aims at, above the target's floor
@@ -54,13 +57,12 @@ function Rules.MaxReach(range, a)
     return range[2] + 4 * Rules.HEIGHT_REACH
 end
 
-function Rules.Damage(att, from, def, to, power)
+-- A hit of `power` from `from` on someone at `to`: harder from above, softer from below.
+function Rules.Damage(from, to, power)
     local dz = Levels(from, to)
     local bonus = dz > 0 and 2 or (dz < 0 and -1 or 0)
-    return math.max(1, power + bonus - def.class.def)
+    return math.max(1, power + bonus)
 end
-
-function Rules.AttackPower(u) return u.class.atk end
 
 -- The circles everyone but `u` takes up, for NavReach.
 function Rules.Blockers(units, u)
@@ -74,7 +76,7 @@ function Rules.Blockers(units, u)
 end
 
 function Rules.Reach(units, u, budget)
-    return NavReach(u.x, u.y, u.z, budget or Rules.MoveBudget(u), Rules.Blockers(units, u))
+    return NavReach(u.x, u.y, u.z, budget, Rules.Blockers(units, u))
 end
 
 -- The units within `radius` of `center`.
@@ -86,10 +88,10 @@ function Rules.Splash(units, center, radius)
     return hit
 end
 
--- The spell's damage to `v` from a blast at `center`: full near the middle, half at the edge.
-function Rules.SplashPower(caster, v, center)
-    local s = caster.class.spell
-    return Rules.Distance(v, center) <= 30 and s.power or math.floor(s.power / 2)
+-- A blast's damage to `v` from `center`: full near the middle, half at the edge.
+function Rules.SplashPower(caster, card, v, center)
+    local power = Rules.Power(caster, card)
+    return Rules.Distance(v, center) <= 30 and power or math.floor(power / 2)
 end
 
 -- Cuts a waypoint path to the first `budget` ground units of it.
@@ -124,42 +126,42 @@ local function Ring(foe, distance, count)
     return list
 end
 
--- The enemy's turn for `u`: {path, action = "attack"|"spell"|nil, target = unit, at = point}.
-function Rules.Plan(units, u)
+-- The AI's turn for `u`, from what it can play: `moveBudget` (ground units, 0 without a move
+-- card) and `options`, its attack cards ({card = ...}). Returns {path, option, target, at}:
+-- where to walk, then which option to play on whom (option nil: just walk).
+function Rules.Plan(units, u, moveBudget, options)
     local foes = {}
     for _, o in ipairs(units) do
         if o.alive and o.team ~= u.team then foes[#foes + 1] = o end
     end
     if #foes == 0 then return nil end
 
-    local reach = Rules.Reach(units, u)
-    if not reach then return nil end
     local here = { x = u.x, y = u.y, z = u.z }
-
-    local options = { { kind = "attack", range = Rules.AttackRange(u), power = Rules.AttackPower(u) } }
-    if u.class.spell then
-        options[#options + 1] = { kind = "spell", range = Rules.SpellRange(u), power = u.class.spell.power }
-    end
+    local reach = moveBudget > 0 and Rules.Reach(units, u, moveBudget) or nil
 
     local best, bestScore = nil, -1e9
     for _, foe in ipairs(foes) do
         for _, opt in ipairs(options) do
+            local range = Rules.Range(opt.card)
+            local power = Rules.Power(u, opt.card)
             -- Where to stand: here, or around the foe at a range that works.
             local spots = { here }
-            local distances = opt.kind == "attack" and { Rules.MELEE - 22 }
-                or { opt.range[2] - 20, (opt.range[1] + opt.range[2]) * 0.5 }
-            for _, d in ipairs(distances) do
-                for _, p in ipairs(Ring(foe, d, 16)) do spots[#spots + 1] = p end
+            if reach then
+                local distances = range[1] == 0 and { Rules.MELEE - 22 }
+                    or { range[2] - 20, (range[1] + range[2]) * 0.5 }
+                for _, d in ipairs(distances) do
+                    for _, p in ipairs(Ring(foe, d, 16)) do spots[#spots + 1] = p end
+                end
             end
             for _, p in ipairs(spots) do
                 local cost = p == here and 0 or reach:Cost(p.x, p.y, p.z)
-                if cost and Rules.Reaches(opt.range, p, foe) then
-                    local dmg = Rules.Damage(u, p, foe, foe, opt.power)
+                if cost and Rules.Reaches(range, p, foe) then
+                    local dmg = Rules.Damage(p, foe, power)
                     local score = dmg * 10 + (dmg >= foe.hp and 200 or 0) - cost * 0.02
-                    if opt.kind == "spell" then score = score + Rules.Distance(p, foe) * 0.03 end
+                    if range[1] > 0 then score = score + Rules.Distance(p, foe) * 0.03 end
                     if score > bestScore then
                         bestScore = score
-                        best = { at = p, action = opt.kind, target = foe }
+                        best = { at = p, option = opt, target = foe }
                     end
                 end
             end
@@ -170,6 +172,7 @@ function Rules.Plan(units, u)
         best.path = best.at == here and {} or reach:PathTo(best.at.x, best.at.y, best.at.z)
         return best
     end
+    if moveBudget <= 0 then return { path = {} } end
 
     -- Nobody in reach: walk as far as the budget allows toward the closest foe, by walking
     -- distance (a reach big enough to cover the field).
@@ -183,7 +186,7 @@ function Rules.Plan(units, u)
         end
     end
     if not goal then return { path = {} } end
-    return { path = Rules.Truncate(here, far:PathTo(goal.x, goal.y, goal.z), Rules.MoveBudget(u)) }
+    return { path = Rules.Truncate(here, far:PathTo(goal.x, goal.y, goal.z), moveBudget) }
 end
 
 return Rules
