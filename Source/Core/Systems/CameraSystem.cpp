@@ -70,8 +70,8 @@ void CameraSystem::Update(float deltaTime) {
     auto& sceneService = services->Get<Services::ISceneService>();
     const auto& config = services->Get<Services::IApplicationService>().GetConfig();
 
-    // mousePosition_ is in framebuffer space (0..fbWidth, 0..fbHeight)
-    Rectangle viewBounds = {0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
+    // mousePosition_ is in game screen space (0..screenWidth, 0..screenHeight)
+    Rectangle viewBounds = {0, 0, (float)config.screenWidth, (float)config.screenHeight};
 
     Vector2 panDir = {0, 0};
     bool shouldPan = false;

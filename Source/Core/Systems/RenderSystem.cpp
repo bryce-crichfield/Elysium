@@ -360,7 +360,10 @@ static void RenderDrawPolygonCmd(RenderContext& ctx, const RenderRecord& rec) {
 Matrix RenderProjector::CalculateTransform(const CameraView& view, const SceneLayer& layer) {
     switch (layer.space) {
         case SceneLayerSpace::Screen2D: {
-            if (!view.screenInWorld) return Matrix::Identity();
+            if (!view.screenInWorld) {
+                return Matrix::Scale({view.fitScale, view.fitScale, 1.0f}) *
+                       Matrix::Translation({view.fitOffset.x, view.fitOffset.y, 0.0f});
+            }
             SceneLayer worldLayer = layer;
             worldLayer.space = SceneLayerSpace::World3D;
             Matrix screenToWorld = Matrix::Scale({view.screenScale, view.screenScale, 1.0f}) *
@@ -427,16 +430,33 @@ Vector2 RenderProjector::FramebufferToWorld(Vector2 fbPos, const CameraView& vie
 }
 
 Vector2 RenderProjector::ScreenToFramebuffer(Vector2 screenPos, const CameraView& view) {
-    if (!view.screenInWorld) return screenPos;
+    if (!view.screenInWorld) {
+        return {screenPos.x * view.fitScale + view.fitOffset.x, screenPos.y * view.fitScale + view.fitOffset.y};
+    }
     return WorldToFramebuffer({ view.screenOrigin.x + screenPos.x * view.screenScale,
                                 view.screenOrigin.y + screenPos.y * view.screenScale }, view);
 }
 
 Vector2 RenderProjector::FramebufferToScreen(Vector2 fbPos, const CameraView& view) {
-    if (!view.screenInWorld) return fbPos;
+    if (!view.screenInWorld) {
+        const float scale = view.fitScale != 0.0f ? view.fitScale : 1.0f;
+        return {(fbPos.x - view.fitOffset.x) / scale, (fbPos.y - view.fitOffset.y) / scale};
+    }
     Vector2 world = FramebufferToWorld(fbPos, view);
     float scale = view.screenScale != 0.0f ? view.screenScale : 1.0f;
     return { (world.x - view.screenOrigin.x) / scale, (world.y - view.screenOrigin.y) / scale };
+}
+
+void RenderProjector::FitScreen(CameraView& view, const Services::ScreenFit& fit) {
+    if (fit.IsIdentity()) return;
+    const Rectangle& v = view.viewport;
+    const bool whole = v.x == 0.0f && v.y == 0.0f && v.width == fit.layout.x && v.height == fit.layout.y;
+    view.viewport = whole ? Rectangle{0.0f, 0.0f, fit.framebuffer.x, fit.framebuffer.y}
+                          : Rectangle{v.x * fit.scale + fit.offset.x, v.y * fit.scale + fit.offset.y,
+                                      v.width * fit.scale, v.height * fit.scale};
+    view.zoom *= fit.scale;
+    view.fitScale = fit.scale;
+    view.fitOffset = fit.offset;
 }
 
 void RenderSorter::ComputeHiddenEntities(World& world) {
@@ -677,6 +697,16 @@ static bool IsEnabled(const World& world, Entity entity) {
     return entity != INVALID_ENTITY && world.HasComponent<T>(entity) && world.GetComponent<T>(entity).enabled;
 }
 
+// An entity's LayerComponent::opacity times its ancestors'.
+static float InheritedOpacity(const World& world, Entity entity) {
+    float opacity = 1.0f;
+    for (int depth = 0; entity != INVALID_ENTITY && depth < 64; ++depth) {
+        if (world.HasComponent<LayerComponent>(entity)) opacity *= world.GetComponent<LayerComponent>(entity).opacity;
+        entity = world.HasComponent<ParentComponent>(entity) ? world.GetComponent<ParentComponent>(entity).parent : INVALID_ENTITY;
+    }
+    return opacity;
+}
+
 void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderRecord> records,
                                      const Matrix& layerTransform, const Framebuffer& enclosingTarget,
                                      const Matrix* projection) {
@@ -713,6 +743,11 @@ void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderR
             ~PopLift() { if (active) ctx.PopMatrix(); }
         } popLift{ctx, lift != 0.0f};
 
+        // Its opacity, times every ancestor's; nothing to draw when it's faded out.
+        const float opacity = InheritedOpacity(world, entity);
+        if (opacity <= 0.0f) continue;
+        ctx.SetOpacity(opacity);
+
         // A ShaderComponent filters the entity after it's drawn: RenderShadedEntity draws
         // it (materials included) into an offscreen buffer and blits that through the shader.
         if (IsEnabled<ShaderComponent>(world, entity)) {
@@ -720,6 +755,7 @@ void RenderCompositor::RenderRecords(RenderContext& ctx, std::span<const RenderR
         } else {
             RenderEntity(ctx, entity, group);
         }
+        ctx.SetOpacity(1.0f);
     }
 }
 
@@ -1810,7 +1846,7 @@ void RenderSystem::PlaceScreenInWorld(CameraView& view) {
     const auto& config = services->Get<Services::IApplicationService>().GetConfig();
     view.screenInWorld = true;
     view.screenScale = 1.0f;
-    view.screenOrigin = { -config.framebufferWidth * 0.5f, -config.framebufferHeight * 0.5f };
+    view.screenOrigin = { -config.screenWidth * 0.5f, -config.screenHeight * 0.5f };
 
     // Lowest renderOrder, the same camera play mode draws first.
     Entity camera = INVALID_ENTITY;
@@ -1856,6 +1892,7 @@ CameraView RenderSystem::MakeCameraView(Entity cameraEntity) {
     view.pitch = std::clamp(camera.pitch, 5.0f, 89.0f);
     view.perspective = camera.fov > 0.0f;
     view.fov = camera.fov;
+    RenderProjector::FitScreen(view, services->Get<Services::ISceneService>().GetScreenFit());
     return view;
 }
 

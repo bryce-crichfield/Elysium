@@ -20,7 +20,7 @@ HeroFrames = HeroFrames or { bindings = {}, frames = {} }
 
 local DRAIN = 0.8   -- of a bar per second
 local CRYSTALS = 10
-local NAME_LEFT = 78
+local NAME_LEFT = 10
 local DEFAULT_FILL = {r = 255, g = 77, b = 77, a = 255}
 local CRYSTAL_FULL = {r = 80, g = 150, b = 255, a = 255}
 local CRYSTAL_EMPTY = {r = 20, g = 30, b = 60, a = 255}
@@ -74,7 +74,14 @@ function HeroFrame:Update(entity, dt)
     self.open = Widgets.Ease(self.open, self.hold > 0 and 1 or 0, 16, dt)
     local width = TUCKED_W + (OPEN_W - TUCKED_W) * self.open
     rect.width = width
-    if self.homeX + OPEN_W / 2 > 640 then t.localX = self.homeX + OPEN_W - width end
+    -- A frame placed on the right half of the layout keeps to the screen's right edge.
+    local sw = GetScreenSize()
+    local lw = GetLayoutSize()
+    if self.homeX + OPEN_W / 2 > lw / 2 then
+        t.localX = self.homeX + (sw - lw) + OPEN_W - width
+    else
+        t.localX = self.homeX
+    end
     local detailed = self.open > 0.85
     for _, e in ipairs(self.detail) do
         local layer = GetComponent(e, "Layer")

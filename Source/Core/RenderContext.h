@@ -1,4 +1,6 @@
 #pragma once
+
+#include <algorithm>
 #include <string>
 
 #include <vector>
@@ -42,6 +44,11 @@ public:
     // Only valid while HasScissor(). Lets a caller save/restore the active clip around a
     // render-target detour without assuming who pushed it.
     Rectangle CurrentScissor() const { return _scissorStack.back(); }
+
+    // Opacity, 0 to 1, multiplied into every draw's color (not DrawFramebuffer's, which blits
+    // what was already drawn): the drawing entity's (LayerComponent::opacity, inherited).
+    void SetOpacity(float opacity) { _opacity = opacity; }
+    float GetOpacity() const { return _opacity; }
 
     // Drawing
     void DrawRectangle(float x, float y, float w, float h, Color color);
@@ -92,6 +99,12 @@ private:
     std::vector<BlendMode> _blendStack;
     std::vector<Rectangle> _scissorStack;
     std::vector<const Shader*> _shaderStack;
+    float _opacity = 1.0f;
+
+    Color Faded(Color color) const {
+        if (_opacity < 1.0f) color.a = (unsigned char)(color.a * std::max(0.0f, _opacity) + 0.5f);
+        return color;
+    }
 };
 
 } // namespace Elysium

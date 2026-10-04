@@ -162,7 +162,8 @@ end
 
 function Dungeon:Render()
     self:DrawDoors()
-    FillRect(0, 0, 1280, 32, PANEL, "ui")
+    local sw, sh = GetScreenSize()
+    FillRect(0, 0, sw, 32, PANEL, "ui")
     DrawText(string.format("Floor %d of %d", Run.Floor(), Run.FLOORS), 16, 6, 22, TEXT, "ui", FONT)
     DrawText(string.format("Encounters %d / %d", Run.Cleared(), #Run.Slots()), 170, 8, 18, GOLD, "ui", FONT)
     DrawText("Left-click: select   Right-click: move   Esc: abandon the run", 420, 9, 16, DIM, "ui", FONT)
@@ -172,10 +173,11 @@ function Dungeon:Render()
     if intro then
         local a = math.floor(255 * math.min(1, intro.t * 3))
         local e = intro.door.encounter
-        FillRect(240, 250, 800, 190, {r = 8, g = 8, b = 14, a = math.floor(a * 0.85)}, "ui")
-        DrawText(e.title, 280, 270, 44, WithAlpha(GOLD, a), "ui", FONT)
-        DrawText(e.intro or "", 280, 334, 22, WithAlpha(TEXT, a), "ui", FONT)
-        DrawText("Click to fight", 280, 396, 20, WithAlpha(DIM, a), "ui", FONT)
+        local x, y = sw / 2 - 400, sh / 2 - 110   -- an 800 x 190 panel in the middle
+        FillRect(x, y, 800, 190, {r = 8, g = 8, b = 14, a = math.floor(a * 0.85)}, "ui")
+        DrawText(e.title, x + 40, y + 20, 44, WithAlpha(GOLD, a), "ui", FONT)
+        DrawText(e.intro or "", x + 40, y + 84, 22, WithAlpha(TEXT, a), "ui", FONT)
+        DrawText("Click to fight", x + 40, y + 146, 20, WithAlpha(DIM, a), "ui", FONT)
     end
 end
 

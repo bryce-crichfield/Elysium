@@ -21,6 +21,7 @@ function MainMenu:Initialize()
 end
 
 function MainMenu:Update(dt)
+    Widgets.CenterLayout("Background")
     self.time = self.time + dt
     -- The title's slow golden pulse.
     local glow = math.floor(200 + 55 * math.sin(self.time * 1.5))

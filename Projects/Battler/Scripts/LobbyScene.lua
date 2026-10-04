@@ -53,6 +53,7 @@ function Lobby:Back()
 end
 
 function Lobby:Update(dt)
+    Widgets.CenterLayout("Background")
     self.time = self.time + dt
     for _, e in ipairs(Net.Poll()) do
         if e.type == "connected" then

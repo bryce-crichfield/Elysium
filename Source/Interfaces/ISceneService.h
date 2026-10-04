@@ -13,6 +13,24 @@
 
 namespace Elysium::Services {
 
+// The game screen (UI layers, script and input coordinates) in the framebuffer. The
+// configured screen size (ApplicationConfig) is scaled to fit, and the screen then extends
+// along whichever axis has room to spare: a wider window gets a wider screen, the same height.
+// Scripts ask for its size (GetScreenSize) and anchor to its edges. The identity in the editor.
+struct ScreenFit {
+    float scale = 1.0f;
+    Vector2 offset{0.0f, 0.0f};
+    Vector2 layout{0.0f, 0.0f};       // the configured screen size
+    Vector2 screen{0.0f, 0.0f};       // the screen's size: at least `layout`, along one axis more
+    Vector2 framebuffer{0.0f, 0.0f};  // the framebuffer's
+
+    bool IsIdentity() const {
+        return scale == 1.0f && offset.x == 0.0f && offset.y == 0.0f && screen.x == layout.x && screen.y == layout.y;
+    }
+    Vector2 ToFramebuffer(Vector2 p) const { return {p.x * scale + offset.x, p.y * scale + offset.y}; }
+    Vector2 ToScreen(Vector2 p) const { return {(p.x - offset.x) / scale, (p.y - offset.y) / scale}; }
+};
+
 class ISceneService : public IService {
    public:
 
@@ -80,7 +98,12 @@ class ISceneService : public IService {
     // Gameplay simulation (systems, scripts, input) runs exactly when the app is in Play mode.
     virtual bool IsPlaying() const = 0;
 
+    // A window position to the framebuffer pixel under it.
     virtual Vector2 ScreenToFramebuffer(Vector2 screenPos) const = 0;
+
+    // How the game screen sits in the framebuffer this frame. Input events and script
+    // coordinates are in game screen pixels; the render system maps them through this.
+    virtual const ScreenFit& GetScreenFit() const = 0;
 };
 
 }  // namespace Elysium::Services

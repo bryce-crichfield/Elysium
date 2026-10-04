@@ -38,7 +38,7 @@ function Campfire:Descend()
     end
 end
 
-function Campfire:Update(dt) end
+function Campfire:Update(dt) Widgets.CenterLayout("Background") end
 
 function Campfire:Render()
     Widgets.SetText("Status", self.status)

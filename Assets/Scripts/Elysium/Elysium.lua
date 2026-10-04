@@ -159,6 +159,22 @@ function IsMouseButtonReleased(button) end
 ---@return Vector2
 function GetMousePosition() end
 
+--- The game screen's size, in the pixels Screen2D ("ui") layers, GetMousePosition and
+--- ViewProject use. It's the project's configured screen size (Config/ApplicationConfig.xml
+--- <Screen>), extended along whichever axis the window has room to spare: a wider window gives
+--- a wider screen at the same height. It changes when the window does, so lay out against it
+--- each frame rather than once.
+---@return number width
+---@return number height
+function GetScreenSize() end
+
+--- The size Screen2D layouts are authored for: the project's configured screen size
+--- (Config/ApplicationConfig.xml <Screen>). GetScreenSize is never smaller; the difference is
+--- how far a widget anchored to the right or bottom edge moves from where it was placed.
+---@return number width
+---@return number height
+function GetLayoutSize() end
+
 --- Transform world coordinates to screen coordinates. 
 --- @requires "CAMERA" 
 --- @param worldPos Vector2

@@ -108,6 +108,7 @@ public:
     // Converts a raylib-window screen position (e.g. GetMousePosition()) into framebuffer
     // pixel coordinates using the current viewport rect.
     Vector2 ScreenToFramebuffer(Vector2 screenPos) const override;
+    const ScreenFit& GetScreenFit() const override { return fit_; }
 
 private:
     ServiceLocator& registry_;
@@ -143,6 +144,8 @@ private:
 
     // Where on the window the framebuffer is actually drawn
     Rectangle viewportRect_ = {0, 0, 0, 0};
+    // Where the game screen sits in the framebuffer
+    ScreenFit fit_;
 
     // Cached for systems that need it
     float cachedDeltaTime_ = 0.016f;

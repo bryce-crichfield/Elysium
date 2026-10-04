@@ -34,7 +34,7 @@ void SceneService::Initialize() {
     Profile;
     const auto& config = registry_.Get<IApplicationService>().GetConfig();
 
-    framebuffer_ = Framebuffer(config.framebufferWidth, config.framebufferHeight);
+    framebuffer_ = Framebuffer(config.screenWidth, config.screenHeight);
     CalculateLetterboxing();
 
     auto& invokeService = registry_.Get<IInvokeService>();
@@ -236,24 +236,37 @@ void SceneService::CalculateLetterboxing() {
     auto& app = registry_.Get<IApplicationService>();
     const auto& config = app.GetConfig();
 
-    int windowWidth = app.GetWindowWidth();
-    int windowHeight = app.GetWindowHeight();
+    int windowWidth = std::max(1, app.GetWindowWidth());
+    int windowHeight = std::max(1, app.GetWindowHeight());
+    const int fbWidth = std::max(1, framebuffer_.Width());
+    const int fbHeight = std::max(1, framebuffer_.Height());
 
     float screenAspect = (float)windowWidth / windowHeight;
-    float framebufferAspect = (float)config.framebufferWidth / config.framebufferHeight;
+    float framebufferAspect = (float)fbWidth / fbHeight;
 
     if (framebufferAspect > screenAspect) {
-        scaleX_ = scaleY_ = (float)windowWidth / config.framebufferWidth;
-        float scaledHeight = config.framebufferHeight * scaleY_;
+        scaleX_ = scaleY_ = (float)windowWidth / fbWidth;
+        float scaledHeight = fbHeight * scaleY_;
         offset_.x = 0;
         offset_.y = (windowHeight - scaledHeight) * 0.5f;
         letterboxRect_ = Rectangle{offset_.x, offset_.y, (float)windowWidth, scaledHeight};
     } else {
-        scaleX_ = scaleY_ = (float)windowHeight / config.framebufferHeight;
-        float scaledWidth = config.framebufferWidth * scaleX_;
+        scaleX_ = scaleY_ = (float)windowHeight / fbHeight;
+        float scaledWidth = fbWidth * scaleX_;
         offset_.x = (windowWidth - scaledWidth) * 0.5f;
         offset_.y = 0;
         letterboxRect_ = Rectangle{offset_.x, offset_.y, scaledWidth, (float)windowHeight};
+    }
+
+    // The game screen, fitted into the framebuffer and extended to fill it (the identity in
+    // the editor, whose framebuffer is its viewport panel's and lays the screen out in the
+    // world instead).
+    fit_ = ScreenFit{};
+    fit_.layout = fit_.screen = {(float)config.screenWidth, (float)config.screenHeight};
+    fit_.framebuffer = {(float)fbWidth, (float)fbHeight};
+    if (app.GetMode() == AppMode::Play && config.screenWidth > 0 && config.screenHeight > 0) {
+        fit_.scale = std::min((float)fbWidth / config.screenWidth, (float)fbHeight / config.screenHeight);
+        fit_.screen = {fbWidth / fit_.scale, fbHeight / fit_.scale};
     }
 
     // In play mode the viewport matches the letterbox
@@ -268,21 +281,22 @@ void SceneService::Render() {
     auto& app = registry_.Get<IApplicationService>();
     const auto& config = app.GetConfig();
 
-    // Recalculate letterboxing if window was resized
-    if (IsWindowResized()) {
-        CalculateLetterboxing();
-    }
-
     // The mode can switch at runtime (F1/F2): the editor renders at the viewport panel's
-    // size, play at the fixed game resolution.
-    int width = config.framebufferWidth, height = config.framebufferHeight;
+    // size, play at the configured resolution (by default, natively: the window's size).
+    int width = app.GetWindowWidth(), height = app.GetWindowHeight();
     if (app.GetMode() == AppMode::Editor && requestedWidth_ > 0 && requestedHeight_ > 0) {
         width = requestedWidth_;
         height = requestedHeight_;
+    } else if (app.GetMode() == AppMode::Play) {
+        FixedResolution(config.resolution, width, height);
     }
+    width = std::max(1, width);
+    height = std::max(1, height);
     if (width != framebuffer_.Width() || height != framebuffer_.Height()) {
         framebuffer_ = Framebuffer(width, height);
     }
+    // Every frame: the window, the framebuffer or the mode may have changed.
+    CalculateLetterboxing();
 
     auto screenRect = Rectangle{0, 0, (float)framebuffer_.Width(), (float)framebuffer_.Height()};
 
@@ -366,7 +380,8 @@ void SceneService::ProcessInput() {
 
     // Only process mouse events if mouse is inside the framebuffer
     if (isInside) {
-        Vector2 fbPos = ScreenToFramebuffer(mousePos);
+        // In game screen pixels, as scripts and the UI lay things out.
+        Vector2 fbPos = fit_.ToScreen(ScreenToFramebuffer(mousePos));
 
         // Mouse button events
         for (int button = 0; button < 3; button++) {
@@ -403,7 +418,7 @@ void SceneService::ProcessInput() {
         // Mouse move
         static Vector2 lastMousePos = mousePos;
         if (mousePos.x != lastMousePos.x || mousePos.y != lastMousePos.y) {
-            Vector2 fbLastMousePos = ScreenToFramebuffer(lastMousePos);
+            Vector2 fbLastMousePos = fit_.ToScreen(ScreenToFramebuffer(lastMousePos));
             Vector2 delta = {fbPos.x - fbLastMousePos.x, fbPos.y - fbLastMousePos.y};
             MouseMovedEvent event(fbPos, delta);
             for (auto it = sceneStack_.rbegin(); it != sceneStack_.rend(); ++it) {

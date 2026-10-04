@@ -30,7 +30,7 @@ local SPACING = 108          -- between neighbours on the wheel
 local ARC = 7                -- how far a card drops per step from the middle, squared
 local SHRINK = 0.04          -- how much smaller per step from the middle
 local PREVIEW = 1.4          -- the hovered card's scale
-local SCREEN_H, MARGIN = 720, 8
+local MARGIN = 8
 local HELD = { x = 1060, y = 380, s = 1.2 }   -- where the chosen card waits for its target
 local DROP = 330             -- how far the hand slides down out of view
 local PEEK = 36              -- how much of the cards' tops shows while peeking
@@ -89,13 +89,15 @@ function Hand:Slot(i, ax, ay)
     if slot then return slot end
     local e = SpawnPrefab(CARD, ax, ay)
     if not e then return nil end
-    slot = { entity = e, id = Widgets.PlacementId(e), view = { hidden = true }, x = ax - W / 2, y = SCREEN_H, s = 1 }
+    local _, sh = GetScreenSize()
+    slot = { entity = e, id = Widgets.PlacementId(e), view = { hidden = true }, x = ax - W / 2, y = sh, s = 1 }
     Widgets.BindView(slot.id, slot.view)
     self.slots[i] = slot
     return slot
 end
 
 function Hand:Update(entity, dt)
+    local SCREEN_W, SCREEN_H = GetScreenSize()
     local binding = self.id and Widgets.Binding(self.id)
     local info = binding and binding.show and binding.show()
     local t = GetComponent(entity, "Transform")
@@ -159,10 +161,10 @@ function Hand:Update(entity, dt)
                 local tx, ty, ts = b.x, b.y, b.s
                 if i == hovered then
                     ts = PREVIEW
-                    tx = Clamp(b.cx - W * ts / 2, MARGIN, 1280 - W * ts - MARGIN)
+                    tx = Clamp(b.cx - W * ts / 2, MARGIN, SCREEN_W - W * ts - MARGIN)
                     ty = SCREEN_H - H * ts - MARGIN
                 elseif i == chosen then
-                    tx, ty, ts = HELD.x, HELD.y, HELD.s
+                    tx, ty, ts = HELD.x + SCREEN_W - (GetLayoutSize()), HELD.y, HELD.s  -- kept to the right edge
                 end
                 slot.x = Widgets.Ease(slot.x, tx, 16, dt)
                 slot.y = Widgets.Ease(slot.y, ty, 16, dt)

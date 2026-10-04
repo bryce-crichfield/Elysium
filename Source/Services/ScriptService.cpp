@@ -246,19 +246,23 @@ static std::optional<Elysium::Systems::CameraView> ActiveCameraView() {
         v.pitch = std::clamp(cameraComp.pitch, 5.0f, 89.0f);
         v.perspective = cameraComp.fov > 0.0f;
         v.fov = cameraComp.fov;
+        Elysium::Systems::RenderProjector::FitScreen(v, s_services->Get<ISceneService>().GetScreenFit());
         view = v;
     });
     return view;
 }
 
+// Scripts speak game screen pixels; the camera's view, framebuffer pixels.
 static Vector2 WorldToScreen(const Vector2& worldPos) {
+    using Elysium::Systems::RenderProjector;
     auto view = ActiveCameraView();
-    return view ? Elysium::Systems::RenderProjector::WorldToFramebuffer(worldPos, *view) : worldPos;
+    return view ? RenderProjector::FramebufferToScreen(RenderProjector::WorldToFramebuffer(worldPos, *view), *view) : worldPos;
 }
 
 static Vector2 ScreenToWorld(Vector2 screenPos) {
+    using Elysium::Systems::RenderProjector;
     auto view = ActiveCameraView();
-    return view ? Elysium::Systems::RenderProjector::FramebufferToWorld(screenPos, *view) : screenPos;
+    return view ? RenderProjector::FramebufferToWorld(RenderProjector::ScreenToFramebuffer(screenPos, *view), *view) : screenPos;
 }
 
 // Where ground layers draw the 3D point (x, y) at height z: the ground-plane point on the same
@@ -274,7 +278,8 @@ static Vector2 ViewLift(float x, float y, float z) {
 static Vector2 ViewProject(float x, float y, float z) {
     auto view = ActiveCameraView();
     if (!view) return {x, y - z * Elysium::World3D::kPitchCos};
-    return Elysium::Systems::RenderProjector::View3D(*view).WorldToFramebuffer(x, y, z);
+    using Elysium::Systems::RenderProjector;
+    return RenderProjector::FramebufferToScreen(RenderProjector::View3D(*view).WorldToFramebuffer(x, y, z), *view);
 }
 
 void ScriptService::BindComponents() {
@@ -398,6 +403,21 @@ void ScriptService::BindEntityAPI() {
         Vector2 m = this->_mousePosition; // Cached by SceneService from Input polling each frame
         return m;
         // return ScreenToWorld(m);
+    });
+
+    // GetScreenSize() -> width, height: the game screen in its pixels, the space Screen2D
+    // layers, GetMousePosition and ViewProject use. The configured size, extended along
+    // whichever axis the window has room to spare, so it changes with the window.
+    lua.set_function("GetScreenSize", []() {
+        const auto& fit = s_services->Get<ISceneService>().GetScreenFit();
+        return std::make_tuple(fit.screen.x, fit.screen.y);
+    });
+
+    // GetLayoutSize() -> width, height: the configured screen size (Config <Screen>), the size
+    // scenes and prefabs lay Screen2D layers out for. GetScreenSize is never smaller.
+    lua.set_function("GetLayoutSize", []() {
+        const auto& fit = s_services->Get<ISceneService>().GetScreenFit();
+        return std::make_tuple(fit.layout.x, fit.layout.y);
     });
 
     lua.set_function("WorldToScreen", [](const Vector2& worldPos) {

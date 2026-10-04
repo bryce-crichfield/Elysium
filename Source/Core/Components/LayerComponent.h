@@ -12,6 +12,8 @@ namespace Elysium {
         // In a standing World3D layer: lie on the ground at its own position (a decal under a
         // unit, depth-tested against the models) instead of standing as a card facing the camera.
         bool flat = false;
+        // How opaque it draws, 0 to 1, times every ancestor's: fading a root fades all under it.
+        float opacity = 1.0f;
         bool inFog = false;     // runtime: VisibilitySystem's verdict, never saved
 
         LayerComponent(const std::string& name = "default", bool isVisible = true);

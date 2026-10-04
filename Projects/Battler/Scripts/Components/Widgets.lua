@@ -132,6 +132,65 @@ function Widgets.SetGlow(entity, intensity)
     if fire then fire:Set("uIntensity", intensity) end
 end
 
+-- --- Anchoring ----------------------------------------------------------------------------
+-- Scenes and prefabs lay the UI out for the layout size (GetLayoutSize: Config <Screen>), but
+-- the game screen is that or bigger (GetScreenSize: a wider or taller window). Anchoring keeps
+-- a widget where it was placed relative to an edge or the middle of the screen: across it's
+-- "left" (as placed), "center" or "right", down "top" (as placed), "middle" or "bottom", and
+-- "stretch" keeps both edges by growing its Rectangle. Call it every frame: the window can
+-- change. What was placed is remembered per entity, and taken again if anything else moved it.
+-- A bound button places itself every frame (its press squash), so it's handed its anchor
+-- instead (binding.anchor) and adds Widgets.Shift itself.
+local anchors = {}
+local SHIFT = { left = 0, top = 0, center = 0.5, middle = 0.5, right = 1, bottom = 1, stretch = 0 }
+
+-- How far an anchor moves what was placed for the layout size: dx, dy.
+function Widgets.Shift(across, down)
+    local sw, sh = GetScreenSize()
+    local lw, lh = GetLayoutSize()
+    return (sw - lw) * (SHIFT[across or "left"] or 0), (sh - lh) * (SHIFT[down or "top"] or 0)
+end
+
+local function Anchored(rec, key, current, shifted)
+    -- (Components hold floats: what comes back is only near what was set.)
+    local applied = rec[key .. "Applied"]
+    if rec[key] == nil or math.abs(applied - current) > 0.01 then rec[key] = current end
+    rec[key .. "Applied"] = rec[key] + shifted
+    return rec[key .. "Applied"]
+end
+
+function Widgets.Anchor(entity, across, down)
+    local t = entity and GetComponent(entity, "Transform")
+    if not t then return end
+    local id = Widgets.PlacementId(entity)
+    local button = id and bindings[id]
+    if button and button.onClick then
+        button.anchor = { across, down }
+        return
+    end
+    local sw, sh = GetScreenSize()
+    local lw, lh = GetLayoutSize()
+    local dw, dh = sw - lw, sh - lh
+    local rec = anchors[entity] or {}
+    anchors[entity] = rec
+    t.localX = Anchored(rec, "x", t.localX, dw * (SHIFT[across or "left"] or 0))
+    t.localY = Anchored(rec, "y", t.localY, dh * (SHIFT[down or "top"] or 0))
+    local r = (across == "stretch" or down == "stretch") and GetComponent(entity, "Rectangle")
+    if r and across == "stretch" then r.width = Anchored(rec, "w", r.width, dw) end
+    if r and down == "stretch" then r.height = Anchored(rec, "h", r.height, dh) end
+end
+
+-- A menu's whole layout, kept in the middle of the screen: every top-level entity is anchored
+-- center/middle, except `backdrop` (a placement id), which stretches over the whole screen.
+function Widgets.CenterLayout(backdrop)
+    local back = backdrop and Widgets.Find(backdrop)
+    for _, e in ipairs(GetEntities()) do
+        if not HasComponent(e, "Parent") and HasComponent(e, "Transform") and not HasComponent(e, "Camera") then
+            if e == back then Widgets.Anchor(e, "stretch", "stretch") else Widgets.Anchor(e, "center", "middle") end
+        end
+    end
+end
+
 Widgets.EDGE ={r = 90, g = 90, b = 100, a = 255}
 Widgets.HOVER = {r = 255, g = 210, b = 110, a = 255}
 

@@ -12,10 +12,13 @@
             <g>12</g>
             <b>18</b>
         </BackgroundColor>
-        <Framebuffer>
+        <!-- The game screen the UI is laid out in, fitted to whatever the game draws at. -->
+        <Screen>
             <Width>1280</Width>
             <Height>720</Height>
-        </Framebuffer>
+        </Screen>
+        <!-- DEFAULT (native: the window's size), 1280x720, 1920x1080, 2560x1440 or 3840x2160. -->
+        <Resolution>DEFAULT</Resolution>
     </Window>
     <Debug>
         <ShowDemoWindow>false</ShowDemoWindow>

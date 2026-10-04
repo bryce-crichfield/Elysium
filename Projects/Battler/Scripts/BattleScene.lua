@@ -53,7 +53,6 @@ local SFX = {
 local function Play(sound, volume) Sfx.Play(sound, volume) end
 
 local PLAYER, ENEMY = Units.PLAYER, Units.ENEMY
-local SCREEN_W, SCREEN_H = 1280, 720
 local FONT = "Fonts/EnchantedLand-Regular.ttf"  -- every HUD line is drawn in it
 local SPEED = 215          -- ground units a second
 local CELL = 8             -- the navmesh's cellSize (Battle.xml), for drawing reach runs
@@ -289,7 +288,7 @@ function Battle:UpdateHeroFrames()
     local slots = { [PLAYER] = 0, [ENEMY] = 0 }
     for _, frame in ipairs(HeroFrames.Frames()) do
         local x, _, w = HeroFrames.Rect(frame)
-        local team = x + w / 2 < SCREEN_W / 2 and PLAYER or ENEMY
+        local team = x + w / 2 < (GetScreenSize()) / 2 and PLAYER or ENEMY
         slots[team] = slots[team] + 1
         local u = teams[team][slots[team]]
         local binding = HeroFrames.bindings[frame]
@@ -336,6 +335,7 @@ end
 
 function Battle:Update(dt)
     self.time = self.time + dt
+    self.dt = dt  -- for what eases in Render (the HUD)
     self:UpdateCamera(dt)
     self:UpdateHeroFrames()
 
@@ -437,8 +437,9 @@ function Battle:UpdateCamera(dt)
     -- Pans in screen directions, whichever way the camera faces: a screen offset (in pixels)
     -- as a ground offset.
     local function Pan(px, py)
-        local a = ScreenToWorld(Vector2.new(SCREEN_W / 2, SCREEN_H / 2))
-        local b = ScreenToWorld(Vector2.new(SCREEN_W / 2 + px, SCREEN_H / 2 + py))
+        local sw, sh = GetScreenSize()
+        local a = ScreenToWorld(Vector2.new(sw / 2, sh / 2))
+        local b = ScreenToWorld(Vector2.new(sw / 2 + px, sh / 2 + py))
         t.localX, t.localY = t.localX + (b.x - a.x), t.localY + (b.y - a.y)
     end
 
@@ -1253,8 +1254,22 @@ end
 
 local function WithAlpha(c, a) return { r = c.r, g = c.g, b = c.b, a = a } end
 
+-- The HUD is laid out for the layout size; on a bigger screen each piece keeps to its edge.
+-- (The hero frames keep to theirs themselves: Scripts/Components/HeroFrame.lua.)
+function Battle:AnchorHud()
+    Widgets.Anchor(self:Hud("TopBar"), "stretch", "top")
+    Widgets.Anchor(self:Hud("Forecast"), "center", "bottom")
+    Widgets.Anchor(self:Hud("Wait"), "right", "bottom")
+    Widgets.Anchor(self:Hud("EndTurn"), "right", "bottom")
+    Widgets.Anchor(self:Hud("Hand"), "center", "bottom")
+    local banner = self:Hud("Banner")
+    Widgets.Anchor(banner, "stretch", "middle")
+    for _, name in ipairs({ "Text", "Sub" }) do Widgets.Anchor(banner and Widgets.Child(banner, name), "center") end
+end
+
 function Battle:UpdateHud()
     local playing = self.state == "battle" or self.state == "over"
+    self:AnchorHud()
 
     local bar = self:Hud("TopBar")
     Widgets.SetVisible(bar, playing)
@@ -1264,7 +1279,7 @@ function Battle:UpdateHud()
         else phase = self.net and "Opponent's phase" or "Enemy phase" end
         Widgets.ChildText(bar, "Turn", string.format("Turn %d  -  %s", math.max(1, self.turn or 1), phase), nil, 16)
         Widgets.ChildText(bar, "Counts", string.format("Allies %d   Foes %d", #self:Living(self.me), #self:Living(self.them)),
-            nil, SCREEN_W - 230)
+            nil, (GetScreenSize()) - 230)
         Widgets.ChildText(bar, "Hint", self:Hint() or "", nil, 16)
     end
 
@@ -1296,6 +1311,15 @@ function Battle:UpdateBanner()
     if not root then return end
     local b = self.banner
     if self.state == "loading" then b = { text = "Reading the battlefield...", t = 1 } end
+
+    -- The hero frames fade out while a turn's banner is up, and back after (a root's
+    -- opacity fades everything under it).
+    local turnBanner = b ~= nil and b.duration ~= nil
+    self.framesOpacity = Widgets.Ease(self.framesOpacity or 1, turnBanner and 0 or 1, 10, self.dt or 0)
+    for _, frame in ipairs(HeroFrames and HeroFrames.Frames() or {}) do
+        local layer = GetComponent(frame, "Layer")
+        if layer then layer.opacity = self.framesOpacity end
+    end
     Widgets.SetVisible(root, b ~= nil)
     if not b then return end
     local a = b.duration and math.floor(255 * math.min(1, (b.duration - b.t) * 3, b.t * 4)) or 255

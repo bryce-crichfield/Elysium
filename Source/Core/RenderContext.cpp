@@ -91,51 +91,51 @@ void RenderContext::PopScissorMode() {
 
 // Drawing
 void RenderContext::DrawRectangle(float x, float y, float w, float h, Color color) {
-    DrawRectangleV({x, y}, {w, h}, ToRaylib(color));
+    DrawRectangleV({x, y}, {w, h}, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawRectangleLines(float x, float y, float w, float h, Color color) {
-    ::DrawRectangleLines(x, y, w, h, ToRaylib(color));
+    ::DrawRectangleLines(x, y, w, h, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawRectangleLinesEx(Rectangle rec, float lineThick, Color color) {
-    ::DrawRectangleLinesEx(ToRaylib(rec), lineThick, ToRaylib(color));
+    ::DrawRectangleLinesEx(ToRaylib(rec), lineThick, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawRectangleRounded(Rectangle rec, float roundness, int segments, Color color) {
-    ::DrawRectangleRounded(ToRaylib(rec), roundness, segments, ToRaylib(color));
+    ::DrawRectangleRounded(ToRaylib(rec), roundness, segments, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawRectangleRoundedLinesEx(Rectangle rec, float roundness, int segments, float lineThick, Color color) {
-    ::DrawRectangleRoundedLinesEx(ToRaylib(rec), roundness, segments, lineThick, ToRaylib(color));
+    ::DrawRectangleRoundedLinesEx(ToRaylib(rec), roundness, segments, lineThick, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawLine(float x1, float y1, float x2, float y2, Color color) {
-    DrawLineV({x1, y1}, {x2, y2}, ToRaylib(color));
+    DrawLineV({x1, y1}, {x2, y2}, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawLineEx(float x1, float y1, float x2, float y2, float thick, Color color) {
-    ::DrawLineEx({x1, y1}, {x2, y2}, thick, ToRaylib(color));
+    ::DrawLineEx({x1, y1}, {x2, y2}, thick, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawCircle(float x, float y, float radius, Color color) {
-    DrawCircleV({x, y}, radius, ToRaylib(color));
+    DrawCircleV({x, y}, radius, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawCircleLines(float x, float y, float radius, Color color) {
-    DrawCircleLinesV({x, y}, radius, ToRaylib(color));
+    DrawCircleLinesV({x, y}, radius, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawEllipse(float centerX, float centerY, float radiusH, float radiusV, Color color) {
-    ::DrawEllipse((int)centerX, (int)centerY, radiusH, radiusV, ToRaylib(color));
+    ::DrawEllipse((int)centerX, (int)centerY, radiusH, radiusV, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawEllipseLines(float centerX, float centerY, float radiusH, float radiusV, Color color) {
-    ::DrawEllipseLines((int)centerX, (int)centerY, radiusH, radiusV, ToRaylib(color));
+    ::DrawEllipseLines((int)centerX, (int)centerY, radiusH, radiusV, ToRaylib(Faded(color)));
 }
 
 void RenderContext::DrawText(const char* text, float x, float y, int fontSize, Color color) {
-    ::DrawText(text, (int)x, (int)y, fontSize, ToRaylib(color));
+    ::DrawText(text, (int)x, (int)y, fontSize, ToRaylib(Faded(color)));
 }
 
 // Fonts, loaded once (on the GL thread) at a large base size so they scale down cleanly. A
@@ -173,7 +173,7 @@ static float FontSpacing(int fontSize) { return fontSize / 10.0f; }
 void RenderContext::DrawText(const char* text, float x, float y, int fontSize, Color color, const std::string& font) {
     const ::Font* f = FindFont(font);
     if (!f) { DrawText(text, x, y, fontSize, color); return; }
-    ::DrawTextEx(*f, text, ::Vector2{x, y}, (float)fontSize, FontSpacing(fontSize), ToRaylib(color));
+    ::DrawTextEx(*f, text, ::Vector2{x, y}, (float)fontSize, FontSpacing(fontSize), ToRaylib(Faded(color)));
 }
 
 float RenderContext::MeasureText(const char* text, int fontSize, const std::string& font) {
@@ -183,11 +183,11 @@ float RenderContext::MeasureText(const char* text, int fontSize, const std::stri
 }
 
 void RenderContext::DrawTexturePro(const Texture& texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint) {
-    ::DrawTexturePro(ToRaylib(texture), ToRaylib(source), ToRaylib(dest), ToRaylib(origin), rotation, ToRaylib(tint));
+    ::DrawTexturePro(ToRaylib(texture), ToRaylib(source), ToRaylib(dest), ToRaylib(origin), rotation, ToRaylib(Faded(tint)));
 }
 
 void RenderContext::DrawTriangleList(const std::vector<Vector2>& triangleVerts, Color color) {
-    ::Color rlColor = ToRaylib(color);
+    ::Color rlColor = ToRaylib(Faded(color));
     for (size_t i = 0; i + 2 < triangleVerts.size(); i += 3) {
         ::DrawTriangle(ToRaylib(triangleVerts[i]), ToRaylib(triangleVerts[i + 1]),
                        ToRaylib(triangleVerts[i + 2]), rlColor);
@@ -216,6 +216,7 @@ void RenderContext::DrawShaderQuad(Rectangle dest, const Texture* texture, Color
 
 void RenderContext::DrawShaderQuad(const Vector2 (&corners)[4], const Texture* texture, Color tint) {
     unsigned int textureId = (texture && texture->id != 0) ? texture->id : rlGetTextureIdDefault();
+    tint = Faded(tint);
 
     rlSetTexture(textureId);
     rlBegin(RL_QUADS);

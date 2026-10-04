@@ -17,6 +17,7 @@
 #include <string>
 #include <variant>
 #include "Core/RenderContext.h"
+#include "Interfaces/ISceneService.h"
 
 namespace Elysium::Services { class IAssetService; }
 namespace Elysium { class Path; }
@@ -37,6 +38,11 @@ struct CameraView {
     bool screenInWorld = false;
     Vector2 screenOrigin{};
     float screenScale = 1.0f;
+
+    // Play: the game screen fitted into the framebuffer (RenderProjector::FitScreen). Screen2D
+    // layers draw at screen pixel p * fitScale + fitOffset.
+    float fitScale = 1.0f;
+    Vector2 fitOffset{};
 
     // Editor only: the orbit around `position` (see World3D::View). The default is the camera
     // the ground picture is drawn from; turned away from it, ground layers lie on the ground plane.
@@ -77,9 +83,14 @@ public:
     static Matrix CalculateTransform(const CameraView& view, const SceneLayer& layer);
     static Vector2 WorldToFramebuffer(Vector2 worldPos, const CameraView& view);
     static Vector2 FramebufferToWorld(Vector2 fbPos, const CameraView& view);
-    // A Screen2D position <-> framebuffer; the identity unless view.screenInWorld.
+    // A Screen2D position <-> framebuffer: through the world when view.screenInWorld (the
+    // editor), else through the screen's fit.
     static Vector2 ScreenToFramebuffer(Vector2 screenPos, const CameraView& view);
     static Vector2 FramebufferToScreen(Vector2 fbPos, const CameraView& view);
+    // Fits a camera's view, set up in game screen pixels, to the framebuffer: its viewport
+    // scaled (one covering the whole screen covers the whole framebuffer) and its zoom with
+    // it, so it shows the same picture at any resolution, only sharper.
+    static void FitScreen(CameraView& view, const Services::ScreenFit& fit);
     // The 3D view the camera looks through. World positions above are ground positions.
     static World3D::View View3D(const CameraView& view);
 };

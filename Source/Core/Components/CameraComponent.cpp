@@ -14,7 +14,7 @@ namespace Elysium {
 
     void CameraComponent::LoadXml(CameraComponent& c, tinyxml2::XMLElement* el, ServiceLocator& services) {
         const auto& config = services.Get<Services::IApplicationService>().GetConfig();
-        c.viewport = {0, 0, (float)config.framebufferWidth, (float)config.framebufferHeight};
+        c.viewport = {0, 0, (float)config.screenWidth, (float)config.screenHeight};
 
         c.zoom = el->FloatAttribute("zoom", 1.0f);
         c.yaw = el->FloatAttribute("yaw", c.yaw);

@@ -23,7 +23,7 @@ function SettingsScene:Initialize()
     Widgets.BindButton("Back", function() SceneReplace("MainMenu") end)
 end
 
-function SettingsScene:Update(dt) end
+function SettingsScene:Update(dt) Widgets.CenterLayout("Background") end
 
 function SettingsScene:Render() end
 

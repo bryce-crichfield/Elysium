@@ -1,9 +1,3 @@
-<!-- A unit's frame on the battle HUD (Scripts/Components/HeroFrame.lua): its portrait, name,
-     health (red bar), stamina (green bar) and mana crystals (blue; one per crystal it has grown,
-     lit while full), and its piles: cards in hand (gold), left in the deck (blue) and discarded
-     (grey). The battle binds a unit to it with HeroFrame.Bind; an unbound frame hides.
-     The root burns (its Fire layer) while the unit is selected, acting or hovered.
-     Placeholder shapes until there's art. -->
 <Prefab>
     <Entities>
         <Entity id="0">
@@ -26,7 +20,7 @@
                 </Layer>
             </MaterialComponent>
             <NameComponent name="HeroFrame"/>
-            <RectangleComponent width="236" height="90" cornerRadius="0.15"/>
+            <RectangleComponent width="236" height="90" cornerRadius="0.15000001"/>
             <ScriptComponent>
                 <Script name="Scripts/Components/HeroFrame.lua"/>
             </ScriptComponent>
@@ -39,15 +33,15 @@
             </MaterialComponent>
             <NameComponent name="Portrait"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="64" height="64" cornerRadius="0.15"/>
-            <TransformComponent x="5" y="13"/>
+            <RectangleComponent width="64" height="64" cornerRadius="0.15000001"/>
+            <TransformComponent x="5" y="4.7537079"/>
         </Entity>
         <Entity id="2">
             <LayerComponent name="ui"/>
             <NameComponent name="NameText"/>
             <ParentComponent target="0"/>
             <TextComponent text="Name" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="150" y="13"/>
+            <TransformComponent x="35.944065" y="78.399345"/>
         </Entity>
         <Entity id="3">
             <LayerComponent name="ui"/>
@@ -68,8 +62,8 @@
             </MaterialComponent>
             <NameComponent name="HealthBar"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="146" height="11" cornerRadius="0.4"/>
-            <TransformComponent x="78" y="27"/>
+            <RectangleComponent width="146" height="11" cornerRadius="0.40000001"/>
+            <TransformComponent x="78" y="18.807823"/>
         </Entity>
         <Entity id="5">
             <LayerComponent name="ui"/>
@@ -83,24 +77,26 @@
             </MaterialComponent>
             <NameComponent name="StaminaBar"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="146" height="7" cornerRadius="0.4"/>
-            <TransformComponent x="78" y="42"/>
+            <RectangleComponent width="146" height="7" cornerRadius="0.40000001"/>
+            <TransformComponent x="78" y="33.807823"/>
         </Entity>
         <Entity id="10">
             <LayerComponent name="ui"/>
-            <MaterialComponent padding="0" enabled="true">
-                <Layer material="Flat" enabled="true">
-                    <Uniform name="uColor" type="vec4" value="0.300000 0.550000 1.000000 1.000000"/>
+            <MaterialComponent padding="93" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.050000 0.085448 1.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="1.500000"/>
+                    <Uniform name="uGlowRadius" type="float" value="6.000000"/>
                 </Layer>
-                <Layer material="Stroke" enabled="true">
-                    <Uniform name="uWidth" type="float" value="1.000000"/>
-                    <Uniform name="uColor" type="vec4" value="0.600000 0.750000 1.000000 1.000000"/>
+                <Layer material="Texture" enabled="true" texture="Textures/Ui/mana.png">
+                    <Uniform name="uTint" type="vec4" value="1.000000 1.000000 1.000000 0.550000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="Crystal1"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="78" y="55"/>
+            <TransformComponent x="78" y="46.807823"/>
         </Entity>
         <Entity id="11">
             <LayerComponent name="ui"/>
@@ -116,7 +112,7 @@
             <NameComponent name="Crystal2"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="93" y="55"/>
+            <TransformComponent x="93" y="46.807823"/>
         </Entity>
         <Entity id="12">
             <LayerComponent name="ui"/>
@@ -132,7 +128,7 @@
             <NameComponent name="Crystal3"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="108" y="55"/>
+            <TransformComponent x="108" y="46.807823"/>
         </Entity>
         <Entity id="13">
             <LayerComponent name="ui"/>
@@ -148,7 +144,7 @@
             <NameComponent name="Crystal4"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="123" y="55"/>
+            <TransformComponent x="123" y="46.807823"/>
         </Entity>
         <Entity id="14">
             <LayerComponent name="ui"/>
@@ -164,7 +160,7 @@
             <NameComponent name="Crystal5"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="138" y="55"/>
+            <TransformComponent x="138" y="46.807823"/>
         </Entity>
         <Entity id="15">
             <LayerComponent name="ui"/>
@@ -180,7 +176,7 @@
             <NameComponent name="Crystal6"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="153" y="55"/>
+            <TransformComponent x="153" y="46.807823"/>
         </Entity>
         <Entity id="16">
             <LayerComponent name="ui"/>
@@ -196,7 +192,7 @@
             <NameComponent name="Crystal7"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="168" y="55"/>
+            <TransformComponent x="168" y="46.807823"/>
         </Entity>
         <Entity id="17">
             <LayerComponent name="ui"/>
@@ -212,7 +208,7 @@
             <NameComponent name="Crystal8"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="183" y="55"/>
+            <TransformComponent x="183" y="46.807823"/>
         </Entity>
         <Entity id="18">
             <LayerComponent name="ui"/>
@@ -228,7 +224,7 @@
             <NameComponent name="Crystal9"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="198" y="55"/>
+            <TransformComponent x="198" y="46.807823"/>
         </Entity>
         <Entity id="19">
             <LayerComponent name="ui"/>
@@ -244,7 +240,7 @@
             <NameComponent name="Crystal10"/>
             <ParentComponent target="0"/>
             <RectangleComponent width="12" height="12" cornerRadius="1"/>
-            <TransformComponent x="213" y="55"/>
+            <TransformComponent x="213" y="46.807823"/>
         </Entity>
         <Entity id="30">
             <LayerComponent name="ui"/>
@@ -259,15 +255,15 @@
             </MaterialComponent>
             <NameComponent name="HandIcon"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="10" height="13" cornerRadius="0.3"/>
-            <TransformComponent x="78" y="72"/>
+            <RectangleComponent width="10" height="13" cornerRadius="0.30000001"/>
+            <TransformComponent x="78" y="63.807823"/>
         </Entity>
         <Entity id="31">
             <LayerComponent name="ui"/>
             <NameComponent name="HandCount"/>
             <ParentComponent target="0"/>
-            <TextComponent text="" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="92" y="70"/>
+            <TextComponent text="1" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="98.574875" y="71.474503"/>
         </Entity>
         <Entity id="32">
             <LayerComponent name="ui"/>
@@ -282,15 +278,15 @@
             </MaterialComponent>
             <NameComponent name="DeckIcon"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="10" height="13" cornerRadius="0.3"/>
-            <TransformComponent x="128" y="72"/>
+            <RectangleComponent width="10" height="13" cornerRadius="0.30000001"/>
+            <TransformComponent x="128" y="63.807823"/>
         </Entity>
         <Entity id="33">
             <LayerComponent name="ui"/>
             <NameComponent name="DeckCount"/>
             <ParentComponent target="0"/>
-            <TextComponent text="" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="142" y="70"/>
+            <TextComponent text="1" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="145.15248" y="71.055031"/>
         </Entity>
         <Entity id="34">
             <LayerComponent name="ui"/>
@@ -305,15 +301,15 @@
             </MaterialComponent>
             <NameComponent name="DiscardIcon"/>
             <ParentComponent target="0"/>
-            <RectangleComponent width="10" height="13" cornerRadius="0.3"/>
-            <TransformComponent x="178" y="72"/>
+            <RectangleComponent width="10" height="13" cornerRadius="0.30000001"/>
+            <TransformComponent x="178" y="63.807823"/>
         </Entity>
         <Entity id="35">
             <LayerComponent name="ui"/>
             <NameComponent name="DiscardCount"/>
             <ParentComponent target="0"/>
-            <TextComponent text="" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="192" y="70"/>
+            <TextComponent text="1" fontSize="16" r="200" g="200" b="210" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="195.15247" y="71.790611"/>
         </Entity>
     </Entities>
 </Prefab>

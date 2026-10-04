@@ -52,8 +52,13 @@ function Button:Update(entity, dt)
     -- Where the placement put it, before any squash moved it.
     self.home = self.home or { x = t.localX, y = t.localY }
 
+    -- Where its anchor keeps it on this screen (Widgets.Anchor).
+    local dx, dy = 0, 0
+    if binding and binding.anchor then dx, dy = Widgets.Shift(binding.anchor[1], binding.anchor[2]) end
+    local hx, hy = self.home.x + dx, self.home.y + dy
+
     -- Hit-test the unsquashed face, so the edge doesn't flicker in and out while held.
-    local x, y = t.worldX - (t.localX - self.home.x), t.worldY - (t.localY - self.home.y)
+    local x, y = t.worldX - (t.localX - hx), t.worldY - (t.localY - hy)
     local w, h = r.width, r.height
     local m = GetMousePosition()
     local hover = enabled and Widgets.Inside(m, x, y, w, h) or false
@@ -91,8 +96,8 @@ function Button:Update(entity, dt)
     -- Squash about the centre while held.
     self.scale = Ease(self.scale, (self.armed and hover) and PRESS_SCALE or 1, SCALE_RATE, dt)
     t.localScaleX, t.localScaleY = self.scale, self.scale
-    t.localX = self.home.x + w * (1 - self.scale) / 2
-    t.localY = self.home.y + h * (1 - self.scale) / 2
+    t.localX = hx + w * (1 - self.scale) / 2
+    t.localY = hy + h * (1 - self.scale) / 2
 
     -- The label, centered on the face (text draws centered on its position).
     local lt = self.label and GetComponent(self.label, "Transform")

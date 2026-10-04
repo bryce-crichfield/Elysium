@@ -56,11 +56,25 @@ bool ApplicationConfig::FromXML(const std::string& configPath, ApplicationConfig
             LOG_INFOF("Application", "Color: %d, %d, %d", config.backgroundColor.r, config.backgroundColor.g,
                       config.backgroundColor.b);
         }
-        if (XMLElement* framebuffer = window->FirstChildElement("Framebuffer")) {
-            if (XMLElement* width = framebuffer->FirstChildElement("Width"))
-                config.framebufferWidth = width->IntText(640);
-            if (XMLElement* height = framebuffer->FirstChildElement("Height"))
-                config.framebufferHeight = height->IntText(480);
+        // <Screen> (older configs: <Framebuffer>) is the game screen's size.
+        XMLElement* screen = window->FirstChildElement("Screen");
+        if (!screen) screen = window->FirstChildElement("Framebuffer");
+        if (screen) {
+            if (XMLElement* width = screen->FirstChildElement("Width"))
+                config.screenWidth = width->IntText(640);
+            if (XMLElement* height = screen->FirstChildElement("Height"))
+                config.screenHeight = height->IntText(480);
+        }
+        if (XMLElement* resolution = window->FirstChildElement("Resolution")) {
+            const std::string text = resolution->GetText() ? resolution->GetText() : "DEFAULT";
+            if (text == "1280x720") config.resolution = Resolution::HD720;
+            else if (text == "1920x1080") config.resolution = Resolution::HD1080;
+            else if (text == "2560x1440") config.resolution = Resolution::QHD1440;
+            else if (text == "3840x2160") config.resolution = Resolution::UHD2160;
+            else {
+                if (text != "DEFAULT") LOG_WARNINGF("Application", "Unknown resolution '%s': drawing at the window's size", text.c_str());
+                config.resolution = Resolution::Default;
+            }
         }
     }
 

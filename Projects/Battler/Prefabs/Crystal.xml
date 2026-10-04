@@ -1,0 +1,16 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <NameComponent name="Crystal"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Ui/mana.png"/>
+            </MaterialComponent>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="32" height="32" cornerRadius="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>
