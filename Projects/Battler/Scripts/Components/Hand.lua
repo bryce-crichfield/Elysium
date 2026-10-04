@@ -17,8 +17,10 @@
 -- Up to VISIBLE cards sit on the wheel; the mouse wheel over the hand turns it to the rest.
 -- Hovering a card lifts it out, full size, over the others. The chosen card flies out of the
 -- hand to wait off to the side (HELD); put back (chosen goes nil) it flies home. Played, the
--- scene removes it from the cards and pushes { slot = i, x = sx, y = sy } onto `flights`: that
--- card flies from where it is into the screen point and burns out.
+-- scene removes it from the cards and pushes { slot = i, faceDown = bool } onto `flights`: that
+-- card flies to the middle of the screen, jiggles, turns over (if it was face down) as it
+-- grows for a look, then burns away in a burst. The hand sets the flight's `released` once it
+-- starts burning (or at once, if it had no such card), which is when the play should land.
 local Widgets = require("Scripts/Components/Widgets")
 
 local Hand = {}
@@ -34,7 +36,10 @@ local MARGIN = 8
 local HELD = { x = 1060, y = 380, s = 1.2 }   -- where the chosen card waits for its target
 local DROP = 330             -- how far the hand slides down out of view
 local PEEK = 36              -- how much of the cards' tops shows while peeking
-local FLIGHT = 0.38          -- seconds a played card takes to reach its target
+-- A played card's show, in seconds per step.
+local TRAVEL, JIGGLE, REVEAL, LOOK, BURN, SPARKS = 0.35, 0.28, 0.3, 0.45, 0.7, 0.6
+local SWELL = 0.25  -- how much bigger it grows as it burns away
+local TRAVEL_SCALE, LOOK_SCALE = 1.15, 1.6
 
 local function Clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 
@@ -48,35 +53,77 @@ function Hand:Initialize(entity)
 end
 
 -- Played cards: the card in `slot` leaves the hand's slots (so the rest still line up with
--- the cards) and flies to (x, y), shrinking and burning; then it's a spare slot again.
+-- the cards) and puts on its show (Hand:Fly); then it's a spare slot again.
 function Hand:Launch(flights)
     while #flights > 0 do
         local f = table.remove(flights, 1)
         local slot = table.remove(self.slots, f.slot)
-        if slot then
-            slot.view.chosen, slot.view.top, slot.view.hover, slot.view.hidden = true, true, false, false
-            self.flying[#self.flying + 1] = { slot = slot, t = 0, x0 = slot.x, y0 = slot.y, s0 = slot.s, x = f.x, y = f.y }
+        if slot and slot.view.card then
+            slot.view.chosen, slot.view.top, slot.view.hover, slot.view.hidden = false, true, false, false
+            slot.view.faceUp = not f.faceDown
+            slot.view.dissolve, slot.view.burst = 0, nil
+            self.flying[#self.flying + 1] = { slot = slot, flight = f, t = 0, x0 = slot.x, y0 = slot.y, s0 = slot.s }
+        else
+            if slot then self.slots[#self.slots + 1] = slot end
+            f.released = true
         end
     end
 end
 
+local function Smooth(k) k = math.max(0, math.min(1, k)) return k * k * (3 - 2 * k) end
+
+-- A played card at `t` seconds into its show: its middle (x, y) and its scale across and down.
+local function Pose(f, t, mx, my)
+    local cx0, cy0 = f.x0 + W * f.s0 / 2, f.y0 + H * f.s0 / 2
+    if t < TRAVEL then
+        local k = Smooth(t / TRAVEL)
+        local s = f.s0 + (TRAVEL_SCALE - f.s0) * k
+        return cx0 + (mx - cx0) * k, cy0 + (my - cy0) * k - math.sin(k * math.pi) * 40, s, s
+    end
+    t = t - TRAVEL
+    if t < JIGGLE then
+        -- Anticipation: a shiver that dies out, with a little squash.
+        local k = t / JIGGLE
+        local shake = math.sin(k * math.pi * 6) * 7 * (1 - k)
+        local squash = 1 + math.sin(k * math.pi * 3) * 0.05 * (1 - k)
+        return mx + shake, my, TRAVEL_SCALE * squash, TRAVEL_SCALE / squash
+    end
+    t = t - JIGGLE
+    local k = Smooth(math.min(1, t / REVEAL))
+    local s = TRAVEL_SCALE + (LOOK_SCALE - TRAVEL_SCALE) * k
+    if f.flight.faceDown and t < REVEAL then
+        -- Turns over: it narrows to an edge face down and widens back face up.
+        return mx, my, s * math.abs(math.cos(k * math.pi)), s
+    end
+    return mx, my, s, s
+end
+
 function Hand:Fly(dt)
+    local sw, sh = GetScreenSize()
+    local mx, my = sw / 2, sh / 2 - 30
     for i = #self.flying, 1, -1 do
         local f = self.flying[i]
         f.t = f.t + dt
-        local k = math.min(1, f.t / FLIGHT)
-        local e = k * k  -- speeds up into the target
-        local s = f.s0 + (0.3 - f.s0) * e
-        local slot = f.slot
-        slot.s = s
-        -- Its middle travels to the point.
-        local cx0, cy0 = f.x0 + W * f.s0 / 2, f.y0 + H * f.s0 / 2
-        local cx, cy = cx0 + (f.x - cx0) * e, cy0 + (f.y - cy0) * e - math.sin(k * math.pi) * 60
-        slot.x, slot.y = cx - W * s / 2, cy - H * s / 2
+        local slot, view = f.slot, f.slot.view
+        local x, y, sx, sy = Pose(f, f.t, mx, my)
+        local burning = f.t - (TRAVEL + JIGGLE + REVEAL + LOOK)
+        if f.flight.faceDown and f.t > TRAVEL + JIGGLE + REVEAL / 2 then view.faceUp = true end
+        if burning >= 0 then
+            f.flight.released = true
+            view.dissolve = math.min(1, burning / BURN)
+            view.burst = burning < SPARKS and burning / SPARKS or nil
+            -- Swells as it goes, fast then easing off: a pop that smoulders out.
+            local k = math.min(1, burning / BURN)
+            local swell = 1 + SWELL * (1 - (1 - k) * (1 - k))
+            sx, sy = sx * swell, sy * swell
+        end
+        slot.s = sy
+        slot.x, slot.y = x - W * sx / 2, y - H * sy / 2
         local ct = GetComponent(slot.entity, "Transform")
-        if ct then ct.localX, ct.localY, ct.localScaleX, ct.localScaleY = slot.x, slot.y, s, s end
-        if k >= 1 then
-            slot.view.hidden, slot.view.card = true, nil
+        if ct then ct.localX, ct.localY, ct.localScaleX, ct.localScaleY = slot.x, slot.y, sx, sy end
+        if burning >= math.max(BURN, SPARKS) then
+            view.hidden, view.card, view.dissolve, view.burst = true, nil, 0, nil
+            if ct then ct.localScaleX = ct.localScaleY end
             table.remove(self.flying, i)
             self.slots[#self.slots + 1] = slot
         end

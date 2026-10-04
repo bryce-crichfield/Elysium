@@ -87,5 +87,23 @@
             <RectangleComponent width="60" height="60" cornerRadius="1"/>
             <TransformComponent x="40" y="70"/>
         </Entity>
+        <Entity id="13">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="150" enabled="true">
+                <Layer material="Burst" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.750000 1.000000 1.000000"/>
+                    <Uniform name="uProgress" type="float" value="1.000000"/>
+                    <Uniform name="uDistance" type="float" value="130.000000"/>
+                    <Uniform name="uSparks" type="float" value="48.000000"/>
+                    <Uniform name="uSize" type="float" value="6.000000"/>
+                    <Uniform name="uFlash" type="float" value="1.000000"/>
+                    <Uniform name="uSeed" type="float" value="0.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Burst"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="140" height="200" cornerRadius="0.079999998"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
     </Entities>
 </Prefab>

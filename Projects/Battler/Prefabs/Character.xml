@@ -33,7 +33,7 @@
             <TransformComponent x="0" y="0" z="0"/>
         </Entity>
     </Entities>
-    <PrefabInstance src="HealthBar.xml" id="HealthBar1">
+    <PrefabInstance src="HeroHud.xml" id="HeroHud">
         <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
         <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
         <Override entity="0" component="TransformComponent" field="y" value="-108.582"/>

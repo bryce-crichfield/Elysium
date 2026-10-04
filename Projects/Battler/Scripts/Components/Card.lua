@@ -8,6 +8,8 @@
 --   playable  its owner can pay for it now; a card that can't be paid for is dimmed
 --   hidden    not shown at all
 --   top       drawn over the other cards (the "uiTop" layer)
+--   dissolve  0 -> 1 while it burns away (played); its face goes with it
+--   burst     0 -> 1 while its sparks fly (the Burst child), else nil
 -- Where it sits and how big is whoever binds it's business (Transform); this only draws.
 local Widgets = require("Scripts/Components/Widgets")
 local Sfx = require("Scripts/Menu/Sfx")
@@ -27,6 +29,21 @@ local function SetLayerName(entity, name)
     for _, child in ipairs(GetChildren(entity)) do SetLayerName(child, name) end
 end
 
+local function Fade(c, k) return {r = c.r, g = c.g, b = c.b, a = math.floor(c.a * k)} end
+
+-- The burn front glows mana blue: the card is spent into mana.
+local MANA_EDGE = {x = 0.25, y = 0.75, z = 1.0}
+
+local function SetDissolve(entity, k)
+    local mat = entity and GetComponent(entity, "Material")
+    local tex = mat and mat:Layer("Texture")
+    if tex then
+        tex:Set("uDissolve", k)
+        tex:Set("uDissolveEdge", MANA_EDGE)
+    end
+    return tex
+end
+
 local function Show(entity, on)
     local layer = entity and GetComponent(entity, "Layer")
     if layer then layer.isVisible = on end
@@ -37,6 +54,7 @@ function Card:Initialize(entity)
     self.parts = {}
     for _, name in ipairs(FACE) do self.parts[name] = Widgets.Child(entity, name) end
     for _, name in ipairs(BACK) do self.parts[name] = Widgets.Child(entity, name) end
+    self.burst = Widgets.Child(entity, "Burst")  -- the sparks when it's played
     self.frame = Widgets.Child(entity, "Frame")  -- card_frame.png, over the art; carries the glow
     self.art = nil                               -- the texture the Art layer shows
     self.glow, self.hover, self.time = 0, false, 0
@@ -54,6 +72,16 @@ function Card:Update(entity, dt)
     SetLayerName(entity, view.top and "uiTop" or "ui")
     Show(entity, true)
     Show(self.frame, true)
+    Show(self.burst, true)
+    local dissolve = view.dissolve or 0
+    -- It fades as it burns, mostly toward the end, so it smoulders away rather than just eroding.
+    local fade = 1 - dissolve * dissolve
+    local ftex = SetDissolve(self.frame, dissolve)
+    if ftex then ftex:Set("uTint", Fade(WHITE, fade)) end
+    SetDissolve(self.parts.Art, dissolve)
+    local bmat = self.burst and GetComponent(self.burst, "Material")
+    local burst = bmat and bmat:Layer("Burst")
+    if burst then burst:Set("uProgress", view.burst or 1) end
     for _, name in ipairs(FACE) do Show(self.parts[name], view.faceUp) end
     for _, name in ipairs(BACK) do Show(self.parts[name], not view.faceUp) end
 
@@ -64,6 +92,7 @@ function Card:Update(entity, dt)
     local target = 0
     if view.chosen then target = 1.6 + 0.3 * math.sin(self.time * 6)
     elseif view.hover then target = view.faceUp and view.playable and 1.2 or 0.6 end
+    if dissolve > 0 then target = 0 end
     self.glow = Widgets.Ease(self.glow, target, 12, dt)
     Widgets.SetGlow(self.frame, self.glow)
     local mat = self.frame and GetComponent(self.frame, "Material")
@@ -73,15 +102,17 @@ function Card:Update(entity, dt)
     if not view.faceUp then return end
     local card = view.card
     local usable = view.playable ~= false
-    Widgets.ChildText(entity, "Title", card.name, usable and TITLE or DIM)
-    Widgets.ChildText(entity, "Body", card.text or "", usable and BODY or DIM)
-    self:SetArt(card.art, usable)
+    local ink = math.max(0, 1 - dissolve * 2.5)  -- the writing goes first
+    Widgets.ChildText(entity, "Title", card.name, Fade(usable and TITLE or DIM, ink))
+    Widgets.ChildText(entity, "Body", card.text or "", Fade(usable and BODY or DIM, ink))
+    self:SetArt(card.art, usable, fade)
     local cost = card.cost or 0
-    Widgets.ChildText(entity, "BlueCost", tostring(cost), cost > 0 and WHITE or DIM)
+    Widgets.ChildText(entity, "BlueCost", tostring(cost), Fade(cost > 0 and WHITE or DIM, ink))
 end
 
--- The Art child's picture (a texture path, or nil for none), dimmed when the card can't be paid for.
-function Card:SetArt(path, usable)
+-- The Art child's picture (a texture path, or nil for none), dimmed when the card can't be paid for
+-- and faded by `fade` (0 to 1) as it burns away.
+function Card:SetArt(path, usable, fade)
     local mat = self.parts.Art and GetComponent(self.parts.Art, "Material")
     local tex = mat and mat:Layer("Texture")
     if not tex then return end
@@ -90,7 +121,7 @@ function Card:SetArt(path, usable)
         if path then LoadTexture(path) end
         tex.texture = path or ""
     end
-    tex:Set("uTint", usable and WHITE or DIM)
+    tex:Set("uTint", Fade(usable and WHITE or DIM, fade or 1))
 end
 
 return Card

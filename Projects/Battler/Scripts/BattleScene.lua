@@ -76,10 +76,7 @@ local COLORS = {
 -- Health bar fills for the hero frames, by team.
 local HURT_FLASH = 1.6     -- seconds a hurt unit's frame stays open, to watch its health drain
 local HOVER_LINGER = 0.6   -- seconds a hovered unit's frame stays open after the pointer leaves
-local FRAME_FILLS = {
-    [PLAYER] = {r = 70, g = 160, b = 255, a = 255},
-    [ENEMY]  = {r = 235, g = 70, b = 60, a = 255},
-}
+local HEALTH_FILL = {r = 235, g = 70, b = 60, a = 255}  -- every frame's health bar; the ring glow tells the teams apart
 
 -- --- Helpers ------------------------------------------------------------------------------
 
@@ -293,7 +290,7 @@ function Battle:UpdateHeroFrames()
         local binding = HeroFrames.bindings[frame]
         if not binding or binding.unit ~= u then
             local glow = Units.RING_COLORS[team == PLAYER and "player" or "enemy"]
-            HeroFrames.Bind(frame, u, glow, FRAME_FILLS[team])
+            HeroFrames.Bind(frame, u, glow, HEALTH_FILL)
             binding = HeroFrames.bindings[frame]
         end
         if binding then
@@ -393,6 +390,7 @@ function Battle:Update(dt)
     end
     local hovered = self.frameUnit or self.hoverUnit
     if hovered then self.lastHover = { unit = hovered, t = self.time } end
+    Widgets.BindView("HoveredUnit", hovered and hovered.entity)  -- its map health bar shows x/X
     self:UpdatePreview()
     self:PollInput(mouse, w)
 end
@@ -591,28 +589,43 @@ end
 
 -- Starts `team`'s phase: ours takes input, the other side's is the AI's (solo) or replays the
 -- opponent's commands (versus). The blue team moves first, so its phase starts a new turn.
--- Each of the team's units grows a mana crystal and refills its mana, and (after the opening hand) draws a card.
+-- Each of the team's units grows a mana crystal and refills its mana, and (after the opening hand)
+-- draws a card. After the banner the mana sequence plays on their hero frames, then the phase goes on.
 function Battle:BeginPhase(team)
     if team == PLAYER then self.turn = self.turn + 1 end
     self.phase = team
     for _, u in ipairs(self:Living(team)) do
         u.done = false
+        local mana, max = u.mana, u.manaMax
         u.manaMax = math.min(u.manaCap, u.manaMax + 1)
         u.mana = u.manaMax
+        if HeroFrames then HeroFrames.Recharge(u, mana, max) end
         if self.turn > 1 then Cards.Draw(u.piles, 1, self.rng) end
     end
     Play(team == self.me and SFX.phasePlayer or SFX.phaseEnemy)
+    local title
+    if team == self.me then title = self.net and "YOUR PHASE" or "PLAYER PHASE"
+    else title = self.net and "OPPONENT'S PHASE" or "ENEMY PHASE" end
+    self:ShowBanner(title, "Turn " .. self.turn, 1.2)
+    Wait(1.2)
+    self:Recharge()
     if team == self.me then
-        self:ShowBanner(self.net and "YOUR PHASE" or "PLAYER PHASE", "Turn " .. self.turn, 1.2)
-        Wait(0.9)
         local first = self:Living(self.me)[1]
         if first then self:Select(first) end
     elseif self.net then
-        self:ShowBanner("OPPONENT'S PHASE", "Turn " .. self.turn, 1.2)
         self:RemotePhase()
     else
         self:EnemyPhase()
     end
+end
+
+-- The mana sequence (Scripts/Components/HeroFrame.lua): every frame BeginPhase readied plays it
+-- at once; this returns once they've all finished.
+function Battle:Recharge()
+    if not HeroFrames then return end
+    HeroFrames.StartRecharges()
+    local t = 0
+    while HeroFrames.Recharging() and t < 6 do t = t + coroutine.yield() end
 end
 
 -- Our phase is over: tell the other side (with our checksum) and hand it over.
@@ -656,8 +669,7 @@ function Battle:Replay(cmd)
     end
     self.focus = u
     self:Follow(u)
-    Cards.Pay(u, card)
-    Cards.Discard(u.piles, cmd.slot)
+    self:PlayOut(u, cmd.slot)
     self:Perform(u, card, cmd)
     u.x, u.y, u.z = cmd.x, cmd.y, cmd.z
     Wait(0.2)
@@ -702,24 +714,48 @@ function Battle:AiOptions(u)
     return list
 end
 
--- The AI plays the first `id` card in `u`'s hand: pays, discards, and returns it.
+-- The AI plays the first `id` card in `u`'s hand (Battle:PlayOut) and returns it.
 function Battle:AiPlay(u, id)
     for slot, card in ipairs(u.piles.hand) do
-        if card.id == id and Cards.Affordable(u, card) then
-            Cards.Pay(u, card)
-            Cards.Discard(u.piles, slot)
-            return card
-        end
+        if card.id == id and Cards.Affordable(u, card) then return self:PlayOut(u, slot) end
     end
     return nil
+end
+
+-- Plays the card in `u`'s hand slot `slot`: pays for it, discards it, and puts on its show (the
+-- Hand flies it to the middle of the screen and burns it, Scripts/Components/Hand.lua). Its
+-- `released` says when the play should land. Returns the card and the flight.
+function Battle:Launch(u, slot)
+    local card = u.piles.hand[slot]
+    local flight = { slot = slot, faceDown = u.team ~= self.me }
+    self.flights[#self.flights + 1] = flight
+    Cards.Pay(u, card)
+    Cards.Discard(u.piles, slot)
+    return card, flight
+end
+
+-- Waits (in the battle's coroutine) for a played card's show to reach its burn.
+function Battle:AwaitFlight(flight)
+    local t = 0
+    while not flight.released and t < 4 do t = t + coroutine.yield() end
+end
+
+-- The other side plays a card (the AI's or the opponent's): their hand comes up, the card
+-- leaves it for its show, and this returns it once the play should land.
+function Battle:PlayOut(u, slot)
+    if self:HandUnit() ~= u then
+        self.viewed, self.focus = nil, u
+        Wait(0.15)  -- their hand shows before the card leaves it
+    end
+    local card, flight = self:Launch(u, slot)
+    self:AwaitFlight(flight)
+    return card
 end
 
 local AI_PLAYS = 4  -- the most attack cards an AI unit plays in a phase
 
 -- The AI's phase, solo only.
 function Battle:EnemyPhase()
-    self:ShowBanner("ENEMY PHASE", nil, 1.2)
-    Wait(1.0)
     for _, u in ipairs(self:Living(self.them)) do
         -- Walk (if it holds a move card) to where its best attack card reaches, then keep
         -- playing attack cards from there while it can pay and someone's in reach.
@@ -933,16 +969,11 @@ function Battle:Commit(extra)
     local cmd = { kind = "play", unit = u.index, slot = held.slot, card = held.card.id }
     for k, v in pairs(extra) do cmd[k] = v end
     Play(SFX.order)
-    -- The card flies from where it waits into the screen at its target.
-    local to = (extra.path and extra.path[#extra.path]) or (extra.target and self.units[extra.target]) or extra.at
-    if to then
-        local sx, sy = ViewProject(to.x, to.y, to.z + 40)
-        self.flights[#self.flights + 1] = { slot = held.slot, x = sx, y = sy }
-    end
-    Cards.Pay(u, held.card)
-    Cards.Discard(u.piles, held.slot)
+    -- The card flies from where it waits to the middle of the screen and burns: then it lands.
+    local _, flight = self:Launch(u, held.slot)
     self:ClearOrders()
     self:Run(function()
+        self:AwaitFlight(flight)
         self:Perform(u, held.card, cmd)
         cmd.x, cmd.y, cmd.z = u.x, u.y, u.z
         self:Send(cmd)

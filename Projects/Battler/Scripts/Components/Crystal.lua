@@ -2,10 +2,9 @@
 ---@class Crystal
 -- Prefabs/Crystal.xml: one mana crystal. The gem is mana.png; the Glow under it is a square
 -- turned 45 degrees with a Fire outline, so it burns around the diamond: the crystal's charge.
--- Whoever places it binds a view under the crystal root's full name (a nested placement's
--- id is its parent's, so the name is what's unique):
+-- Whoever places it binds a view under the crystal's root entity:
 --
---   Widgets.BindView(GetComponent(crystal, "Name").name, { charged = true })
+--   Widgets.BindView(crystal, { charged = true })
 --
 -- Charged, it's bright and its light pulses; spent, the light goes out and the gem dims. Coming
 -- back to charge it flares; spending it pops (the Burst child, Shaders/Sdf/Material/Burst.glsl). Showing and hiding it is the placer's business.
@@ -22,8 +21,7 @@ local SPENT_TINT = {r = 70, g = 80, b = 110, a = 170}
 local function Lerp(a, b, k) return a + (b - a) * k end
 
 function Crystal:Initialize(entity)
-    local name = GetComponent(entity, "Name")
-    self.key = name and name.name
+    self.key = entity
     self.glow = Widgets.Child(entity, "Glow")
     self.gem = Widgets.Child(entity, "Gem")
     self.burst = Widgets.Child(entity, "Burst")
@@ -43,6 +41,9 @@ function Crystal:Update(entity, dt)
 
     local mat = self.glow and GetComponent(self.glow, "Material")
     local fire = mat and mat:Layer("Fire")
+    -- The Glow (off in Crystal.xml until it's needed) burns while the crystal is charged, with
+    -- a flare as it charges back up.
+    if mat then mat.enabled = self.charge > 0.01 or self.flare > 0.01 end
     if fire then fire:Set("uIntensity", self.charge * (1.1 + 0.25 * math.sin(self.time * 3)) + self.flare) end
 
     if self.pop then

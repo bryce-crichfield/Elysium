@@ -1,0 +1,11 @@
+<!-- What floats over a unit on the map: for now, its health bar. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="entity"/>
+            <NameComponent name="HeroHud"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="HealthBar.xml" id="HealthBar"/>
+</Prefab>

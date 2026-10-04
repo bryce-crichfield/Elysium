@@ -21,5 +21,12 @@
             </ScriptComponent>
             <TransformComponent x="0" y="0"/>
         </Entity>
+        <Entity id="1">
+            <LayerComponent name="entity" visible="false"/>
+            <NameComponent name="Vitals"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="64" r="245" g="240" b="235" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="128" y="13"/>
+        </Entity>
     </Entities>
 </Prefab>

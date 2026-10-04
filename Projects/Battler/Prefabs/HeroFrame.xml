@@ -43,13 +43,6 @@
             <TextComponent text="Name" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
             <TransformComponent x="35.944065" y="78.399345"/>
         </Entity>
-        <Entity id="3">
-            <LayerComponent name="ui"/>
-            <NameComponent name="Vitals"/>
-            <ParentComponent target="0"/>
-            <TextComponent text="" fontSize="16" r="170" g="170" b="185" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
-            <TransformComponent x="190" y="13"/>
-        </Entity>
         <Entity id="4">
             <LayerComponent name="ui"/>
             <MaterialComponent padding="0" enabled="true">
@@ -64,6 +57,13 @@
             <ParentComponent target="0"/>
             <RectangleComponent width="146" height="11" cornerRadius="0.40000001"/>
             <TransformComponent x="78" y="18.807823"/>
+        </Entity>
+        <Entity id="3">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Vitals"/>
+            <ParentComponent target="4"/>
+            <TextComponent text="" fontSize="16" r="245" g="240" b="235" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="73" y="5.5"/>
         </Entity>
         <Entity id="30">
             <LayerComponent name="ui"/>
