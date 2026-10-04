@@ -232,6 +232,7 @@ private:
         Vector3 min, max;  // the triangles' bounds
     };
     std::unordered_map<Entity, ModelTriangles> modelTriangles_;
+    uint64_t castersVersion_ = 0;  // bumped whenever a caster's triangles change, or one comes or goes
 };
 
 class RenderSystem : public System {

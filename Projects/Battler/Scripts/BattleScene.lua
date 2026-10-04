@@ -7,6 +7,10 @@
 --   for a spot in the blue area, Strike for a foe, Bolt for a spot to blast. Right-click / Esc
 --   puts the card back. End Turn (or Space) ends the phase. Middle-drag pans, right-drag
 --   turns, wheel zooms (and tilts). R restarts.
+-- The battlefield is an encounter prefab (Prefabs/Encounters), spawned at the origin: its room
+-- and the spawn points the units start on. In a run (Scripts/Battler/Run.lua) it's the
+-- encounter the party walked into, and the result goes back to the run: a win returns to the
+-- Dungeon (or the Campfire, floor cleared), a loss ends the run. Otherwise it's the default.
 -- Versus: entered from the Lobby scene with the connection already open (Skirmish comes in with
 -- none and plays the AI). The host plays the blue team and moves first,
 -- the joiner plays red. Every card played goes across as a command the moment it's played and
@@ -18,6 +22,7 @@ local Units = require("Scripts/Battler/Units")
 local Rules = require("Scripts/Battler/Rules")
 local Net = require("Scripts/Battler/Net")
 local Cards = require("Scripts/Battler/Cards")
+local Run = require("Scripts/Battler/Run")
 local Music = require("Scripts/Menu/Music")
 local Sfx = require("Scripts/Menu/Sfx")
 local Widgets = require("Scripts/Components/Widgets")
@@ -51,14 +56,9 @@ local PLAYER, ENEMY = Units.PLAYER, Units.ENEMY
 local SCREEN_W, SCREEN_H = 1280, 720
 local FONT = "Fonts/EnchantedLand-Regular.ttf"  -- every HUD line is drawn in it
 local SPEED = 215          -- ground units a second
-local CELL = 8             -- the navmesh's cellSize (BattleFree.xml), for drawing reach runs
+local CELL = 8             -- the navmesh's cellSize (Battle.xml), for drawing reach runs
 local COS = Board.PITCH_COS
 
--- Start spots, by the old board's tile coordinates.
-local ROSTER = {
-    { "Marsh", PLAYER, 1, 2 }, { "Gryphon", PLAYER, 2, 1 }, { "Alexa", PLAYER, 1, 1 },
-    { "Brigand", ENEMY, 9, 9 }, { "Poacher", ENEMY, 10, 7 }, { "Brigand", ENEMY, 7, 10 }, { "Hexer", ENEMY, 10, 10 },
-}
 
 -- The kinds of card that ask for a target before they're played (Scripts/Battler/Cards.lua).
 local AIMED = { attack = true, bolt = true }
@@ -127,8 +127,40 @@ function Battle:Initialize()
     self.net = false              -- a versus game (true) or solo against the AI
     self.ambiance = nil           -- the looping ambiance's sound id, once the battle starts
     self.matches = 0              -- battles fought this visit; with versus, seeds the decks
+    self.encounter = Run.Encounter()
+    self.roster = self:SpawnRoom(self.encounter.prefab)
     self:BindHud()
     Log("Battler (free): waiting for the navmesh...")
+end
+
+-- Spawns the encounter's room and returns its roster: { class, team, x, y } per spawn point,
+-- the party (HeroN, in Run.PARTY order) then the foes (MobN:Class), each in number order so
+-- both sides of a versus game index the units the same.
+function Battle:SpawnRoom(prefab)
+    local room = SpawnPrefab(prefab, 0, 0, 0)
+    if not room then Log("Battler: couldn't spawn " .. prefab) return {} end
+    local heroes, mobs = {}, {}
+    for _, e in ipairs(GetChildren(room)) do
+        local n = GetComponent(e, "Name")
+        local t = GetComponent(e, "Transform")
+        local name = n and n.name:gsub("^.*::", "") or ""
+        local hero = name:match("^Hero(%d+)$")
+        local mob, class = name:match("^Mob(%d+):(%w+)$")
+        if t and hero then
+            heroes[#heroes + 1] = { n = tonumber(hero), x = t.localX, y = t.localY }
+        elseif t and mob and Units.Classes[class] then
+            mobs[#mobs + 1] = { n = tonumber(mob), class = class, x = t.localX, y = t.localY }
+        end
+    end
+    local byN = function(a, b) return a.n < b.n end
+    table.sort(heroes, byN)
+    table.sort(mobs, byN)
+    local roster = {}
+    for k, h in ipairs(heroes) do
+        if Run.PARTY[k] then roster[#roster + 1] = { class = Run.PARTY[k], team = PLAYER, x = h.x, y = h.y } end
+    end
+    for _, m in ipairs(mobs) do roster[#roster + 1] = { class = m.class, team = ENEMY, x = m.x, y = m.y } end
+    return roster
 end
 
 -- --- Network ------------------------------------------------------------------------------
@@ -214,15 +246,16 @@ function Battle:StartBattle()
     -- Versus: both sides deal from the same seed (and count rematches the same way).
     local seed = self.net and (7919 + self.matches * 104729) or (os and os.time and os.time() or Random(1, 1000000))
     local rng = Cards.NewRng(seed)
-    for _, r in ipairs(ROSTER) do
-        local x, y = Board.Center(r[3], r[4])
-        local z = NavFloorHeight(x, y, 0)
+    for _, r in ipairs(self.roster) do
+        local z = NavFloorHeight(r.x, r.y, 0)
         if z then
-            local u = Units.Spawn(r[1], r[2], { x = x, y = y, z = z })
+            local u = Units.Spawn(r.class, r.team, { x = r.x, y = r.y, z = z })
             if u then
                 self.units[#self.units + 1] = u
                 u.index = #self.units  -- how commands name it; the roster spawns the same on both sides
                 u.piles = Cards.NewPiles(u.class.deck, rng)
+                local wounds = r.team == PLAYER and Run.Wounds(u.name)
+                if wounds then u.hp, u.shownHp = math.min(u.hp, wounds), math.min(u.hp, wounds) end
             end
         end
     end
@@ -516,17 +549,31 @@ end
 function Battle:CheckOver()
     local again = self.net and "R  Rematch     Esc  Leave" or "R  Fight again     Esc  Menu"
     if #self:Living(self.them) == 0 then
-        self.state = "over"
+        self.state, self.won = "over", true
         Play(SFX.victory)
-        self:ShowBanner("VICTORY", again)
+        self:ShowBanner("VICTORY", Run.Active() and "Click to go on" or again)
         return true
     elseif #self:Living(self.me) == 0 then
-        self.state = "over"
+        self.state, self.won = "over", false
         Play(SFX.defeat)
-        self:ShowBanner("DEFEAT", again)
+        self:ShowBanner("DEFEAT", Run.Active() and "Your run is over.   Click to return to the campfire" or again)
         return true
     end
     return false
+end
+
+-- In a run, once it's over: back to the dungeon (or the campfire), or the run ends.
+function Battle:Continue()
+    self:StopSteps()
+    if self.ambiance then StopSound(self.ambiance) self.ambiance = nil end
+    local party = {}
+    for _, u in ipairs(self.units) do if u.team == PLAYER then party[#party + 1] = u end end
+    if self.won then
+        SceneReplace(Run.Won(party))
+    else
+        Run.Lost()
+        SceneReplace("Campfire")
+    end
 end
 
 -- Starts `team`'s phase: ours takes input, the other side's is the AI's (solo) or replays the
@@ -947,6 +994,13 @@ function Battle:Click()
 end
 
 function Battle:HandleEvent(event)
+    if self.state == "over" and Run.Active() then
+        local go = (event.type == "MouseButtonPressed" and event.button == MOUSE_LEFT)
+            or (event.type == "KeyPressed" and (event.key == KEY_SPACE or event.key == KEY_ENTER or event.key == KEY_ESCAPE))
+        if go then self:Continue() end
+        return go
+    end
+    if event.type == "KeyPressed" and event.key == KEY_R and Run.Active() then return true end  -- no do-overs in a run
     if event.type == "KeyPressed" then
         if event.key == KEY_R and self.net and not Net.Active() then return true end  -- they left
         if event.key == KEY_R and (self.state == "over" or (self.state == "battle" and not self.net)) then
@@ -1133,7 +1187,7 @@ function Battle:Forecast()
 end
 
 -- --- HUD ---
--- The HUD is prefab placements in Scenes/BattleFree.xml (TopBar, UnitCard, Forecast, the hero
+-- The HUD is prefab placements in Scenes/Battle.xml (TopBar, UnitCard, Forecast, the hero
 -- frames, the Hand, EndTurn and the Banner); this binds the Hand and the button and fills the
 -- rest in each frame.
 

@@ -19,7 +19,7 @@
 
 // Additional useful Tracy macros
 #define ProfileText(text) ZoneText(text, strlen(text))
-#define ProfileValue(name, value) ZoneValue(name, value)
+#define ProfileValue(name, value) TracyPlot(name, (int64_t)(value))  // a named plot over time
 #define ProfileName(name) ZoneName(name, strlen(name))
 #else
 // No-op macros when Tracy is disabled

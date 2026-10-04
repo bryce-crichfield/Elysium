@@ -57,7 +57,7 @@ function Lobby:Update(dt)
     for _, e in ipairs(Net.Poll()) do
         if e.type == "connected" then
             -- Both sides hear this; the battle reads the open connection and starts versus.
-            SceneReplace("BattleFree")
+            SceneReplace("Battle")
             return
         elseif e.type == "disconnected" and self.state == "joining" then
             Net.Stop()

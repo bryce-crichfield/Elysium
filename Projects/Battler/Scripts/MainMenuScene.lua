@@ -4,6 +4,7 @@
 local Music = require("Scripts/Menu/Music")
 local Settings = require("Scripts/Menu/Settings")
 local Widgets = require("Scripts/Components/Widgets")
+local Run = require("Scripts/Battler/Run")
 
 local MainMenu = {}
 
@@ -11,9 +12,10 @@ function MainMenu:Initialize()
     Music.Play(Music.MENU)
     Settings.Apply()  -- the volume settings, not the engine's default of 1
     self.time = 0
-    Widgets.BindButton("Adventure", function() SceneReplace("Overworld") end)
-    Widgets.BindButton("Skirmish", function() SceneReplace("BattleFree") end)
-    Widgets.BindButton("Versus", function() SceneReplace("Lobby") end)
+    -- A run starts at the campfire; Skirmish and Versus are one-off battles outside any run.
+    Widgets.BindButton("Adventure", function() Run.New() SceneReplace("Campfire") end)
+    Widgets.BindButton("Skirmish", function() Run.Clear() SceneReplace("Battle") end)
+    Widgets.BindButton("Versus", function() Run.Clear() SceneReplace("Lobby") end)
     Widgets.BindButton("Settings", function() SceneReplace("Settings") end)
     Widgets.BindButton("Quit", function() Quit() end)
 end

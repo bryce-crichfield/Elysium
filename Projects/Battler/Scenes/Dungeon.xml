@@ -1,5 +1,5 @@
 <Scene>
-    <SceneScript path="Scripts/OverworldScene.lua"/>
+    <SceneScript path="Scripts/DungeonScene.lua"/>
     <EditorMetadata gridDivisor="1" gridHeight="32" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="64"/>
     <Systems>
         <System type="MovementSystem"/>
@@ -36,6 +36,18 @@
             <NameComponent name="NavArea Room"/>
             <NavAreaComponent points="-156.862,-595.977 1394.4,190.281 477.988,631.223 -1062.65,-144.41" type="Walkable" cost="1"/>
             <TransformComponent x="-9.174284" y="111.99997"/>
+        </Entity>
+        <Entity name="Encounter1">
+            <NameComponent name="Encounter1"/>
+            <TransformComponent x="-679.17" y="-28.51"/>
+        </Entity>
+        <Entity name="Encounter2">
+            <NameComponent name="Encounter2"/>
+            <TransformComponent x="-167.17" y="-412.51"/>
+        </Entity>
+        <Entity name="Encounter3">
+            <NameComponent name="Encounter3"/>
+            <TransformComponent x="728.83" y="419.49"/>
         </Entity>
     </Entities>
     <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor1">

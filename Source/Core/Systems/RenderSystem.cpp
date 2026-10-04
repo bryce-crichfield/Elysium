@@ -1267,6 +1267,9 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     if (layer.shadows && lightCount > 0) {
         ProfileN("World3D Shadows");
         std::vector<Entity> casters;
+        int rebuilt = 0;  // casters whose triangles were rebuilt this frame (they moved or changed)
+        {
+        ProfileN("Shadows: Gather Casters");
         const_cast<World&>(world).Query<TransformComponent, ModelComponent>([&](Entity entity, const auto& transform, const auto& component) {
             // Floors and stairs (walkable) cast nothing: lights stand above them, and a floor
             // would only shadow itself.
@@ -1283,6 +1286,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
                 if (cached.model) shadowAtlas3D_.Invalidate(cached.min, cached.max);
                 cached.matrix = matrix;
                 cached.model = model;
+                ++rebuilt;
                 cached.triangles.clear();
                 AppendTriangles(*static_cast<const ::Model*>(model->native), ToRaylib(matrix), cached.triangles);
                 cached.min = {1e30f, 1e30f, 1e30f};
@@ -1296,13 +1300,17 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             }
             casters.push_back(entity);
         });
+        ProfileValue("casters", (int64_t)casters.size());
+        ProfileValue("rebuilt", (int64_t)rebuilt);
+        if (rebuilt > 0) ++castersVersion_;
+        }
         // Casters that are gone (dead, walkable now, no model): the lights that saw them redraw.
         std::unordered_set<Entity> casting(casters.begin(), casters.end());
-        std::erase_if(modelTriangles_, [&](const auto& entry) {
+        if (std::erase_if(modelTriangles_, [&](const auto& entry) {
             if (casting.contains(entry.first)) return false;
             if (entry.second.model) shadowAtlas3D_.Invalidate(entry.second.min, entry.second.max);
             return true;
-        });
+        }) > 0) ++castersVersion_;
         std::vector<ShadowAtlas::Light> shadowLights;
         for (int i = 0; i < lightCount; ++i) {
             // A light skips its own model, or else the model it's embedded in (a torch on a
@@ -1320,11 +1328,17 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             }
             shadowLights.push_back({at, lights_[i].radius, owner});
         }
-        shadowAtlas3D_.Render(ctx, shadowLights, [&](ShadowAtlas::Casters& out) {
+        shadowAtlas3D_.Render(ctx, shadowLights, castersVersion_, [&](ShadowAtlas::Casters& out) {
             for (Entity entity : casters) {
-                const auto& tris = modelTriangles_[entity].triangles;
-                out.triangles.insert(out.triangles.end(), tris.begin(), tris.end());
-                out.owners.resize(out.triangles.size() / 3, (unsigned int)entity);
+                const ModelTriangles& cached = modelTriangles_[entity];
+                ShadowAtlas::Group group;
+                group.first = out.triangles.size() / 3;
+                group.count = cached.triangles.size() / 3;
+                group.owner = (unsigned int)entity;
+                group.min = cached.min;
+                group.max = cached.max;
+                out.triangles.insert(out.triangles.end(), cached.triangles.begin(), cached.triangles.end());
+                out.groups.push_back(group);
             }
         });
         shadowCount = shadowAtlas3D_.LightCount();

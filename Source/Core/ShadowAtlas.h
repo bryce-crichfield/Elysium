@@ -33,17 +33,26 @@ class ShadowAtlas {
         unsigned int owner = kNoOwner;  // skips the triangles with the same owner
     };
 
-    // The casters: three world-space vertices per triangle, and one owner per triangle.
+    // The casters: three world-space vertices per triangle, grouped by owner (a model). Each
+    // group's box bounds its triangles, so a light skips whole models out of its reach.
+    struct Group {
+        size_t first = 0;   // its first triangle
+        size_t count = 0;   // and how many
+        unsigned int owner = kNoOwner;
+        Elysium::Vector3 min, max;
+    };
     struct Casters {
         std::vector<Elysium::Vector3> triangles;
-        std::vector<unsigned int> owners;
+        std::vector<Group> groups;
     };
 
-    // Lights past Rows() are ignored; each light only draws the triangles that reach into its
+    // Lights past Rows() are ignored; each light only draws the models that reach into its
     // radius. A row is redrawn only when its light changed or Invalidate touched it since it was
-    // last drawn, so still lights over still models cost nothing. `gather` is only called (once)
-    // when some row needs redrawing.
-    void Render(RenderContext& ctx, const std::vector<Light>& lights, const std::function<void(Casters&)>& gather);
+    // last drawn, so still lights over still models cost nothing. The casters are kept on the
+    // GPU: `gather` is only called when some row needs redrawing and `castersVersion` differs
+    // from the last upload's (bump it whenever any caster's triangles change).
+    void Render(RenderContext& ctx, const std::vector<Light>& lights, uint64_t castersVersion,
+                const std::function<void(Casters&)>& gather);
     // A caster changed inside this box (world space): redraw the rows whose light reaches it.
     void Invalidate(Elysium::Vector3 min, Elysium::Vector3 max);
 
@@ -63,6 +72,14 @@ class ShadowAtlas {
         Light light;
     };
     std::vector<Row> rows_;
+    // The casters as uploaded: their groups, and the vertex buffer holding their triangles.
+    std::vector<Group> groups_;
+    unsigned int vao_ = 0, vbo_ = 0;
+    int vertexCount_ = 0;
+    uint64_t castersVersion_ = 0;
+    bool uploaded_ = false;
+    // Scratch, kept between frames: the groups each cube face of the light being drawn sees.
+    std::vector<size_t> faces_[6];
 };
 
 }  // namespace Elysium

@@ -1,674 +1,752 @@
-<Scene>
-    <SceneScript path="Scripts/BattleScene.lua"/>
-    <EditorMetadata gridDivisor="1" gridHeight="64" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="128"/>
-    <Systems>
-        <System type="ScriptSystem"/>
-        <System type="SpriteSystem"/>
-        <System type="AnimationSystem"/>
-        <System type="TransformSystem"/>
-        <System type="NavMeshSystem" cellSize="8.000000" debugDraw="false" stepHeight="20.000000"/>
-        <System type="RenderSystem"/>
-    </Systems>
-    <SceneConfiguration width="1920" height="1080">
-        <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#323667FF" sunColor="#FFEBD7FF" sunIntensity="0.85000002" sunYaw="40" sunPitch="66" rimLight="0.69999999" shadows="true" shadowBias="12" fogOfWar="0.60000002" fogColor="#06060CFF"/>
-        <SceneLayer name="overlay" z="3" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
-        <SceneLayer name="fx" z="4" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
-        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
-        <SceneLayer name="uiTop" z="11" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
-    </SceneConfiguration>
+<!-- Encounter: the crypt, the first battlefield (raised ledges, five pillars). Spawn points are the named children: HeroN for the party (in order), MobN:Class for each foe. Scripts/BattleScene.lua spawns this at the origin and reads them; the floor follows the board grid (Scripts/Battler/Board.lua). -->
+<Prefab>
     <Entities>
-        <Entity name="CAMERA">
-            <NameComponent name="CAMERA"/>
+        <Entity id="0">
+            <NameComponent name="Crypt"/>
             <TransformComponent x="0" y="0"/>
-            <CameraComponent/>
+        </Entity>
+        <Entity id="1">
+            <NameComponent name="Hero1"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="-64" y="-256"/>
+        </Entity>
+        <Entity id="2">
+            <NameComponent name="Hero2"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="64" y="-256"/>
+        </Entity>
+        <Entity id="3">
+            <NameComponent name="Hero3"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="-288"/>
+        </Entity>
+        <Entity id="4">
+            <NameComponent name="Mob1:Brigand"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="224"/>
+        </Entity>
+        <Entity id="5">
+            <NameComponent name="Mob2:Poacher"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="192" y="192"/>
+        </Entity>
+        <Entity id="6">
+            <NameComponent name="Mob3:Brigand"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="-192" y="192"/>
+        </Entity>
+        <Entity id="7">
+            <NameComponent name="Mob4:Hexer"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="288"/>
         </Entity>
     </Entities>
-    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame1">
-        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
-        <Override entity="0" component="TransformComponent" field="y" value="64"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame2">
-        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
-        <Override entity="0" component="TransformComponent" field="y" value="148"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame3">
-        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
-        <Override entity="0" component="TransformComponent" field="y" value="232"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame4">
-        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
-        <Override entity="0" component="TransformComponent" field="y" value="316"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame1">
-        <Override entity="0" component="TransformComponent" field="x" value="12"/>
-        <Override entity="0" component="TransformComponent" field="y" value="64"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame2">
-        <Override entity="0" component="TransformComponent" field="x" value="12"/>
-        <Override entity="0" component="TransformComponent" field="y" value="148"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame3">
-        <Override entity="0" component="TransformComponent" field="x" value="12"/>
-        <Override entity="0" component="TransformComponent" field="y" value="232"/>
-    </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar0">
+    <PrefabInstance src="../Pillar.xml" id="Pillar0">
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar1">
+    <PrefabInstance src="../Pillar.xml" id="Pillar1">
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar2">
+    <PrefabInstance src="../Pillar.xml" id="Pillar2">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar3">
+    <PrefabInstance src="../Pillar.xml" id="Pillar3">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Pillar.xml" id="Pillar4">
+    <PrefabInstance src="../Pillar.xml" id="Pillar4">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_0">
+    <PrefabInstance src="../Tile.xml" id="Tile0_0">
         <Override entity="0" component="TransformComponent" field="y" value="-352"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_1">
+    <PrefabInstance src="../Tile.xml" id="Tile0_1">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-320"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_10">
+    <PrefabInstance src="../Tile.xml" id="Tile0_10">
         <Override entity="0" component="TransformComponent" field="x" value="-640"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_2">
+    <PrefabInstance src="../Tile.xml" id="Tile0_2">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-288"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_3">
+    <PrefabInstance src="../Tile.xml" id="Tile0_3">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
         <Override entity="0" component="TransformComponent" field="y" value="-256"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_4">
+    <PrefabInstance src="../Tile.xml" id="Tile0_4">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_5">
+    <PrefabInstance src="../Tile.xml" id="Tile0_5">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>
         <Override entity="0" component="TransformComponent" field="y" value="-192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_6">
+    <PrefabInstance src="../Tile.xml" id="Tile0_6">
         <Override entity="0" component="TransformComponent" field="x" value="-384"/>
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_7">
+    <PrefabInstance src="../Tile.xml" id="Tile0_7">
         <Override entity="0" component="TransformComponent" field="x" value="-448"/>
         <Override entity="0" component="TransformComponent" field="y" value="-128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_8">
+    <PrefabInstance src="../Tile.xml" id="Tile0_8">
         <Override entity="0" component="TransformComponent" field="x" value="-512"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile0_9">
+    <PrefabInstance src="../Tile.xml" id="Tile0_9">
         <Override entity="0" component="TransformComponent" field="x" value="-576"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_0">
+    <PrefabInstance src="../Tile.xml" id="Tile10_0">
         <Override entity="0" component="TransformComponent" field="x" value="640"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_1">
+    <PrefabInstance src="../Tile.xml" id="Tile10_1">
         <Override entity="0" component="TransformComponent" field="x" value="576"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_10">
+    <PrefabInstance src="../Tile.xml" id="Tile10_10">
         <Override entity="0" component="TransformComponent" field="y" value="288"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_11">
+    <PrefabInstance src="../Tile.xml" id="Tile10_11">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="320"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_2">
+    <PrefabInstance src="../Tile.xml" id="Tile10_2">
         <Override entity="0" component="TransformComponent" field="x" value="512"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
         <Override entity="0" component="TransformComponent" field="z" value="24.4"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_3">
+    <PrefabInstance src="../Tile.xml" id="Tile10_3">
         <Override entity="0" component="TransformComponent" field="x" value="448"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
         <Override entity="0" component="TransformComponent" field="z" value="24.4"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_4">
+    <PrefabInstance src="../Tile.xml" id="Tile10_4">
         <Override entity="0" component="TransformComponent" field="x" value="384"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_5">
+    <PrefabInstance src="../Tile.xml" id="Tile10_5">
         <Override entity="0" component="TransformComponent" field="x" value="320"/>
         <Override entity="0" component="TransformComponent" field="y" value="128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_6">
+    <PrefabInstance src="../Tile.xml" id="Tile10_6">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_7">
+    <PrefabInstance src="../Tile.xml" id="Tile10_7">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
         <Override entity="0" component="TransformComponent" field="y" value="192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_8">
+    <PrefabInstance src="../Tile.xml" id="Tile10_8">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile10_9">
+    <PrefabInstance src="../Tile.xml" id="Tile10_9">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="256"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_1">
+    <PrefabInstance src="../Tile.xml" id="Tile11_1">
         <Override entity="0" component="TransformComponent" field="x" value="640"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_10">
+    <PrefabInstance src="../Tile.xml" id="Tile11_10">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="320"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_11">
+    <PrefabInstance src="../Tile.xml" id="Tile11_11">
         <Override entity="0" component="TransformComponent" field="y" value="352"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_2">
+    <PrefabInstance src="../Tile.xml" id="Tile11_2">
         <Override entity="0" component="TransformComponent" field="x" value="576"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
         <Override entity="0" component="TransformComponent" field="z" value="24.4"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_3">
+    <PrefabInstance src="../Tile.xml" id="Tile11_3">
         <Override entity="0" component="TransformComponent" field="x" value="512"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
         <Override entity="0" component="TransformComponent" field="z" value="24.4"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_4">
+    <PrefabInstance src="../Tile.xml" id="Tile11_4">
         <Override entity="0" component="TransformComponent" field="x" value="448"/>
         <Override entity="0" component="TransformComponent" field="y" value="128"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_5">
+    <PrefabInstance src="../Tile.xml" id="Tile11_5">
         <Override entity="0" component="TransformComponent" field="x" value="384"/>
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_6">
+    <PrefabInstance src="../Tile.xml" id="Tile11_6">
         <Override entity="0" component="TransformComponent" field="x" value="320"/>
         <Override entity="0" component="TransformComponent" field="y" value="192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_7">
+    <PrefabInstance src="../Tile.xml" id="Tile11_7">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_8">
+    <PrefabInstance src="../Tile.xml" id="Tile11_8">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
         <Override entity="0" component="TransformComponent" field="y" value="256"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile11_9">
+    <PrefabInstance src="../Tile.xml" id="Tile11_9">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="288"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_0">
+    <PrefabInstance src="../Tile.xml" id="Tile1_0">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-320"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_1">
+    <PrefabInstance src="../Tile.xml" id="Tile1_1">
         <Override entity="0" component="TransformComponent" field="y" value="-288"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_10">
+    <PrefabInstance src="../Tile.xml" id="Tile1_10">
         <Override entity="0" component="TransformComponent" field="x" value="-576"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_11">
+    <PrefabInstance src="../Tile.xml" id="Tile1_11">
         <Override entity="0" component="TransformComponent" field="x" value="-640"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_2">
+    <PrefabInstance src="../Tile.xml" id="Tile1_2">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-256"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_3">
+    <PrefabInstance src="../Tile.xml" id="Tile1_3">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_4">
+    <PrefabInstance src="../Tile.xml" id="Tile1_4">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
         <Override entity="0" component="TransformComponent" field="y" value="-192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_5">
+    <PrefabInstance src="../Tile.xml" id="Tile1_5">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_6">
+    <PrefabInstance src="../Tile.xml" id="Tile1_6">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>
         <Override entity="0" component="TransformComponent" field="y" value="-128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_7">
+    <PrefabInstance src="../Tile.xml" id="Tile1_7">
         <Override entity="0" component="TransformComponent" field="x" value="-384"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_8">
+    <PrefabInstance src="../Tile.xml" id="Tile1_8">
         <Override entity="0" component="TransformComponent" field="x" value="-448"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile1_9">
+    <PrefabInstance src="../Tile.xml" id="Tile1_9">
         <Override entity="0" component="TransformComponent" field="x" value="-512"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_0">
+    <PrefabInstance src="../Tile.xml" id="Tile2_0">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-288"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_1">
+    <PrefabInstance src="../Tile.xml" id="Tile2_1">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-256"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_10">
+    <PrefabInstance src="../Tile.xml" id="Tile2_10">
         <Override entity="0" component="TransformComponent" field="x" value="-512"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_11">
+    <PrefabInstance src="../Tile.xml" id="Tile2_11">
         <Override entity="0" component="TransformComponent" field="x" value="-576"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_2">
+    <PrefabInstance src="../Tile.xml" id="Tile2_2">
         <Override entity="0" component="TransformComponent" field="y" value="-224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_3">
+    <PrefabInstance src="../Tile.xml" id="Tile2_3">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_4">
+    <PrefabInstance src="../Tile.xml" id="Tile2_4">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_5">
+    <PrefabInstance src="../Tile.xml" id="Tile2_5">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
         <Override entity="0" component="TransformComponent" field="y" value="-128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_6">
+    <PrefabInstance src="../Tile.xml" id="Tile2_6">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_7">
+    <PrefabInstance src="../Tile.xml" id="Tile2_7">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_8">
+    <PrefabInstance src="../Tile.xml" id="Tile2_8">
         <Override entity="0" component="TransformComponent" field="x" value="-384"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile2_9">
+    <PrefabInstance src="../Tile.xml" id="Tile2_9">
         <Override entity="0" component="TransformComponent" field="x" value="-448"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_0">
+    <PrefabInstance src="../Tile.xml" id="Tile3_0">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
         <Override entity="0" component="TransformComponent" field="y" value="-256"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_1">
+    <PrefabInstance src="../Tile.xml" id="Tile3_1">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_10">
+    <PrefabInstance src="../Tile.xml" id="Tile3_10">
         <Override entity="0" component="TransformComponent" field="x" value="-448"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_11">
+    <PrefabInstance src="../Tile.xml" id="Tile3_11">
         <Override entity="0" component="TransformComponent" field="x" value="-512"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_2">
+    <PrefabInstance src="../Tile.xml" id="Tile3_2">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_3">
+    <PrefabInstance src="../Tile.xml" id="Tile3_3">
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_4">
+    <PrefabInstance src="../Tile.xml" id="Tile3_4">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_5">
+    <PrefabInstance src="../Tile.xml" id="Tile3_5">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_6">
+    <PrefabInstance src="../Tile.xml" id="Tile3_6">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_7">
+    <PrefabInstance src="../Tile.xml" id="Tile3_7">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_8">
+    <PrefabInstance src="../Tile.xml" id="Tile3_8">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile3_9">
+    <PrefabInstance src="../Tile.xml" id="Tile3_9">
         <Override entity="0" component="TransformComponent" field="x" value="-384"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_0">
+    <PrefabInstance src="../Tile.xml" id="Tile4_0">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_1">
+    <PrefabInstance src="../Tile.xml" id="Tile4_1">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
         <Override entity="0" component="TransformComponent" field="y" value="-192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_10">
+    <PrefabInstance src="../Tile.xml" id="Tile4_10">
         <Override entity="0" component="TransformComponent" field="x" value="-384"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_11">
+    <PrefabInstance src="../Tile.xml" id="Tile4_11">
         <Override entity="0" component="TransformComponent" field="x" value="-448"/>
         <Override entity="0" component="TransformComponent" field="y" value="128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_2">
+    <PrefabInstance src="../Tile.xml" id="Tile4_2">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_3">
+    <PrefabInstance src="../Tile.xml" id="Tile4_3">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_4">
+    <PrefabInstance src="../Tile.xml" id="Tile4_4">
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_5">
+    <PrefabInstance src="../Tile.xml" id="Tile4_5">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_6">
+    <PrefabInstance src="../Tile.xml" id="Tile4_6">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_7">
+    <PrefabInstance src="../Tile.xml" id="Tile4_7">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_8">
+    <PrefabInstance src="../Tile.xml" id="Tile4_8">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile4_9">
+    <PrefabInstance src="../Tile.xml" id="Tile4_9">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_0">
+    <PrefabInstance src="../Tile.xml" id="Tile5_0">
         <Override entity="0" component="TransformComponent" field="x" value="320"/>
         <Override entity="0" component="TransformComponent" field="y" value="-192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_1">
+    <PrefabInstance src="../Tile.xml" id="Tile5_1">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_10">
+    <PrefabInstance src="../Tile.xml" id="Tile5_10">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>
         <Override entity="0" component="TransformComponent" field="y" value="128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_11">
+    <PrefabInstance src="../Tile.xml" id="Tile5_11">
         <Override entity="0" component="TransformComponent" field="x" value="-384"/>
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_2">
+    <PrefabInstance src="../Tile.xml" id="Tile5_2">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
         <Override entity="0" component="TransformComponent" field="y" value="-128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_3">
+    <PrefabInstance src="../Tile.xml" id="Tile5_3">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_4">
+    <PrefabInstance src="../Tile.xml" id="Tile5_4">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_7">
+    <PrefabInstance src="../Tile.xml" id="Tile5_7">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_8">
+    <PrefabInstance src="../Tile.xml" id="Tile5_8">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile5_9">
+    <PrefabInstance src="../Tile.xml" id="Tile5_9">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_0">
+    <PrefabInstance src="../Tile.xml" id="Tile6_0">
         <Override entity="0" component="TransformComponent" field="x" value="384"/>
         <Override entity="0" component="TransformComponent" field="y" value="-160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_1">
+    <PrefabInstance src="../Tile.xml" id="Tile6_1">
         <Override entity="0" component="TransformComponent" field="x" value="320"/>
         <Override entity="0" component="TransformComponent" field="y" value="-128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_10">
+    <PrefabInstance src="../Tile.xml" id="Tile6_10">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_11">
+    <PrefabInstance src="../Tile.xml" id="Tile6_11">
         <Override entity="0" component="TransformComponent" field="x" value="-320"/>
         <Override entity="0" component="TransformComponent" field="y" value="192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_2">
+    <PrefabInstance src="../Tile.xml" id="Tile6_2">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_3">
+    <PrefabInstance src="../Tile.xml" id="Tile6_3">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_4">
+    <PrefabInstance src="../Tile.xml" id="Tile6_4">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_7">
+    <PrefabInstance src="../Tile.xml" id="Tile6_7">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_8">
+    <PrefabInstance src="../Tile.xml" id="Tile6_8">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile6_9">
+    <PrefabInstance src="../Tile.xml" id="Tile6_9">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
         <Override entity="0" component="TransformComponent" field="y" value="128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_0">
+    <PrefabInstance src="../Tile.xml" id="Tile7_0">
         <Override entity="0" component="TransformComponent" field="x" value="448"/>
         <Override entity="0" component="TransformComponent" field="y" value="-128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_1">
+    <PrefabInstance src="../Tile.xml" id="Tile7_1">
         <Override entity="0" component="TransformComponent" field="x" value="384"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_10">
+    <PrefabInstance src="../Tile.xml" id="Tile7_10">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
         <Override entity="0" component="TransformComponent" field="y" value="192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_11">
+    <PrefabInstance src="../Tile.xml" id="Tile7_11">
         <Override entity="0" component="TransformComponent" field="x" value="-256"/>
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_2">
+    <PrefabInstance src="../Tile.xml" id="Tile7_2">
         <Override entity="0" component="TransformComponent" field="x" value="320"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_3">
+    <PrefabInstance src="../Tile.xml" id="Tile7_3">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_4">
+    <PrefabInstance src="../Tile.xml" id="Tile7_4">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_5">
+    <PrefabInstance src="../Tile.xml" id="Tile7_5">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_6">
+    <PrefabInstance src="../Tile.xml" id="Tile7_6">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_7">
+    <PrefabInstance src="../Tile.xml" id="Tile7_7">
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_8">
+    <PrefabInstance src="../Tile.xml" id="Tile7_8">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile7_9">
+    <PrefabInstance src="../Tile.xml" id="Tile7_9">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_0">
+    <PrefabInstance src="../Tile.xml" id="Tile8_0">
         <Override entity="0" component="TransformComponent" field="x" value="512"/>
         <Override entity="0" component="TransformComponent" field="y" value="-96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_1">
+    <PrefabInstance src="../Tile.xml" id="Tile8_1">
         <Override entity="0" component="TransformComponent" field="x" value="448"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_10">
+    <PrefabInstance src="../Tile.xml" id="Tile8_10">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_11">
+    <PrefabInstance src="../Tile.xml" id="Tile8_11">
         <Override entity="0" component="TransformComponent" field="x" value="-192"/>
         <Override entity="0" component="TransformComponent" field="y" value="256"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_2">
+    <PrefabInstance src="../Tile.xml" id="Tile8_2">
         <Override entity="0" component="TransformComponent" field="x" value="384"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_3">
+    <PrefabInstance src="../Tile.xml" id="Tile8_3">
         <Override entity="0" component="TransformComponent" field="x" value="320"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_4">
+    <PrefabInstance src="../Tile.xml" id="Tile8_4">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_5">
+    <PrefabInstance src="../Tile.xml" id="Tile8_5">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_6">
+    <PrefabInstance src="../Tile.xml" id="Tile8_6">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_7">
+    <PrefabInstance src="../Tile.xml" id="Tile8_7">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_8">
+    <PrefabInstance src="../Tile.xml" id="Tile8_8">
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile8_9">
+    <PrefabInstance src="../Tile.xml" id="Tile8_9">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_0">
+    <PrefabInstance src="../Tile.xml" id="Tile9_0">
         <Override entity="0" component="TransformComponent" field="x" value="576"/>
         <Override entity="0" component="TransformComponent" field="y" value="-64"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_1">
+    <PrefabInstance src="../Tile.xml" id="Tile9_1">
         <Override entity="0" component="TransformComponent" field="x" value="512"/>
         <Override entity="0" component="TransformComponent" field="y" value="-32"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_10">
+    <PrefabInstance src="../Tile.xml" id="Tile9_10">
         <Override entity="0" component="TransformComponent" field="x" value="-64"/>
         <Override entity="0" component="TransformComponent" field="y" value="256"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_11">
+    <PrefabInstance src="../Tile.xml" id="Tile9_11">
         <Override entity="0" component="TransformComponent" field="x" value="-128"/>
         <Override entity="0" component="TransformComponent" field="y" value="288"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_2">
+    <PrefabInstance src="../Tile.xml" id="Tile9_2">
         <Override entity="0" component="TransformComponent" field="x" value="448"/>
         <Override entity="0" component="TransformComponent" field="z" value="24.4"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_3">
+    <PrefabInstance src="../Tile.xml" id="Tile9_3">
         <Override entity="0" component="TransformComponent" field="x" value="384"/>
         <Override entity="0" component="TransformComponent" field="y" value="32"/>
         <Override entity="0" component="TransformComponent" field="z" value="24.4"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_4">
+    <PrefabInstance src="../Tile.xml" id="Tile9_4">
         <Override entity="0" component="TransformComponent" field="x" value="320"/>
         <Override entity="0" component="TransformComponent" field="y" value="64"/>
         <Override entity="0" component="TransformComponent" field="z" value="8.3999996"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_5">
+    <PrefabInstance src="../Tile.xml" id="Tile9_5">
         <Override entity="0" component="TransformComponent" field="x" value="256"/>
         <Override entity="0" component="TransformComponent" field="y" value="96"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_6">
+    <PrefabInstance src="../Tile.xml" id="Tile9_6">
         <Override entity="0" component="TransformComponent" field="x" value="192"/>
         <Override entity="0" component="TransformComponent" field="y" value="128"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_7">
+    <PrefabInstance src="../Tile.xml" id="Tile9_7">
         <Override entity="0" component="TransformComponent" field="x" value="128"/>
         <Override entity="0" component="TransformComponent" field="y" value="160"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_8">
+    <PrefabInstance src="../Tile.xml" id="Tile9_8">
         <Override entity="0" component="TransformComponent" field="x" value="64"/>
         <Override entity="0" component="TransformComponent" field="y" value="192"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Tile.xml" id="Tile9_9">
+    <PrefabInstance src="../Tile.xml" id="Tile9_9">
         <Override entity="0" component="TransformComponent" field="y" value="224"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch0">
+    <PrefabInstance src="../Torch.xml" id="Torch0">
         <Override entity="0" component="TransformComponent" field="x" value="4.4953995"/>
         <Override entity="0" component="TransformComponent" field="y" value="-323.83002"/>
         <Override entity="0" component="TransformComponent" field="z" value="64.667999"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch1">
+    <PrefabInstance src="../Torch.xml" id="Torch1">
         <Override entity="0" component="TransformComponent" field="x" value="463.37634"/>
         <Override entity="0" component="TransformComponent" field="y" value="39.715492"/>
         <Override entity="0" component="TransformComponent" field="z" value="64.667999"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch2">
+    <PrefabInstance src="../Torch.xml" id="Torch2">
         <Override entity="0" component="TransformComponent" field="x" value="-451.38852"/>
         <Override entity="0" component="TransformComponent" field="y" value="2.9974136"/>
         <Override entity="0" component="TransformComponent" field="z" value="64.667999"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Torch.xml" id="Torch3">
+    <PrefabInstance src="../Torch.xml" id="Torch3">
         <Override entity="0" component="TransformComponent" field="x" value="5.9942474"/>
         <Override entity="0" component="TransformComponent" field="y" value="300.60025"/>
         <Override entity="0" component="TransformComponent" field="z" value="64.668457"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/TopBar.xml" id="TopBar"/>
-    <PrefabInstance src="../Prefabs/UnitCard.xml" id="UnitCard">
-        <Override entity="0" component="TransformComponent" field="y" value="404"/>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_0">
+        <Override entity="0" component="TransformComponent" field="x" value="32"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-368"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Forecast.xml" id="Forecast">
-        <Override entity="0" component="TransformComponent" field="y" value="470"/>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_1">
+        <Override entity="0" component="TransformComponent" field="x" value="-32"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-368"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Button.xml" id="Wait">
-        <Param name="Label" value="Wait"/>
-        <Param name="Width" value="170"/>
-        <Param name="Height" value="44"/>
-        <Param name="Font Size" value="24"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
-        <Override entity="0" component="TransformComponent" field="y" value="612"/>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_2">
+        <Override entity="0" component="TransformComponent" field="x" value="-96"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-336"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Button.xml" id="EndTurn">
-        <Param name="Label" value="End Turn"/>
-        <Param name="Width" value="170"/>
-        <Param name="Height" value="44"/>
-        <Param name="Font Size" value="24"/>
-        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
-        <Override entity="0" component="TransformComponent" field="y" value="664"/>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_3">
+        <Override entity="0" component="TransformComponent" field="x" value="-160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-304"/>
     </PrefabInstance>
-    <PrefabInstance src="../Prefabs/Hand.xml" id="Hand"/>
-    <PrefabInstance src="../Prefabs/Banner.xml" id="Banner"/>
-</Scene>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_4">
+        <Override entity="0" component="TransformComponent" field="x" value="-224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-272"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_5">
+        <Override entity="0" component="TransformComponent" field="x" value="-288"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-240"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_6">
+        <Override entity="0" component="TransformComponent" field="x" value="-352"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-208"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_7">
+        <Override entity="0" component="TransformComponent" field="x" value="-416"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-176"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_8">
+        <Override entity="0" component="TransformComponent" field="x" value="-480"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-144"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_9">
+        <Override entity="0" component="TransformComponent" field="x" value="-544"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_10">
+        <Override entity="0" component="TransformComponent" field="x" value="-608"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_11">
+        <Override entity="0" component="TransformComponent" field="x" value="-672"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_12">
+        <Override entity="0" component="TransformComponent" field="x" value="96"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-336"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_13">
+        <Override entity="0" component="TransformComponent" field="x" value="-672"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_14">
+        <Override entity="0" component="TransformComponent" field="x" value="160"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-304"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_15">
+        <Override entity="0" component="TransformComponent" field="x" value="224"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-272"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_16">
+        <Override entity="0" component="TransformComponent" field="x" value="288"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-240"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_17">
+        <Override entity="0" component="TransformComponent" field="x" value="352"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-208"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_18">
+        <Override entity="0" component="TransformComponent" field="x" value="-96"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_19">
+        <Override entity="0" component="TransformComponent" field="x" value="416"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-176"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_20">
+        <Override entity="0" component="TransformComponent" field="x" value="-32"/>
+        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_21">
+        <Override entity="0" component="TransformComponent" field="x" value="480"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-144"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_22">
+        <Override entity="0" component="TransformComponent" field="x" value="96"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NW.xml" id="NW_23">
+        <Override entity="0" component="TransformComponent" field="x" value="32"/>
+        <Override entity="0" component="TransformComponent" field="y" value="48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_24">
+        <Override entity="0" component="TransformComponent" field="x" value="544"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_25">
+        <Override entity="0" component="TransformComponent" field="x" value="608"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-80"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_26">
+        <Override entity="0" component="TransformComponent" field="x" value="672"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-48"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Wall3D_NE.xml" id="NE_27">
+        <Override entity="0" component="TransformComponent" field="x" value="672"/>
+        <Override entity="0" component="TransformComponent" field="y" value="16"/>
+        <Override entity="0" component="TransformComponent" field="z" value="16"/>
+    </PrefabInstance>
+</Prefab>

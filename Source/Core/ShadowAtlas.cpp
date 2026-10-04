@@ -1,4 +1,5 @@
 #include "Core/ShadowAtlas.h"
+#include "Core/Common.h"
 #include "Core/Graphics.h"
 #include "Core/Log.h"
 #include "Core/RenderContext.h"
@@ -73,6 +74,17 @@ bool BoxInFace(int f, const float lo[3], const float hi[3]) {
     return true;
 }
 
+
+// The squared distance from p to the box [lo, hi] (0 inside it).
+inline float BoxDistance2(const float lo[3], const float hi[3], const float p[3]) {
+    float d2 = 0.0f;
+    for (int k = 0; k < 3; ++k) {
+        const float d = p[k] < lo[k] ? lo[k] - p[k] : (p[k] > hi[k] ? p[k] - hi[k] : 0.0f);
+        d2 += d * d;
+    }
+    return d2;
+}
+
 bool SameLight(const ShadowAtlas::Light& a, const ShadowAtlas::Light& b) {
     return a.position.x == b.position.x && a.position.y == b.position.y && a.position.z == b.position.z &&
            a.radius == b.radius && a.owner == b.owner;
@@ -103,7 +115,7 @@ void ShadowAtlas::Invalidate(Elysium::Vector3 min, Elysium::Vector3 max) {
     }
 }
 
-void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights,
+void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights, uint64_t castersVersion,
                          const std::function<void(Casters&)>& gather) {
     if (!shader_.IsValid() && !shaderFailed_) {
         std::string error;
@@ -126,11 +138,33 @@ void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights,
         const Row& row = rows_[i];
         if (!row.valid || !SameLight(row.light, lights[i])) dirty.push_back(i);
     }
+    ProfileN("ShadowAtlas Render");
+    ProfileValue("lights", lightCount_);
+    ProfileValue("dirty", dirty.size());
     if (dirty.empty()) return;
-    Casters casters;
-    gather(casters);
-    const std::vector<Elysium::Vector3>& triangles = casters.triangles;
-    const std::vector<unsigned int>& owners = casters.owners;
+
+    // The casters live on the GPU, uploaded again only when they changed.
+    if (!uploaded_ || castersVersion != castersVersion_) {
+        ProfileN("ShadowAtlas: Upload");
+        Casters casters;
+        gather(casters);
+        groups_ = std::move(casters.groups);
+        if (vbo_) rlUnloadVertexBuffer(vbo_);
+        if (vao_) rlUnloadVertexArray(vao_);
+        vbo_ = vao_ = 0;
+        vertexCount_ = (int)casters.triangles.size();
+        if (vertexCount_ > 0) {
+            vao_ = rlLoadVertexArray();
+            rlEnableVertexArray(vao_);
+            vbo_ = rlLoadVertexBuffer(casters.triangles.data(), vertexCount_ * (int)sizeof(Elysium::Vector3), false);
+            rlSetVertexAttribute(0, 3, RL_FLOAT, false, 0, 0);  // vertexPosition
+            rlEnableVertexAttribute(0);
+            rlDisableVertexArray();
+        }
+        castersVersion_ = castersVersion;
+        uploaded_ = true;
+        ProfileValue("triangles", vertexCount_ / 3);
+    }
 
     const bool scissor = ScissorEnabled();
     int scissorBox[4] = {0, 0, 0, 0};
@@ -140,11 +174,11 @@ void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights,
     rlDrawRenderBatchActive();
     rlEnableDepthTest();
     rlDisableBackfaceCulling();
-    ctx.PushShader(shader_);
 
     const ::Matrix projection = MatrixPerspective(90.0 * DEG2RAD, 1.0, kNear, kFar);
-    std::vector<size_t> near, inFace;
+    const int mvpLocation = rlGetLocationUniform(shader_.Id(), "mvp");
     for (int i : dirty) {
+        ProfileN("ShadowAtlas: Light");
         const Light& light = lights[i];
         rows_[i] = {true, light};
         // Clear just this row (glClear honours the scissor).
@@ -152,51 +186,58 @@ void ShadowAtlas::Render(RenderContext& ctx, const std::vector<Light>& lights,
         rlScissor(0, i * kTileSize, kTileSize * 6, kTileSize);
         ctx.ClearTarget(Colors::White);
         rlDisableScissorTest();
+        if (!vao_) continue;
 
-        // The triangles whose bounds reach into the light's radius.
-        near.clear();
-        const float r = std::max(light.radius, 1.0f);
-        for (size_t t = 0; t < owners.size(); ++t) {
-            if (light.owner != kNoOwner && owners[t] == light.owner) continue;
-            const Elysium::Vector3& a = triangles[t * 3];
-            const Elysium::Vector3& b = triangles[t * 3 + 1];
-            const Elysium::Vector3& c = triangles[t * 3 + 2];
-            const float dx = std::max({std::min({a.x, b.x, c.x}) - light.position.x, 0.0f, light.position.x - std::max({a.x, b.x, c.x})});
-            const float dy = std::max({std::min({a.y, b.y, c.y}) - light.position.y, 0.0f, light.position.y - std::max({a.y, b.y, c.y})});
-            const float dz = std::max({std::min({a.z, b.z, c.z}) - light.position.z, 0.0f, light.position.z - std::max({a.z, b.z, c.z})});
-            if (dx * dx + dy * dy + dz * dz < r * r) near.push_back(t);
+        // Whole models: those in reach, and which cube faces their boxes reach into. The GPU
+        // clips the rest triangle by triangle.
+        for (auto& face : faces_) face.clear();
+        {
+            ProfileN("ShadowAtlas: Near Models");
+            const float p[3] = {light.position.x, light.position.y, light.position.z};
+            const float r = std::max(light.radius, 1.0f);
+            for (size_t g = 0; g < groups_.size(); ++g) {
+                const Group& group = groups_[g];
+                if (group.count == 0 || (light.owner != kNoOwner && group.owner == light.owner)) continue;
+                const float glo[3] = {group.min.x, group.min.y, group.min.z};
+                const float ghi[3] = {group.max.x, group.max.y, group.max.z};
+                if (BoxDistance2(glo, ghi, p) >= r * r) continue;
+                const float lo[3] = {glo[0] - p[0], glo[1] - p[1], glo[2] - p[2]};
+                const float hi[3] = {ghi[0] - p[0], ghi[1] - p[1], ghi[2] - p[2]};
+                for (int f = 0; f < 6; ++f) {
+                    if (BoxInFace(f, lo, hi)) faces_[f].push_back(g);
+                }
+            }
         }
-        const ::Vector3 eye{light.position.x, light.position.y, light.position.z};
+
         shader_.SetUniform("e_LightPos", Value{light.position});
         shader_.SetUniform("e_Radius", Value{std::max(light.radius, 1.0f)});
-
+        const ::Vector3 eye{light.position.x, light.position.y, light.position.z};
+        rlEnableShader(shader_.Id());
+        rlEnableVertexArray(vao_);
         for (int f = 0; f < 6; ++f) {
-            // Only the triangles inside this face's frustum.
-            inFace.clear();
-            for (size_t t : near) {
-                float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
-                for (size_t k = t * 3; k < t * 3 + 3; ++k) {
-                    const float v[3] = {triangles[k].x - light.position.x, triangles[k].y - light.position.y,
-                                        triangles[k].z - light.position.z};
-                    for (int c = 0; c < 3; ++c) { lo[c] = std::min(lo[c], v[c]); hi[c] = std::max(hi[c], v[c]); }
-                }
-                if (BoxInFace(f, lo, hi)) inFace.push_back(t);
-            }
-            if (inFace.empty()) continue;
+            if (faces_[f].empty()) continue;
+            ProfileN("ShadowAtlas: Face");
             rlViewport(f * kTileSize, i * kTileSize, kTileSize, kTileSize);
-            rlSetMatrixProjection(projection);
-            rlSetMatrixModelview(MatrixLookAt(eye, Vector3Add(eye, kFaces[f].forward), kFaces[f].up));
-            rlBegin(RL_TRIANGLES);
-            rlColor4ub(255, 255, 255, 255);
-            for (size_t t : inFace) {
-                for (size_t k = t * 3; k < t * 3 + 3; ++k) rlVertex3f(triangles[k].x, triangles[k].y, triangles[k].z);
+            const ::Matrix view = MatrixLookAt(eye, Vector3Add(eye, kFaces[f].forward), kFaces[f].up);
+            rlSetUniformMatrix(mvpLocation, MatrixMultiply(view, projection));
+            // Neighbouring groups are neighbouring in the buffer: one draw per run of them.
+            size_t runFirst = 0, runEnd = 0;
+            for (size_t g : faces_[f]) {
+                const Group& group = groups_[g];
+                if (runEnd != runFirst && group.first == runEnd) {
+                    runEnd += group.count;
+                    continue;
+                }
+                if (runEnd != runFirst) rlDrawVertexArray((int)runFirst * 3, (int)(runEnd - runFirst) * 3);
+                runFirst = group.first;
+                runEnd = group.first + group.count;
             }
-            rlEnd();
-            rlDrawRenderBatchActive();
+            if (runEnd != runFirst) rlDrawVertexArray((int)runFirst * 3, (int)(runEnd - runFirst) * 3);
         }
+        rlDisableVertexArray();
+        rlDisableShader();
     }
 
-    ctx.PopShader();
     rlEnableBackfaceCulling();
     rlDisableDepthTest();
     ctx.EndRenderTarget();
