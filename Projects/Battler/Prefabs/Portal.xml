@@ -1,0 +1,29 @@
+<!-- The Town's way out: a standing disc of swirling Nebula with a violet light, the door to the
+     next encounter. Scripts/TownScene.lua finds it by name ("Portal") and walks the party in. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="entity"/>
+            <LightComponent color="#9A6CFFFF" intensity="2" radius="380" height="60" flicker="0.15" vision="false"/>
+            <NameComponent name="Portal"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <CircleComponent radius="48"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Nebula" enabled="true">
+                    <Uniform name="uDeep" type="vec4" value="0.030000 0.010000 0.080000 1.000000"/>
+                    <Uniform name="uColorA" type="vec4" value="0.450000 0.250000 0.950000 1.000000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.150000 0.650000 0.950000 1.000000"/>
+                    <Uniform name="uRimColor" type="vec4" value="0.750000 0.600000 1.000000 1.000000"/>
+                    <Uniform name="uScale" type="float" value="0.025000"/>
+                    <Uniform name="uSpeed" type="float" value="0.300000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Disc"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="0" z="56"/>
+        </Entity>
+    </Entities>
+</Prefab>

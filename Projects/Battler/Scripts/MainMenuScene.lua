@@ -12,8 +12,8 @@ function MainMenu:Initialize()
     Music.Play(Music.MENU)
     Settings.Apply()  -- the volume settings, not the engine's default of 1
     self.time = 0
-    -- A run starts at the campfire; Skirmish and Versus are one-off battles outside any run.
-    Widgets.BindButton("Adventure", function() Run.New() SceneReplace("Campfire") end)
+    -- An adventure starts in the Town; Skirmish and Versus are one-off battles outside one.
+    Widgets.BindButton("Adventure", function() Run.New() SceneReplace("Town") end)
     Widgets.BindButton("Skirmish", function() Run.Clear() SceneReplace("Battle") end)
     Widgets.BindButton("Versus", function() Run.Clear() SceneReplace("Lobby") end)
     Widgets.BindButton("Settings", function() SceneReplace("Settings") end)

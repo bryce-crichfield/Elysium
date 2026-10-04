@@ -7,9 +7,9 @@
 --   puts the card back. End Turn (or Space) ends the phase. Middle-drag pans, right-drag
 --   turns, wheel zooms (and tilts). R restarts.
 -- The battlefield is an encounter prefab (Prefabs/Encounters), spawned at the origin: its room
--- and the spawn points the units start on. In a run (Scripts/Battler/Run.lua) it's the
--- encounter the party walked into, and the result goes back to the run: a win returns to the
--- Dungeon (or the Campfire, floor cleared), a loss ends the run. Otherwise it's the default.
+-- and the spawn points the units start on. In an adventure (Scripts/Battler/Run.lua) it's the
+-- encounter behind the Town's Portal, and win or lose the party goes back to the Town.
+-- Otherwise it's the default.
 -- Versus: entered from the Lobby scene with the connection already open (Skirmish comes in with
 -- none and plays the AI). The host plays the blue team and moves first,
 -- the joiner plays red. Every card played goes across as a command the moment it's played and
@@ -251,8 +251,6 @@ function Battle:StartBattle()
                 self.units[#self.units + 1] = u
                 u.index = #self.units  -- how commands name it; the roster spawns the same on both sides
                 u.piles = Cards.NewPiles(u.class.deck, rng)
-                local wounds = r.team == PLAYER and Run.Wounds(u.name)
-                if wounds then u.hp, u.shownHp = math.min(u.hp, wounds), math.min(u.hp, wounds) end
             end
         end
     end
@@ -567,24 +565,17 @@ function Battle:CheckOver()
     elseif #self:Living(self.me) == 0 then
         self.state, self.won = "over", false
         Play(SFX.defeat)
-        self:ShowBanner("DEFEAT", Run.Active() and "Your run is over.   Click to return to the campfire" or again)
+        self:ShowBanner("DEFEAT", Run.Active() and "Click to return to town" or again)
         return true
     end
     return false
 end
 
--- In a run, once it's over: back to the dungeon (or the campfire), or the run ends.
+-- In an adventure, once it's over: back to the Town.
 function Battle:Continue()
     self:StopSteps()
     if self.ambiance then StopSound(self.ambiance) self.ambiance = nil end
-    local party = {}
-    for _, u in ipairs(self.units) do if u.team == PLAYER then party[#party + 1] = u end end
-    if self.won then
-        SceneReplace(Run.Won(party))
-    else
-        Run.Lost()
-        SceneReplace("Campfire")
-    end
+    SceneReplace(self.won and Run.Won() or Run.Lost())
 end
 
 -- Starts `team`'s phase: ours takes input, the other side's is the AI's (solo) or replays the
@@ -1048,7 +1039,7 @@ function Battle:HandleEvent(event)
         if go then self:Continue() end
         return go
     end
-    if event.type == "KeyPressed" and event.key == KEY_R and Run.Active() then return true end  -- no do-overs in a run
+    if event.type == "KeyPressed" and event.key == KEY_R and Run.Active() then return true end  -- no do-overs in an adventure
     if event.type == "KeyPressed" then
         if event.key == KEY_R and self.net and not Net.Active() then return true end  -- they left
         if event.key == KEY_R and (self.state == "over" or (self.state == "battle" and not self.net)) then
