@@ -1285,6 +1285,7 @@ local function WithAlpha(c, a) return { r = c.r, g = c.g, b = c.b, a = a } end
 -- The HUD is laid out for the layout size; on a bigger screen each piece keeps to its edge.
 -- (The hero frames keep to theirs themselves: Scripts/Components/HeroFrame.lua.)
 function Battle:AnchorHud()
+    Widgets.Anchor(self:Hud("Background"), "stretch", "stretch")
     Widgets.Anchor(self:Hud("TurnLabel"), "left", "bottom")
     Widgets.Anchor(self:Hud("Forecast"), "center", "bottom")
     Widgets.Anchor(self:Hud("Wait"), "right", "bottom")

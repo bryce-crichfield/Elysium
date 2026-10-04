@@ -10,6 +10,7 @@
         <System type="RenderSystem"/>
     </Systems>
     <SceneConfiguration width="1920" height="1080">
+        <SceneLayer name="background" z="0" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
         <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#323667FF" sunColor="#FFEBD7FF" sunIntensity="0.85000002" sunYaw="40" sunPitch="66" rimLight="0.69999999" shadows="true" shadowBias="12" fogOfWar="0.60000002" fogColor="#06060CFF"/>
         <SceneLayer name="overlay" z="3" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
         <SceneLayer name="fx" z="4" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
@@ -64,6 +65,7 @@
         <Override entity="0" component="TransformComponent" field="x" value="12"/>
         <Override entity="0" component="TransformComponent" field="y" value="212"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/MenuBackground.xml" id="Background"/>
     <PrefabInstance src="../Prefabs/TurnLabel.xml" id="TurnLabel"/>
     <PrefabInstance src="../Prefabs/Button.xml" id="Wait">
         <Param name="Height" value="44"/>
