@@ -13,11 +13,29 @@ function Rules.Distance(a, b) return NavGroundDistance(a.x, a.y, b.x, b.y) end
 
 local function Levels(from, to) return math.floor((from.z - to.z) / LEVEL + 0.5) end
 
+-- Stamina pays for walking (a point per tile begun) and the basic attack; it refills every
+-- phase. The basic attack is shaped like a card, so everything that reads a card reads it too.
+Rules.ATTACK = { name = "Attack", kind = "attack", range = {1, 1}, power = 2, stat = "str", stamina = 2 }
+
+-- How far `u` can walk on the stamina it has, in ground units.
+function Rules.MoveBudget(u) return u.stamina * Rules.TILE end
+
+function Rules.PathLength(from, path)
+    local length, prev = 0, from
+    for _, p in ipairs(path) do
+        length = length + Rules.Distance(prev, p)
+        prev = p
+    end
+    return length
+end
+
+-- What walking `path` from `from` costs in stamina.
+function Rules.MoveCost(from, path)
+    return math.max(1, math.ceil(Rules.PathLength(from, path) / Rules.TILE - 0.05))
+end
+
 -- Everything below reads the card being played (Scripts/Battler/Cards.lua): its reach in
 -- tiles, its power, and the stat of the user's that adds to it.
-
--- How far a move card walks, in ground units.
-function Rules.MoveBudget(card) return card.move * Rules.TILE end
 
 -- A card's reach, in ground units: {min, max}. A reach of one tile is melee.
 function Rules.Range(card)

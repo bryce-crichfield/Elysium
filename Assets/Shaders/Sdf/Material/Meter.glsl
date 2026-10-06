@@ -2,7 +2,8 @@
 // Progress meter clipped to the shape: cooldowns, cast bars, HP rings. uMode 0 fills
 // left -> right across the box, 1 fills clockwise from 12 o'clock. uHole (0..1) cuts
 // the centre out of radial mode to make a ring. The leading edge glows. uAutoSpeed > 0
-// loops progress on its own (demo/idle).
+// loops progress on its own (demo/idle). uFlash (0..1) washes the span uFlashFrom..uFlashTo
+// (of the bar, left -> right mode only) white: the chunk just gained or lost, fading out.
 uniform float uProgress; // default: 0.65
 uniform float uMode; // default: 0
 uniform float uHole; // default: 0
@@ -10,6 +11,9 @@ uniform float uAutoSpeed; // default: 0
 uniform vec4 uFillColor; // default: 0.3 0.85 1 1
 uniform vec4 uTrackColor; // default: 0.08 0.1 0.16 0.85
 uniform float uEdgeGlow; // default: 0.8
+uniform float uFlash; // default: 0
+uniform float uFlashFrom; // default: 0
+uniform float uFlashTo; // default: 0
 
 vec4 Shade(float sd, vec2 p, vec2 uv)
 {
@@ -42,5 +46,13 @@ vec4 Shade(float sd, vec2 p, vec2 uv)
 
     vec4 color = mix(uTrackColor, uFillColor, filled);
     color.rgb += uFillColor.rgb * uEdgeGlow * exp(-abs(toFront) / 6.0) * filled;
+    if (uFlash > 0.0 && uMode < 0.5)
+    {
+        float x = uv.x * e_Size.x;
+        float aa = max(fwidth(x), 1e-4);
+        float inside = clamp((x - uFlashFrom * e_Size.x) / aa + 0.5, 0.0, 1.0)
+                     * clamp((uFlashTo * e_Size.x - x) / aa + 0.5, 0.0, 1.0);
+        color = mix(color, vec4(1.0), inside * clamp(uFlash, 0.0, 1.0));
+    }
     return vec4(color.rgb, color.a * shapeMask);
 }

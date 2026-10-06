@@ -89,4 +89,20 @@
         <Override entity="0" component="TransformComponent" field="x" value="1094"/>
         <Override entity="0" component="TransformComponent" field="y" value="612"/>
     </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Attack">
+        <Param name="Height" value="44"/>
+        <Param name="Width" value="170"/>
+        <Param name="Font Size" value="24"/>
+        <Param name="Label" value="Attack"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
+        <Override entity="0" component="TransformComponent" field="y" value="560"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Move">
+        <Param name="Height" value="44"/>
+        <Param name="Width" value="170"/>
+        <Param name="Font Size" value="24"/>
+        <Param name="Label" value="Move"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
+        <Override entity="0" component="TransformComponent" field="y" value="508"/>
+    </PrefabInstance>
 </Scene>

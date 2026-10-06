@@ -7,7 +7,10 @@
 --   Widgets.BindView(crystal, { charged = true })
 --
 -- Charged, it's bright and its light pulses; spent, the light goes out and the gem dims. Coming
--- back to charge it flares; spending it pops (the Burst child, Shaders/Sdf/Material/Burst.glsl). Showing and hiding it is the placer's business.
+-- back to charge it flares; spending it pops (the Burst child, Shaders/Sdf/Material/Burst.glsl).
+-- A view with `preview` set is a crystal the play being aimed would spend: its Glow's fire pulses
+-- (the Fire's interior fade, 0 to 1). Charged, the gem glitters (its Glitter layer, Shaders/Sdf/Material/Glitter.glsl), harder in a
+-- flare. Showing and hiding it is the placer's business.
 local Widgets = require("Scripts/Components/Widgets")
 
 local Crystal = {}
@@ -26,6 +29,9 @@ function Crystal:Initialize(entity)
     self.gem = Widgets.Child(entity, "Gem")
     self.burst = Widgets.Child(entity, "Burst")
     self.charge, self.flare, self.time, self.was = 1, 0, math.random() * 6, nil
+    local mat = self.glow and GetComponent(self.glow, "Material")
+    local fire = mat and mat:Layer("Fire")
+    self.fade = fire and fire:Get("uInteriorFade") or 0  -- as Crystal.xml has it, outside a preview
     self.pop = nil  -- the pop's progress, 0 to 1, while it plays
 end
 
@@ -44,7 +50,11 @@ function Crystal:Update(entity, dt)
     -- The Glow (off in Crystal.xml until it's needed) burns while the crystal is charged, with
     -- a flare as it charges back up.
     if mat then mat.enabled = self.charge > 0.01 or self.flare > 0.01 end
-    if fire then fire:Set("uIntensity", self.charge * (1.1 + 0.25 * math.sin(self.time * 3)) + self.flare) end
+    if fire then
+        fire:Set("uIntensity", self.charge * (1.1 + 0.25 * math.sin(self.time * 3)) + self.flare)
+        local previewed = view and view.preview and charged
+        fire:Set("uInteriorFade", previewed and (0.5 + 0.5 * math.sin(self.time * 7)) or self.fade)
+    end
 
     if self.pop then
         self.pop = self.pop + dt / POP
@@ -59,6 +69,8 @@ function Crystal:Update(entity, dt)
 
     mat = self.gem and GetComponent(self.gem, "Material")
     local tex = mat and mat:Layer("Texture")
+    local glitter = mat and mat:Layer("Glitter")
+    if glitter then glitter:Set("uIntensity", self.charge + self.flare * 0.4) end
     if tex then
         local k = self.charge
         tex:Set("uTint", {

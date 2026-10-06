@@ -2,33 +2,27 @@
 -- piles (draw, hand, discard). Everything random goes through a seeded generator, so both sides
 -- of a versus game shuffle the same way (lockstep).
 --
--- A card costs mana (`cost`), paid from its user's crystals.
+-- A card costs mana (`cost`), paid from its user's crystals. Walking and the basic attack aren't
+-- cards: they cost stamina (Scripts/Battler/Rules.lua).
 -- `kind` is what playing it asks for:
---   move   - pick a spot within `move` tiles to walk to
---   attack - pick a foe within `range` tiles to hit for `power` + the user's `stat`
 --   bolt   - pick a spot within `range` tiles; everyone within `splash` tiles takes the hit
 local Cards = {}
 
-Cards.HAND_START = 7
+Cards.HAND_START = 3
 Cards.HAND_MAX = 10
-Cards.DECK_SIZE = 30
 
 -- `art` is the picture on its face (Textures/Cards).
 Cards.Catalog = {
-    Move = { name = "Move", class = "Basic", kind = "move", move = 3,
-             cost = 1, text = "Walk up to 3 tiles.", art = "Textures/Cards/run.png" },
-    Attack = { name = "Strike", class = "Basic", kind = "attack", range = {1, 1}, power = 2, stat = "str",
-               cost = 1, text = "Hit an adjacent foe\nfor 2 + STR.", art = "Textures/Cards/attack.png" },
     Bolt = { name = "Bolt", class = "Mage", kind = "bolt", range = {2, 5}, splash = 1, power = 3, stat = "int",
              cost = 2, text = "Blast a spot 2-5 tiles\naway for 3 + INT.", art = "Textures/Cards/magic_missile.png" },
 }
 for id, card in pairs(Cards.Catalog) do card.id = id end
 
--- The 30 cards each class starts with: mostly the basics, plus its own.
+-- The cards each class starts with. For now every class fights with Bolts, for testing.
 Cards.Decks = {
-    Warrior = { Move = 14, Attack = 16 },
-    Mage = { Move = 12, Attack = 8, Bolt = 10 },
-    Rogue = { Move = 16, Attack = 14 },
+    Warrior = { Bolt = 10 },
+    Mage = { Bolt = 10 },
+    Rogue = { Bolt = 10 },
 }
 
 -- --- Random ---------------------------------------------------------------------------------
@@ -99,13 +93,5 @@ function Cards.Cost(card) return card.cost or 0 end
 function Cards.Affordable(u, card) return Cards.Cost(card) <= u.mana end
 
 function Cards.Pay(u, card) u.mana = u.mana - Cards.Cost(card) end
-
--- The first card of `kind` in `u`'s hand it can pay for: slot, card.
-function Cards.Find(u, kind)
-    for slot, card in ipairs(u.piles.hand) do
-        if card.kind == kind and Cards.Affordable(u, card) then return slot, card end
-    end
-    return nil
-end
 
 return Cards

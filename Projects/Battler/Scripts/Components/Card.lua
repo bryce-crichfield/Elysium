@@ -85,7 +85,7 @@ function Card:Update(entity, dt)
     for _, name in ipairs(FACE) do Show(self.parts[name], view.faceUp) end
     for _, name in ipairs(BACK) do Show(self.parts[name], not view.faceUp) end
 
-    if view.hover and not self.hover then Sfx.Play(Sfx.HOVER, 0.4) end
+    if view.hover and not self.hover then Sfx.PlayAny(Sfx.CARD, 0.4) end
     self.hover = view.hover
 
     -- Glow: a steady burn while it's being played, a lift on hover.
