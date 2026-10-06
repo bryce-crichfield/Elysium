@@ -19,8 +19,9 @@
 -- crystals as they were until it's started, then opens, a grown crystal fades in big and slams
 -- down into its place, dark, and then the dark ones the unit regained relight one by one, left to right, while the
 -- stamina bar refills. Every frame runs it at once, so the grow sound plays once for them all,
--- and the recharge sound once per relit crystal index. HeroFrames.Recharging() says whether any
--- frame is still at it.
+-- and the recharge sound once per relit crystal index. Then, if the unit drew, a face-down card
+-- flies from the deck count to the hand count, and both counts change as it lands. Until then the
+-- counts show the piles as they were. HeroFrames.Recharging() says whether any frame is still at it.
 --
 -- A binding's `preview` ({ hp, stamina, mana }, each optional) is what the unit would be left
 -- with by the play being aimed: the part of a bar it would lose pulses white, and so do the
@@ -56,6 +57,12 @@ local BIG = 4                      -- its scale before the slam
 local SETTLE = 0.08                -- after the slam, before the relighting
 local STEP_FEW, STEP_MANY = 0.3, 0.08  -- between relit crystals, with 1 grown and with CRYSTALS
 local LINGER = 0.2                 -- all lit, before the frame lets go
+local DRAW_FLY = 0.4               -- the drawn card's flight from the deck count to the hand count
+local DRAW_ARC = 26                -- how high it arcs, in pixels
+local DRAW_GROW = 1.6              -- how much bigger it gets mid-flight
+local CARD_BACK = {r = 77, g = 107, b = 191, a = 255}
+local CARD_EDGE = {r = 153, g = 179, b = 255, a = 255}
+local DRAWN = {r = 255, g = 237, b = 179, a = 255}
 local PREVIEW_PULSE = 7            -- radians a second of the preview's white pulse
 local SPEND_STEP = 0.35            -- seconds between crystals going out when mana is spent
 local GEM = 14                     -- the crystal's size (Prefabs/Crystal.xml), to scale about its middle
@@ -79,6 +86,7 @@ function HeroFrame:Initialize(entity)
     self.time = 0
     self.detail = {}
     for _, name in ipairs(DETAIL) do self.detail[#self.detail + 1] = Widgets.Child(entity, name) end
+    self.handIcon, self.deckIcon = Widgets.Child(entity, "HandIcon"), Widgets.Child(entity, "DeckIcon")
     self.open, self.hold, self.homeX, self.homeY = 0, 0, nil, nil
     HeroFrames.bindings[entity] = nil
     for _, e in ipairs(HeroFrames.frames) do if e == entity then return end end
@@ -216,8 +224,11 @@ function HeroFrame:Update(entity, dt)
     end
     self:DrawFloats(dt, detailed)
     local piles = u.piles or {}
-    Widgets.ChildText(entity, "HandCount", tostring(#(piles.hand or {})), nil, 92)
-    Widgets.ChildText(entity, "DeckCount", tostring(#(piles.draw or {})), nil, 142)
+    local hand, deck = #(piles.hand or {}), #(piles.draw or {})
+    local draw = binding.recharge
+    if draw and not draw.landed then hand, deck = draw.hand, draw.deck end
+    Widgets.ChildText(entity, "HandCount", tostring(hand), nil, 92)
+    Widgets.ChildText(entity, "DeckCount", tostring(deck), nil, 142)
     Widgets.ChildText(entity, "DiscardCount", tostring(#(piles.discard or {})), nil, 192)
 
     -- One crystal per crystal grown; the first `mana` of them full (or as the sequence has them).
@@ -310,20 +321,61 @@ function HeroFrame:ManaSequence(binding, u, detailed, dt)
     if grown and t >= slam then HeroFrame.Cue(Sfx.MANA_GROW, "grow") end
     local relit = dead > 0 and math.min(dead, math.floor((t - first) / STEP) + 1) or 0
     for n = 1, relit do HeroFrame.Cue(Sfx.MANA_RECHARGE, "recharge" .. n) end
-    if t >= first + dead * STEP + LINGER then binding.recharge = nil end
+    local done = first + dead * STEP
+    if seq.drew then
+        local k = (t - done) / DRAW_FLY
+        if k >= 1 and not seq.landed then
+            seq.landed = true
+            self.floats[#self.floats + 1] = { bar = self.handIcon, at = 0.5, t = 0, text = "+1", size = FLOAT_MIN + 6, color = DRAWN }
+            if not HeroFrames.cued.draw then HeroFrames.cued.draw = true; Sfx.PlayAny(Sfx.CARD) end
+        elseif k >= 0 and k < 1 and detailed then
+            self:DrawFlight(k)
+        end
+        done = done + DRAW_FLY
+    end
+    if t >= done + LINGER then binding.recharge = nil end
     -- The slam's jolt: a quick dip that settles.
     local since = grown and t - slam or -1
     if since >= 0 and since < 0.18 then return math.sin(since / 0.18 * math.pi) * 3 * (1 - since / 0.18) end
     return 0
 end
 
+-- The drawn card at `k` (0..1) of its flight: face down, arcing from the deck icon to the hand
+-- icon, growing and tipping over mid-air.
+function HeroFrame:DrawFlight(k)
+    if not (self.handIcon and self.deckIcon) then return end
+    local fx, fy, w, h = Widgets.Rect(self.deckIcon)
+    local tx, ty = Widgets.Rect(self.handIcon)
+    local e = k < 0.5 and 2 * k * k or 1 - (-2 * k + 2) ^ 2 / 2
+    local lift = math.sin(k * math.pi)
+    local cx = fx + (tx - fx) * e + w / 2
+    local cy = fy + (ty - fy) * e + h / 2 - DRAW_ARC * lift
+    local s = 1 + (DRAW_GROW - 1) * lift
+    local a = -0.5 * lift
+    local ca, sa = math.cos(a), math.sin(a)
+    local pts = {}
+    for _, c in ipairs({ { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } }) do
+        local x, y = c[1] * w / 2 * s, c[2] * h / 2 * s
+        pts[#pts + 1] = { x = cx + x * ca - y * sa, y = cy + x * sa + y * ca }
+    end
+    DrawPolygon(pts, CARD_BACK, "ui")
+    for i = 1, 4 do
+        local p, q = pts[i], pts[i % 4 + 1]
+        DrawLine(p.x, p.y, q.x, q.y, CARD_EDGE, "ui")
+    end
+end
+
 -- Starts `unit`'s mana sequence on its frame: it had `mana` lit, crystals grown up to `max` and
 -- `stamina` before this phase's growth and refills. It waits for HeroFrames.StartRecharges.
+-- The piles are read now, so call it before the phase's draw; whatever the hand gained by the
+-- start flies in as the drawn card.
 function HeroFrame.Recharge(unit, mana, max, stamina)
+    local piles = unit.piles or {}
     for _, binding in pairs(HeroFrames.bindings) do
         if binding.unit == unit then
             binding.recharge = { from = mana or 0, grew = (unit.manaMax or 0) > (max or 0), t = 0, started = false,
-                                 stamina = stamina or unit.stamina or 0 }
+                                 stamina = stamina or unit.stamina or 0,
+                                 hand = #(piles.hand or {}), deck = #(piles.draw or {}) }
         end
     end
 end
@@ -338,7 +390,11 @@ end
 function HeroFrame.StartRecharges()
     HeroFrames.cued = {}
     for _, binding in pairs(HeroFrames.bindings) do
-        if binding.recharge then binding.recharge.started = true end
+        local seq = binding.recharge
+        if seq then
+            seq.started = true
+            seq.drew = #((binding.unit.piles or {}).hand or {}) > seq.hand
+        end
     end
 end
 

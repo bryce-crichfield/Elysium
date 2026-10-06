@@ -663,7 +663,6 @@ function Battle:BeginPhase(team)
         if HeroFrames then HeroFrames.Recharge(u, mana, max, stamina) end
         if self.turn > 1 then Cards.Draw(u.piles, 1, self.rng) end
     end
-    if self.turn > 1 then Sfx.PlayAny(Sfx.CARD) end  -- the team draws together: one sound
     Play(team == self.me and SFX.phasePlayer or SFX.phaseEnemy)
     local title
     if team == self.me then title = self.net and "YOUR PHASE" or "PLAYER PHASE"
