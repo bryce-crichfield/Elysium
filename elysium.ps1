@@ -63,8 +63,10 @@ function Elysium_Clean {
 }
 
 function Elysium_Build {
-    param([bool]$Tracy)
-    Write-Host "Building Elysium..."
+    param([bool]$Tracy, [string]$Mode)
+    # Release is CMake's RelWithDebInfo: -O2, with symbols kept so Tracy and gdb still read it.
+    $buildType = if ($Mode -eq "Release") { "RelWithDebInfo" } else { "Debug" }
+    Write-Host "Building Elysium ($Mode)..."
     $currentLocation = Get-Location
 
     try {
@@ -83,7 +85,7 @@ function Elysium_Build {
         # links winpthreads dynamically and ships libwinpthread-1.dll beside the exe.
         $tracyOption = if ($Tracy) { "ON" } else { "OFF" }
         $linkStatic = if ($Tracy) { "-static-libgcc -static-libstdc++" } else { "-static -static-libgcc -static-libstdc++" }
-        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE=Debug "-DTRACY_ENABLE=$tracyOption" -DSQLITECPP_RUN_CPPCHECK=OFF "-DCMAKE_EXE_LINKER_FLAGS=$linkStatic" -B Build
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_BUILD_TYPE=$buildType" "-DTRACY_ENABLE=$tracyOption" -DSQLITECPP_RUN_CPPCHECK=OFF "-DCMAKE_EXE_LINKER_FLAGS=$linkStatic" -B Build
         if ($LASTEXITCODE -eq 0) {
             cmake --build Build
             if ($Tracy) {
@@ -141,6 +143,7 @@ $shouldClean = $false
 $shouldBuild = $false
 $shouldRun = $false
 $tracyArg = $false
+$modeArg = "Debug"
 $projectArg = $null
 $editorArg = $false
 
@@ -151,14 +154,16 @@ foreach ($arg in $args) {
         "^--[Bb]uild$" { $shouldBuild = $true }
         "^--[Rr]un$" { $shouldRun = $true }
         "^--[Tt]racy$" { $tracyArg = $true }
+        "^--[Mm]ode=([Dd]ebug|[Rr]elease)$" { $modeArg = (Get-Culture).TextInfo.ToTitleCase($matches[1].ToLower()) }
         "^--[Pp]roject=(.+)$" { $projectArg = $matches[1] }
         "^--[Ee]ditor$" { $editorArg = $true }
         "^--[Ee]ditor=(.+)$" { $editorArg = ($matches[1] -eq "true") }
         "^--[Hh]elp$" {
-            Write-Host "Usage: .\script.ps1 [--Clean] [--Build] [--Tracy] [--Run] [--Project=<path>] [--Editor] [--Help]"
+            Write-Host "Usage: .\script.ps1 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Run] [--Project=<path>] [--Editor] [--Help]"
             Write-Host "  --Clean: Clean build artifacts"
             Write-Host "  --Build: Build the project"
             Write-Host "  --Tracy: Build with the Tracy profiler (v0.12.2) enabled"
+            Write-Host "  --Mode=Debug|Release: Build type (default Debug); Release is optimized (-O2) with symbols"
             Write-Host "  --Run: Run the executable"
             Write-Host "  --Project=<path>: Project directory to load, e.g. Projects\DemoGame (required for --Run)"
             Write-Host "  --Editor: Start in editor mode"
@@ -184,7 +189,7 @@ if ($shouldClean) {
 }
 
 if ($shouldBuild) {
-    Elysium_Build -Tracy $tracyArg
+    Elysium_Build -Tracy $tracyArg -Mode $modeArg
 }
 
 if ($shouldRun) {

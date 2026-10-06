@@ -14,6 +14,7 @@ Windows dev environment uses MSYS2/MinGW + Ninja via CMake, driven through `elys
 .\elysium.ps1 --Setup                  # one-time: installs MSYS2 + toolchain, inits submodules
 .\elysium.ps1 --Clean --Build          # wipe Build/ and Binary/, then rebuild
 .\elysium.ps1 --Build                  # incremental build (cmake configure + ninja build)
+.\elysium.ps1 --Build --Mode=Release --Tracy   # optimized (-O2, RelWithDebInfo) build with the profiler; default is Debug
 .\elysium.ps1 --Run --Project=Projects\DemoGame            # run the game
 .\elysium.ps1 --Run --Project=Projects\DemoGame --Editor   # run the in-engine editor
 ```

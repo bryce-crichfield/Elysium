@@ -976,7 +976,13 @@ bool ScriptService::UpdateEntity(Entity entity, Path scriptName, float deltaTime
 
     sol::function updateFunc = instance["Update"];
     if (updateFunc.valid()) {
+        // Lua collects garbage in steps run by whichever call allocates, so a slow update may be
+        // the collector's: the zone carries the bytes it freed, the plot the heap over time.
+        [[maybe_unused]] const size_t heapBefore = lua.memory_used();
         auto result = updateFunc(instance, entity, deltaTime);
+        [[maybe_unused]] const size_t heapAfter = lua.memory_used();
+        ProfileZoneValue(heapAfter < heapBefore ? heapBefore - heapAfter : 0);
+        ProfileValue("Lua heap KB", heapAfter / 1024);
         if (!result.valid()) {
             sol::error err = result;
             LOG_ERRORF("ScriptService", "Error in %s:update: %s", scriptName.c_str(), err.what());

@@ -87,10 +87,32 @@ function HeroFrame:Initialize(entity)
     self.detail = {}
     for _, name in ipairs(DETAIL) do self.detail[#self.detail + 1] = Widgets.Child(entity, name) end
     self.handIcon, self.deckIcon = Widgets.Child(entity, "HandIcon"), Widgets.Child(entity, "DeckIcon")
+    self.texts, self.shown = {}, {}
     self.open, self.hold, self.homeX, self.homeY = 0, 0, nil, nil
     HeroFrames.bindings[entity] = nil
     for _, e in ipairs(HeroFrames.frames) do if e == entity then return end end
     HeroFrames.frames[#HeroFrames.frames + 1] = entity
+end
+
+-- Visibility and text are only written when they change: a frame is some fifty entities, and
+-- rewriting them all every frame costs about a millisecond per frame.
+function HeroFrame:Show(key, entity, on)
+    if not entity or self.shown[key] == on then return end
+    self.shown[key] = on
+    Widgets.SetVisible(entity, on)
+end
+
+-- A text child's content (looked up by name under `root` once found: a nested placement's
+-- children may not be there yet at Initialize); `left` as in Widgets.ChildText.
+function HeroFrame:Text(root, name, content, left)
+    local key = name .. tostring(root)
+    if self.texts[key] == content then return end
+    local e = root and Widgets.Child(root, name)
+    local text = e and GetComponent(e, "Text")
+    if not text then return end
+    self.texts[key] = content
+    text.content = content
+    if left then Widgets.AlignLeft(e, left) end
 end
 
 -- A bar's shown fraction: fills up on gains, drains down on losses, the chunk between flashing.
@@ -173,7 +195,11 @@ function HeroFrame:Update(entity, dt)
     self.time = self.time + dt
     local binding = HeroFrames.bindings[entity]
     local u = binding and binding.unit
-    Widgets.SetVisible(entity, u ~= nil)
+    if self.visible ~= (u ~= nil) then
+        self.visible = u ~= nil
+        Widgets.SetVisible(entity, self.visible)
+        self.shown = {}  -- everything under it was just shown or hidden with it
+    end
     if u ~= self.unit then self.unit, self.bars, self.floats, self.mana = u, {}, {}, nil end
     if not u then return end
 
@@ -198,28 +224,37 @@ function HeroFrame:Update(entity, dt)
         t.localX = self.homeX
     end
     local detailed = self.open > 0.85
-    for _, e in ipairs(self.detail) do
-        local layer = GetComponent(e, "Layer")
-        if layer then layer.isVisible = detailed end
+    if self.shown.detail ~= detailed then
+        self.shown.detail = detailed
+        for _, e in ipairs(self.detail) do
+            local layer = GetComponent(e, "Layer")
+            if layer then layer.isVisible = detailed end
+        end
     end
     -- Each bar's x/X sits in it, shown only while the pointer is on that bar (just a look: the
     -- frame's own hover is untouched).
     local m = GetMousePosition()
     for _, bar in ipairs({ self.health, self.stamina }) do
-        local vitals = Widgets.Child(bar, "Vitals")
-        local vlayer = vitals and GetComponent(vitals, "Layer")
-        if vlayer then vlayer.isVisible = detailed and Widgets.Inside(m, Widgets.Rect(bar)) end
+        local over = detailed and Widgets.Inside(m, Widgets.Rect(bar))
+        if self.shown[bar] ~= over then
+            local vitals = Widgets.Child(bar, "Vitals")
+            local vlayer = vitals and GetComponent(vitals, "Layer")
+            if vlayer then
+                vlayer.isVisible = over
+                self.shown[bar] = over
+            end
+        end
     end
 
-    Widgets.ChildText(entity, "NameText", u.name, nil, NAME_LEFT)
-    Widgets.ChildText(self.health, "Vitals", string.format("%d/%d", u.alive and u.hp or 0, u.maxHp))
+    self:Text(entity, "NameText", u.name, NAME_LEFT)
+    self:Text(self.health, "Vitals", string.format("%d/%d", u.alive and u.hp or 0, u.maxHp))
     local preview = binding.preview or {}
     self:Bar("health", self.health, u.alive and u.hp or 0, u.maxHp, dt, binding.fill or DEFAULT_FILL, preview.hp)
     if self.stamina then
         -- Through the mana sequence it shows what it had until the sequence starts, then refills.
         local seq = binding.recharge
         local stamina = (seq and not (seq.started and detailed)) and seq.stamina or u.stamina or 0
-        Widgets.ChildText(self.stamina, "Vitals", string.format("%d/%d", stamina, u.staminaMax or 0))
+        self:Text(self.stamina, "Vitals", string.format("%d/%d", stamina, u.staminaMax or 0))
         self:Bar("stamina", self.stamina, stamina, u.staminaMax or 0, dt, STAMINA_FILL, preview.stamina)
     end
     self:DrawFloats(dt, detailed)
@@ -227,9 +262,9 @@ function HeroFrame:Update(entity, dt)
     local hand, deck = #(piles.hand or {}), #(piles.draw or {})
     local draw = binding.recharge
     if draw and not draw.landed then hand, deck = draw.hand, draw.deck end
-    Widgets.ChildText(entity, "HandCount", tostring(hand), nil, 92)
-    Widgets.ChildText(entity, "DeckCount", tostring(deck), nil, 142)
-    Widgets.ChildText(entity, "DiscardCount", tostring(#(piles.discard or {})), nil, 192)
+    self:Text(entity, "HandCount", tostring(hand), 92)
+    self:Text(entity, "DeckCount", tostring(deck), 142)
+    self:Text(entity, "DiscardCount", tostring(#(piles.discard or {})), 192)
 
     -- One crystal per crystal grown; the first `mana` of them full (or as the sequence has them).
     local shake = 0
@@ -238,7 +273,7 @@ function HeroFrame:Update(entity, dt)
     else
         self:SpendStep(u, dt)
         for k, crystal in ipairs(self.crystals) do
-            Widgets.SetVisible(crystal.entity, k <= (u.manaMax or 0) and detailed)
+            self:Show(crystal, crystal.entity, k <= (u.manaMax or 0) and detailed)
             crystal.view.charged = k <= self.mana
             crystal.view.preview = preview.mana ~= nil and k > preview.mana and k <= self.mana
         end
@@ -303,7 +338,7 @@ function HeroFrame:ManaSequence(binding, u, detailed, dt)
                 dead = dead + 1
                 lit = t >= first + (dead - 1) * STEP
             end
-            Widgets.SetVisible(crystal.entity, shown)
+            self:Show(crystal, crystal.entity, shown)
             crystal.view.charged = lit
             local ct = GetComponent(crystal.entity, "Transform")
             if ct and not crystal.x then crystal.x, crystal.y = ct.localX, ct.localY end
@@ -316,7 +351,7 @@ function HeroFrame:ManaSequence(binding, u, detailed, dt)
         end
     end
     for k = max + 1, CRYSTALS do
-        if self.crystals[k] then Widgets.SetVisible(self.crystals[k].entity, false) end
+        if self.crystals[k] then self:Show(self.crystals[k], self.crystals[k].entity, false) end
     end
     if grown and t >= slam then HeroFrame.Cue(Sfx.MANA_GROW, "grow") end
     local relit = dead > 0 and math.min(dead, math.floor((t - first) / STEP) + 1) or 0
