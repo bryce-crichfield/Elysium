@@ -1,16 +1,18 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include "Core/Animation.h"
 #include "Core/Graphics.h"
 #include "Core/Asset.h"
 
 namespace Elysium {
 
-// A 3D model file with its meshes, materials and textures.
-//  - .glb, .gltf, .obj: raylib reads the file and uploads it to the GPU in one step, in
-//    Finalize, which needs the main thread.
-//  - .mesh (the baker's format): read in Load, off the main thread, uploaded in Finalize.
+// A 3D model file with its meshes, materials and textures. Read and decoded in Load, off
+// the main thread; Finalize (main thread) only uploads to the GPU.
+//  - .glb, .gltf: read with cgltf (ReadGltf), each node's transform baked in.
+//  - .mesh (the baker's format), with its textures (files beside it).
+//  - .obj: raylib reads and uploads it in one step, in Finalize, on the main thread.
 //    A .skel beside it (same name) makes it skinned: Model::skeleton, posed by an
 //    AnimationComponent. Its textures are files beside it, named by the .mesh.
 class ModelAsset : public AssetBase<ModelAsset> {
@@ -27,7 +29,8 @@ class ModelAsset : public AssetBase<ModelAsset> {
 
    private:
     struct Native;  // holds the raylib Model handle
-    struct BakedMesh;  // a .mesh read in Load, waiting for Finalize
+    struct BakedMesh;  // a model read in Load, waiting for Finalize
+    std::unique_ptr<BakedMesh> ReadGltf(const std::string& path);
     std::unique_ptr<Native> native_;
     std::unique_ptr<BakedMesh> baked_;
     std::unique_ptr<Skeleton> skeleton_;

@@ -156,6 +156,29 @@ void LoadSystems(XMLElement* root, Scene& scene) {
 
 std::string ScenePath(const std::string& name) { return Path("Scenes/" + name + ".xml").GetFullPath(); }
 
+namespace {
+void ReadPreloads(XMLElement* root, std::vector<std::string>& out) {
+    VisitElement(root, "Preload", [&](XMLElement* preload) {
+        for (XMLElement* el = preload->FirstChildElement("Asset"); el; el = el->NextSiblingElement("Asset")) {
+            if (const char* path = el->Attribute("path"); path && *path) out.emplace_back(path);
+        }
+    });
+}
+}  // namespace
+
+ScenePreloads ReadScenePreloads(const std::string& path) {
+    ScenePreloads preloads;
+    XMLDocument doc;
+    if (!LoadXml(path, doc)) return preloads;
+    if (XMLElement* root = doc.FirstChildElement("Scene")) {
+        ReadPreloads(root, preloads.assets);
+        VisitElement(root, "SceneScript", [&](XMLElement* el) {
+            if (const char* script = el->Attribute("path")) preloads.script = script;
+        });
+    }
+    return preloads;
+}
+
 bool LoadScene(Scene& scene, const std::string& path) {
     LOG_INFOF("Scene", "Loading scene from XML: %s", path.c_str());
     XMLDocument doc;
@@ -173,6 +196,8 @@ bool LoadScene(Scene& scene, const std::string& path) {
 
     World* world_ = scene.GetWorld();
     scene.SetSource(std::filesystem::path(path).stem().string(), path);
+
+    ReadPreloads(root, scene.GetPreloads());
 
     VisitElement(root, "EditorMetadata", [&](XMLElement* el) {
         for (const tinyxml2::XMLAttribute* a = el->FirstAttribute(); a; a = a->Next()) {

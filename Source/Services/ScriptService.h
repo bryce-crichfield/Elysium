@@ -29,6 +29,7 @@ public:
     bool UpdateEntity(Entity entity, Path scriptPath, float deltaTime) override;
     void OnEntityEvent(Entity entity, Path scriptPath, Event& event) override;
 
+    std::vector<std::string> GetScenePreloads(Path scriptPath) override;
     bool InitializeScene(Path scriptPath) override;
     bool UpdateScene(Path scriptPath, float deltaTime) override;
     bool RenderScene(Path scriptPath) override;

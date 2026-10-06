@@ -85,7 +85,6 @@ std::string StripNamespace(const std::string& value, const std::string& instance
 std::vector<Entity> Load(XMLElement* parent, World* world, const std::string& ownerDir, ServiceLocator& services,
                          const std::string& namePrefix) {
     std::vector<Entity> spawned;
-    auto& assets = services.Get<Services::IAssetService>();
 
     ForEachElement(parent, "PrefabInstance", [&](XMLElement* xmlInstance) {
         const std::string src = Attr(xmlInstance, "src");
@@ -95,7 +94,7 @@ std::vector<Entity> Load(XMLElement* parent, World* world, const std::string& ow
             return;
         }
 
-        const Prefab* prefab = Prefab::Get(assets, ownerDir + src);
+        const Prefab* prefab = Prefab::Get(services, ownerDir + src);
         if (!prefab) return;
 
         const std::string instanceId = namePrefix + id;

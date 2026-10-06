@@ -45,6 +45,18 @@ There is no C++ unit test suite; correctness is currently verified by running th
 python Tools/eidc/eidc.py Tools/eidc/Invoke.xml
 ```
 
+## Code style
+
+- **Comments are light.** Most code should read on its own through its names. Leave a comment only where the *why* isn't obvious from the code: a non-obvious constraint, a workaround, an ordering that matters. No comments that restate the code, narrate a change ("now does X", "moved from Y"), or label every block. A short line on a declaration in a header is fine when the name alone doesn't say enough; paragraphs aren't.
+- **Fit the existing design; don't bolt on.** A new feature should slot into the flow that's already there (the service's queue, the asset pipeline, the registry) rather than poking flags and special-case conditionals into existing code. If it needs lots of `if (newThing)` checks scattered around, the design is wrong.
+- **Keep responsibilities where they belong.** Policy lives in the service that owns it; Core types expose plain state (e.g. `Scene::IsSetUp()`) instead of reaching into services to decide things themselves.
+- **No speculative API.** Build what's used now. Don't add fields, options or overloads "in case we need them later"; they're cheap to add when they're needed.
+- **Delete dead code.** When something has no callers (old POC paths, unused messages), remove it and its includes instead of leaving it around.
+- **Names are descriptive and idiomatic to their surroundings.** A type called `Loading` is too vague; `LoadingJob` says what it is. Lua bindings follow the existing families (`SceneReplace`, `ScenePush`, `SceneLoading`): noun-first, no `Get` prefix. C++ getters keep `Get`.
+- **Headers are ordered semantically.** Group declarations by topic (lifecycle, operations, queries, then each feature), with a short section comment; in the private section, types first, then helpers, then members, grouped the same way.
+- **Never block the main thread on assets.** Assets load async through `IAssetService`; anything a scene needs goes in its preloads. A component whose asset isn't in yet no-ops instead of failing.
+- **Match the surrounding code.** Same idioms, naming and comment density as the file you're in.
+
 ## Architecture
 
 ### Service locator + interface split

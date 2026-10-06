@@ -1,0 +1,49 @@
+<Scene>
+    <SceneScript path="Scripts/LoadingScene.lua"/>
+    <Systems>
+        <System type="ScriptSystem"/>
+        <System type="TransformSystem"/>
+        <System type="RenderSystem"/>
+    </Systems>
+    <SceneConfiguration width="1920" height="1080">
+        <SceneLayer name="background" z="0" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+    </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="0" y="0"/>
+            <CameraComponent/>
+        </Entity>
+        <Entity name="Title">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Title"/>
+            <TextComponent text="Loading" fontSize="64" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="640" y="320"/>
+        </Entity>
+        <Entity name="Asset">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Asset"/>
+            <TextComponent text="" fontSize="24" r="200" g="170" b="110" a="200" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="640" y="420"/>
+        </Entity>
+        <Entity name="Bar">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Meter" enabled="true">
+                    <Uniform name="uFillColor" type="vec4" value="1.000000 0.820000 0.430000 1.000000"/>
+                    <Uniform name="uTrackColor" type="vec4" value="0.000000 0.000000 0.000000 0.850000"/>
+                    <Uniform name="uProgress" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.360000 0.260000 0.080000 1.000000"/>
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Bar"/>
+            <RectangleComponent width="400" height="16" cornerRadius="0"/>
+            <TransformComponent x="440" y="380"/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="../Prefabs/MenuBackground.xml" id="Background"/>
+</Scene>

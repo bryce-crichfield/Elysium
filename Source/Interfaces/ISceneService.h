@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -29,6 +30,15 @@ struct ScreenFit {
     }
     Vector2 ToFramebuffer(Vector2 p) const { return {p.x * scale + offset.x, p.y * scale + offset.y}; }
     Vector2 ToScreen(Vector2 p) const { return {(p.x - offset.x) / scale, (p.y - offset.y) / scale}; }
+};
+
+// A scene change waiting on its preloads, while the loading scene shows (GetLoadingState).
+struct LoadingState {
+    std::string scene;  // the scene being opened
+    std::string asset;  // a preload still loading; "" before they start
+    int loaded = 0;     // preloads in (failed ones count: they're logged, not waited on)
+    int total = 0;
+    float Progress() const { return total > 0 ? static_cast<float>(loaded) / total : 0.0f; }
 };
 
 class ISceneService : public IService {
@@ -90,6 +100,14 @@ class ISceneService : public IService {
     // The project's entry scene, pushed at startup and when entering Play with an empty stack.
     virtual void SetEntryScene(const std::string& sceneName) = 0;
     virtual const std::string& GetEntryScene() const = 0;
+
+    // The scene shown while a Push/Replace target's <Preload> assets load: the project's
+    // Scenes/<name>.xml, else the engine's own (Assets/Scenes/<name>.xml). Empty disables
+    // loading screens (the change then happens at once, assets loading in as they come).
+    virtual void SetLoadingScene(const std::string& sceneName) = 0;
+    virtual const std::string& GetLoadingScene() const = 0;
+    // The scene change being loaded for, if any; the loading scene's script reads it.
+    virtual std::optional<LoadingState> GetLoadingState() const = 0;
 
     // Throws away the loaded stack and reloads the same scenes (or the entry scene) from
     // disk, so Play always runs what's saved rather than anything the editor touched.

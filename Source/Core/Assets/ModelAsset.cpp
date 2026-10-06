@@ -4,6 +4,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include "external/cgltf.h"  // compiled into raylib (rmodels.c)
 
 #include <algorithm>
 #include <cctype>
@@ -19,13 +20,15 @@ struct ModelAsset::Native {
     ::Model model{};
 };
 
-// A .mesh as the baker writes it (see bake_core.py): submeshes as index ranges over one
-// shared vertex array.
+// A model read off the main thread, waiting for Finalize to upload it: submeshes as index
+// ranges over one shared vertex array, as the baker writes a .mesh (see bake_core.py); a
+// glTF is read into the same shape. Textures are decoded here too, so Finalize only uploads.
 struct ModelAsset::BakedMesh {
     struct Submesh {
         std::string name, material, texture;
         float color[4] = {1, 1, 1, 1};
         uint32_t firstIndex = 0, indexCount = 0;
+        int image = -1;  // into `images`, or none
     };
 #pragma pack(push, 1)
     struct Vertex {
@@ -42,17 +45,145 @@ struct ModelAsset::BakedMesh {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     uint32_t boneCount = 0;
+    std::vector<::Image> images;  // decoded, not yet uploaded
+
+    BakedMesh() = default;
+    BakedMesh(const BakedMesh&) = delete;
+    BakedMesh& operator=(const BakedMesh&) = delete;
+    ~BakedMesh() {
+        for (::Image& image : images) ::UnloadImage(image);
+    }
 };
 
 namespace {
 
-bool IsBakedMesh(const std::string& path) {
+std::string Extension(const std::string& path) {
     std::string ext = std::filesystem::path(path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
-    return ext == ".mesh";
+    return ext;
+}
+
+bool IsBakedMesh(const std::string& path) { return Extension(path) == ".mesh"; }
+bool IsGltf(const std::string& path) {
+    const std::string ext = Extension(path);
+    return ext == ".glb" || ext == ".gltf";
+}
+
+// One glTF image, decoded (embedded in a buffer, or a file beside the model). Empty on failure.
+::Image DecodeGltfImage(const cgltf_image* image, const std::filesystem::path& folder) {
+    if (image->buffer_view) {
+        const auto* bytes = reinterpret_cast<const unsigned char*>(cgltf_buffer_view_data(image->buffer_view));
+        const std::string mime = image->mime_type ? image->mime_type : "";
+        const char* ext = mime == "image/jpeg" ? ".jpg" : ".png";
+        return ::LoadImageFromMemory(ext, bytes, (int)image->buffer_view->size);
+    }
+    if (image->uri && std::strncmp(image->uri, "data:", 5) != 0) {
+        return ::LoadImage((folder / image->uri).string().c_str());
+    }
+    return ::Image{};
 }
 
 }  // namespace
+
+// A .glb/.gltf read as raylib's LoadGLTF reads it (every node's mesh, its transform baked
+// into the vertices; each triangle primitive a submesh with its base colour and texture),
+// but all on the calling thread: nothing here touches the GPU.
+std::unique_ptr<ModelAsset::BakedMesh> ModelAsset::ReadGltf(const std::string& path) {
+    cgltf_options options{};
+    cgltf_data* data = nullptr;
+    if (cgltf_parse_file(&options, path.c_str(), &data) != cgltf_result_success) {
+        LOG_ERRORF("ModelAsset", "Can't parse glTF: %s", GetPath().c_str());
+        return nullptr;
+    }
+    if (cgltf_load_buffers(&options, data, path.c_str()) != cgltf_result_success) {
+        LOG_ERRORF("ModelAsset", "Can't load glTF buffers: %s", GetPath().c_str());
+        cgltf_free(data);
+        return nullptr;
+    }
+
+    auto baked = std::make_unique<BakedMesh>();
+    const std::filesystem::path folder = std::filesystem::path(path).parent_path();
+    std::vector<int> imageIndex(data->images_count, -1);  // glTF image -> baked->images
+    for (cgltf_size i = 0; i < data->images_count; ++i) {
+        ::Image image = DecodeGltfImage(&data->images[i], folder);
+        if (image.data) {
+            imageIndex[i] = (int)baked->images.size();
+            baked->images.push_back(image);
+        } else {
+            LOG_WARNINGF("ModelAsset", "Can't decode image %d of %s", (int)i, GetPath().c_str());
+        }
+    }
+
+    for (cgltf_size n = 0; n < data->nodes_count; ++n) {
+        const cgltf_node* node = &data->nodes[n];
+        if (!node->mesh) continue;
+        float m[16];
+        cgltf_node_transform_world(node, m);
+        const ::Matrix world = {m[0], m[4], m[8], m[12], m[1], m[5], m[9], m[13],
+                                m[2], m[6], m[10], m[14], m[3], m[7], m[11], m[15]};
+        const ::Matrix normalWorld = MatrixTranspose(MatrixInvert(world));
+
+        for (cgltf_size p = 0; p < node->mesh->primitives_count; ++p) {
+            const cgltf_primitive& prim = node->mesh->primitives[p];
+            if (prim.type != cgltf_primitive_type_triangles) continue;
+            const cgltf_accessor* position = nullptr;
+            const cgltf_accessor* normal = nullptr;
+            const cgltf_accessor* uv = nullptr;
+            for (cgltf_size a = 0; a < prim.attributes_count; ++a) {
+                const cgltf_attribute& attr = prim.attributes[a];
+                if (attr.type == cgltf_attribute_type_position) position = attr.data;
+                else if (attr.type == cgltf_attribute_type_normal) normal = attr.data;
+                else if (attr.type == cgltf_attribute_type_texcoord && attr.index == 0) uv = attr.data;
+            }
+            if (!position) continue;
+
+            const uint32_t base = (uint32_t)baked->vertices.size();
+            for (cgltf_size v = 0; v < position->count; ++v) {
+                BakedMesh::Vertex out{};
+                float in[3] = {0, 0, 0};
+                cgltf_accessor_read_float(position, v, in, 3);
+                const ::Vector3 pos = Vector3Transform(::Vector3{in[0], in[1], in[2]}, world);
+                out.position[0] = pos.x;
+                out.position[1] = pos.y;
+                out.position[2] = pos.z;
+                if (normal) {
+                    cgltf_accessor_read_float(normal, v, in, 3);
+                    const ::Vector3 nrm = Vector3Normalize(Vector3Transform(::Vector3{in[0], in[1], in[2]}, normalWorld));
+                    out.normal[0] = nrm.x;
+                    out.normal[1] = nrm.y;
+                    out.normal[2] = nrm.z;
+                }
+                if (uv) cgltf_accessor_read_float(uv, v, out.uv, 2);
+                baked->vertices.push_back(out);
+            }
+
+            BakedMesh::Submesh sub;
+            sub.name = node->name ? node->name : "";
+            sub.firstIndex = (uint32_t)baked->indices.size();
+            if (prim.indices) {
+                for (cgltf_size i = 0; i < prim.indices->count; ++i) {
+                    baked->indices.push_back(base + (uint32_t)cgltf_accessor_read_index(prim.indices, i));
+                }
+            } else {
+                for (cgltf_size i = 0; i < position->count; ++i) baked->indices.push_back(base + (uint32_t)i);
+            }
+            sub.indexCount = (uint32_t)baked->indices.size() - sub.firstIndex;
+            if (const cgltf_material* mat = prim.material) {
+                sub.material = mat->name ? mat->name : "";
+                if (mat->has_pbr_metallic_roughness) {
+                    const auto& pbr = mat->pbr_metallic_roughness;
+                    std::memcpy(sub.color, pbr.base_color_factor, sizeof(sub.color));
+                    if (pbr.base_color_texture.texture && pbr.base_color_texture.texture->image) {
+                        sub.image = imageIndex[pbr.base_color_texture.texture->image - data->images];
+                    }
+                }
+            }
+            baked->submeshes.push_back(std::move(sub));
+        }
+    }
+    cgltf_free(data);
+    return baked;
+}
 
 ModelAsset::~ModelAsset() = default;
 
@@ -63,7 +194,11 @@ bool ModelAsset::Load() {
         LOG_ERRORF("ModelAsset", "Model file not found: %s", GetPath().c_str());
         return false;
     }
-    if (!IsBakedMesh(path)) return true;  // raylib reads it in Finalize
+    if (IsGltf(path)) {
+        baked_ = ReadGltf(path);
+        return baked_ != nullptr;
+    }
+    if (!IsBakedMesh(path)) return true;  // raylib reads it (an .obj) in Finalize
 
     std::ifstream file(path, std::ios::binary);
     std::vector<char> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -143,6 +278,28 @@ bool ModelAsset::Load() {
             LOG_WARNINGF("ModelAsset", "%s is skinned but has no .skel beside it; drawing it unskinned", GetPath().c_str());
         }
     }
+
+    // Its textures, files beside it, decoded now so Finalize only uploads them.
+    const std::filesystem::path folder = std::filesystem::path(path).parent_path();
+    std::unordered_map<std::string, int> decoded;
+    for (auto& sub : baked->submeshes) {
+        if (sub.texture.empty()) continue;
+        auto it = decoded.find(sub.texture);
+        if (it == decoded.end()) {
+            const std::string file = (folder / sub.texture).string();
+            int index = -1;
+            if (std::filesystem::exists(file, ec)) {
+                ::Image image = ::LoadImage(file.c_str());
+                if (image.data) {
+                    index = (int)baked->images.size();
+                    baked->images.push_back(image);
+                }
+            }
+            if (index < 0) LOG_WARNINGF("ModelAsset", "Texture %s (for %s) not found", file.c_str(), GetPath().c_str());
+            it = decoded.emplace(sub.texture, index).first;
+        }
+        sub.image = it->second;
+    }
     baked_ = std::move(baked);
     return true;
 }
@@ -154,7 +311,6 @@ bool ModelAsset::Finalize() {
         // are 16 bit, so a submesh with more than 65535 of them is drawn unindexed.
         const BakedMesh& baked = *baked_;
         const bool skinned = skeleton_ != nullptr;
-        const std::filesystem::path folder = std::filesystem::path(GetPath().GetFullPath()).parent_path();
         std::vector<const BakedMesh::Submesh*> subs;
         for (const auto& sub : baked.submeshes) {
             if (sub.indexCount >= 3 && (size_t)sub.firstIndex + sub.indexCount <= baked.indices.size()) subs.push_back(&sub);
@@ -169,7 +325,7 @@ bool ModelAsset::Finalize() {
         model.meshes = (::Mesh*)MemAlloc(sizeof(::Mesh) * subs.size());
         model.materials = (::Material*)MemAlloc(sizeof(::Material) * subs.size());
         model.meshMaterial = (int*)MemAlloc(sizeof(int) * subs.size());
-        std::unordered_map<std::string, ::Texture2D> textures;
+        std::vector<::Texture2D> textures(baked.images.size());  // uploaded as first used
         bool clampedBones = false;
 
         for (size_t k = 0; k < subs.size(); ++k) {
@@ -222,21 +378,14 @@ bool ModelAsset::Finalize() {
                 (unsigned char)std::clamp(sub.color[1] * 255.0f, 0.0f, 255.0f),
                 (unsigned char)std::clamp(sub.color[2] * 255.0f, 0.0f, 255.0f),
                 (unsigned char)std::clamp(sub.color[3] * 255.0f, 0.0f, 255.0f)};
-            if (!sub.texture.empty()) {
-                auto it = textures.find(sub.texture);
-                if (it == textures.end()) {
-                    const std::string file = (folder / sub.texture).string();
-                    ::Texture2D texture{};
-                    if (FileExists(file.c_str())) {
-                        texture = LoadTexture(file.c_str());
-                        GenTextureMipmaps(&texture);
-                        SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
-                    } else {
-                        LOG_WARNINGF("ModelAsset", "Texture %s (for %s) not found", file.c_str(), GetPath().c_str());
-                    }
-                    it = textures.emplace(sub.texture, texture).first;
+            if (sub.image >= 0) {
+                ::Texture2D& texture = textures[sub.image];
+                if (texture.id == 0) {
+                    texture = LoadTextureFromImage(baked.images[sub.image]);
+                    GenTextureMipmaps(&texture);
+                    SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
                 }
-                if (it->second.id != 0) material.maps[MATERIAL_MAP_DIFFUSE].texture = it->second;
+                if (texture.id != 0) material.maps[MATERIAL_MAP_DIFFUSE].texture = texture;
             }
             model.meshMaterial[k] = (int)k;
         }

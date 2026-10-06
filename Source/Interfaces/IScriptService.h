@@ -35,6 +35,9 @@ class IScriptService : public IService {
 
     virtual std::vector<Entity> FilterEntities(const std::string& filterFunctionBody) = 0;
 
+    // The assets a loaded scene script's Preload() names, to load before its scene opens
+    // (none if it has no Preload). Runs before the scene exists: no world, no entities.
+    virtual std::vector<std::string> GetScenePreloads(Path scriptPath) = 0;
     virtual bool InitializeScene(Path scriptPath) = 0;
     virtual bool UpdateScene(Path scriptPath, float deltaTime) = 0;
     virtual bool RenderScene(Path scriptPath) = 0;

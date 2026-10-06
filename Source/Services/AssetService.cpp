@@ -1,5 +1,6 @@
 #include "Services/AssetService.h"
 #include <algorithm>
+#include <chrono>
 #include "Core/Assets/SpriteAsset.h"
 #include "Core/Assets/TextureAsset.h"
 #include "Core/Common.h"
@@ -39,8 +40,8 @@ void AssetService::Update(float deltaTime) {
     // slow load (a long music decode) hold back everything else: a scene's floors arrived late
     // enough that the battle started on an empty navmesh.
     if (needsFinalization_) {
-        FinalizeAssets();
         needsFinalization_ = false;
+        FinalizeAssets();  // sets it again if it ran out of time with assets left
     }
 
     // Fire caller-facing Then() continuations for loads that have resolved, and drop
@@ -206,11 +207,18 @@ void AssetService::NotifyWaiters(const Path& path, IAsset* result) {
 }
 
 void AssetService::FinalizeAssets() {
-    LOG_INFO("AssetService", "Finalizing assets on main thread");
+    // GPU uploads take main-thread time: stop once a frame's worth is spent (at least one
+    // asset each frame) and pick up the rest next frame, so a loading screen keeps drawing.
+    constexpr auto kBudget = std::chrono::milliseconds(8);
+    const auto start = std::chrono::steady_clock::now();
 
     std::vector<Path> failed;
     for (auto& [path, asset] : assetsByPath_) {
         if (!asset->NeedsFinalize() || asset->IsLoaded()) continue;
+        if (std::chrono::steady_clock::now() - start > kBudget) {
+            needsFinalization_ = true;
+            break;
+        }
 
         if (asset->Finalize()) {
             NotifyWaiters(path, asset.get());
@@ -224,8 +232,6 @@ void AssetService::FinalizeAssets() {
     for (const auto& path : failed) {
         assetsByPath_.erase(path);  // leave the path retryable
     }
-
-    LOG_INFO("AssetService", "Asset finalization complete");
 }
 
 }  // namespace Elysium::Services

@@ -11,7 +11,9 @@
 #include "Core/PrefabInstance.h"
 #include "Core/Scene.h"
 #include "Core/World.h"
+#include "Core/ServiceLocator.h"
 #include "Core/Xml.h"
+#include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
 
 using namespace tinyxml2;
@@ -42,6 +44,15 @@ constexpr int kMaxSpawnDepth = 16;
 
 const Prefab* Prefab::Get(Services::IAssetService& assets, const std::string& fullPath) {
     return assets.LoadAssetNow<Prefab>(Path::FromFullPath(fullPath));
+}
+
+const Prefab* Prefab::Get(ServiceLocator& services, const std::string& fullPath) {
+    auto& assets = services.Get<Services::IAssetService>();
+    const Path path = Path::FromFullPath(fullPath);
+    if (!assets.IsAssetLoaded(path) && services.Get<Services::IApplicationService>().GetMode() == AppMode::Play) {
+        LOG_WARNINGF("Prefab", "%s loaded during play: add it to the scene's <Preload>", path.c_str());
+    }
+    return assets.LoadAssetNow<Prefab>(path);
 }
 
 const Prefab* Prefab::Reload(Services::IAssetService& assets, const std::string& fullPath) {

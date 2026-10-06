@@ -32,6 +32,7 @@ class AssetService : public IAssetService {
 
     void FinalizeAssets() override;  // Convert raw data to GPU/audio resources on main thread
     bool IsAssetLoaded(Path path) const override;
+    bool IsLoading() const override { return outstandingLoads_ > 0 || needsFinalization_; }
 
     IAsset* GetAsset(Path path) override;
 

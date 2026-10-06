@@ -10,6 +10,7 @@ namespace Elysium {
 struct ProjectConfig {
     std::string name;
     std::string entryScene;
+    std::string loadingScene = "Loading";  // shown while a scene's preloads load; "" for none
     std::string configPath = "Config/ApplicationConfig.xml";  // relative to rootDir
     std::string rootDir;                                       // directory containing Project.xml, trailing '/'
 

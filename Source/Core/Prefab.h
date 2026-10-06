@@ -77,6 +77,9 @@ class Prefab {
     // The prefab at `fullPath`, loaded (or reused) through the asset service. Null (and
     // logged) if it's missing or malformed.
     static const Prefab* Get(Services::IAssetService& assets, const std::string& fullPath);
+    // The same, for the game: playing, a prefab not already loaded is read from disk on the
+    // spot, stalling the frame, so it warns that it belongs in the scene's <Preload>.
+    static const Prefab* Get(ServiceLocator& services, const std::string& fullPath);
     // Rereads it from disk, e.g. after the editor saved it. Earlier pointers dangle.
     static const Prefab* Reload(Services::IAssetService& assets, const std::string& fullPath);
 

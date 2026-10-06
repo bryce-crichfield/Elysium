@@ -193,6 +193,18 @@ function ScreenToWorld(screenPos) end
 ---@param sceneName string
 function SceneReplace(sceneName) end
 
+---@class SceneLoading
+---@field scene string     the scene being opened
+---@field asset string     a preload still loading ("" before they start)
+---@field loaded integer   preloads in
+---@field total integer
+---@field progress number  loaded / total, 0 to 1
+
+-- The scene change the loading scene (Project.xml <LoadingScene>) is up for, or nil when
+-- nothing is loading. It waits on the scene's <Preload> list and its script's Preload().
+---@return SceneLoading?
+function SceneLoading() end
+
 -- Network =====================================================================
 
 ---@class NetEvent
@@ -402,6 +414,7 @@ MOUSE_MIDDLE = 2
 ---@field OnEvent? fun(self: EntityScript, entity: Entity, event: EventData)
 
 ---@class SceneScript
+---@field Preload? fun(self: SceneScript): string[]  more assets to load before the scene opens (files or folders, like <Preload>); runs before the scene exists
 ---@field Initialize? fun(self: SceneScript)
 ---@field Update? fun(self: SceneScript, dt: number)
 ---@field OnEvent? fun(self: SceneScript, event: EventData)

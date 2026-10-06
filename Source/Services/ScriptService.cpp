@@ -359,7 +359,7 @@ void ScriptService::BindEntityAPI() {
                                            sol::optional<float> z) -> sol::object {
         auto* world = GetActiveWorld();
         if (!world) return sol::nil;
-        const Prefab* prefab = Prefab::Get(s_services->Get<IAssetService>(), Path(path).GetFullPath());
+        const Prefab* prefab = Prefab::Get(*s_services, Path(path).GetFullPath());
         if (!prefab) return sol::nil;
         static int spawnCount = 0;
         PrefabSpawnResult result = prefab->Spawn(world, "Spawn" + std::to_string(++spawnCount), *s_services);
@@ -391,6 +391,20 @@ void ScriptService::BindEntityAPI() {
     });
     lua.set_function("ScenePop", []() {
         s_services->Get<ISceneService>().Pop();
+    });
+    // The scene change the loading scene is up for: { scene, asset, loaded, total, progress },
+    // or nil when nothing is loading.
+    lua.set_function("SceneLoading", [](sol::this_state ts) -> sol::object {
+        const auto state = s_services->Get<ISceneService>().GetLoadingState();
+        if (!state) return sol::nil;
+        sol::state_view view(ts);
+        sol::table t = view.create_table();
+        t["scene"] = state->scene;
+        t["asset"] = state->asset;
+        t["loaded"] = state->loaded;
+        t["total"] = state->total;
+        t["progress"] = state->Progress();
+        return t;
     });
 
     // Input Polling
@@ -1052,6 +1066,28 @@ bool ScriptService::WarnMissingSceneHook(const Path& scriptPath, const char* hoo
         LOG_WARNINGF("ScriptService", "Scene script %s has no %s", scriptPath.c_str(), hook);
     }
     return false;
+}
+
+std::vector<std::string> ScriptService::GetScenePreloads(Path scriptPath) {
+    std::vector<std::string> paths;
+    // The script's own table (no instance yet): Preload runs before its scene exists.
+    sol::table proto = GetOrLoadScript(scriptPath);
+    if (!proto.valid()) return paths;
+    sol::function preload = proto["Preload"];
+    if (!preload.valid()) return paths;
+
+    auto result = preload(proto);
+    if (!result.valid()) {
+        sol::error err = result;
+        LOG_ERRORF("ScriptService", "Error in scene %s:Preload: %s", scriptPath.c_str(), err.what());
+        return paths;
+    }
+    sol::object list = result;
+    if (!list.is<sol::table>()) return paths;
+    for (const auto& [key, value] : list.as<sol::table>()) {
+        if (value.is<std::string>()) paths.push_back(value.as<std::string>());
+    }
+    return paths;
 }
 
 bool ScriptService::InitializeScene(Path scriptPath) {

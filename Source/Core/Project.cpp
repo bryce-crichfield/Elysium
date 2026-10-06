@@ -31,6 +31,10 @@ bool ProjectConfig::FromXML(const std::string& projectXmlPath, ProjectConfig& ou
         return false;
     }
 
+    if (tinyxml2::XMLElement* loading = root->FirstChildElement("LoadingScene")) {
+        out.loadingScene = loading->GetText() ? loading->GetText() : "";
+    }
+
     if (tinyxml2::XMLElement* config = root->FirstChildElement("Config")) {
         out.configPath = config->GetText() ? config->GetText() : out.configPath;
     }

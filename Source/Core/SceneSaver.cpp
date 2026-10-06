@@ -152,6 +152,13 @@ bool SaveScene(Scene& scene, const std::string& path) {
             .SetAttribute("path", scene.GetSceneScript().c_str());
     }
 
+    if (!scene.GetPreloads().empty()) {
+        auto preload = builder.AddElement("Preload");
+        for (const auto& asset : scene.GetPreloads()) {
+            preload.AddElement("Asset").SetAttribute("path", asset.c_str());
+        }
+    }
+
     if (!scene.GetEditorMetadata().empty()) {
         auto metadata = builder.AddElement("EditorMetadata");
         for (const auto& [key, value] : scene.GetEditorMetadata()) metadata.SetAttribute(key.c_str(), value.c_str());

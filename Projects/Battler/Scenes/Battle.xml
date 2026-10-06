@@ -1,5 +1,19 @@
 <Scene>
     <SceneScript path="Scripts/BattleScene.lua"/>
+    <Preload>
+        <Asset path="Models"/>
+        <Asset path="Models/Characters/Knight"/>
+        <Asset path="Models/Characters/Archer"/>
+        <Asset path="Models/Characters/Vampire"/>
+        <Asset path="Models/Characters/Hulk"/>
+        <Asset path="Animations/Knight"/>
+        <Asset path="Animations/Archer"/>
+        <Asset path="Animations/Hulk"/>
+        <Asset path="Animations/Vampire"/>
+        <Asset path="Sounds"/>
+        <Asset path="Textures/Cards"/>
+        <Asset path="Textures/Ui"/>
+    </Preload>
     <EditorMetadata gridDivisor="1" gridHeight="64" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="128"/>
     <Systems>
         <System type="ScriptSystem"/>

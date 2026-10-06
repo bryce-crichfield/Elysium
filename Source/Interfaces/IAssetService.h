@@ -46,6 +46,8 @@ class IAssetService : public IService {
 
     virtual void FinalizeAssets() = 0;
     virtual bool IsAssetLoaded(Path path) const = 0;
+    // True while any async load is still reading or waiting to be finalized.
+    virtual bool IsLoading() const = 0;
 
     virtual IAsset* GetAsset(Path path) = 0;
 

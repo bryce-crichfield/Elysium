@@ -151,6 +151,14 @@ class Scene final : public IEventListener, IMessageListener {
 
     void SetSceneScript(const std::string& path) { sceneScriptPath_ = path; }
     const std::string& GetSceneScript() const { return sceneScriptPath_; }
+    // Its scene script (if any) has run Initialize: playing, the scene is as it means to look.
+    bool IsSetUp() const { return sceneScriptPath_.empty() || isSceneScriptInitialized_; }
+
+    // Assets to have loaded before the scene opens (<Preload><Asset path/></Preload>):
+    // project-relative files, or folders meaning every asset directly in them. SceneService shows the
+    // loading scene while they load; the scene itself never reads them.
+    std::vector<std::string>& GetPreloads() { return preloads_; }
+    const std::vector<std::string>& GetPreloads() const { return preloads_; }
 
 protected:
     // Core scene components
@@ -162,6 +170,7 @@ protected:
     std::string sceneScriptPath_;
     std::string name_, path_;
     std::map<std::string, std::string> editorMetadata_;
+    std::vector<std::string> preloads_;
     std::optional<Color> backgroundColor_;
     bool isSceneScriptInitialized_ = false;
 };
@@ -170,6 +179,14 @@ protected:
 std::string ScenePath(const std::string& name);
 
 bool LoadScene(Scene& scene, const std::string& path);
+// What the scene file at `path` asks to have loaded before it opens, read without loading
+// the scene: its <Preload> list, and its SceneScript (which can name more, see
+// IScriptService::GetScenePreloads).
+struct ScenePreloads {
+    std::vector<std::string> assets;
+    std::string script;
+};
+ScenePreloads ReadScenePreloads(const std::string& path);
 bool SaveScene(Scene& scene, const std::string& path);
 
 // Loads every child component of one <Entity> onto `entity` through the ComponentRegistry,
