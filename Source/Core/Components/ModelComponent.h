@@ -13,6 +13,7 @@ namespace Elysium {
         float scale = 1.0f;          // world units per model unit
         float yaw = 0.0f;            // degrees, on top of the Transform's rotation
         Color tint = {255, 255, 255, 255};
+        Color emissive = {0, 0, 0, 255};  // added after lighting, so it glows even in shadow
         bool centered = true;        // place by bounds (footprint centered, base on the ground)
         bool walkable = false;       // units stand on it (GroundSystem): floors, stairs, platforms
 

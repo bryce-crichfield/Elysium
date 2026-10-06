@@ -169,6 +169,18 @@ function Units.SyncHealth(u)
     end
 end
 
+local HIT_FLASH = 0.18   -- seconds a hit unit flashes white
+local KNOCK = 14         -- ground units a hit pushes it back
+local KNOCK_TIME = 0.35  -- seconds out and back
+
+-- A hit from (x, y): flashes the unit white and knocks it back, away from there.
+function Units.Hit(u, x, y)
+    u.flash = HIT_FLASH
+    local dx, dy = u.x - x, u.y - y
+    local len = math.sqrt(dx * dx + dy * dy)
+    if len > 0.001 then u.knock = { dx = dx / len, dy = dy / len, t = 0 } end
+end
+
 function Units.Update(u, dt)
     Units.SyncHealth(u)
     u.clipTime = (u.clipTime or 0) + dt
@@ -183,17 +195,32 @@ function Units.Update(u, dt)
     end
     u.shake = math.max(0, u.shake - dt)
     u.flash = math.max(0, u.flash - dt)
+    local kx, ky = 0, 0
+    if u.knock then
+        u.knock.t = u.knock.t + dt
+        local k = u.knock.t / KNOCK_TIME
+        if k >= 1 then u.knock = nil
+        else
+            -- Snaps out, then eases back home.
+            local push = k < 0.2 and k / 0.2 or (1 - (k - 0.2) / 0.8) ^ 2
+            kx, ky = u.knock.dx * KNOCK * push, u.knock.dy * KNOCK * push
+        end
+    end
     -- The bar drains toward the real value.
     if u.shownHp > u.hp then u.shownHp = math.max(u.hp, u.shownHp - dt * u.maxHp * 0.8) end
 
     local spr = GetComponent(u.entity, "Sprite")
     if spr then spr.sequence = u.facing end
     local model = GetComponent(u.entity, "Model")
-    if model and u.yaw then model.yaw = u.yaw end
+    if model then
+        if u.yaw then model.yaw = u.yaw end
+        local glow = math.floor(255 * (u.flash / HIT_FLASH) ^ 2 + 0.5)
+        model.emissive = Color.new(glow, glow, glow, 255)
+    end
     local t = GetComponent(u.entity, "Transform")
     if t then
         local jitter = u.shake > 0 and math.sin(u.shake * 90) * 4 or 0
-        t.localX, t.localY, t.localZ = u.x + jitter, u.y, u.z
+        t.localX, t.localY, t.localZ = u.x + jitter + kx, u.y + ky, u.z
     end
 end
 

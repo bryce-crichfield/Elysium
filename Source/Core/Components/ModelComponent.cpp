@@ -14,6 +14,7 @@ namespace Elysium {
         c.centered = el->BoolAttribute("centered", c.centered);
         c.walkable = el->BoolAttribute("walkable", c.walkable);
         if (const char* tint = el->Attribute("tint")) c.tint = ParseHexColor(tint, c.tint);
+        if (const char* emissive = el->Attribute("emissive")) c.emissive = ParseHexColor(emissive, c.emissive);
         if (!c.modelPath.empty()) services.Get<Services::IAssetService>().LoadAsset<Model>(Path(c.modelPath));
     }
 
@@ -26,6 +27,8 @@ namespace Elysium {
         if (c.walkable) element.SetAttribute("walkable", c.walkable);
         if (c.tint.r != 255 || c.tint.g != 255 || c.tint.b != 255 || c.tint.a != 255)
             element.SetAttribute("tint", ColorToHex(c.tint).c_str());
+        if (c.emissive.r != 0 || c.emissive.g != 0 || c.emissive.b != 0)
+            element.SetAttribute("emissive", ColorToHex(c.emissive).c_str());
     }
 
     FieldList ModelComponent::Fields() {
@@ -34,6 +37,7 @@ namespace Elysium {
             Field("Scale", &ModelComponent::scale, "scale").Speed(0.1f).Range(0.001f, 10000.0f),
             Field("Yaw", &ModelComponent::yaw, "yaw").Range(-360.0f, 360.0f),
             Field("Tint", &ModelComponent::tint, "tint"),
+            Field("Emissive", &ModelComponent::emissive, "emissive"),
             Field("Centered", &ModelComponent::centered, "centered"),
             Field("Walkable", &ModelComponent::walkable, "walkable"),
         };
@@ -46,6 +50,7 @@ namespace Elysium {
         ut["tint"]     = &ModelComponent::tint;
         ut["centered"] = &ModelComponent::centered;
         ut["walkable"] = &ModelComponent::walkable;
+        ut["emissive"] = &ModelComponent::emissive;
     }
 
     void ModelComponent::SetFromLua(ModelComponent& c, sol::object v) {

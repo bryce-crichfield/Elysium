@@ -74,6 +74,8 @@ local COLORS = {
 }
 
 -- Health bar fills for the hero frames, by team.
+local SHAKE = 9           -- ground units the hardest camera shake jolts
+local SHAKE_TIME = 0.3    -- seconds the hardest one takes to settle
 local HURT_FLASH = 1.6     -- seconds a hurt unit's frame stays open, to watch its health drain
 local HOVER_LINGER = 0.6   -- seconds a hovered unit's frame stays open after the pointer leaves
 local HEALTH_FILL = {r = 235, g = 70, b = 60, a = 255}  -- every frame's health bar; the ring glow tells the teams apart
@@ -471,12 +473,22 @@ local function PitchFor(zoom)
     return PITCH_OUT + (PITCH_IN - PITCH_OUT) * k
 end
 
+-- A jolt of the camera, `strength` 0..1 (the biggest hits shake hardest). It doesn't stack
+-- past the strongest one going.
+function Battle:ShakeCamera(strength)
+    self.cameraShake = math.max(self.cameraShake or 0, strength)
+end
+
 function Battle:UpdateCamera(dt)
     local cam = self:Camera()
     if not cam then return end
     local t = GetComponent(cam, "Transform")
     local c = GetComponent(cam, "Camera")
     if not t or not c then return end
+    -- Last frame's shake comes off first, so the camera's own moves never carry it.
+    local jolt = self.cameraJolt
+    if jolt then t.localX, t.localY = t.localX - jolt.x, t.localY - jolt.y end
+    self.cameraJolt = nil
 
     -- Pans in screen directions, whichever way the camera faces: a screen offset (in pixels)
     -- as a ground offset.
@@ -528,6 +540,14 @@ function Battle:UpdateCamera(dt)
         self.panAnchor = { x = m.x, y = m.y }
     else
         self.panAnchor = nil
+    end
+
+    local shake = self.cameraShake or 0
+    if shake > 0 then
+        local amount = SHAKE * (0.3 + 0.7 * shake) * shake
+        self.cameraJolt = { x = (math.random() * 2 - 1) * amount, y = (math.random() * 2 - 1) * amount }
+        t.localX, t.localY = t.localX + self.cameraJolt.x, t.localY + self.cameraJolt.y
+        self.cameraShake = math.max(0, shake - dt / SHAKE_TIME)
     end
 end
 
@@ -895,9 +915,12 @@ function Battle:Float(text, x, y, z, color)
     self.floaters[#self.floaters + 1] = { text = text, x = x, y = y, z = z, t = 0, color = color }
 end
 
-function Battle:Hurt(target, dmg)
+-- `from` is where the blow came from (the attacker, the blast), to knock the target away from.
+function Battle:Hurt(target, dmg, from)
     target.hp = math.max(0, target.hp - dmg)
     target.shake = 0.25
+    Units.Hit(target, from.x, from.y)
+    self:ShakeCamera(math.min(1, dmg / math.max(1, target.maxHp) * 3))
     target.flashUntil = self.time + HURT_FLASH  -- its frame opens to show the bar drop
     self:Float(tostring(dmg), target.x, target.y, target.z, {r = 255, g = 225, b = 120, a = 255})
     if target.hp <= 0 and target.alive then
@@ -927,7 +950,7 @@ function Battle:Attack(att, def, card)
         Wait(length * 0.55)
         Play(SFX.hit)
     end
-    self:Hurt(def, Rules.Damage(att, def, Rules.Power(att, card)))
+    self:Hurt(def, Rules.Damage(att, def, Rules.Power(att, card)), att)
     Wait(length * 0.45 + (def.alive and 0.3 or 0.8))  -- linger on a kill
     self:EndShot(home)
 end
@@ -968,7 +991,7 @@ function Battle:CastBolt(caster, at, card)
 
     for _, v in ipairs(Rules.Splash(self.units, at, Rules.SplashRadius(card))) do
         if v.team ~= caster.team then
-            self:Hurt(v, Rules.Damage(caster, v, Rules.SplashPower(caster, card, v, at)))
+            self:Hurt(v, Rules.Damage(caster, v, Rules.SplashPower(caster, card, v, at)), at)
         end
     end
     Wait(0.8)

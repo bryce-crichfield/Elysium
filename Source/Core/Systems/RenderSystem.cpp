@@ -1113,6 +1113,7 @@ in vec3 fragWorld;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform float uAlpha;
+uniform vec3 uEmissive;
 out vec4 finalColor;
 )";
 
@@ -1132,7 +1133,7 @@ void main()
     vec3 view = uPerspective > 0.5 ? normalize(uEye - fragWorld) : normalize(uTowardCamera);
     float rim = pow(1.0 - max(dot(n, view), 0.0), 3.0);
     light += uRim * rim * (uAmbient + uSunColor + vec3(0.25));
-    finalColor = vec4(Fogged(albedo.rgb * light, seen), albedo.a);
+    finalColor = vec4(Fogged(albedo.rgb * light, seen) + uEmissive, albedo.a);
 }
 )";
 
@@ -1472,6 +1473,8 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     modelFadeTime_ = fadeNow;
     const int alphaLoc = GetShaderLocation(ModelShader(), "uAlpha");
     const int skinnedAlphaLoc = GetShaderLocation(SkinnedModelShader(), "uAlpha");
+    const int emissiveLoc = GetShaderLocation(ModelShader(), "uEmissive");
+    const int skinnedEmissiveLoc = GetShaderLocation(SkinnedModelShader(), "uEmissive");
     std::vector<::Matrix> bones;
 
     // Models now; everything else is collected as cards. An entity's records are contiguous.
@@ -1517,6 +1520,9 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             fadeIt->second = std::clamp(fadeIt->second + (occluding ? -fadeStep : fadeStep), kFadedAlpha, 1.0f);
             const float alpha = fadeIt->second;
             SetShaderValue(ModelShader(), alphaLoc, &alpha, SHADER_UNIFORM_FLOAT);
+            const float emissive[3] = {component.emissive.r / 255.0f, component.emissive.g / 255.0f, component.emissive.b / 255.0f};
+            SetShaderValue(ModelShader(), emissiveLoc, emissive, SHADER_UNIFORM_VEC3);
+            SetShaderValue(SkinnedModelShader(), skinnedEmissiveLoc, emissive, SHADER_UNIFORM_VEC3);
 
             // Posed: the skinned meshes draw with this entity's bones (the mesh is shared, so
             // they go on a copy of it).
