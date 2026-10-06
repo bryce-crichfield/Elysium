@@ -159,6 +159,7 @@ void LogService::LogMessage(LogLevel level, const std::string& topic, const std:
 }
 
 void LogService::WriterThreadFunction() {
+    ProfileThread("Log Writer");
     std::queue<LogEntry> localQueue;
 
     while (!shouldStop_) {

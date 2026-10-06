@@ -6,9 +6,11 @@
 #include <functional>
 #include <mutex>
 #include <queue>
+#include <string>
 #include <thread>
 #include <vector>
 
+#include "Core/Common.h"
 #include "Core/Future.h"
 #include "Core/ServiceLocator.h"
 #include "Interfaces/ITaskService.h"
@@ -29,7 +31,7 @@ class TaskService : public Services::ITaskService {
         const unsigned count = WorkerCount();
         workers_.reserve(count);
         for (unsigned i = 0; i < count; i++) {
-            workers_.emplace_back(&TaskService::WorkerLoop, this);
+            workers_.emplace_back(&TaskService::WorkerLoop, this, i);
         }
     }
 
@@ -92,7 +94,9 @@ class TaskService : public Services::ITaskService {
     void Render() override {}
 
    private:
-    void WorkerLoop() {
+    void WorkerLoop(unsigned index) {
+        const std::string name = "Task Worker " + std::to_string(index);
+        ProfileThread(name.c_str());
         while (true) {
             std::function<void()> task;
 
@@ -113,6 +117,7 @@ class TaskService : public Services::ITaskService {
             }
 
             if (task) {
+                ProfileN("Task");
                 task();
                 pendingCount_--;
             }

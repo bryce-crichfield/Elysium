@@ -21,6 +21,7 @@
 #define ProfileText(text) ZoneText(text, strlen(text))
 #define ProfileValue(name, value) TracyPlot(name, (int64_t)(value))  // a named plot over time
 #define ProfileName(name) ZoneName(name, strlen(name))
+#define ProfileThread(name) tracy::SetThreadName(name)  // names the calling thread in the profiler
 #else
 // No-op macros when Tracy is disabled
 #define Profile
@@ -30,4 +31,5 @@
 #define ProfileText(text)
 #define ProfileValue(name, value)
 #define ProfileName(name)
+#define ProfileThread(name)
 #endif

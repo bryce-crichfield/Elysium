@@ -89,6 +89,10 @@ bool ShaderAsset::Load() {
 }
 
 bool ShaderAsset::Finalize() {
+    // WARNING: compiles and links synchronously, then reads the status back, which stalls the
+    // main thread until the driver finishes (tens of ms per shader; bursts cause long frames while
+    // loading). Fix: start the compile here, report "pending", and check the status on a later
+    // frame (GL_KHR_parallel_shader_compile where available).
     std::string error;
     Shader compiled = Shader::FromSource(vertexSource_, fragmentSource_, &error);
     if (!compiled.IsValid()) {
