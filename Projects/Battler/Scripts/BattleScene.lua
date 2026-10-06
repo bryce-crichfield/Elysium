@@ -1,7 +1,7 @@
 ---@type SceneScript
 -- Battler POC: a skirmish with free movement. Each unit walks and makes basic attacks with
 -- stamina (refilled every phase), and plays cards from its own deck (Scripts/Battler/Cards.lua)
--- with mana. Every phase a side's units grow a mana crystal (refilled) and draw a card.
+-- with mana. Every phase a side's units grow a mana crystal, regain one mana and draw a card.
 --   Click a blue-ringed unit, then Move (pick a spot in the blue area), Attack (pick a foe) or
 --   a card from its hand (Prefabs/Hand.xml): Bolt asks for a spot to blast. Right-click / Esc
 --   backs out. End Turn (or Space) ends the phase. Middle-drag pans, right-drag
@@ -649,7 +649,7 @@ end
 
 -- Starts `team`'s phase: ours takes input, the other side's is the AI's (solo) or replays the
 -- opponent's commands (versus). The blue team moves first, so its phase starts a new turn.
--- Each of the team's units refills its stamina, grows a mana crystal and refills its mana, and
+-- Each of the team's units refills its stamina, grows a mana crystal and regains one mana, and
 -- (after the opening hand) draws a card. After the banner the mana sequence plays on their hero frames, then the phase goes on.
 function Battle:BeginPhase(team)
     if team == PLAYER then self.turn = self.turn + 1 end
@@ -659,7 +659,7 @@ function Battle:BeginPhase(team)
         local stamina, mana, max = u.stamina, u.mana, u.manaMax
         u.stamina = u.staminaMax
         u.manaMax = math.min(u.manaCap, u.manaMax + 1)
-        u.mana = u.manaMax
+        u.mana = math.min(u.manaMax, u.mana + 1)
         if HeroFrames then HeroFrames.Recharge(u, mana, max, stamina) end
         if self.turn > 1 then Cards.Draw(u.piles, 1, self.rng) end
     end

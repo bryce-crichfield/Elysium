@@ -17,7 +17,7 @@
 --
 -- The mana sequence (HeroFrames.Recharge, then HeroFrames.StartRecharges): the frame shows the
 -- crystals as they were until it's started, then opens, a grown crystal fades in big and slams
--- down into its place, dark, and then the dark ones relight one by one, left to right, while the
+-- down into its place, dark, and then the dark ones the unit regained relight one by one, left to right, while the
 -- stamina bar refills. Every frame runs it at once, so the grow sound plays once for them all,
 -- and the recharge sound once per relit crystal index. HeroFrames.Recharging() says whether any
 -- frame is still at it.
@@ -288,7 +288,7 @@ function HeroFrame:ManaSequence(binding, u, detailed, dt)
                     scale = BIG + (1 - BIG) * d * d * d  -- speeds up into the slam
                 end
             end
-            if not lit then
+            if not lit and k <= (u.mana or 0) then
                 dead = dead + 1
                 lit = t >= first + (dead - 1) * STEP
             end
