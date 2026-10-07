@@ -474,6 +474,34 @@ std::optional<float> NavMeshSystem::FloorHeight(Vector2 p, float z) const {
     return floors_[f].z;
 }
 
+Vector3 NavMeshSystem::Slide(Vector3 from, Vector2 delta) const {
+    Vector2 a{from.x, from.y};
+    const int start = NearestFloor(a, from.z, cellSize_);
+    if (start < 0) return from;
+    // Standing off the walkable floor (where a spawn put it), it steps from the nearest one.
+    if (int cx, cy; !WorldToCell(a, cx, cy) || IndexOf(cx, cy) != floorColumn_[start]) {
+        a = CellCenter(floorColumn_[start] % width_, floorColumn_[start] / width_);
+    }
+    Vector3 out{a.x, a.y, floors_[start].z};
+    auto step = [&](Vector2 d) {
+        if (std::fabs(d.x) + std::fabs(d.y) < 1e-4f) return false;
+        const int f = Walk(start, a, a + d);
+        if (f < 0) return false;
+        out = {a.x + d.x, a.y + d.y, floors_[f].z};
+        return true;
+    };
+    if (step(delta)) return out;
+    // Walls run along the grid, so sliding along one keeps either the step's x or its y.
+    const Vector2 alongX{delta.x, 0.0f}, alongY{0.0f, delta.y};
+    const bool xFirst = std::fabs(delta.x) >= std::fabs(delta.y);
+    if (step(xFirst ? alongX : alongY) || step(xFirst ? alongY : alongX)) return out;
+    // Head on into it: close what's left of the gap.
+    for (float k = 0.5f; k > 0.1f; k *= 0.5f) {
+        if (step(delta * k)) return out;
+    }
+    return out;
+}
+
 std::optional<Vector3> NavMeshSystem::PickFloor(Vector2 p) const {
     const int f = FloorInPicture(p);
     if (f < 0) return std::nullopt;

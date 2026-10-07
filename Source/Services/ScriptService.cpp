@@ -627,6 +627,13 @@ void ScriptService::BindEntityAPI() {
         if (auto h = nav->FloorHeight({x, y}, z.value_or(0.0f))) return sol::make_object(lua, *h);
         return sol::nil;
     });
+    // NavSlide(x, y, z, dx, dy) -> x, y, z: a unit at (x, y, z) stepped by (dx, dy) on the
+    // ground, stopped or slid along walls by the navmesh; z is the floor's height there.
+    lua.set_function("NavSlide", [topNav](float x, float y, float z, float dx, float dy) {
+        auto* nav = topNav();
+        const Vector3 p = nav ? nav->Slide({x, y, z}, {dx, dy}) : Vector3{x + dx, y + dy, z};
+        return std::make_tuple(p.x, p.y, p.z);
+    });
     // NavCanWalk(x1, y1, x2, y2 [, z]): whether a unit at height z walks straight from 1 to 2.
     lua.set_function("NavCanWalk", [topNav](float x1, float y1, float x2, float y2, sol::optional<float> z) -> bool {
         auto* nav = topNav();

@@ -20,6 +20,7 @@
         <System type="PhysicsResponseSystem"/>
         <System type="ScriptSystem"/>
         <System type="SpriteSystem"/>
+        <System type="AnimationSystem"/>
         <System type="FollowSystem"/>
         <System type="GroundSystem"/>
         <System type="TransformSystem"/>

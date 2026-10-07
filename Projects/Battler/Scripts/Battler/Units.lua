@@ -1,6 +1,7 @@
 -- Unit classes, spawning, and the per-frame look of a unit: where it stands, which way it
 -- faces, which clip plays, its health bar and ring.
 local Board = require("Scripts/Battler/Board")
+local Widgets = require("Scripts/Components/Widgets")
 
 local Units = {}
 
@@ -107,6 +108,7 @@ function Units.Spawn(className, team, tile)
         end
     end
     u.ring = Units.FindRing(e)
+    Widgets.BindView(e, u)  -- the prefab's Unit script plays Walk and Idle from its movement
     -- The prefab's HealthBar reads these (Scripts/Components/HealthBar.lua).
     local teamComp = GetComponent(e, "Team")
     if teamComp then teamComp.team = team end
@@ -135,6 +137,9 @@ function Units.Play(u, clip)
         anim.time = 0
     end
 end
+
+-- Whether `clip` is one the Unit script (Scripts/Components/Unit.lua) picks from movement.
+function Units.Locomotion(clip) return clip == "Idle" or clip == "Walk" end
 
 -- How long `clip` lasts. For a rig, the clip `u` just started: inside a coroutine this waits
 -- (a frame or two) for it to load; outside one, or if it never does, the sprite length.
@@ -168,6 +173,8 @@ function Units.SyncHealth(u)
         health.current = u.alive and u.hp or 0
     end
 end
+
+local TURN = 14  -- how fast a model turns to face where it's going, per second
 
 local HIT_FLASH = 0.18   -- seconds a hit unit flashes white
 local KNOCK = 14         -- ground units a hit pushes it back
@@ -213,7 +220,13 @@ function Units.Update(u, dt)
     if spr then spr.sequence = u.facing end
     local model = GetComponent(u.entity, "Model")
     if model then
-        if u.yaw then model.yaw = u.yaw end
+        if u.yaw then
+            -- Turn the short way round, eased: facing changes come in steps (path legs, keys).
+            u.shownYaw = u.shownYaw or u.yaw
+            local turn = (u.yaw - u.shownYaw + 180) % 360 - 180
+            u.shownYaw = (u.shownYaw + turn * (1 - math.exp(-TURN * dt))) % 360
+            model.yaw = u.shownYaw
+        end
         local glow = math.floor(255 * (u.flash / HIT_FLASH) ^ 2 + 0.5)
         model.emissive = Color.new(glow, glow, glow, 255)
     end

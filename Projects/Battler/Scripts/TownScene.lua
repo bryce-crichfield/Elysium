@@ -3,8 +3,11 @@
 -- navmesh. The Portal (Prefabs/Portal.xml) leads to the next encounter: walking into it stops
 -- the party for the encounter's intro, then a click starts the fight in the Battle scene,
 -- which comes back here win or lose, to where the party stood. Later: shops and Contracts.
--- Left-click a party member to select it, right-click the floor to walk there; the rest of the
--- party follows the leader. Wheel zooms, middle-drag / WASD pans, Esc leaves for the menu.
+-- The camera rides over the leader's shoulder. WASD walks the leader, relative to the camera
+-- (W away from it), sliding along walls (NavSlide); the rest of the party trails behind it,
+-- each pathing after the one ahead. Right-drag turns and tilts the camera, which swings back
+-- behind the leader once it walks forward again; the wheel zooms. Left-click a party member to
+-- lead with it. Esc leaves for the menu.
 local Board = require("Scripts/Battler/Board")
 local Run = require("Scripts/Battler/Run")
 local Units = require("Scripts/Battler/Units")
@@ -22,10 +25,23 @@ local TRIGGER = 70         -- how close a party member gets to the Portal to wal
 local PORTAL_RADIUS = 60   -- the ring drawn around the Portal
 local INTRO_DELAY = 0.4    -- seconds before the intro takes a click (not the one that walked in)
 
-local CAMERA_SPEED = 300
+local REPATH = 0.25        -- seconds between a follower's paths after the one ahead
+local CLIMB = 12           -- how fast a steered unit's height eases onto the floor's, per second
+-- A floor at height z is drawn z * cos(pitch) above its ground position; NavFindPath takes
+-- its goal as a point in that picture.
+local PICTURE_LIFT = math.cos(math.rad(30))
+
 local ZOOM_STEP = 1.15     -- per wheel notch
-local ZOOM_MIN, ZOOM_MAX = 0.6, 2.5
+local ZOOM_MIN, ZOOM_MAX = 1.0, 4.0
+local ZOOM_START = 2.2
 local ZOOM_SMOOTH = 14     -- how fast zoom converges on the target, per second
+local PITCH_START = 28     -- degrees down from the horizon
+local PITCH_MIN, PITCH_MAX = 10, 65
+local ORBIT_SPEED = 0.3    -- degrees per pixel of right-drag
+local FOLLOW_SMOOTH = 8    -- how fast the camera catches up with the leader, per second
+local RECENTER_DELAY = 0.8 -- seconds after a drag before it swings back behind the leader
+local RECENTER_SMOOTH = 3  -- how fast it swings back, per second
+local LEAD = 30            -- how far ahead of the leader the camera looks
 
 -- Where the party starts, in Run.PARTY order.
 local START = { { -20.6, -19.5 }, { -139.7, 19.0 }, { -47.2, 63.0 } }
@@ -47,7 +63,8 @@ function Town:Initialize()
     self.time = 0
     self.party, self.units = {}, {}
     self.intro = nil   -- { t }: the Portal just walked into, before the fight
-    self.cameraEntity, self.panAnchor, self.zoomTarget, self.zoomOffset = nil, nil, nil, nil
+    self.cameraEntity, self.orbitAnchor, self.zoomTarget = nil, nil, nil
+    self.sinceOrbit, self.snapCamera, self.forward = RECENTER_DELAY, true, false
 
     -- Back from a fight, the party stands where it left; otherwise at the start.
     local at = Run.State().at
@@ -60,7 +77,6 @@ function Town:Initialize()
         self:Spawn(name, x, y)
     end
     self.selected = self.party[1]
-    if at then self:CenterOn(at) end
 
     local e = GetEntityByName("Portal")
     local t = e and GetComponent(e, "Transform")
@@ -82,14 +98,21 @@ end
 
 function Town:Update(dt)
     self.time = self.time + dt
-    if self.intro then self.intro.t = self.intro.t + dt else self:PanWithKeys(dt) end
-    self:UpdateCamera(dt)
+    if self.intro then self.intro.t = self.intro.t + dt else self:Steer(self.selected, dt) end
 
+    local ahead = self.selected
+    for _, u in ipairs(self.party) do
+        if u ~= self.selected then
+            if not self.intro then self:Follow(u, ahead, dt) end
+            ahead = u
+        end
+    end
     for _, u in ipairs(self.units) do
         self:Walk(u, dt)
         Units.Update(u, dt)
         Units.DrawRing(u, u == self.selected, self.time)
     end
+    self:UpdateCamera(dt)
     if not self.intro then self:CheckPortal() end
 end
 
@@ -108,12 +131,7 @@ end
 
 -- The party stops, and the next encounter's intro comes up.
 function Town:Enter()
-    for _, u in ipairs(self.party) do
-        if u.path then
-            u.path = nil
-            Units.Play(u, "Idle")
-        end
-    end
+    for _, u in ipairs(self.party) do u.path = nil end
     Sfx.Play(Sfx.SELECT)
     self.intro = { t = 0 }
 end
@@ -155,7 +173,7 @@ function Town:Render()
     FillRect(0, 0, sw, 32, PANEL, "ui")
     DrawText("Town", 16, 6, 22, TEXT, "ui", FONT)
     DrawText(string.format("Victories %d", Run.Wins()), 110, 8, 18, GOLD, "ui", FONT)
-    DrawText("Left-click: select   Right-click: move   Esc: leave", 420, 9, 16, DIM, "ui", FONT)
+    DrawText("WASD: move   Right-drag: look   Wheel: zoom   Left-click: lead   Esc: leave", 420, 9, 16, DIM, "ui", FONT)
 
     -- The encounter's intro, before the fight.
     local intro, e = self.intro, Run.Next()
@@ -192,10 +210,6 @@ function Town:OnEvent(event)
             self.selected = u
         end
         return u ~= nil
-    elseif event.button == MOUSE_RIGHT and self.selected then
-        local p = NavPick(w.x, w.y)
-        if p then self:MoveParty(self.selected, p) end
-        return true
     end
     return false
 end
@@ -211,26 +225,49 @@ function Town:PartyMemberAt(x, y)
     return best
 end
 
--- The leader walks to `to`; each other member walks to just behind the one before it.
-function Town:MoveParty(leader, to)
-    self:Send(leader, to)
-    local ahead = to
-    for _, u in ipairs(self.party) do
-        if u ~= leader then
-            local dx, dy = u.x - ahead.x, u.y - ahead.y
-            local d = math.max(1, math.sqrt(dx * dx + dy * dy))
-            local spot = NavPick(ahead.x + dx / d * FOLLOW_GAP, ahead.y + dy / d * FOLLOW_GAP) or ahead
-            self:Send(u, spot)
-            ahead = spot
-        end
-    end
+-- The camera's ground axes, each one ground unit long (a picture y counts twice an x):
+-- forward, away from the camera, and right.
+function Town:CameraAxes()
+    local camera = self:Camera() and GetComponent(self.cameraEntity, "Camera")
+    local yaw = math.rad(camera and camera.yaw or 0)
+    return math.sin(yaw), -math.cos(yaw) / 2, math.cos(yaw), math.sin(yaw) / 2
 end
 
-function Town:Send(u, to)
-    local path = NavFindPath(u.x, u.y, to.x, to.y, u.z)
-    if #path == 0 then return end
-    u.path, u.leg = path, 1
-    if u.clip ~= "Walk" then Units.Play(u, "Walk") end
+-- WASD walks the leader, relative to the camera; the navmesh stops it at walls and slides it
+-- along them.
+function Town:Steer(u, dt)
+    if not u then return end
+    u.path = nil
+    local f, r = 0, 0
+    if IsKeyDown(KEY_W) then f = f + 1 end
+    if IsKeyDown(KEY_S) then f = f - 1 end
+    if IsKeyDown(KEY_D) then r = r + 1 end
+    if IsKeyDown(KEY_A) then r = r - 1 end
+    self.forward = f > 0
+    if f == 0 and r == 0 then return end
+    local fx, fy, rx, ry = self:CameraAxes()
+    local dx, dy = fx * f + rx * r, fy * f + ry * r
+    local step = SPEED * dt / math.sqrt(dx * dx + 4 * dy * dy)
+    dx, dy = dx * step, dy * step
+    Units.Face(u, u.x + dx, u.y + dy)
+    local x, y, z = NavSlide(u.x, u.y, u.z, dx, dy)
+    u.x, u.y = x, y
+    -- The floor's height comes a cell at a time (a stair is a step); ease onto it.
+    u.z = u.z + (z - u.z) * math.min(1, CLIMB * dt)
+end
+
+-- A follower paths after `ahead` (the party member in front of it), every REPATH seconds
+-- while it's out of reach, and stops FOLLOW_GAP behind it.
+function Town:Follow(u, ahead, dt)
+    if GroundDistance(u, ahead) <= FOLLOW_GAP then
+        u.path = nil
+        return
+    end
+    u.repath = (u.repath or 0) - dt
+    if u.path and u.repath > 0 then return end
+    u.repath = REPATH
+    local path = NavFindPath(u.x, u.y, ahead.x, ahead.y - ahead.z * PICTURE_LIFT, u.z)
+    u.path, u.leg = #path > 0 and path or nil, 1
 end
 
 -- Advances along the path at a steady ground speed, turning to face each leg.
@@ -245,10 +282,7 @@ function Town:Walk(u, dt)
             u.x, u.y, u.z = p.x, p.y, p.z
             step = step - d
             u.leg = u.leg + 1
-            if u.leg > #u.path then
-                u.path = nil
-                Units.Play(u, "Idle")
-            end
+            if u.leg > #u.path then u.path = nil end
         else
             local k = step / d
             u.x, u.y, u.z = u.x + (p.x - u.x) * k, u.y + (p.y - u.y) * k, u.z + (p.z - u.z) * k
@@ -271,69 +305,61 @@ function Town:Camera()
     return cam
 end
 
--- Puts the camera over a ground point (coming back from a fight).
-function Town:CenterOn(p)
-    if not self:Camera() then return end
-    local t = GetComponent(self.cameraEntity, "Transform")
-    if t then t.localX, t.localY = p.x, p.y end
-end
+local function Ease(from, to, rate, dt) return from + (to - from) * (1 - math.exp(-rate * dt)) end
 
-function Town:PanWithKeys(dt)
-    local dx, dy = 0, 0
-    if IsKeyDown(KEY_W) then dy = dy - 1 end
-    if IsKeyDown(KEY_S) then dy = dy + 1 end
-    if IsKeyDown(KEY_A) then dx = dx - 1 end
-    if IsKeyDown(KEY_D) then dx = dx + 1 end
-    if (dx ~= 0 or dy ~= 0) and self:Camera() then
-        local pos = GetComponent(self.cameraEntity, "Transform")
-        if pos then
-            pos.localX = pos.localX + dx * CAMERA_SPEED * dt
-            pos.localY = pos.localY + dy * CAMERA_SPEED * dt
-        end
-    end
-end
+-- The way from `from` to `to` in degrees, the short way round: -180 to 180.
+local function Turn(from, to) return (to - from + 180) % 360 - 180 end
 
--- Wheel zooms about the cursor (eased toward a target) and middle-drag pans, like the editor.
+-- Over the leader's shoulder: it follows the leader, looking a little ahead of it. Right-drag
+-- turns (across) and tilts (down) it; walking forward swings it back behind the leader once
+-- the drag has settled. The wheel zooms (a perspective camera's zoom dollies it).
 function Town:UpdateCamera(dt)
-    if not self:Camera() then return end
+    local lead = self.selected
+    if not self:Camera() or not lead then return end
     local transform = GetComponent(self.cameraEntity, "Transform")
     local camera = GetComponent(self.cameraEntity, "Camera")
     if not transform or not camera then return end
 
-    self.zoomTarget = self.zoomTarget or camera.zoom
+    if self.snapCamera then
+        camera.pitch, camera.zoom, self.zoomTarget = PITCH_START, ZOOM_START, ZOOM_START
+        -- A unit's yaw is 180 off the yaw of a camera looking the way it faces (Units.Face).
+        camera.yaw = (lead.yaw or 180) - 180
+    end
+
     local wheel = GetMouseWheelMove()
     if wheel ~= 0 then
         self.zoomTarget = math.max(ZOOM_MIN, math.min(ZOOM_MAX, self.zoomTarget * ZOOM_STEP ^ wheel))
-        local under = ScreenToWorld(GetMousePosition())
-        self.zoomOffset = { x = (under.x - transform.localX) * camera.zoom,
-                            y = (under.y - transform.localY) * camera.zoom }
     end
-
-    if math.abs(self.zoomTarget - camera.zoom) > 0.0005 then
-        local zoom = camera.zoom + (self.zoomTarget - camera.zoom) * (1 - math.exp(-ZOOM_SMOOTH * dt))
-        local offset = self.zoomOffset
-        if offset then
-            -- Hold the cursor's world point still across the change.
-            local worldX = transform.localX + offset.x / camera.zoom
-            local worldY = transform.localY + offset.y / camera.zoom
-            transform.localX = worldX - offset.x / zoom
-            transform.localY = worldY - offset.y / zoom
-        end
-        camera.zoom = zoom
-    else
-        camera.zoom = self.zoomTarget
-        self.zoomOffset = nil
-    end
+    camera.zoom = Ease(camera.zoom, self.zoomTarget, ZOOM_SMOOTH, dt)
 
     local mouse = GetMousePosition()
-    if IsMouseButtonDown(MOUSE_MIDDLE) then
-        if self.panAnchor then
-            transform.localX = transform.localX - (mouse.x - self.panAnchor.x) / camera.zoom
-            transform.localY = transform.localY - (mouse.y - self.panAnchor.y) / camera.zoom
+    if IsMouseButtonDown(MOUSE_RIGHT) and not self.intro then
+        if self.orbitAnchor then
+            camera.yaw = camera.yaw + (mouse.x - self.orbitAnchor.x) * ORBIT_SPEED
+            camera.pitch = math.max(PITCH_MIN, math.min(PITCH_MAX, camera.pitch + (mouse.y - self.orbitAnchor.y) * ORBIT_SPEED))
         end
-        self.panAnchor = { x = mouse.x, y = mouse.y }
+        self.orbitAnchor = { x = mouse.x, y = mouse.y }
+        self.sinceOrbit = 0
     else
-        self.panAnchor = nil
+        self.orbitAnchor = nil
+        self.sinceOrbit = self.sinceOrbit + dt
+        if self.forward and self.sinceOrbit >= RECENTER_DELAY and lead.yaw then
+            camera.yaw = camera.yaw + Turn(camera.yaw, lead.yaw - 180) * (1 - math.exp(-RECENTER_SMOOTH * dt))
+        end
+    end
+    camera.yaw = camera.yaw % 360
+
+    -- The camera looks at a point on the ground (height 0). For a leader up on a floor, that's
+    -- where its sight line through the leader comes down, further ahead.
+    local fx, fy = self:CameraAxes()
+    local ahead = LEAD + lead.z / math.tan(math.rad(math.max(camera.pitch, 5)))
+    local x, y = lead.x + fx * ahead, lead.y + fy * ahead
+    if self.snapCamera then
+        transform.localX, transform.localY = x, y
+        self.snapCamera = false
+    else
+        transform.localX = Ease(transform.localX, x, FOLLOW_SMOOTH, dt)
+        transform.localY = Ease(transform.localY, y, FOLLOW_SMOOTH, dt)
     end
 end
 

@@ -55,6 +55,11 @@ public:
     // The height of the walkable floor a unit at height `z` would stand on at `worldPos` (the
     // nearest one within a couple of cells), or nothing.
     std::optional<float> FloorHeight(Vector2 worldPos, float z = 0.0f) const;
+    // Steps a unit standing at `from` (ground x, y and the height z it stands at) by `delta`
+    // on the ground, as far as the walkable floor lets it: blocked, it slides along the wall,
+    // and it stays put if it can't move at all. z comes back as the height of the floor it
+    // ends on. For steered movement (WASD), where FindPath is for walking to a point.
+    Vector3 Slide(Vector3 from, Vector2 delta) const;
     // The walkable floor drawn at picture point `p` (where a click lands): its ground position
     // and height, or nothing.
     std::optional<Vector3> PickFloor(Vector2 p) const;

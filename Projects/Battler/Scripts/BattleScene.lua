@@ -890,7 +890,6 @@ end
 
 function Battle:MoveAlong(u, path)
     self:Follow(u)
-    Units.Play(u, "Walk")
     self:StopSteps()
     self.steps = PlaySound(SFX.run, 0.6, true, CHANNEL_EFFECTS)
     for _, p in ipairs(path) do
@@ -907,7 +906,6 @@ function Battle:MoveAlong(u, path)
         u.x, u.y, u.z = p.x, p.y, p.z
     end
     self:StopSteps()
-    Units.Play(u, "Idle")
 end
 
 function Battle:Float(text, x, y, z, color)
