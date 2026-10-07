@@ -1,7 +1,7 @@
 ---@type SceneScript
 ---@class PrefabScene
 -- Tile-free POC scene. Selection, move orders and a path-line toggle; everything spatial is
--- authored in the editor (colliders/occluders on prefabs, nav areas painted in navmesh mode).
+-- authored in the editor (colliders and occluders on prefabs; the navmesh bakes from walkable models).
 local PrefabScene = {}
 
 local Selection = require("Scripts/Elysium/Selection")

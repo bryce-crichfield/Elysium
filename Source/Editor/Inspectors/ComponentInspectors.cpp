@@ -42,7 +42,6 @@ void RegisterComponentInspectors(InspectorRegistry& registry) {
     registry.Register<FollowComponent>(InspectorOrder::Physics);
     registry.Register<KinematicsComponent>(InspectorOrder::Physics);
     registry.Register<MovementComponent>(InspectorOrder::Physics, &InspectMovement);
-    registry.Register<NavAreaComponent>(InspectorOrder::Physics);
 
     registry.Register<AttackComponent>(InspectorOrder::Gameplay);
     registry.Register<HealthComponent>(InspectorOrder::Gameplay);

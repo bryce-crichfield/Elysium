@@ -31,6 +31,15 @@ add_subdirectory(Vendor/tinyxml2)
 add_subdirectory(Vendor/SQLiteCpp)
 add_subdirectory(Vendor/enet)
 
+# Recast (navmesh baking) and Detour (navmesh queries): NavigationSystem
+set(RECASTNAVIGATION_DEMO OFF CACHE BOOL "" FORCE)
+set(RECASTNAVIGATION_TESTS OFF CACHE BOOL "" FORCE)
+set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "" FORCE)
+# It asks for CMake 3.1, which CMake 4 refuses; configure it under 3.5 policies (as PortAudio).
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+add_subdirectory(Vendor/recastnavigation EXCLUDE_FROM_ALL)  # only what we link gets built
+unset(CMAKE_POLICY_VERSION_MINIMUM)
+
 # Audio: PortAudio for the device (Windows + Linux), dr_libs + stb_vorbis for decoding files.
 # Fetched into Build/_deps on configure, pinned to exact commits.
 include(FetchContent)
@@ -137,6 +146,8 @@ target_link_libraries(${PROJECT_NAME}
     tinyxml2
     SQLiteCpp
     enet
+    RecastNavigation::Recast
+    RecastNavigation::Detour
     lua
     sol2::sol2
     portaudio_static

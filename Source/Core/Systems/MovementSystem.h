@@ -6,7 +6,7 @@
 
 namespace Elysium::Systems {
 
-class NavMeshSystem;
+class NavigationSystem;
 
 struct MoveCommand {
     Entity entity;
@@ -16,7 +16,7 @@ struct MoveCommand {
 class MovementSystem : public System {
    private:
     std::queue<MoveCommand> moveCommands_;       // System will route entities towards these targets using pathfinding  
-    NavMeshSystem* navMesh_ = nullptr;         // preferred when the scene has one
+    NavigationSystem* navMesh_ = nullptr;         // preferred when the scene has one
 
    public:
     MovementSystem(Context context) : System(context) {}

@@ -1,6 +1,6 @@
 #include "Core/Systems/MovementSystem.h"
 #include "Core/SystemRegistry.h"
-#include "Core/Systems/NavMeshSystem.h"
+#include "Core/Systems/NavigationSystem.h"
 #include "Core/Component.h"
 #include "Core/Entity.h"
 #include "Core/Scene.h"
@@ -41,7 +41,7 @@ bool KeepsHeight(Vector2 from, float z, const std::vector<Vector3>& waypoints, i
 }
 
 void MovementSystem::Update(float deltaTime) {
-    if (!navMesh_)       navMesh_       = scene->GetSystem<NavMeshSystem>();
+    if (!navMesh_)       navMesh_       = scene->GetSystem<NavigationSystem>();
 
     // Consume the MoveCommand queue.  
     while (!moveCommands_.empty()) {
@@ -62,7 +62,7 @@ void MovementSystem::Update(float deltaTime) {
         mv.stuckCheckAccumMs = 0;
 
         // Perform A* pathfinding and set the result to mv.waypoints.
-        // NavMeshSystem (baked from prefab NavAreas + static colliders) is the pathfinding
+        // NavigationSystem (baked from walkable models + static colliders) is the pathfinding
         // authority; without one, no path.
         Vector2 from{transform.worldX, transform.worldY};
         std::vector<Vector3> result;

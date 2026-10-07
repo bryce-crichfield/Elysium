@@ -1,6 +1,6 @@
 -- The battle board: a 12x12 iso tile grid laid over the navmesh. The scene only places floor
 -- models; which tiles exist, how high each stands and which neighbours you can step between
--- all come from the NavMeshSystem (NavFloorHeight / NavCanWalk), so the board can't drift from
+-- all come from the NavigationSystem (NavFloorHeight / NavCanWalk), so the board can't drift from
 -- what the world actually is. Tile (i, j) is centred at ((i - j) * 64, (i + j) * 32 + OY) on
 -- the ground; it must match Battle.xml's layout.
 local Board = {}

@@ -82,6 +82,8 @@ class RenderProjector {
 public:
     static Matrix CalculateTransform(const CameraView& view, const SceneLayer& layer);
     static Vector2 WorldToFramebuffer(Vector2 worldPos, const CameraView& view);
+    // A ground position at height z.
+    static Vector2 WorldToFramebuffer(Vector3 worldPos, const CameraView& view);
     static Vector2 FramebufferToWorld(Vector2 fbPos, const CameraView& view);
     // A Screen2D position <-> framebuffer: through the world when view.screenInWorld (the
     // editor), else through the screen's fit.

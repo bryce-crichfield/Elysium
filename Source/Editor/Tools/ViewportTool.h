@@ -13,9 +13,6 @@ class OverlayPainter;
 class World;
 
 class EditorApplication;
-namespace Systems {
-class NavMeshSystem;
-}
 
 // The viewport mouse, in the spaces tools actually work in.
 struct ViewportInput {
@@ -44,9 +41,6 @@ struct ToolContext {
     // Entities whose rendered bounds overlap a world-space rectangle, for box select.
     std::function<std::vector<Entity>(Rectangle)> pickRect;
     std::function<Vector2(Vector2)> worldToScreen;
-
-    // The active scene's navmesh bake, when it has one.
-    const Systems::NavMeshSystem* nav = nullptr;
 };
 
 // Which manipulator a tool puts on the selection, if any.
@@ -107,9 +101,6 @@ class ViewportTool {
     // family, which is also what gets the right-click pick menu; other tools use both buttons
     // themselves. Separate from Gizmo() because the plain Select tool picks without a gizmo.
     virtual bool PicksEntities() const { return false; }
-    // Whether this tool draws nav areas itself, so the generic spatial overlay doesn't
-    // double-draw them underneath.
-    virtual bool OwnsNavAreaOverlay() const { return false; }
 
     virtual void OnActivate(EditorApplication& editor) { (void)editor; }
     virtual void OnDeactivate(EditorApplication& editor) { (void)editor; }

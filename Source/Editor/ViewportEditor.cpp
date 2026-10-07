@@ -16,7 +16,6 @@
 #include "Core/EntitySerializer.h"
 #include "Core/World.h"
 #include "Editor/Commands/EditorCommands.h"
-#include "Editor/Tools/NavMeshTool.h"
 #include "Editor/Tools/PaintTool.h"
 #include "Editor/Tools/SelectTool.h"
 #include "Editor/Tools/VertexTool.h"
@@ -30,7 +29,7 @@
 #include "Core/Math/World3D.h"
 #include <cstdio>
 #include "Editor/Viewport/OverlayPainter.h"
-#include "Core/Systems/NavMeshSystem.h"
+#include "Core/Systems/NavigationSystem.h"
 #include "Core/Path.h"
 #include "Editor/Widgets/AssetField.h"
 #include "Editor/Style/AssetStyle.h"
@@ -243,7 +242,6 @@ ViewportEditor::ViewportEditor(EditorApplication& editor) : Editor(editor, Title
     tools_.push_back(std::make_unique<SelectTool>(GizmoMode::Scale));
     tools_.push_back(std::make_unique<VertexTool>());
     tools_.push_back(std::make_unique<PaintTool>());
-    tools_.push_back(std::make_unique<NavMeshTool>());
 }
 
 ViewportTool* ViewportEditor::ActiveTool() {
@@ -1279,7 +1277,6 @@ std::vector<Entity> ViewportEditor::PickInRect(EditorApplication& editor, Rectan
 
 ToolContext ViewportEditor::MakeToolContext(ISceneService& sceneService, EditorApplication& editor,
                                             const CameraView& view, const ViewportInput& input) {
-    auto* scene = editor.GetViewportScene();
     ToolContext context{*editor.GetWorld(), editor, input};
     context.pick = [this, &sceneService, &editor, view, input] {
         return PickAt(sceneService, editor, view, input.mouseFb);
@@ -1289,7 +1286,6 @@ ToolContext ViewportEditor::MakeToolContext(ISceneService& sceneService, EditorA
         const Vector2 fb = Systems::RenderProjector::WorldToFramebuffer(world, view);
         return Vector2{input.imageScreenRect.x + fb.x, input.imageScreenRect.y + fb.y};
     };
-    context.nav = scene ? scene->GetSystem<Systems::NavMeshSystem>() : nullptr;
     return context;
 }
 
@@ -1372,13 +1368,15 @@ void ViewportEditor::DrawViewportOverlays(ISceneService& sceneService, EditorApp
         drawQuad({t.worldX - halfW, t.worldY - halfH, halfW * 2.0f, halfH * 2.0f}, true, cameraGizmoColor);
     });
 
-    OverlayPainter painter(drawList, [&](Vector2 p) { return project(p, true); }, view.zoom, Theme().OverlayLineWidth);
+    OverlayPainter painter(drawList, [&](Vector3 p) {
+        const Vector2 fb = Systems::RenderProjector::WorldToFramebuffer(p, view);
+        return Vector2{imageScreenRect.x + fb.x, imageScreenRect.y + fb.y};
+    }, view.zoom, Theme().OverlayLineWidth);
     DrawGrid(editor, view, imageScreenRect, painter);
     ViewportTool* tool = ActiveTool();
-    SpatialOverlayOptions overlays = overlays_;
-    // A tool that draws nav areas itself would otherwise get a second, plainer copy underneath.
-    overlays.navAreas = overlays.navAreas && !(tool && tool->OwnsNavAreaOverlay());
-    DrawSpatialOverlays(*world, editor, overlays, painter);
+    auto* scene = editor.GetViewportScene();
+    const auto* nav = scene ? scene->GetSystem<Systems::NavigationSystem>() : nullptr;
+    DrawSpatialOverlays(*world, editor, nav, overlays_, painter);
 
     if (tool) {
         const Vector2 mouseFb = sceneService.ScreenToFramebuffer(Input::GetMousePosition());

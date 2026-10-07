@@ -24,7 +24,7 @@
 #include "Core/Components/TransformComponent.h"
 #include "Core/Systems/CollisionSystem.h"
 #include "Core/Systems/MovementSystem.h"
-#include "Core/Systems/NavMeshSystem.h"
+#include "Core/Systems/NavigationSystem.h"
 #include "Core/Systems/RenderSystem.h"
 #include "Core/RenderContext.h"
 #include <algorithm>
@@ -604,21 +604,21 @@ void ScriptService::BindEntityAPI() {
         movementSystem->IssueMoveCommand(entity, {x, y});
     });
 
-    // Navmesh queries — the scene-level walkability layer (NavMeshSystem).
+    // Navmesh queries — the scene-level walkability layer (NavigationSystem).
     lua.set_function("NavIsWalkable", [](float x, float y) -> bool {
         auto* scene = s_services->Get<ISceneService>().GetTopScene();
         if (!scene) return false;
-        auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>();
+        auto* nav = scene->GetSystem<Elysium::Systems::NavigationSystem>();
         return nav && nav->IsWalkable({x, y});
     });
     lua.set_function("NavSetDebugDraw", [](bool enabled) {
         auto* scene = s_services->Get<ISceneService>().GetTopScene();
         if (!scene) return;
-        if (auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>()) nav->SetParameter("debugDraw", Value{enabled});
+        if (auto* nav = scene->GetSystem<Elysium::Systems::NavigationSystem>()) nav->SetParameter("debugDraw", Value{enabled});
     });
-    auto topNav = []() -> Elysium::Systems::NavMeshSystem* {
+    auto topNav = []() -> Elysium::Systems::NavigationSystem* {
         auto* scene = s_services->Get<ISceneService>().GetTopScene();
-        return scene ? scene->GetSystem<Elysium::Systems::NavMeshSystem>() : nullptr;
+        return scene ? scene->GetSystem<Elysium::Systems::NavigationSystem>() : nullptr;
     };
     // NavFloorHeight(x, y [, z]): the walkable floor's height there (nearest `z`), or nil.
     lua.set_function("NavFloorHeight", [this, topNav](float x, float y, sol::optional<float> z) -> sol::object {
@@ -661,7 +661,7 @@ void ScriptService::BindEntityAPI() {
         sol::table result = lua.create_table();
         auto* scene = s_services->Get<ISceneService>().GetTopScene();
         if (!scene) return result;
-        auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>();
+        auto* nav = scene->GetSystem<Elysium::Systems::NavigationSystem>();
         if (!nav) return result;
         int i = 1;
         for (const auto& p : nav->FindPath({x1, y1}, {x2, y2}, z1.value_or(0.0f))) {
@@ -677,7 +677,7 @@ void ScriptService::BindEntityAPI() {
     //   reach:Cost(x, y, z)   -> the walking cost to that ground point, or nil
     //   reach:PathTo(x, y, z) -> waypoints {x, y, z} to it (start excluded), empty if unreached
     //   reach:Runs()          -> { {x0, x1, y, z, cost}, ... } row runs of reached ground, to draw
-    using Reach = Elysium::Systems::NavMeshSystem::Reach;
+    using Reach = Elysium::Systems::NavigationSystem::Reach;
     auto reachType = lua.new_usertype<Reach>("NavReachMap", sol::no_constructor);
     reachType["budget"] = sol::readonly(&Reach::budget);
     reachType["Cost"] = [topNav](const Reach& r, float x, float y, sol::optional<float> z) -> sol::optional<float> {

@@ -31,3 +31,6 @@
 [submodule "Vendor/ImGuizmo"]
 	path = Vendor/ImGuizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo
+[submodule "Vendor/recastnavigation"]
+	path = Vendor/recastnavigation
+	url = https://github.com/recastnavigation/recastnavigation.git

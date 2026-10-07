@@ -10,14 +10,7 @@
 
 namespace Elysium {
 
-// Reshapes one kind of polygon on the selected entities: a nav area's region or a
-// collider's outline. Until now a closed shape was final -- you could lay one out
-// and never correct it.
-//
-// The kind is a tool setting rather than "whatever the selection happens to carry", because an
-// entity can carry several: editing all of them at once drew identically-coloured outlines
-// on top of each other with no way to tell which vertex belonged to what. One kind at a time, named
-// in the panel and in the status line.
+// Reshapes the selected entities' collider outlines.
 //
 // Drag a vertex to move it, click an edge to add one, right-click a vertex to remove it. Each
 // of those is one undo step; a drag is one step for the whole drag, not one per frame.
@@ -29,13 +22,8 @@ class VertexTool : public ViewportTool {
         return "Edit vertices (5) - drag to move, click an edge to add, right-click a vertex to remove";
     }
 
-    // Nothing to reshape without a polygon selected, so the tool stays unselectable until one
-    // is -- which in practice means after the navmesh tool picked a nav area.
+    // Nothing to reshape without a collider selected, so the tool stays unselectable until one is.
     const char* Unavailable(EditorApplication& editor, bool isScene) const override;
-
-    ToolParameters Parameters() override {
-        return {this, {Field("Shape", &VertexTool::shape_, "shape").Choices({"Nav area", "Collider"})}};
-    }
 
     void OnDeactivate(EditorApplication& editor) override;
     ToolStatus Status(EditorApplication& editor) const override;
@@ -52,16 +40,11 @@ class VertexTool : public ViewportTool {
         bool Valid() const { return entity != INVALID_ENTITY && world.IsValid(); }
     };
 
-    // The XML tag of the component `shape_` names.
-    const char* ShapeTag() const;
-    // The chosen kind of polygon on each selected entity that has one.
+    // The collider outline of each selected entity that has one.
     std::vector<Target> TargetsOf(ToolContext& context) const;
     // Writes `world` back onto the target and records the change against `before`.
     static void Commit(ToolContext& context, const Target& target, const Polygon& world,
                        const std::string& before, const char* label);
-
-    // Which polygon-bearing component to reshape, as an index into the Parameters() choices.
-    int shape_ = 0;
 
     // The polygon being dragged, and its serialized component as the drag found it.
     Entity dragEntity_ = INVALID_ENTITY;

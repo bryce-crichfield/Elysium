@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 #include "Core/Components/ColliderComponent.h"
-#include "Core/Components/NavAreaComponent.h"
 #include "Core/Components/TransformComponent.h"
 #include "Editor/Editor.h"
 #include "Core/EntitySerializer.h"
@@ -34,35 +33,19 @@ Vector2 OriginOf(World& world, Entity entity) {
     return {t.worldX, t.worldY};
 }
 
-// The polygon-bearing components this tool understands, in the order the Shape parameter lists
-// them. Each is a local point list on an entity with a transform, so both reshape
-// identically; only the field differs. kShapeLabels is what the UI calls them.
-const char* const kPolygonComponents[] = {NavAreaComponent::XmlTag(), ColliderComponent::XmlTag()};
-const char* const kShapeLabels[] = {"nav area", "collider"};
-constexpr int kShapeCount = (int)(sizeof(kPolygonComponents) / sizeof(kPolygonComponents[0]));
-
-Polygon ReadPolygon(World& world, Entity entity, const std::string& tag) {
-    if (tag == NavAreaComponent::XmlTag() && world.HasComponent<NavAreaComponent>(entity)) {
-        return world.GetComponent<NavAreaComponent>(entity).LocalPolygon();
-    }
-    if (tag == ColliderComponent::XmlTag() && world.HasComponent<ColliderComponent>(entity)) {
-        return world.GetComponent<ColliderComponent>(entity).LocalPolygon();
-    }
-    return {};
+Polygon ReadPolygon(World& world, Entity entity) {
+    if (!world.HasComponent<ColliderComponent>(entity)) return {};
+    return world.GetComponent<ColliderComponent>(entity).LocalPolygon();
 }
 
-void WritePolygon(World& world, Entity entity, const std::string& tag, const Polygon& local) {
-    const std::string text = local.Format();
-    if (tag == NavAreaComponent::XmlTag() && world.HasComponent<NavAreaComponent>(entity)) {
-        world.GetComponent<NavAreaComponent>(entity).points = text;
-    } else if (tag == ColliderComponent::XmlTag() && world.HasComponent<ColliderComponent>(entity)) {
-        auto& collider = world.GetComponent<ColliderComponent>(entity);
-        collider.points = text;
-        // A reshaped collider is a polygon collider, and its box has to follow, or the Auto shape
-        // and the broadphase bounds would still describe the outline you just replaced.
-        collider.shape = ToString(ColliderShape::Polygon);
-        collider.SyncBoxToPolygon();
-    }
+void WritePolygon(World& world, Entity entity, const Polygon& local) {
+    if (!world.HasComponent<ColliderComponent>(entity)) return;
+    auto& collider = world.GetComponent<ColliderComponent>(entity);
+    collider.points = local.Format();
+    // A reshaped collider is a polygon collider, and its box has to follow, or the Auto shape
+    // and the broadphase bounds would still describe the outline you just replaced.
+    collider.shape = ToString(ColliderShape::Polygon);
+    collider.SyncBoxToPolygon();
 }
 
 // The edge `point` is nearest to, when it is within `radius` of it, and where on that edge it lands.
@@ -82,20 +65,13 @@ std::optional<EdgeHit> NearestEdge(const Polygon& polygon, Vector2 point, float 
 const char* VertexTool::Icon() const { return ICON_FA_VECTOR_SQUARE; }
 
 const char* VertexTool::Unavailable(EditorApplication& editor, bool isScene) const {
-    (void)isScene;  // a nav area or collider is editable on a prefab tab too
+    (void)isScene;  // a collider is editable on a prefab tab too
     World* world = editor.GetWorld();
     if (!world) return "Open a scene or prefab to edit outlines";
-
-    // Deliberately either kind, not the chosen one: the choice lives in this tool's own
-    // panel, so gating on it would make the tool unselectable and the choice unreachable. A
-    // selection carrying no polygon of the chosen kind leaves the tool selectable and says so.
     for (Entity entity : editor.GetSelectedEntities()) {
-        if (!world->IsAlive(entity)) continue;
-        for (const char* tag : kPolygonComponents) {
-            if (ReadPolygon(*world, entity, tag).IsValid()) return nullptr;
-        }
+        if (world->IsAlive(entity) && ReadPolygon(*world, entity).IsValid()) return nullptr;
     }
-    return "Select a nav area or collider to reshape it";
+    return "Select a collider to reshape it";
 }
 
 void VertexTool::OnDeactivate(EditorApplication&) {
@@ -103,44 +79,27 @@ void VertexTool::OnDeactivate(EditorApplication&) {
     dragEntity_ = INVALID_ENTITY;
 }
 
-const char* VertexTool::ShapeTag() const {
-    return kPolygonComponents[shape_ >= 0 && shape_ < kShapeCount ? shape_ : 0];
-}
-
 ToolStatus VertexTool::Status(EditorApplication& editor) const {
     World* world = editor.GetWorld();
     if (!world) return {};
-
-    // Name what is actually being reshaped. Not knowing that was the confusing part: an entity can
-    // carry a nav area and a collider at once, and two outlines in the same colour
-    // said nothing about which one a drag would move.
-    const char* label = kShapeLabels[shape_ >= 0 && shape_ < kShapeCount ? shape_ : 0];
-    const char* tag = ShapeTag();
     int count = 0;
     for (Entity entity : editor.GetSelectedEntities()) {
-        if (world->IsAlive(entity) && ReadPolygon(*world, entity, tag).IsValid()) count++;
+        if (world->IsAlive(entity) && ReadPolygon(*world, entity).IsValid()) count++;
     }
 
-    if (count == 0) {
-        return {std::string("The selection has no ") + label +
-                    " - pick another shape in the tool settings " ICON_FA_WRENCH,
-                ToolStatusLevel::Warning};
-    }
-    const std::string what = count == 1 ? std::string("1 ") + label : std::to_string(count) + " " + label + "s";
+    if (count == 0) return {"The selection has no collider", ToolStatusLevel::Warning};
+    const std::string what = count == 1 ? "1 collider" : std::to_string(count) + " colliders";
     return {"Reshaping " + what + ": drag a vertex, click an edge to add one, right-click to remove",
             ToolStatusLevel::Working};
 }
 
 std::vector<VertexTool::Target> VertexTool::TargetsOf(ToolContext& context) const {
-    // Only the chosen kind. Editing every polygon the selection carried meant a drag could land on
-    // a component you were not looking at.
-    const char* tag = ShapeTag();
     std::vector<Target> targets;
     for (Entity entity : context.editor.GetSelectedEntities()) {
         if (!context.world.IsAlive(entity)) continue;
-        Polygon local = ReadPolygon(context.world, entity, tag);
+        Polygon local = ReadPolygon(context.world, entity);
         if (!local.IsValid()) continue;
-        targets.push_back(Target{entity, tag, local.Translated(OriginOf(context.world, entity))});
+        targets.push_back(Target{entity, ColliderComponent::XmlTag(), local.Translated(OriginOf(context.world, entity))});
     }
     return targets;
 }
@@ -148,7 +107,7 @@ std::vector<VertexTool::Target> VertexTool::TargetsOf(ToolContext& context) cons
 void VertexTool::Commit(ToolContext& context, const Target& target, const Polygon& world,
                         const std::string& before, const char* label) {
     const Vector2 origin = OriginOf(context.world, target.entity);
-    WritePolygon(context.world, target.entity, target.component, world.Translated(origin * -1.0f));
+    WritePolygon(context.world, target.entity, world.Translated(origin * -1.0f));
 
     std::string after = EntityXml::SaveComponent(context.world, target.entity, target.component);
     if (after == before) return;
@@ -172,13 +131,13 @@ bool VertexTool::HandleInput(ToolContext& context) {
         }
 
         const Vector2 origin = OriginOf(context.world, dragEntity_);
-        Polygon world = ReadPolygon(context.world, dragEntity_, dragComponent_).Translated(origin);
+        Polygon world = ReadPolygon(context.world, dragEntity_).Translated(origin);
         handles_.Drag(world.Points(), in.mouseWorld);
 
         const Target target{dragEntity_, dragComponent_, world};
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
             // Live, unrecorded: write it straight through without a command.
-            WritePolygon(context.world, dragEntity_, dragComponent_, world.Translated(origin * -1.0f));
+            WritePolygon(context.world, dragEntity_, world.Translated(origin * -1.0f));
             return true;
         }
 
@@ -237,7 +196,7 @@ bool VertexTool::HandleInput(ToolContext& context) {
         return true;
     }
 
-    // Nothing of ours here: fall through so the click still picks, and a nav area can be
+    // Nothing of ours here: fall through so the click still picks, and another collider can be
     // selected without leaving the tool.
     const std::vector<Entity> hits = context.pick();
     if (hits.empty()) return false;

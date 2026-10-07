@@ -15,7 +15,7 @@ namespace Elysium {
     const char* ToString(ColliderShape shape);
     ColliderShape ParseColliderShape(const std::string& text);
 
-    // AABB by default; an optional local `points` polygon gives NavMeshSystem an exact carve
+    // AABB by default; an optional local `points` polygon gives NavigationSystem an exact carve
     // while width/height/offset stay derived from its bounds for the AABB paths.
     struct ColliderComponent {
         float width = 32.0f;

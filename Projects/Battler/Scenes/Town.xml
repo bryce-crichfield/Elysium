@@ -24,7 +24,7 @@
         <System type="FollowSystem"/>
         <System type="GroundSystem"/>
         <System type="TransformSystem"/>
-        <System type="NavMeshSystem" agentRadius="12.000000" cellSize="3.000000"/>
+        <System type="NavigationSystem" agentRadius="12.000000" cellSize="3.000000"/>
         <System type="VisibilitySystem"/>
         <System type="UiSystem"/>
         <System type="RenderSystem"/>
@@ -44,11 +44,6 @@
             <NameComponent name="CAMERA"/>
             <TransformComponent x="9.2076797" y="87.826721"/>
             <CameraComponent/>
-        </Entity>
-        <Entity name="NavArea Room">
-            <NameComponent name="NavArea Room"/>
-            <NavAreaComponent points="-156.862,-595.977 1394.4,190.281 477.988,631.223 -1062.65,-144.41" type="Walkable" cost="1"/>
-            <TransformComponent x="-9.174284" y="111.99997"/>
         </Entity>
     </Entities>
     <PrefabInstance src="../Prefabs/Floor3D.xml" id="Floor1">

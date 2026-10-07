@@ -419,6 +419,11 @@ Vector2 RenderProjector::WorldToFramebuffer(Vector2 worldPos, const CameraView& 
     };
 }
 
+Vector2 RenderProjector::WorldToFramebuffer(Vector3 worldPos, const CameraView& view) {
+    if (!view.IsDefaultOrientation()) return View3D(view).WorldToFramebuffer(worldPos.x, worldPos.y, worldPos.z);
+    return WorldToFramebuffer(Vector2{worldPos.x, worldPos.y - worldPos.z * World3D::kPitchCos}, view);
+}
+
 Vector2 RenderProjector::FramebufferToWorld(Vector2 fbPos, const CameraView& view) {
     if (!view.IsDefaultOrientation()) return View3D(view).FramebufferToGround(fbPos);
     Vector2 viewportCenter = { view.viewport.width * 0.5f, view.viewport.height * 0.5f };

@@ -7,16 +7,27 @@ namespace Elysium {
 
 using EditorStyle::Palette;
 
-ImVec2 OverlayPainter::ToScreen(Vector2 world) const {
+ImVec2 OverlayPainter::ToScreen(Vector3 world) const {
     Vector2 s = worldToScreen_(world);
     return ImVec2(s.x, s.y);
 }
 
 void OverlayPainter::Polygon(const std::vector<Vector2>& world, const ImVec4& color, float fillAlpha, float width, bool closed) {
-    if (world.size() < 2) return;
     std::vector<ImVec2> screen;
     screen.reserve(world.size());
     for (const auto& p : world) screen.push_back(ToScreen(p));
+    Polygon(std::move(screen), color, fillAlpha, width, closed);
+}
+
+void OverlayPainter::Polygon(const std::vector<Vector3>& world, const ImVec4& color, float fillAlpha, float width, bool closed) {
+    std::vector<ImVec2> screen;
+    screen.reserve(world.size());
+    for (const auto& p : world) screen.push_back(ToScreen(p));
+    Polygon(std::move(screen), color, fillAlpha, width, closed);
+}
+
+void OverlayPainter::Polygon(std::vector<ImVec2> screen, const ImVec4& color, float fillAlpha, float width, bool closed) {
+    if (screen.size() < 2) return;
     if (fillAlpha > 0.0f && screen.size() >= 3) {
         drawList_->AddConvexPolyFilled(screen.data(), (int)screen.size(), Palette::ToU32(Palette::WithAlpha(color, fillAlpha)));
     }
