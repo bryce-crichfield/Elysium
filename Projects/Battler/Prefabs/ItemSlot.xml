@@ -1,0 +1,31 @@
+<!-- An empty item slot on the character sheet (Prefabs/CharacterSheet.xml): an equipment slot,
+     named by its Label, or a cell of the inventory grid. -->
+<Prefab>
+    <Parameters>
+        <Parameter name="Label" entity="1" component="TextComponent" field="text"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.050000 0.050000 0.080000 0.850000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.500000"/>
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.300000 0.340000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="ItemSlot"/>
+            <RectangleComponent width="56" height="56" cornerRadius="0.15000001"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Label"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="14" r="120" g="120" b="135" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="28" y="28"/>
+        </Entity>
+    </Entities>
+</Prefab>

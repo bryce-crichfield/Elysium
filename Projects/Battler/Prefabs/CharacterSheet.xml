@@ -1,0 +1,229 @@
+<!-- The character mode of Scenes/CharacterSheet.xml (opened from the Town with I): the
+     inventory grid on the left, the character with its equipment slots in the middle, and its
+     attributes on the right. The scene fills the grid (ItemSlot.xml) and stands the model in
+     the middle panel; the model is drawn on the scene's "model" layer, between "panel" and "ui". -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <NameComponent name="CharacterSheet"/>
+            <TransformComponent x="86" y="110"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="panel"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.020000 0.020000 0.040000 0.960000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.900000"/>
+                    <Uniform name="uAngle" type="float" value="90.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="InventoryPanel"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="340" height="500" cornerRadius="0.04"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="InventoryTitle"/>
+            <ParentComponent target="1"/>
+            <TextComponent text="Inventory" fontSize="30" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="170" y="26"/>
+        </Entity>
+        <Entity id="3">
+            <LayerComponent name="panel"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.020000 0.020000 0.040000 0.960000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.900000"/>
+                    <Uniform name="uAngle" type="float" value="90.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="ModelPanel"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="400" height="500" cornerRadius="0.04"/>
+            <TransformComponent x="354" y="0"/>
+        </Entity>
+        <Entity id="4">
+            <LayerComponent name="ui"/>
+            <NameComponent name="NameText"/>
+            <ParentComponent target="3"/>
+            <TextComponent text="Name" fontSize="34" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="200" y="26"/>
+        </Entity>
+        <Entity id="5">
+            <LayerComponent name="panel"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.020000 0.020000 0.040000 0.960000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.900000"/>
+                    <Uniform name="uAngle" type="float" value="90.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="StatsPanel"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="340" height="500" cornerRadius="0.04"/>
+            <TransformComponent x="768" y="0"/>
+        </Entity>
+        <Entity id="6">
+            <LayerComponent name="ui"/>
+            <NameComponent name="StatsTitle"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="Attributes" fontSize="30" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="170" y="26"/>
+        </Entity>
+        <Entity id="7">
+            <LayerComponent name="ui"/>
+            <NameComponent name="RoleText"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="Role" fontSize="22" r="160" g="160" b="175" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="170" y="62"/>
+        </Entity>
+        <Entity id="8">
+            <LayerComponent name="ui"/>
+            <NameComponent name="StrengthLabel"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="Strength" fontSize="24" r="255" g="110" b="100" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="90" y="120"/>
+        </Entity>
+        <Entity id="9">
+            <LayerComponent name="ui"/>
+            <NameComponent name="StrengthValue"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="0" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="290" y="120"/>
+        </Entity>
+        <Entity id="10">
+            <LayerComponent name="ui"/>
+            <NameComponent name="IntellectLabel"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="Intellect" fontSize="24" r="120" g="160" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="90" y="160"/>
+        </Entity>
+        <Entity id="11">
+            <LayerComponent name="ui"/>
+            <NameComponent name="IntellectValue"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="0" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="290" y="160"/>
+        </Entity>
+        <Entity id="12">
+            <LayerComponent name="ui"/>
+            <NameComponent name="AgilityLabel"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="Agility" fontSize="24" r="120" g="220" b="120" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="90" y="200"/>
+        </Entity>
+        <Entity id="13">
+            <LayerComponent name="ui"/>
+            <NameComponent name="AgilityValue"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="0" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="290" y="200"/>
+        </Entity>
+        <Entity id="14">
+            <LayerComponent name="ui"/>
+            <NameComponent name="StaminaLabel"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="Stamina" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="90" y="240"/>
+        </Entity>
+        <Entity id="15">
+            <LayerComponent name="ui"/>
+            <NameComponent name="StaminaValue"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="0" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="290" y="240"/>
+        </Entity>
+        <Entity id="16">
+            <LayerComponent name="ui"/>
+            <NameComponent name="HealthLabel"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="Health" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="90" y="300"/>
+        </Entity>
+        <Entity id="17">
+            <LayerComponent name="ui"/>
+            <NameComponent name="HealthValue"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="0" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="290" y="300"/>
+        </Entity>
+        <Entity id="18">
+            <LayerComponent name="ui"/>
+            <NameComponent name="ManaLabel"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="Mana" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="90" y="340"/>
+        </Entity>
+        <Entity id="19">
+            <LayerComponent name="ui"/>
+            <NameComponent name="ManaValue"/>
+            <ParentComponent target="5"/>
+            <TextComponent text="0" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="290" y="340"/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="ItemSlot.xml" id="HeadSlot">
+        <Param name="Label" value="Head"/>
+        <Override entity="0" component="TransformComponent" field="x" value="368"/>
+        <Override entity="0" component="TransformComponent" field="y" value="60"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="ShouldersSlot">
+        <Param name="Label" value="Shoulders"/>
+        <Override entity="0" component="TransformComponent" field="x" value="368"/>
+        <Override entity="0" component="TransformComponent" field="y" value="128"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="ChestSlot">
+        <Param name="Label" value="Chest"/>
+        <Override entity="0" component="TransformComponent" field="x" value="368"/>
+        <Override entity="0" component="TransformComponent" field="y" value="196"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="HandsSlot">
+        <Param name="Label" value="Hands"/>
+        <Override entity="0" component="TransformComponent" field="x" value="368"/>
+        <Override entity="0" component="TransformComponent" field="y" value="264"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="NeckSlot">
+        <Param name="Label" value="Neck"/>
+        <Override entity="0" component="TransformComponent" field="x" value="684"/>
+        <Override entity="0" component="TransformComponent" field="y" value="60"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="BackSlot">
+        <Param name="Label" value="Back"/>
+        <Override entity="0" component="TransformComponent" field="x" value="684"/>
+        <Override entity="0" component="TransformComponent" field="y" value="128"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="LegsSlot">
+        <Param name="Label" value="Legs"/>
+        <Override entity="0" component="TransformComponent" field="x" value="684"/>
+        <Override entity="0" component="TransformComponent" field="y" value="196"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="FeetSlot">
+        <Param name="Label" value="Feet"/>
+        <Override entity="0" component="TransformComponent" field="x" value="684"/>
+        <Override entity="0" component="TransformComponent" field="y" value="264"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="MainHandSlot">
+        <Param name="Label" value="Main hand"/>
+        <Override entity="0" component="TransformComponent" field="x" value="492"/>
+        <Override entity="0" component="TransformComponent" field="y" value="432"/>
+    </PrefabInstance>
+    <PrefabInstance src="ItemSlot.xml" id="OffHandSlot">
+        <Param name="Label" value="Off hand"/>
+        <Override entity="0" component="TransformComponent" field="x" value="560"/>
+        <Override entity="0" component="TransformComponent" field="y" value="432"/>
+    </PrefabInstance>
+</Prefab>

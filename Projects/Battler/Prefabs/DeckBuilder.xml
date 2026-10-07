@@ -1,0 +1,63 @@
+<!-- The deck mode of Scenes/CharacterSheet.xml: the character's deck as a list of rows on the
+     left (DeckRow.xml), and every card it could put in it on the right, a page of large cards
+     at a time (Card.xml). The scene spawns the rows and cards; the page buttons are its own
+     placements, since a button binds by its placement id. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <NameComponent name="DeckBuilder"/>
+            <TransformComponent x="86" y="110"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="panel"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.020000 0.020000 0.040000 0.960000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.900000"/>
+                    <Uniform name="uAngle" type="float" value="90.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="DeckPanel"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="360" height="500" cornerRadius="0.04"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="DeckTitle"/>
+            <ParentComponent target="1"/>
+            <TextComponent text="Deck" fontSize="30" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="180" y="26"/>
+        </Entity>
+        <Entity id="3">
+            <LayerComponent name="panel"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.020000 0.020000 0.040000 0.960000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.900000"/>
+                    <Uniform name="uAngle" type="float" value="90.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="CollectionPanel"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="734" height="500" cornerRadius="0.04"/>
+            <TransformComponent x="374" y="0"/>
+        </Entity>
+        <Entity id="4">
+            <LayerComponent name="ui"/>
+            <NameComponent name="PageText"/>
+            <ParentComponent target="3"/>
+            <TextComponent text="Page 1 / 1" fontSize="22" r="160" g="160" b="175" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="367" y="468"/>
+        </Entity>
+    </Entities>
+</Prefab>

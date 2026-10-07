@@ -105,14 +105,14 @@ function Card:Update(entity, dt)
     local ink = math.max(0, 1 - dissolve * 2.5)  -- the writing goes first
     Widgets.ChildText(entity, "Title", card.name, Fade(usable and TITLE or DIM, ink))
     Widgets.ChildText(entity, "Body", card.text or "", Fade(usable and BODY or DIM, ink))
-    self:SetArt(card.art, usable, fade)
+    self:SetArt(card.art, usable, fade, card.tint)
     local cost = card.cost or 0
     Widgets.ChildText(entity, "BlueCost", tostring(cost), Fade(cost > 0 and WHITE or DIM, ink))
 end
 
 -- The Art child's picture (a texture path, or nil for none), dimmed when the card can't be paid for
--- and faded by `fade` (0 to 1) as it burns away.
-function Card:SetArt(path, usable, fade)
+-- and faded by `fade` (0 to 1) as it burns away. `tint` (optional) colors it.
+function Card:SetArt(path, usable, fade, tint)
     local mat = self.parts.Art and GetComponent(self.parts.Art, "Material")
     local tex = mat and mat:Layer("Texture")
     if not tex then return end
@@ -121,7 +121,7 @@ function Card:SetArt(path, usable, fade)
         if path then LoadTexture(path) end
         tex.texture = path or ""
     end
-    tex:Set("uTint", Fade(usable and WHITE or DIM, fade or 1))
+    tex:Set("uTint", Fade(usable and (tint or WHITE) or DIM, fade or 1))
 end
 
 return Card

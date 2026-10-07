@@ -5,6 +5,8 @@
 --
 -- The state lives in a global (like HeroFrames), so it survives scene changes; Run.Active()
 -- is false outside one (Skirmish, Versus), and the Battle then plays its default encounter.
+local Cards = require("Scripts/Battler/Cards")
+
 local Run = {}
 
 Run.PARTY = { "Knight", "Archer", "Vampire" }   -- the heroes, in their HeroN spawn order
@@ -31,6 +33,20 @@ end
 
 function Run.New()
     RunState = { next = Deal(), wins = 0, fighting = false, at = nil }
+end
+
+-- A party member's deck in the deck builder (Scenes/CharacterSheet.xml): a list of card ids
+-- the sheet edits in place. A placeholder until battles deal from it: it starts as the
+-- collection's first DECK_START cards.
+local DECK_START = 5
+function Run.Deck(name)
+    RunState.decks = RunState.decks or {}
+    if not RunState.decks[name] then
+        local deck = {}
+        for k = 1, DECK_START do deck[k] = Cards.Collection[k].id end
+        RunState.decks[name] = deck
+    end
+    return RunState.decks[name]
 end
 
 function Run.Clear() RunState = nil end

@@ -7,10 +7,12 @@
 -- (W away from it), sliding along walls (NavSlide); the rest of the party trails behind it,
 -- each pathing after the one ahead. Right-drag turns and tilts the camera, which swings back
 -- behind the leader once it walks forward again; the wheel zooms. Left-click a party member to
--- lead with it. Esc leaves for the menu.
+-- lead with it. I opens the party's character sheet (Scenes/CharacterSheet.xml) over the
+-- Town. Esc leaves for the menu.
 local Board = require("Scripts/Battler/Board")
 local Run = require("Scripts/Battler/Run")
 local Units = require("Scripts/Battler/Units")
+local Widgets = require("Scripts/Components/Widgets")
 local Music = require("Scripts/Menu/Music")
 local Sfx = require("Scripts/Menu/Sfx")
 
@@ -173,7 +175,7 @@ function Town:Render()
     FillRect(0, 0, sw, 32, PANEL, "ui")
     DrawText("Town", 16, 6, 22, TEXT, "ui", FONT)
     DrawText(string.format("Victories %d", Run.Wins()), 110, 8, 18, GOLD, "ui", FONT)
-    DrawText("WASD: move   Right-drag: look   Wheel: zoom   Left-click: lead   Esc: leave", 420, 9, 16, DIM, "ui", FONT)
+    DrawText("WASD: move   Right-drag: look   Wheel: zoom   Left-click: lead   I: character   Esc: leave", 420, 9, 16, DIM, "ui", FONT)
 
     -- The encounter's intro, before the fight.
     local intro, e = self.intro, Run.Next()
@@ -200,6 +202,10 @@ function Town:OnEvent(event)
         if go and self.intro.t > INTRO_DELAY then self:Fight() end
         return true
     end
+    if event.type == "KeyPressed" and event.key == KEY_I then
+        self:OpenCharacterSheet()
+        return true
+    end
     if event.type ~= "MouseButtonPressed" then return false end
 
     local w = ScreenToWorld(GetMousePosition())
@@ -212,6 +218,17 @@ function Town:OnEvent(event)
         return u ~= nil
     end
     return false
+end
+
+-- Opens on the leader.
+function Town:OpenCharacterSheet()
+    local selected = 1
+    for k, u in ipairs(self.party) do
+        if u == self.selected then selected = k end
+    end
+    Widgets.BindView("CharacterSheet", { selected = selected })
+    Sfx.Play(Sfx.SELECT)
+    ScenePush("CharacterSheet")
 end
 
 -- --- Movement -----------------------------------------------------------------------------

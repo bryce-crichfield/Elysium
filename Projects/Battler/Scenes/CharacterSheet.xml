@@ -1,0 +1,78 @@
+<Scene>
+    <SceneScript path="Scripts/CharacterSheetScene.lua"/>
+    <EditorMetadata gridDivisor="1" gridHeight="32" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="64"/>
+    <Systems>
+        <System type="ScriptSystem"/>
+        <System type="AnimationSystem"/>
+        <System type="TransformSystem"/>
+        <System type="RenderSystem"/>
+    </Systems>
+    <SceneConfiguration width="1920" height="1080">
+        <SceneLayer name="backdrop" z="0" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="panel" z="1" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="model" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#8080909F" shadows="false"/>
+        <SceneLayer name="ui" z="3" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="uiTop" z="4" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+    </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="0" y="0"/>
+            <CameraComponent zoom="3.5" pitch="8"/>
+        </Entity>
+        <Entity name="Backdrop">
+            <LayerComponent name="backdrop"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.000000 0.000000 0.000000 0.600000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Backdrop"/>
+            <RectangleComponent width="1280" height="720" cornerRadius="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <!-- Stood below the ground so its middle is where the camera looks: the middle of the screen. -->
+        <Entity name="Model">
+            <AnimationComponent clip="Animations/Knight/Knight_Idle.anim"/>
+            <LayerComponent name="model"/>
+            <ModelComponent model="Models/Characters/Knight/Knight.mesh" scale="25"/>
+            <NameComponent name="Model"/>
+            <TransformComponent x="0" y="0" z="-52"/>
+        </Entity>
+        <Entity name="Light">
+            <LightComponent color="#FFE6C8FF" intensity="1.4" radius="600" height="140" flicker="0" vision="false"/>
+            <NameComponent name="Light"/>
+            <TransformComponent x="60" y="80" z="-52"/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="../Prefabs/CharacterSheet.xml" id="Sheet"/>
+    <PrefabInstance src="../Prefabs/DeckBuilder.xml" id="Deck"/>
+    <PrefabInstance src="../Prefabs/PartyTabs.xml" id="Tabs">
+        <Override entity="0" component="TransformComponent" field="x" value="86"/>
+        <Override entity="0" component="TransformComponent" field="y" value="622"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="ModeButton">
+        <Param name="Label" value="Deck"/>
+        <Param name="Width" value="180"/>
+        <Param name="Height" value="56"/>
+        <Param name="Font Size" value="26"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1006"/>
+        <Override entity="0" component="TransformComponent" field="y" value="630"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="PrevPage">
+        <Param name="Label" value="Prev"/>
+        <Param name="Width" value="120"/>
+        <Param name="Height" value="40"/>
+        <Param name="Font Size" value="22"/>
+        <Override entity="0" component="TransformComponent" field="x" value="476"/>
+        <Override entity="0" component="TransformComponent" field="y" value="558"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="NextPage">
+        <Param name="Label" value="Next"/>
+        <Param name="Width" value="120"/>
+        <Param name="Height" value="40"/>
+        <Param name="Font Size" value="22"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1058"/>
+        <Override entity="0" component="TransformComponent" field="y" value="558"/>
+    </PrefabInstance>
+</Scene>

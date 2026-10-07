@@ -1,0 +1,46 @@
+<!-- A party member's tab along the bottom of the character sheet: portrait and name. The
+     scene lights its Fire glow on the chosen one (Scripts/CharacterSheetScene.lua). -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="30" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="0.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
+                    <Uniform name="uGlowRadius" type="float" value="8.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.000000 0.000000 0.000000 0.920000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.450000"/>
+                    <Uniform name="uAngle" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.353000 0.353000 0.392000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="CharacterTab"/>
+            <RectangleComponent width="200" height="56" cornerRadius="0.15000001"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Portraits/Knight.jpg"/>
+            </MaterialComponent>
+            <NameComponent name="Portrait"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="48" height="48" cornerRadius="0.15000001"/>
+            <TransformComponent x="4" y="4"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="NameText"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Name" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="124" y="28"/>
+        </Entity>
+    </Entities>
+</Prefab>
