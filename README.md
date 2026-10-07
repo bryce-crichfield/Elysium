@@ -1,5 +1,5 @@
 # Elysium
-A C++ game engine built for 2D style game.
+A C++ game engine built for 3D, Scripting and Netplay.
 
 ## Quick Start
 
