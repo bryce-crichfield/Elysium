@@ -4,7 +4,8 @@
 -- with mana. Every phase a side's units grow a mana crystal, regain one mana and draw a card.
 --   Click a blue-ringed unit, then Move (pick a spot in the blue area), Attack (pick a foe) or
 --   a card from its hand (Prefabs/Hand.xml): Bolt asks for a spot to blast. Right-click / Esc
---   backs out. End Turn (or Space) ends the phase. Middle-drag pans, right-drag
+--   backs out. Wait (or Space) finishes the selected unit; once every unit has waited it's
+--   End Turn, which ends the phase. Middle-drag pans, right-drag
 --   turns, wheel zooms (and tilts). R restarts.
 -- The battlefield is an encounter prefab (Prefabs/Encounters), spawned at the origin: its room
 -- and the spawn points the units start on. In an adventure (Scripts/Battler/Run.lua) it's the
@@ -1087,12 +1088,21 @@ function Battle:CommitAction(extra)
     for k, v in pairs(extra) do cmd[k] = v end
     Play(SFX.order)
     self:ClearOrders()
+    u.done = false  -- a waited unit that acts again is back in the turn
     self:Run(function()
         self:HoldFrame(u, function() self:Act(u, cmd) end)
         cmd.x, cmd.y, cmd.z = u.x, u.y, u.z
         self:Send(cmd)
         self:CheckOver()
     end)
+end
+
+-- Whether waiting now ends the phase: nobody selected, or everyone else has waited.
+function Battle:WaitEndsTurn()
+    for _, v in ipairs(self:Living(self.me)) do
+        if v ~= self.selected and not v.done then return self.selected == nil end
+    end
+    return true
 end
 
 -- Plays the card being held on its target: pays for it, discards it, plays it out, then tells
@@ -1105,6 +1115,7 @@ function Battle:Commit(extra)
     -- The card flies from where it waits to the middle of the screen and burns: then it lands.
     local _, flight = self:Launch(u, held.slot)
     self:ClearOrders()
+    u.done = false
     self:Run(function()
         self:HoldFrame(u, function()
             self:AwaitFlight(flight)
@@ -1117,10 +1128,10 @@ function Battle:Commit(extra)
 end
 
 -- Wait: the selected unit is done for this phase (its ring greys); the next one still to go is
--- selected, and once everyone's done the phase ends.
+-- selected, and once everyone's done (or with nobody selected) the phase ends.
 function Battle:WaitUnit()
     local u = self.selected
-    if not u then return end
+    if not u then self:EndPlayerPhase() return end
     u.done = true
     local list = self:Living(self.me)
     local at = 0
@@ -1198,7 +1209,7 @@ function Battle:HandleEvent(event)
         end
         if self:Busy() then return false end
         if event.key == KEY_ESCAPE then self:Back() return true end
-        if event.key == KEY_SPACE then self:EndPlayerPhase() return true end
+        if event.key == KEY_SPACE then self:WaitUnit() return true end
         if event.key == KEY_TAB then
             local list = self:Living(self.me)
             local at = 0
@@ -1376,7 +1387,7 @@ end
 
 -- --- HUD ---
 -- The HUD is prefab placements in Scenes/Battle.xml (TurnLabel, Forecast, the hero
--- frames, the Hand, the Move, Attack, Wait and EndTurn buttons, and the Banner); this binds the
+-- frames, the Hand, the Move, Attack and Wait buttons, and the Banner); this binds the
 -- Hand and the buttons and fills the rest in each frame.
 
 function Battle:BindHud()
@@ -1391,10 +1402,7 @@ function Battle:BindHud()
     end
     Widgets.BindButton("Wait",
         function() self:WaitUnit() end,
-        function() return not self:Busy() and self.selected ~= nil and not self.mode end)
-    Widgets.BindButton("EndTurn",
-        function() self:EndPlayerPhase() end,
-        function() return not self:Busy() end)
+        function() return not self:Busy() and not self.mode end)
     Widgets.BindView("Hand", {
         show = function()
             local u = self.state ~= "loading" and self:HandUnit()
@@ -1437,7 +1445,6 @@ function Battle:AnchorHud()
     Widgets.Anchor(self:Hud("Move"), "right", "bottom")
     Widgets.Anchor(self:Hud("Attack"), "right", "bottom")
     Widgets.Anchor(self:Hud("Wait"), "right", "bottom")
-    Widgets.Anchor(self:Hud("EndTurn"), "right", "bottom")
     Widgets.Anchor(self:Hud("Hand"), "center", "bottom")
     local banner = self:Hud("Banner")
     Widgets.Anchor(banner, "stretch", "middle")
@@ -1462,11 +1469,12 @@ function Battle:UpdateHud()
     Widgets.SetVisible(box, forecast ~= nil)
     if box and forecast then Widgets.ChildText(box, "Text", forecast) end
 
-    -- The turn buttons step aside while anything is aimed; Move and Attack stay up while they
-    -- are (lit, to put back), and step aside for a card.
+    -- Wait steps aside while anything is aimed; Move and Attack stay up while they are (lit,
+    -- to put back), and step aside for a card.
     local ours = playing and self.phase == self.me and self.state == "battle"
-    Widgets.SetVisible(self:Hud("EndTurn"), ours and not self.mode)
-    Widgets.SetVisible(self:Hud("Wait"), ours and not self.mode and self.selected ~= nil)
+    local wait = self:Hud("Wait")
+    Widgets.SetVisible(wait, ours and not self.mode)
+    if wait and ours then Widgets.ChildText(wait, "Label", self:WaitEndsTurn() and "End Turn" or "Wait") end
     Widgets.SetVisible(self:Hud("Move"), ours and not self.card and self.selected ~= nil)
     Widgets.SetVisible(self:Hud("Attack"), ours and not self.card and self.selected ~= nil)
 
