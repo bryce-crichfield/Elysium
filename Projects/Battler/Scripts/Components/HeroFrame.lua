@@ -115,6 +115,18 @@ function HeroFrame:Text(root, name, content, left)
     if left then Widgets.AlignLeft(e, left) end
 end
 
+-- The Portrait child's picture, a texture path.
+function HeroFrame:Portrait(root, path)
+    if self.portrait == path then return end
+    local e = Widgets.Child(root, "Portrait")
+    local mat = e and GetComponent(e, "Material")
+    local tex = mat and mat:Layer("Texture")
+    if not tex then return end
+    self.portrait = path
+    if path then LoadTexture(path) end
+    tex.texture = path or ""
+end
+
 -- A bar's shown fraction: fills up on gains, drains down on losses, the chunk between flashing.
 -- A change pops its number off the bar (HeroFrame:Pop). With a `preview` below the value, the
 -- part it would lose pulses white instead (while no change is flashing).
@@ -247,6 +259,7 @@ function HeroFrame:Update(entity, dt)
     end
 
     self:Text(entity, "NameText", u.name, NAME_LEFT)
+    self:Portrait(entity, u.class.portrait)
     self:Text(self.health, "Vitals", string.format("%d/%d", u.alive and u.hp or 0, u.maxHp))
     local preview = binding.preview or {}
     self:Bar("health", self.health, u.alive and u.hp or 0, u.maxHp, dt, binding.fill or DEFAULT_FILL, preview.hp)

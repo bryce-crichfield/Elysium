@@ -4,7 +4,7 @@
 -- own cards (Prefabs/Card.xml) and binds each one's view; the scene only says what's in it:
 --
 --   Widgets.BindView("Hand", {
---       show = function() return { cards = {...}, faceUp = true, owner = "Marsh" } end,
+--       show = function() return { cards = {...}, faceUp = true, owner = "Knight" } end,
 --                                                    -- or nil: no hand shown
 --       playable = function(slot) return true end,   -- (optional) can be paid for now
 --       chosen = function() return slot end,         -- (optional) the card being played

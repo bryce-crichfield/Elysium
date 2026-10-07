@@ -7,13 +7,13 @@
 -- is false outside one (Skirmish, Versus), and the Battle then plays its default encounter.
 local Run = {}
 
-Run.PARTY = { "Marsh", "Gryphon", "Alexa" }   -- the heroes, in their HeroN spawn order
+Run.PARTY = { "Knight", "Archer", "Vampire" }   -- the heroes, in their HeroN spawn order
 
 -- Every encounter there is. `prefab` lays out the room and its spawn points (see
 -- Prefabs/Encounters); `intro` is the flavour shown on stepping into the Portal.
 Run.ENCOUNTERS = {
     { id = "Crypt", title = "The Crypt", prefab = "Prefabs/Encounters/Crypt.xml",
-      intro = "Brigands have made camp among the tombs. They reach for their blades." },
+      intro = "Knights have made camp among the tombs. They reach for their blades." },
     { id = "Hall", title = "The Pillared Hall", prefab = "Prefabs/Encounters/Hall.xml",
       intro = "Bowstrings creak on the dais. A voice calls: \"No further.\"" },
 }

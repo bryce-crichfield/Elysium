@@ -21,27 +21,27 @@
             <TransformComponent x="-384" y="-160"/>
         </Entity>
         <Entity id="4">
-            <NameComponent name="Mob1:Brigand"/>
+            <NameComponent name="Mob1:Knight"/>
             <ParentComponent target="0"/>
             <TransformComponent x="128" y="32"/>
         </Entity>
         <Entity id="5">
-            <NameComponent name="Mob2:Brigand"/>
+            <NameComponent name="Mob2:Hulk"/>
             <ParentComponent target="0"/>
             <TransformComponent x="0" y="96"/>
         </Entity>
         <Entity id="6">
-            <NameComponent name="Mob3:Poacher"/>
+            <NameComponent name="Mob3:Archer"/>
             <ParentComponent target="0"/>
             <TransformComponent x="384" y="96"/>
         </Entity>
         <Entity id="7">
-            <NameComponent name="Mob4:Poacher"/>
+            <NameComponent name="Mob4:Archer"/>
             <ParentComponent target="0"/>
             <TransformComponent x="192" y="192"/>
         </Entity>
         <Entity id="8">
-            <NameComponent name="Mob5:Hexer"/>
+            <NameComponent name="Mob5:Vampire"/>
             <ParentComponent target="0"/>
             <TransformComponent x="384" y="160"/>
         </Entity>

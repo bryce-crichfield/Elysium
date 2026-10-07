@@ -29,7 +29,7 @@
         <Entity id="1">
             <LayerComponent name="ui"/>
             <MaterialComponent padding="0" enabled="true">
-                <Layer material="Texture" enabled="true" texture="Textures/Portraits/Archer128.jpg"/>
+                <Layer material="Texture" enabled="true" texture="Textures/Portraits/Archer.jpg"/>
             </MaterialComponent>
             <NameComponent name="Portrait"/>
             <ParentComponent target="0"/>

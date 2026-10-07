@@ -33,6 +33,12 @@ Units.Rigs = {
             Idle = "Idle", Walk = "Running", Attack = "Attack", Hurt = "Hurt", Death = "Death",
             Cast1 = "Cast_1", Cast2 = "Cast_2", Cast3 = "Cast_3" }),
     },
+    Hulk = {
+        model = "Models/Characters/Hulk/Hulk.mesh", scale = 25, runRate = 1,
+        -- No Attack clip baked: the swing is Cast1.
+        clips = Clips("Animations/Hulk/Hulk_", {
+            Idle = "Idle", Walk = "Run", Attack = "Cast1", Hurt = "Hurt", Death = "Death", Cast1 = "Cast1" }),
+    },
     Archer = {
         model = "Models/Characters/Archer/Archer.mesh", scale = 25, runRate = 1,
         clips = Clips("Animations/Archer/Archer_", {
@@ -44,18 +50,14 @@ Units.Rigs = {
 -- unit fights with (Cards.Decks). stamina: what it has to walk and swing with each phase.
 -- rig: a 3D character (Units.Rigs). The other vitals come from the stats (Units.Vitals).
 Units.Classes = {
-    Marsh   = { prefab = "Prefabs/Character.xml", rig = "Knight", label = "Marsh", role = "Warrior", deck = "Warrior",
+    Knight  = { prefab = "Prefabs/Character.xml", rig = "Knight", label = "Knight", role = "Warrior", deck = "Warrior",
                 str = 6, int = 1, agi = 3, stamina = 5, portrait = "Textures/Portraits/Knight.jpg" },
-    Alexa   = { prefab = "Prefabs/Character.xml", rig = "Vampire", label = "Alexa", role = "Mage", deck = "Mage",
-                str = 1, int = 6, agi = 3, stamina = 4, portrait = "Textures/Portraits/Bishop.jpg", cast = "Cast1" },
-    Gryphon = { prefab = "Prefabs/Character.xml", rig = "Archer", label = "Gryphon", role = "Rogue", deck = "Rogue",
+    Vampire = { prefab = "Prefabs/Character.xml", rig = "Vampire", label = "Vampire", role = "Mage", deck = "Mage",
+                str = 1, int = 6, agi = 3, stamina = 4, portrait = "Textures/Portraits/Vampire.jpg", cast = "Cast1" },
+    Archer  = { prefab = "Prefabs/Character.xml", rig = "Archer", label = "Archer", role = "Rogue", deck = "Rogue",
                 str = 3, int = 1, agi = 6, stamina = 7, portrait = "Textures/Portraits/Archer.jpg" },
-    Brigand = { prefab = "Prefabs/Character.xml", rig = "Knight", label = "Brigand", role = "Warrior", deck = "Warrior",
-                str = 4, int = 0, agi = 2, stamina = 5, portrait = "Textures/Portraits/Militia.jpg" },
-    Hexer   = { prefab = "Prefabs/Character.xml", rig = "Vampire", label = "Hexer", role = "Mage", deck = "Mage",
-                str = 1, int = 4, agi = 2, stamina = 4, portrait = "Textures/Portraits/Worker.jpg", cast = "Cast2" },
-    Poacher = { prefab = "Prefabs/Character.xml", rig = "Archer", label = "Poacher", role = "Rogue", deck = "Rogue",
-                str = 3, int = 0, agi = 4, stamina = 6, portrait = "Textures/Portraits/Militia.jpg" },
+    Hulk    = { prefab = "Prefabs/Character.xml", rig = "Hulk", label = "Hulk", role = "Warrior", deck = "Warrior",
+                str = 8, int = 0, agi = 1, stamina = 4, portrait = "Textures/Portraits/Hulk.jpg" },
 }
 
 -- What a class's stats make of its vitals: health (from Strength) and how many mana crystals it grows to (from Intellect, at most 10).
