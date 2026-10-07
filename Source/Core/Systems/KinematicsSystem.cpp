@@ -1,0 +1,63 @@
+#include "Core/Systems/KinematicsSystem.h"
+#include "Core/SystemRegistry.h"
+#include "Core/Component.h"
+#include "Core/Entity.h"
+#include "Core/Scene.h"
+#include "Core/Components/KinematicsComponent.h"
+#include "Core/Components/TransformComponent.h"
+
+namespace Elysium::Systems {
+
+void KinematicsSystem::Update(float deltaTime) {
+    world->Query<KinematicsComponent, TransformComponent>(
+        [&](Entity e, auto& kin, auto& transform) {
+            // 1. Integrate Acceleration into Velocity
+            // v = v + a * dt
+            if (kin.acceleration.x != 0 || kin.acceleration.y != 0) {
+                kin.velocity.x += kin.acceleration.x * deltaTime;
+                kin.velocity.y += kin.acceleration.y * deltaTime;
+            }
+
+            // 2. Apply Friction/Damping
+            // Friction applies opposite to velocity
+            // Simple damping: v = v * (1 - friction * dt)
+            // Or linear drag: v = v - friction * v * dt
+            if (kin.friction > 0) {
+                float speed = kin.velocity.Length();
+                if (speed > 0) {
+                    float drop = speed * kin.friction * deltaTime;
+                    float newSpeed = speed - drop;
+                    if (newSpeed < 0) newSpeed = 0;
+                    
+                    if (speed > 0.0001f) {
+                         kin.velocity = kin.velocity * (newSpeed / speed);
+                    } else {
+                        kin.velocity = {0,0};
+                    }
+                }
+            }
+            
+            // 3. Clamp to MaxSpeed
+            if (kin.maxSpeed > 0) {
+                float speed = kin.velocity.Length();
+                if (speed > kin.maxSpeed) {
+                    kin.velocity = kin.velocity * (kin.maxSpeed / speed);
+                }
+            }
+
+            // 4. Integrate Velocity into Position
+            // p = p + v * dt
+            // Only update if moving noticeably
+            if (Dot(kin.velocity, kin.velocity) > 0.001f) {
+                transform.localX += kin.velocity.x * deltaTime;
+                transform.localY += kin.velocity.y * deltaTime;
+            }
+
+            // Reset acceleration for next frame (force accumulation style)
+            kin.acceleration = {0, 0};
+        });
+}
+
+}  // namespace Elysium::Systems
+
+REGISTER_SYSTEM(Elysium::Systems::KinematicsSystem)

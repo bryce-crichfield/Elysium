@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <sstream>
 #include <string>
 #include "Core/Log.h"
@@ -11,12 +12,62 @@
 #include "Core/ComponentRegistry.h"
 #include "Core/SystemRegistry.h"
 #include "Core/Components.h"
-#include "Systems/SpatialSystem.h"
+#include "Core/Path.h"
+#include "Core/PrefabInstance.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;
 
 namespace Elysium {
+
+namespace {
+
+using ComponentLoader = std::function<void(XMLElement*, World*, Entity, ServiceLocator&)>;
+
+// XML tag -> component loader, from the registry, with the CameraComponent special case
+// layered on top: a "target" also stamps FollowComponent + ParentComponent.
+const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
+    static const std::unordered_map<std::string, ComponentLoader> loaders = [] {
+        std::unordered_map<std::string, ComponentLoader> result;
+        for (const auto& [name, loader] : ComponentRegistry::Instance().GetXmlLoaders()) result[name] = loader;
+
+        result["CameraComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity, ServiceLocator& services) {
+            CameraComponent cam{};
+            CameraComponent::LoadXml(cam, xmlComponent, services);
+            world->AddComponent(entity, cam);
+
+            std::string target = xmlComponent->Attribute("target") ? xmlComponent->Attribute("target") : "";
+            if (!target.empty()) {
+                world->AddComponent(entity, FollowComponent{});  // speed=0 -> instant by default
+                ParentComponent parentComp;
+                parentComp.targetName = target;
+                world->AddComponent(entity, parentComp);
+            }
+        };
+        return result;
+    }();
+    return loaders;
+}
+
+}  // namespace
+
+void LoadEntityComponents(XMLElement* xmlEntity, World* world, Entity entity, ServiceLocator& services) {
+    ForEachChild(xmlEntity, [&](XMLElement* component) {
+        std::string componentType = component->Name();
+        auto parser = ComponentLoaders().find(componentType);
+        if (parser == ComponentLoaders().end()) {
+            LOG_WARNINGF("Scene", "Unknown component type: %s", componentType.c_str());
+            return;
+        }
+        parser->second(component, world, entity, services);
+
+        // Backward compatibility: a component's layerName attribute implies a LayerComponent.
+        const char* layerName = component->Attribute("layerName");
+        if (layerName && !world->HasComponent<LayerComponent>(entity)) {
+            world->AddComponent<LayerComponent>(entity, LayerComponent(layerName));
+        }
+    });
+}
 
 void LoadLayers(XMLElement* root, Scene& scene) {
     VisitElement(root, "SceneConfiguration", [&](XMLElement* configElement) {
@@ -39,145 +90,13 @@ void LoadLayers(XMLElement* root, Scene& scene) {
     });
 }
 
-void LoadTilemap(XMLElement* root, World* world, float& outTileWidth, float& outTileHeight, bool& outIsIsometric) {
-    VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
-        struct TileDef {
-            std::string tileName;
-            std::string variantName = "default";
-            std::string layerName = "tile";
-        };
-        std::unordered_map<int, TileDef> tileDefinitions;
-        std::vector<int> tilemask;
-        int tilemapWidth = tilemap->IntAttribute("width", 0);
-        float tileWidth = tilemap->FloatAttribute("tileWidth", 32.0f);
-        float tileHeight = tilemap->FloatAttribute("tileHeight", 32.0f);
-        bool isIsometric = tilemap->BoolAttribute("isIsometric", false);
-
-        outTileWidth = tileWidth;
-        outTileHeight = tileHeight;
-        outIsIsometric = isIsometric;
-
-        VisitElement(tilemap, "Tilemask", [&](XMLElement* xmlTileMask) {
-            const char* textContent = xmlTileMask->GetText();
-            if (textContent) {
-                std::string content(textContent);
-                size_t start = content.find_first_not_of(" \t\n\r");
-                size_t end = content.find_last_not_of(" \t\n\r");
-                if (start != std::string::npos && end != std::string::npos) {
-                    content = content.substr(start, end - start + 1);
-                    std::istringstream iss(content);
-                    std::string token;
-                    while (iss >> token) {
-                        tilemask.push_back(std::stoi(token));
-                    }
-                }
-            }
-        });
-
-        VisitElement(tilemap, "TileDefinitions", [&](XMLElement* xmlTileDefinitions) {
-            ForEachElement(xmlTileDefinitions, "TileDefinition", [&](XMLElement* xmlTileDefinition) {
-                int id = xmlTileDefinition->IntAttribute("id", 0);
-                TileDef def;
-                def.tileName    = xmlTileDefinition->Attribute("tile")    ? xmlTileDefinition->Attribute("tile")    : "";
-                def.variantName = xmlTileDefinition->Attribute("variant") ? xmlTileDefinition->Attribute("variant") : "default";
-                def.layerName   = xmlTileDefinition->Attribute("layer")   ? xmlTileDefinition->Attribute("layer")   : "tile";
-                tileDefinitions[id] = std::move(def);
-            });
-        });
-
-        // Create a container entity for all tiles
-        Entity tilemapParent = world->CreateEntity();
-        world->AddComponent<NameComponent>(tilemapParent, NameComponent("Tilemap"));
-        world->AddComponent<TransformComponent>(tilemapParent, TransformComponent(0, 0));
-
-        for (size_t i = 0; i < tilemask.size(); i++) {
-            int id = tilemask[i];
-            auto defIt = tileDefinitions.find(id);
-            if (defIt == tileDefinitions.end()) continue;
-
-            int tileX = (int)(i % tilemapWidth);
-            int tileY = (int)(i / tilemapWidth);
-            int worldX = isIsometric ? (tileX - tileY) * (int)(tileWidth  / 2) : tileX * (int)tileWidth;
-            int worldY = isIsometric ? (tileX + tileY) * (int)(tileHeight / 2) : tileY * (int)tileHeight;
-
-            const TileDef& def = defIt->second;
-
-            auto entity = world->CreateEntity();
-            world->AddComponent<TransformComponent>(entity, TransformComponent(worldX, worldY));
-            world->AddComponent<NameComponent>(entity, NameComponent(std::string("Tile_") + std::to_string(i)));
-            world->AddComponent<LayerComponent>(entity, LayerComponent(def.layerName));
-            world->AddComponent<TileComponent>(entity, TileComponent(def.tileName, def.variantName, isIsometric, tileWidth, tileHeight));
-            world->AddComponent<ParentComponent>(entity, ParentComponent(tilemapParent, "Tilemap"));
-            world->AddChild(tilemapParent, entity);
-        }
-    });
-}
-
-// Create map of tag name to component parser functions
-using ComponentLoader = std::function<void(XMLElement*, World*, Entity, ServiceLocator&)>;
-const std::unordered_map<std::string, ComponentLoader>& ComponentLoaders() {
-    static std::unordered_map<std::string, ComponentLoader> componentLoaders;
-
-    if (!componentLoaders.empty())
-        return componentLoaders;
-
-    // Load from registry
-    const auto& registryLoaders = ComponentRegistry::Instance().GetXmlLoaders();
-    for(const auto& [name, loader] : registryLoaders) {
-        componentLoaders[name] = loader;
-    }
-
-    // Register custom overrides
-    componentLoaders["CameraComponent"] = [](XMLElement* xmlComponent, World* world, Entity entity, ServiceLocator& services) {
-        CameraComponent cam{};
-        CameraComponent::LoadXml(cam, xmlComponent, services);
-        world->AddComponent(entity, cam);
-
-        // If a follow target is specified, add FollowComponent + ParentComponent so
-        // FollowSystem will move the camera toward that target.
-        std::string target = xmlComponent->Attribute("target") ? xmlComponent->Attribute("target") : "";
-        if (!target.empty()) {
-            world->AddComponent(entity, FollowComponent{});  // speed=0 → instant by default
-            ParentComponent parentComp;
-            parentComp.targetName = target;
-            world->AddComponent(entity, parentComp);
-        }
-    };
-
-    return componentLoaders;
-}
-
 void LoadEntities(XMLElement* root, World* world, ServiceLocator& services) {
-    // Load entities
     LOG_INFO("Scene", "Starting entity loading");
 
-    // ForEachElement handles multiple <Entities> blocks — the original inline block
-    // plus any injected by <Include> tags (each prefab file has <Entities> as its root).
     ForEachElement(root, "Entities", [&](XMLElement* entities) {
-        LOG_DEBUG("Scene", "Processing Entities section");
         ForEachElement(entities, "Entity", [&](XMLElement* xmlEntity) {
-            // Create the entity
             Entity entity = world->CreateEntity();
-            LOG_DEBUGF("Scene", "Created entity: %zu", entity);
-
-            // Create the components
-            ForEachChild(xmlEntity, [&](XMLElement* component) {
-                std::string componentType = component->Name();
-                auto parser = ComponentLoaders().find(componentType);
-                if (parser != ComponentLoaders().end()) {
-                    LOG_DEBUGF("Scene", "Processing component: %s", componentType.c_str());
-                    parser->second(component, world, entity, services);
-
-                    // Backward compatibility: if a component has a layerName attribute, 
-                    // add a LayerComponent to the entity if it doesn't have one.
-                    const char* layerName = component->Attribute("layerName");
-                    if (layerName && !world->HasComponent<LayerComponent>(entity)) {
-                        world->AddComponent<LayerComponent>(entity, LayerComponent(layerName));
-                    }
-                } else {
-                    LOG_WARNINGF("Scene", "Unknown component type: %s", componentType.c_str());
-                }
-            });
+            LoadEntityComponents(xmlEntity, world, entity, services);
         });
     });
 }
@@ -185,8 +104,13 @@ void LoadEntities(XMLElement* root, World* world, ServiceLocator& services) {
 // After all entities are spawned, walk every ParentComponent.targetName,
 // resolve it to an Entity ID, and populate the World's hierarchy adjacency.
 void ResolveHierarchy(World* world) {
-    world->Query<ParentComponent>([&](Entity child, ParentComponent& pc) {
-        if (pc.targetName.empty()) return;
+    // In entity (file) order: AddChild appends, so this sets sibling order.
+    for (Entity child : std::vector<Entity>(world->GetLivingEntities())) {
+        if (!world->HasComponent<ParentComponent>(child)) continue;
+        auto& pc = world->GetComponent<ParentComponent>(child);
+        if (pc.targetName.empty()) continue;
+        // Already linked directly (intra-prefab parents resolve by local id).
+        if (pc.parent != INVALID_ENTITY) continue;
         Entity parent = INVALID_ENTITY;
         if (world->GetEntityByName(pc.targetName, &parent)) {
             world->AddChild(parent, child);
@@ -194,7 +118,7 @@ void ResolveHierarchy(World* world) {
             LOG_WARNINGF("Scene", "Hierarchy: could not resolve parent name '%s' for entity %zu",
                          pc.targetName.c_str(), child);
         }
-    });
+    }
 }
 
 void LoadSystems(XMLElement* root, Scene& scene) {
@@ -210,10 +134,49 @@ void LoadSystems(XMLElement* root, Scene& scene) {
 
             auto system = SystemRegistry::Instance().Create(systemName, context);
             if (system) {
+                // Every other attribute is a parameter, parsed as its declared type.
+                const SystemParameters defaults = system->GetDefaultParameters();
+                SystemParameters values;
+                for (const XMLAttribute* attr = xmlSystem->FirstAttribute(); attr; attr = attr->Next()) {
+                    std::string name = attr->Name();
+                    if (name == "type") continue;
+                    auto it = defaults.find(name);
+                    if (it == defaults.end()) {
+                        LOG_WARNINGF("Scene", "%s has no parameter '%s'", systemName.c_str(), name.c_str());
+                        continue;
+                    }
+                    values[name] = Value::FromString(it->second.TypeName(), attr->Value());
+                }
+                system->Initialize(values);
                 scene.AddSystem(std::move(system));
             }
         });
     });
+}
+
+std::string ScenePath(const std::string& name) { return Path("Scenes/" + name + ".xml").GetFullPath(); }
+
+namespace {
+void ReadPreloads(XMLElement* root, std::vector<std::string>& out) {
+    VisitElement(root, "Preload", [&](XMLElement* preload) {
+        for (XMLElement* el = preload->FirstChildElement("Asset"); el; el = el->NextSiblingElement("Asset")) {
+            if (const char* path = el->Attribute("path"); path && *path) out.emplace_back(path);
+        }
+    });
+}
+}  // namespace
+
+ScenePreloads ReadScenePreloads(const std::string& path) {
+    ScenePreloads preloads;
+    XMLDocument doc;
+    if (!LoadXml(path, doc)) return preloads;
+    if (XMLElement* root = doc.FirstChildElement("Scene")) {
+        ReadPreloads(root, preloads.assets);
+        VisitElement(root, "SceneScript", [&](XMLElement* el) {
+            if (const char* script = el->Attribute("path")) preloads.script = script;
+        });
+    }
+    return preloads;
 }
 
 bool LoadScene(Scene& scene, const std::string& path) {
@@ -232,32 +195,21 @@ bool LoadScene(Scene& scene, const std::string& path) {
     }
 
     World* world_ = scene.GetWorld();
+    scene.SetSource(std::filesystem::path(path).stem().string(), path);
 
-    // Tilemap properties for position calculation
-    float tileWidth = TILE_WIDTH;
-    float tileHeight = TILE_HEIGHT;
-    bool isIsometric = false;
+    ReadPreloads(root, scene.GetPreloads());
+
+    VisitElement(root, "EditorMetadata", [&](XMLElement* el) {
+        for (const tinyxml2::XMLAttribute* a = el->FirstAttribute(); a; a = a->Next()) {
+            scene.GetEditorMetadata()[a->Name()] = a->Value();
+        }
+    });
 
     LoadLayers(root, scene);
-    LoadTilemap(root, world_, tileWidth, tileHeight, isIsometric);
     LoadEntities(root, world_, scene.GetServices());
+    PrefabInstances::Load(root, world_, DirectoryOf(path), scene.GetServices());
     ResolveHierarchy(world_);
     LoadSystems(root, scene);
-
-    // Wire tilemap dimensions into SpatialSystem now that it exists.
-    // We also need the tilemap width/height in grid cells, not world units.
-    {
-        int tilemapGridW = 0, tilemapGridH = 0;
-        VisitElement(root, "Tilemap", [&](XMLElement* tilemap) {
-            tilemapGridW = tilemap->IntAttribute("width",  0);
-            tilemapGridH = tilemap->IntAttribute("height", 0);
-        });
-        if (tilemapGridW > 0 && tilemapGridH > 0) {
-            if (auto* spatial = scene.GetSystem<Elysium::Systems::SpatialSystem>()) {
-                spatial->BuildGrid(tilemapGridW, tilemapGridH, tileWidth, tileHeight, isIsometric);
-            }
-        }
-    }
 
     VisitElement(root, "SceneScript", [&](XMLElement* el) {
         const char* path = el->Attribute("path");

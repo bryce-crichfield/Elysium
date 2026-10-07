@@ -1,0 +1,36 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <NameComponent name="Brazer"/>
+            <TransformComponent x="0" y="0" scaleX="0.25" scaleY="0.25"/>
+        </Entity>
+        <Entity id="2">
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Brazer/Brazer.png">
+                    <Uniform name="uSourceRect" type="vec4" value="0.000000 0.000000 512.000000 512.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="512" height="512" cornerRadius="0" originX="0.50480318" originY="0.74815881"/>
+            <SpriteComponent spriteName="Sprites/Brazer.xml" sheetName="" sequenceName=""/>
+            <TransformComponent x="-7.6293945e-06" y="3.8436737"/>
+        </Entity>
+        <Entity id="1">
+            <EllipseComponent radiusH="100" radiusV="45"/>
+            <MaterialComponent padding="351" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="3.150000"/>
+                    <Uniform name="uRise" type="float" value="1.550000"/>
+                    <Uniform name="uGlowRadius" type="float" value="19.450001"/>
+                </Layer>
+                <Layer material="Glow" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="1.250000"/>
+                    <Uniform name="uRadius" type="float" value="14.750000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Fire"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="-0.96089172" y="-171.0435"/>
+        </Entity>
+    </Entities>
+</Prefab>

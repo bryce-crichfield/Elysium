@@ -23,8 +23,4 @@
         <ShowMetrics>false</ShowMetrics>
         <LogLevel>INFO</LogLevel>
     </Debug>
-
-    <Editor>
-        <FontName>PixelCode-Regular.otf</FontName>
-    </Editor>
 </GameConfig>

@@ -1,0 +1,5 @@
+<Sprite name="Wendigo" originX="0.5" originY="0.5">
+    <Sequences>
+        <Sequence name="default" indicies="0:*" />
+    </Sequences>
+</Sprite>

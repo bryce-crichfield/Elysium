@@ -27,7 +27,12 @@
             <LayerComponent name="overlay" />
             <NameComponent name="BACKDROP" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="640" height="480" background="#000000AA" />
+            <RectangleComponent width="640" height="480" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0 0 0 0.667" />
+                </Layer>
+            </MaterialComponent>
         </Entity>
 
         <!-- Modal chrome — standalone background and title, not part of the layout tree -->
@@ -35,7 +40,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="MODAL_BG" />
             <TransformComponent x="14" y="12" />
-            <RectangleComponent width="612" height="456" background="#1C1C1EFF" border="#4A4A52FF" />
+            <RectangleComponent width="612" height="456" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.11 0.11 0.118 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.29 0.29 0.322 1" />
+                </Layer>
+            </MaterialComponent>
         </Entity>
         <Entity>
             <LayerComponent name="ui" />
@@ -76,7 +89,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="INV_PANEL" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="290" height="420" background="#28282CFF" border="#3A3A3EFF" />
+            <RectangleComponent width="290" height="420" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.157 0.157 0.173 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.227 0.227 0.243 1" />
+                </Layer>
+            </MaterialComponent>
             <UiComponent containerType="Vertical" gap="0" />
             <ParentComponent target="PANEL_ROW" />
         </Entity>
@@ -84,7 +105,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="INV_HEADER" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="290" height="26" background="#2E2E36FF" border="#3A3A3EFF" />
+            <RectangleComponent width="290" height="26" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.18 0.18 0.212 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.227 0.227 0.243 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Backpack" fontSize="13" color="#AEAEB2FF" />
             <UiComponent />
             <ParentComponent target="INV_PANEL" />
@@ -95,7 +124,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="CHAR_PANEL" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="290" height="420" background="#28282CFF" border="#3A3A3EFF" />
+            <RectangleComponent width="290" height="420" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.157 0.157 0.173 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.227 0.227 0.243 1" />
+                </Layer>
+            </MaterialComponent>
             <UiComponent containerType="Vertical" gap="0" />
             <ParentComponent target="PANEL_ROW" />
         </Entity>
@@ -103,7 +140,15 @@
             <LayerComponent name="ui" />
             <NameComponent name="CHAR_HEADER" />
             <TransformComponent x="0" y="0" />
-            <RectangleComponent width="290" height="26" background="#2E2E36FF" border="#3A3A3EFF" />
+            <RectangleComponent width="290" height="26" />
+            <MaterialComponent>
+                <Layer material="Flat">
+                    <Uniform name="uColor" type="vec4" value="0.18 0.18 0.212 1" />
+                </Layer>
+                <Layer material="Stroke">
+                    <Uniform name="uColor" type="vec4" value="0.227 0.227 0.243 1" />
+                </Layer>
+            </MaterialComponent>
             <TextComponent text="Character" fontSize="13" color="#AEAEB2FF" />
             <UiComponent />
             <ParentComponent target="CHAR_PANEL" />

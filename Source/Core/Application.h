@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/ServiceLocator.h"
-#include "Editor.h"
 
 #include <memory>
 #include <string>
@@ -12,7 +11,24 @@
 
 namespace Elysium {
 
+class EditorApplication;
+
 enum class AppMode { Play, Editor };
+
+// What the game draws at in Play. Default is native: the framebuffer is the window's own size.
+// The rest draw at that fixed size and letterbox it onto the window.
+enum class Resolution { Default, HD720, HD1080, QHD1440, UHD2160 };
+
+// A fixed resolution's size; false for Default (native).
+inline bool FixedResolution(Resolution resolution, int& width, int& height) {
+    switch (resolution) {
+        case Resolution::HD720:   width = 1280; height = 720;  return true;
+        case Resolution::HD1080:  width = 1920; height = 1080; return true;
+        case Resolution::QHD1440: width = 2560; height = 1440; return true;
+        case Resolution::UHD2160: width = 3840; height = 2160; return true;
+        default: return false;
+    }
+}
 
 struct ApplicationConfig {
     int windowWidth = 1280;
@@ -23,14 +39,17 @@ struct ApplicationConfig {
     int targetFPS = 60;
     Color backgroundColor{0, 0, 0, 255};
 
-    int framebufferWidth = 640;
-    int framebufferHeight = 480;
+    // The game screen: the size Screen2D (UI) layers and scripts lay things out in, whatever
+    // the resolution. It's fitted (scaled, centered) into the framebuffer (ISceneService::ScreenFit),
+    // and the game camera shows the same picture of the world at any resolution.
+    int screenWidth = 640;
+    int screenHeight = 480;
+    Resolution resolution = Resolution::Default;
 
     bool showDemoWindow = true;
     bool showMetrics = false;
     std::string logLevel = "INFO";
 
-    std::string editorFontName = "";
 
     static bool FromXML(const std::string& path, ApplicationConfig& out);
 };
@@ -41,8 +60,8 @@ struct ApplicationConfig {
 // IApplicationService via the ServiceLocator, same as every other service.
 class Application {
    public:
-    Application() = default;
-    ~Application() = default;
+    Application();
+    ~Application();
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
 
@@ -54,29 +73,8 @@ class Application {
 
     ServiceLocator& GetServiceLocator() { return serviceLocator_; }
 
-    template <typename T, typename... Args>
-    T& RegisterEditor(Args&&... args) {
-        auto editor = std::make_unique<T>(serviceLocator_, std::forward<Args>(args)...);
-        T& ref = *editor;
-        editors_.push_back(std::move(editor));
-        return ref;
-    }
-
-    template <typename T>
-    T* GetEditor() {
-        for (auto& editor : editors_) {
-            if (auto* typed = dynamic_cast<T*>(editor.get())) {
-                return typed;
-            }
-        }
-        return nullptr;
-    }
-
-    const std::vector<std::unique_ptr<Editor>>& GetEditors() const { return editors_; }
-
     bool ShouldClose() const;
-
-    void RequestFontReload() { pendingFontReload_ = true; }
+    void RequestClose() { shouldClose_ = true; }
 
     void SetMode(AppMode mode);
     AppMode GetMode() const { return mode_; }
@@ -90,7 +88,6 @@ class Application {
    private:
     void Update(float deltaTime);
     void Draw();
-    void DrawMenuBar();
     void ProcessEvents();
 
     void ProcessInput();
@@ -99,14 +96,12 @@ class Application {
     Window window_;
 
     ServiceLocator serviceLocator_;
-    std::vector<std::unique_ptr<Editor>> editors_;
+    std::unique_ptr<EditorApplication> editor_;  // the in-engine editor
 
     AppMode mode_ = AppMode::Play;
 
     bool initialized_ = false;
     bool shouldClose_ = false;
-    bool pendingFontReload_ = false;
-    bool editorLayoutBuilt_ = false;
 
     float startTime_ = 0.0f;
 };

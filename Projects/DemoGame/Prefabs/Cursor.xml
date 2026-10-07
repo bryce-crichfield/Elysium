@@ -1,0 +1,18 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.007463 0.000000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="0.550000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Cursor"/>
+            <RectangleComponent width="32" height="16" cornerRadius="0.38999999"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

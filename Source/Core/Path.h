@@ -21,6 +21,10 @@ class Path {
     explicit Path(const std::string& relativePath, PathRoot root = PathRoot::Assets);
     explicit Path(const char* relativePath, PathRoot root = PathRoot::Assets);
 
+    // The inverse of GetFullPath(): a full path (asset root + relative) back to a Path,
+    // normalized so different spellings of one file compare equal.
+    static Path FromFullPath(const std::string& fullPath);
+
     std::string GetFullPath() const;
     const std::string& GetRelativePath() const { return relativePath_; }
     PathRoot GetRoot() const { return root_; }
@@ -50,6 +54,16 @@ class Path {
 
     void UpdateFullPath() const;
 };
+
+// Plain full-path (string) helpers.
+
+// Directory portion of a file path, with trailing separator ("" if none).
+std::string DirectoryOf(const std::string& path);
+// `path` relative to `baseDir`, with forward slashes (falls back to `path` itself).
+std::string RelativeTo(const std::string& path, const std::string& baseDir);
+// True if two paths name the same file.
+bool SamePath(const std::string& a, const std::string& b);
+
 }  // namespace Elysium
 
 namespace std {

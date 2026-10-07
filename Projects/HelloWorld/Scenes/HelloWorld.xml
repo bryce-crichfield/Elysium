@@ -1,18 +1,203 @@
-<Scene type="HelloWorld">
-    <SceneScript path="Scripts/HelloWorld.lua" />
-
+<Scene>
+    <SceneScript path="Scripts/HelloWorld.lua"/>
     <Systems>
-        <System type="ScriptSystem" />
-        <System type="TransformSystem" />
-        <System type="UiSystem" />
-        <System type="RenderSystem" />
+        <System type="ScriptSystem"/>
+        <System type="TransformSystem"/>
+        <System type="UiSystem"/>
+        <System type="RenderSystem"/>
     </Systems>
-
-    <!-- TODO: Utilize width and height from SceneConfiguration -->
     <SceneConfiguration width="800" height="600">
-        <SceneLayer name="background" z="-2" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
-        <SceneLayer name="default"    z="-1" space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
-        <SceneLayer name="entity"     z="2"  space="World"  layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
-        <SceneLayer name="ui"         z="10" space="Screen" layerBlend="Normal"   compositeBlend="Normal"   isComposited="false" />
+        <SceneLayer name="backdrop" z="-10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="background" z="-2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="default" z="-1" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
     </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="0" y="0"/>
+            <CameraComponent/>
+        </Entity>
+        <Entity name="FireFrame">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.102000 0.078000 0.125000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="3.000000"/>
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.549000 0.165000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="FireFrame"/>
+            <RectangleComponent width="200" height="100" cornerRadius="0.059999999"/>
+            <ShaderComponent shader="Assets/Shaders/FireBorder.fs" padding="48" enabled="true" width="100" height="100">
+                <Uniform name="uIntensity" type="float" value="1.600000"/>
+                <Uniform name="uGlowRadius" type="float" value="26.000000"/>
+            </ShaderComponent>
+            <TransformComponent x="540" y="-300"/>
+        </Entity>
+        <Entity name="SdfPanel">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="32" enabled="true">
+                <Layer material="Glow" enabled="true">
+                    <Uniform name="uPulse" type="float" value="0.300000"/>
+                    <Uniform name="uRadius" type="float" value="10.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.500000 0.830000 1.000000 1.000000"/>
+                </Layer>
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.137000 0.188000 0.290000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="3.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.498000 0.831000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfPanel"/>
+            <RectangleComponent width="200" height="100" cornerRadius="0.30000001"/>
+            <TransformComponent x="-540" y="-300"/>
+        </Entity>
+        <Entity name="Backdrop">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Nebula" enabled="true"/>
+                <Layer material="Synthwave" enabled="false"/>
+                <Layer material="Aurora" enabled="false"/>
+            </MaterialComponent>
+            <NameComponent name="Backdrop"/>
+            <RectangleComponent width="200" height="100" cornerRadius="0.039999999"/>
+            <TransformComponent x="600" y="0"/>
+        </Entity>
+        <Entity name="SdfFireFrame">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="64" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uInteriorFade" type="float" value="50.000000"/>
+                </Layer>
+                <Layer material="Flat" enabled="false">
+                    <Uniform name="uColor" type="vec4" value="0.102000 0.078000 0.125000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="false">
+                    <Uniform name="uWidth" type="float" value="3.000000"/>
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.549000 0.165000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfFireFrame"/>
+            <RectangleComponent width="200" height="100" cornerRadius="0.12"/>
+            <TransformComponent x="21.846378" y="-140.57835"/>
+        </Entity>
+        <Entity name="SdfElectric">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="25" enabled="true">
+                <Layer material="Electric" enabled="true">
+                    <Uniform name="uGlowWidth" type="float" value="4.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.500000"/>
+                    <Uniform name="uInteriorFade" type="float" value="5.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfElectric"/>
+            <RectangleComponent width="200" height="100" cornerRadius="0.2"/>
+            <TransformComponent x="-556.38635" y="50.625" scaleX="0.81343639"/>
+        </Entity>
+        <Entity name="SdfDissolve">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="2" enabled="true">
+                <Layer material="Dissolve" enabled="true">
+                    <Uniform name="uAutoSpeed" type="float" value="0.800000"/>
+                    <Uniform name="uColor" type="vec4" value="0.227000 0.357000 0.659000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfDissolve"/>
+            <RectangleComponent width="200" height="100" cornerRadius="0.15000001"/>
+            <TransformComponent x="-180" y="0"/>
+        </Entity>
+        <Entity name="SdfCooldownRing">
+            <CircleComponent radius="55"/>
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="2" enabled="true">
+                <Layer material="Meter" enabled="true">
+                    <Uniform name="uAutoSpeed" type="float" value="0.250000"/>
+                    <Uniform name="uHole" type="float" value="0.700000"/>
+                    <Uniform name="uMode" type="float" value="1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfCooldownRing"/>
+            <TransformComponent x="180" y="0"/>
+        </Entity>
+        <Entity name="SdfCastBar">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="2" enabled="true">
+                <Layer material="Meter" enabled="true">
+                    <Uniform name="uFillColor" type="vec4" value="1.000000 0.750000 0.250000 1.000000"/>
+                    <Uniform name="uAutoSpeed" type="float" value="0.400000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfCastBar"/>
+            <RectangleComponent width="220" height="22" cornerRadius="1"/>
+            <TransformComponent x="540" y="209.48877"/>
+        </Entity>
+        <Entity name="SdfTelegraph">
+            <CircleComponent radius="26"/>
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="80" enabled="true">
+                <Layer material="PulseRings" enabled="true"/>
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.549000 0.118000 0.118000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfTelegraph"/>
+            <TransformComponent x="-338.75452" y="228.86273"/>
+        </Entity>
+        <Entity name="SdfOrb">
+            <CircleComponent radius="70"/>
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="4" enabled="true">
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorB" type="vec4" value="0.850000 0.200000 0.350000 1.000000"/>
+                    <Uniform name="uColorA" type="vec4" value="1.000000 0.850000 0.300000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uAlign" type="float" value="1.000000"/>
+                    <Uniform name="uWidth" type="float" value="4.000000"/>
+                    <Uniform name="uColor" type="vec4" value="1.000000 1.000000 1.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfOrb"/>
+            <TransformComponent x="-180" y="-300"/>
+        </Entity>
+        <Entity name="SdfBeam">
+            <LayerComponent name="default"/>
+            <LineComponent x1="-130" y1="20" x2="130" y2="-20" thickness="8"/>
+            <MaterialComponent padding="24" enabled="true">
+                <Layer material="Glow" enabled="true">
+                    <Uniform name="uRadius" type="float" value="6.000000"/>
+                    <Uniform name="uColor" type="vec4" value="0.500000 1.000000 0.400000 1.000000"/>
+                </Layer>
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.706000 1.000000 0.549000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfBeam"/>
+            <TransformComponent x="-180" y="300"/>
+        </Entity>
+        <Entity name="SdfStar">
+            <LayerComponent name="default"/>
+            <MaterialComponent padding="40" enabled="true">
+                <Layer material="Glow" enabled="true">
+                    <Uniform name="uRadius" type="float" value="12.000000"/>
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.800000 0.300000 1.000000"/>
+                </Layer>
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.231000 0.165000 0.063000 1.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.827000 0.416000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="SdfStar"/>
+            <PolygonComponent points="0,-85 22.3,-30.7 80.8,-26.3 36.1,11.7 50,68.8 0,38 -50,68.8 -36.1,11.7 -80.8,-26.3 -22.3,-30.7"/>
+            <TransformComponent x="180" y="300"/>
+        </Entity>
+    </Entities>
 </Scene>

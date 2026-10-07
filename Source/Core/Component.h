@@ -5,7 +5,7 @@
 #include "Core/Entity.h"
 #include "Core/Xml.h"
 #include "Core/Script.h"
-#include "Core/Editor.h"
+#include "Core/Reflection.h"
 
 namespace Elysium {
     template<typename T>

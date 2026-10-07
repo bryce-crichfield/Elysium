@@ -31,6 +31,10 @@ bool ProjectConfig::FromXML(const std::string& projectXmlPath, ProjectConfig& ou
         return false;
     }
 
+    if (tinyxml2::XMLElement* loading = root->FirstChildElement("LoadingScene")) {
+        out.loadingScene = loading->GetText() ? loading->GetText() : "";
+    }
+
     if (tinyxml2::XMLElement* config = root->FirstChildElement("Config")) {
         out.configPath = config->GetText() ? config->GetText() : out.configPath;
     }
@@ -41,6 +45,17 @@ bool ProjectConfig::FromXML(const std::string& projectXmlPath, ProjectConfig& ou
     LOG_INFOF("Project", "Loaded project '%s' from: %s", out.name.c_str(), projectXmlPath.c_str());
 
     return true;
+}
+
+bool ProjectConfig::SetEntryScene(const std::string& projectXmlPath, const std::string& sceneName) {
+    tinyxml2::XMLDocument doc;
+    if (!LoadXml(projectXmlPath, doc)) return false;
+    tinyxml2::XMLElement* root = doc.FirstChildElement("Project");
+    if (!root) return false;
+    tinyxml2::XMLElement* entry = root->FirstChildElement("EntryScene");
+    if (!entry) entry = root->InsertNewChildElement("EntryScene");
+    entry->SetText(sceneName.c_str());
+    return SaveXml(projectXmlPath, doc);
 }
 
 }  // namespace Elysium

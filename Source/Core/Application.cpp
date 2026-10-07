@@ -3,22 +3,13 @@
 #include <thread>
 #include "Common.h"
 #include "Core/Path.h"
+#include "Interfaces/IAudioService.h"
 #include "Interfaces/ILogService.h"
 #include "Interfaces/ISceneService.h"
 #include "Services/ApplicationService.h"
 #include "Services/Services.h"
-#include "Services/ScriptService.h"
-#include "Editor/SceneEditor.h"
-#include "Editor/WorldEditor.h"
-#include "Editor/LogEditor.h"
-#include "Editor/AssetEditor.h"
-#include "Editor/NetworkEditor.h"
-#include "Editor/ScriptEditor.h"
-#include "Editor/ViewportEditor.h"
-#include "imgui.h"
-#include "imgui_internal.h"
-#include "rlImGui.h"
 #include "Core/Input.h"
+#include "Editor/EditorApplication.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;
@@ -65,11 +56,25 @@ bool ApplicationConfig::FromXML(const std::string& configPath, ApplicationConfig
             LOG_INFOF("Application", "Color: %d, %d, %d", config.backgroundColor.r, config.backgroundColor.g,
                       config.backgroundColor.b);
         }
-        if (XMLElement* framebuffer = window->FirstChildElement("Framebuffer")) {
-            if (XMLElement* width = framebuffer->FirstChildElement("Width"))
-                config.framebufferWidth = width->IntText(640);
-            if (XMLElement* height = framebuffer->FirstChildElement("Height"))
-                config.framebufferHeight = height->IntText(480);
+        // <Screen> (older configs: <Framebuffer>) is the game screen's size.
+        XMLElement* screen = window->FirstChildElement("Screen");
+        if (!screen) screen = window->FirstChildElement("Framebuffer");
+        if (screen) {
+            if (XMLElement* width = screen->FirstChildElement("Width"))
+                config.screenWidth = width->IntText(640);
+            if (XMLElement* height = screen->FirstChildElement("Height"))
+                config.screenHeight = height->IntText(480);
+        }
+        if (XMLElement* resolution = window->FirstChildElement("Resolution")) {
+            const std::string text = resolution->GetText() ? resolution->GetText() : "DEFAULT";
+            if (text == "1280x720") config.resolution = Resolution::HD720;
+            else if (text == "1920x1080") config.resolution = Resolution::HD1080;
+            else if (text == "2560x1440") config.resolution = Resolution::QHD1440;
+            else if (text == "3840x2160") config.resolution = Resolution::UHD2160;
+            else {
+                if (text != "DEFAULT") LOG_WARNINGF("Application", "Unknown resolution '%s': drawing at the window's size", text.c_str());
+                config.resolution = Resolution::Default;
+            }
         }
     }
 
@@ -82,15 +87,13 @@ bool ApplicationConfig::FromXML(const std::string& configPath, ApplicationConfig
             config.logLevel = logLevel->GetText() ? logLevel->GetText() : "INFO";
     }
 
-    if (XMLElement* editor = root->FirstChildElement("Editor")) {
-        if (XMLElement* fontName = editor->FirstChildElement("FontName"))
-            config.editorFontName = fontName->GetText() ? fontName->GetText() : "Hermit-Regular.otf";
-    }
-
     LOG_INFOF("Application", "Loaded game config from: %s", configPath.c_str());
 
     return true;
 }
+
+Application::Application() = default;
+Application::~Application() = default;
 
 bool Application::Initialize(const std::string& configPath) {
     Profile;
@@ -112,20 +115,12 @@ bool Application::Initialize(const std::string& configPath) {
         std::make_unique<TaskService>(serviceLocator_));
     serviceLocator_.Register<Services::AssetService, Services::IAssetService>(
         std::make_unique<Services::AssetService>(serviceLocator_));
-    serviceLocator_.Register<Services::EditorService, Services::IEditorService>(
-        std::make_unique<Services::EditorService>(serviceLocator_));
+    serviceLocator_.Register<Services::AudioService, Services::IAudioService>(
+        std::make_unique<Services::AudioService>(serviceLocator_));
     serviceLocator_.Register<Services::SceneService, Services::ISceneService>(
         std::make_unique<Services::SceneService>(serviceLocator_));
     serviceLocator_.Register<Services::ScriptService, Services::IScriptService>(
         std::make_unique<Services::ScriptService>(serviceLocator_));
-
-    RegisterEditor<SceneEditor>();
-    RegisterEditor<WorldEditor>();
-    RegisterEditor<LogEditor>();
-    RegisterEditor<AssetEditor>();
-    RegisterEditor<NetworkEditor>();
-    RegisterEditor<ScriptEditor>();
-    RegisterEditor<ViewportEditor>();
 
     if (!ApplicationConfig::FromXML(configPath, config_)) {
         LOG_ERROR("Application", "Failed to load ApplicationConfig.xml");
@@ -137,25 +132,12 @@ bool Application::Initialize(const std::string& configPath) {
     window_ = Window(config_.windowWidth, config_.windowHeight, config_.windowTitle);
     window_.Maximize();
 
-    // Audio device init deferred until the real audio backend (miniaudio) lands.
-
-    rlImGuiSetup(true);
-    // SetTargetFPS(config_.targetFPS);
-
-    // Must be set before the first ImGui::NewFrame() (rlImGuiBegin() below), or ImGui
-    // asserts — docking state only matters once editor windows exist (Editor mode),
-    // but the flag itself is harmless to leave enabled in Play mode.
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    ImGui::GetIO().ConfigDockingAlwaysTabBar = true;
-
-
     for (auto service : serviceLocator_.GetAllServices()) {
         service->Initialize();
     }
 
-    for (auto& editor : editors_) {
-        editor->Initialize(config_);
-    }
+    editor_ = std::make_unique<EditorApplication>(serviceLocator_);
+    editor_->Initialize(config_);
 
     initialized_ = true;
     LOG_INFO("Application", "Engine initialization complete");
@@ -196,7 +178,7 @@ void Application::Shutdown() {
         service->Shutdown();
     }
 
-    rlImGuiShutdown();
+    if (editor_) editor_->Shutdown();
     window_ = Window();
 
     initialized_ = false;
@@ -213,81 +195,13 @@ void Application::Update(float deltaTime) {
     for (auto service : serviceLocator_.GetAllServices()) {
         service->Update(deltaTime);
     }
+    if (editor_) editor_->Update(deltaTime);
 
-}
-
-void Application::DrawMenuBar()
-{
-    // Add menu bar
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
-                // TODO: Handle new scene
-            }
-            if (ImGui::MenuItem("Open Scene", "Ctrl+O")) {
-                // TODO: Handle open scene
-            }
-            if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
-                // TODO: Handle save scene
-            }
-            if (ImGui::MenuItem("Save Scene As", "Ctrl+Shift+S")) {
-                
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Exit", "Alt+F4")) {
-                shouldClose_ = true;
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Edit")) {
-            if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
-                // Handle undo
-            }
-            if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
-                // Handle redo
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("View")) {
-            for (auto& editor : editors_) {
-                bool visible = editor->IsVisible();
-                if (ImGui::MenuItem(editor->GetName().c_str(), nullptr, &visible)) {
-                    editor->SetVisible(visible);
-                }
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Mode")) {
-            if (ImGui::MenuItem("Editor", "F1", mode_ == AppMode::Editor)) {
-                SetMode(AppMode::Editor);
-            }
-            if (ImGui::MenuItem("Play", "F2", mode_ == AppMode::Play)) {
-                SetMode(AppMode::Play);
-            }
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMainMenuBar();
-    }
 }
 
 void Application::Draw() {
     Profile;
 
-    if (pendingFontReload_) {
-        ImGui::GetIO().Fonts->Clear();
-        rlImGuiBeginInitImGui();
-        rlImGuiEndInitImGui();
-        for (auto& editor : editors_) {
-            editor->Initialize(config_);
-        }
-        pendingFontReload_ = false;
-    }   
-
-    // Begin frame
     window_.BeginFrame(Colors::Black);
 
     // Services render their content (SceneService draws scenes to framebuffer)
@@ -295,59 +209,13 @@ void Application::Draw() {
         service->Render();
     }
 
-    // ImGui overlays
-    rlImGuiBegin();
-
-    if (mode_ == AppMode::Editor) {
-        DrawMenuBar();
-        // Full-window dockspace
-        ImGuiID dockspaceId = ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
-
-        // Build default layout once
-        if (!editorLayoutBuilt_) {
-            editorLayoutBuilt_ = true;
-
-            ImGui::DockBuilderRemoveNode(dockspaceId);
-            ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
-            ImGui::DockBuilderSetNodeSize(dockspaceId, ImGui::GetMainViewport()->WorkSize);
-
-            // Split: left 20% | remainder
-            ImGuiID dockLeft, dockRemain;
-            ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.20f, &dockLeft, &dockRemain);
-
-            // Split remainder: bottom 25% | center+right
-            ImGuiID dockBottom, dockCenterRight;
-            ImGui::DockBuilderSplitNode(dockRemain, ImGuiDir_Down, 0.25f, &dockBottom, &dockCenterRight);
-
-            // Split center+right: center | right 25%
-            ImGuiID dockCenter, dockRight;
-            ImGui::DockBuilderSplitNode(dockCenterRight, ImGuiDir_Right, 0.25f, &dockRight, &dockCenter);
-
-            // Assign windows
-            ImGui::DockBuilderDockWindow("World Editor", dockLeft);
-            ImGui::DockBuilderDockWindow("Script Editor", dockCenter);
-            ImGui::DockBuilderDockWindow("Game", dockCenter);
-            ImGui::DockBuilderDockWindow("Log Viewer", dockBottom);
-            ImGui::DockBuilderDockWindow("Scene Editor", dockRight);
-            ImGui::DockBuilderDockWindow("Asset Browser", dockRight);
-            ImGui::DockBuilderDockWindow("Network", dockRight);
-
-            ImGui::DockBuilderFinish(dockspaceId);
-        }
-
-        // Game viewport panel is drawn by ViewportEditor, part of the generic editors loop below.
-    } else {
+    // In Play the game fills the window; in Editor the Viewport panel shows it.
+    if (mode_ == AppMode::Play) {
         auto& sceneService = serviceLocator_.Get<Services::ISceneService>();
         sceneService.Present(sceneService.GetLetterboxRect());
     }
 
-    for (auto& editor : editors_) {
-        if (editor->IsVisible()) {
-            editor->Draw();
-        }
-    }
-
-    rlImGuiEnd();
+    if (editor_) editor_->Draw(mode_);
 
     window_.EndFrame();
 }
@@ -360,23 +228,16 @@ void Application::SetMode(AppMode mode) {
     if (mode_ == mode) return;
     mode_ = mode;
 
-    auto& sceneService = serviceLocator_.Get<Services::ISceneService>();
+    if (editor_) editor_->OnModeChanged(mode_);
 
-    if (mode_ == AppMode::Editor) {
-        for (auto& editor : editors_) {
-            editor->SetVisible(true);
-        }
+    // Neither side's sounds carry over: the game's music shouldn't play under the editor, nor an
+    // editor preview into the game.
+    serviceLocator_.Get<Services::IAudioService>().StopAll();
 
-        // Editing should start paused by default — the user opts into simulating via the Play button.
-        sceneService.SetPlaying(false);
-    } else {
-        for (auto& editor : editors_) {
-            editor->SetVisible(false);
-        }
-        editorLayoutBuilt_ = false;
-
-        // Fullscreen Play mode always simulates.
-        sceneService.SetPlaying(true);
+    // The editor works on its own document copies; the game's stack just freezes. Play runs
+    // what's on disk, never the editor's in-memory copies.
+    if (mode_ == AppMode::Play) {
+        serviceLocator_.Get<Services::ISceneService>().ReloadFromDisk();
     }
 }
 

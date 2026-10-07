@@ -1,9 +1,11 @@
 #include "Entity.h"
+#include <algorithm>
+#include <unordered_set>
 #include "Sprite.h"
 #include "ComponentRegistry.h"
 #include "Core/Components.h"
 #include "Core/World.h"
-#include "Components/ParentComponent.h"
+#include "Core/Components/ParentComponent.h"
 
 namespace Elysium {
 void ComponentManager::EntityDestroyed(Entity entity) {
@@ -119,14 +121,12 @@ World::World() {
     // RegisterComponent<TransformComponent>(); // Handled by Registry
     RegisterComponent<MovementComponent>();
     RegisterComponent<LayerComponent>();
-    RegisterComponent<LightComponent>();
     RegisterComponent<RectangleComponent>();
     RegisterComponent<CircleComponent>();
     RegisterComponent<SpriteComponent>();
     RegisterComponent<TextComponent>();
     RegisterComponent<CameraComponent>();
     RegisterComponent<FollowComponent>();
-    RegisterComponent<TileComponent>();
     RegisterComponent<BoundsComponent>();
     RegisterComponent<ScriptComponent>();
     RegisterComponent<KinematicsComponent>();
@@ -272,6 +272,15 @@ bool World::IsAncestorOf(Entity ancestor, Entity entity) const {
     return false;
 }
 
+std::vector<Entity> World::GetSubtree(Entity root) const {
+    std::vector<Entity> subtree{root};
+    for (size_t i = 0; i < subtree.size(); ++i) {
+        const auto& children = GetChildren(subtree[i]);
+        subtree.insert(subtree.begin() + i + 1, children.begin(), children.end());
+    }
+    return subtree;
+}
+
 void World::MoveEntityBefore(Entity toMove, Entity target) {
     entityManager->MoveEntityBefore(toMove, target);
 }
@@ -336,5 +345,25 @@ size_t World::GetEntityCount() const {
 
 const std::vector<Entity>& World::GetLivingEntities() const {
     return entityManager->GetLivingEntities();
+}
+
+std::vector<Entity> World::GetHierarchyOrder() const {
+    const auto& living = GetLivingEntities();
+    const std::unordered_set<Entity> alive(living.begin(), living.end());
+    std::vector<Entity> order;
+    order.reserve(living.size());
+    for (Entity entity : living) {
+        const Entity parent = GetParent(entity);
+        if (parent != INVALID_ENTITY && alive.contains(parent)) continue;
+        for (Entity e : GetSubtree(entity)) {
+            if (alive.contains(e)) order.push_back(e);
+        }
+    }
+    return order;
+}
+
+bool World::IsAlive(Entity entity) const {
+    const auto& living = GetLivingEntities();
+    return std::find(living.begin(), living.end(), entity) != living.end();
 }
 }  // namespace Elysium

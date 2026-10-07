@@ -38,8 +38,10 @@ std::string ColorToHex(Color color);
 
 Color ParseHexColor(const std::string& hex, Color defaultColor = Colors::Blank);
 
-// Processes XML '<Include src="path" />' tags by loading and merging referenced files into main document
-bool ProcessIncludes(tinyxml2::XMLDocument& doc, const std::string& basePath);
+// A polygon attribute ("x,y x,y ..."), or the diamondW/diamondH shorthand for an isometric
+// diamond. Returns the point-list text, empty when neither is present.
+std::string ReadPolygonAttribute(tinyxml2::XMLElement* el, const char* name);
+
 
 template <typename Func>
 void VisitElement(tinyxml2::XMLElement* parent, const char* xmlName, Func func) {
@@ -95,6 +97,8 @@ class XMLBuilder {
         current->SetText(text);
         return *this;
     }
+
+    tinyxml2::XMLElement* GetElement() const { return current; }
 
     XMLBuilder Parent() {
         return XMLBuilder(doc, current->Parent()->ToElement());

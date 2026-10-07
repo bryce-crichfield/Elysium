@@ -1,0 +1,56 @@
+<Prefab>
+    <Parameters>
+        <Parameter name="Team" entity="0" component="TeamComponent" field="team"/>
+        <Parameter name="Sprite" entity="0" component="SpriteComponent" field="spriteName"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <ColliderComponent width="24" height="12" offsetX="0" offsetY="0" isTrigger="false" shape="Circle" radius="12"/>
+            <KinematicsComponent friction="5" maxSpeed="140"/>
+            <LayerComponent name="entity"/>
+            <LightComponent color="#FFFFFFFF" intensity="1" radius="500" height="24" flicker="0" vision="true"/>
+            <RevealComponent height="32"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Sprites/Knight/Knight_idle.png">
+                    <Uniform name="uTint" type="vec4" value="2.000000 2.000000 2.000000 1.000000"/>
+                    <Uniform name="uSourceRect" type="vec4" value="384.000000 0.000000 128.000000 128.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <MovementComponent state="Idle" goalX="0" goalY="0"/>
+            <NameComponent name="Knight"/>
+            <RectangleComponent width="128" height="128" cornerRadius="0" originX="0.5144093" originY="0.82500803"/>
+            <ScriptComponent>
+                <Script name="Scripts/Elysium/Unit.lua"/>
+            </ScriptComponent>
+            <SpriteComponent spriteName="Sprites/Knight.xml" sheetName="Idle" sequenceName="south"/>
+            <TeamComponent team="0"/>
+            <TransformComponent x="0" y="0" scaleX="0.66000003" scaleY="0.66000003"/>
+        </Entity>
+        <Entity id="1">
+            <EllipseComponent radiusH="30" radiusV="15"/>
+            <LayerComponent name="selection"/>
+            <MaterialComponent padding="512" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uGlowColor" type="vec3" value="0.011194 1.000000 0.048090"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.150000"/>
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Selection"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="2">
+            <EllipseComponent radiusH="48" radiusV="24"/>
+            <LayerComponent name="shadow"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Falloff" enabled="true">
+                    <Uniform name="uHardness" type="float" value="-0.300000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Light"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="0" scaleX="15" scaleY="15"/>
+        </Entity>
+    </Entities>
+</Prefab>

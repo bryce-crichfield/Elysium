@@ -2,6 +2,8 @@
 
 namespace Elysium {
 
+    struct Skeleton;  // Core/Animation.h
+
     // Layout- and value-compatible with raylib's ::Color (8-bit RGBA, 0-255).
     struct Color {
         unsigned char r, g, b, a;
@@ -48,10 +50,18 @@ namespace Elysium {
     struct Model {
         int meshCount = 0;
         int materialCount = 0;
+        // Model-space bounds over every mesh (the file's axes: y up).
+        float boundsMin[3] = {0.0f, 0.0f, 0.0f};
+        float boundsMax[3] = {0.0f, 0.0f, 0.0f};
+        // The loaded raylib ::Model, for the .cpp files that draw or ray-cast it (see
+        // Core/World3D.h). Null until the asset is finalized.
+        void* native = nullptr;
+        // The bones its meshes are skinned to (a .mesh with a .skel beside it), else null.
+        // An AnimationComponent poses them.
+        const Skeleton* skeleton = nullptr;
     };
 
-    struct Shader {
-        unsigned int id = 0;
-    };
+    // Shader is not a POD handle like the above — it owns a compiled program plus its
+    // reflected uniform list. See Core/Shader.h.
 
 }

@@ -61,29 +61,23 @@ function PortraitSlot:Update(entity, dt)
     local ease   = smoothstep(self.t)
     local offset = (1.0 - ease) * SLIDE_DIST   -- 0 at rest, SLIDE_DIST when hidden
 
-    local pos  = GetComponent(entity, "Transform")
-    local rect = GetComponent(entity, "Rectangle")
+    local pos = GetComponent(entity, "Transform")
+    local mat = GetComponent(entity, "Material")
 
     if pos then
         pos.localY = self.baseY + offset
     end
 
-    if rect then
-        -- Only show texture while partially or fully visible
-        if self.t > 0 then
-            rect.textureName = self.pendingTex
-            rect.border      = self.visible and BORDER_OCCUPIED or BORDER_IDLE
-        else
-            -- rect.textureName = ""
-            rect.border      = "#00000000"
+    if mat then
+        local portrait = mat:Layer("Texture")
+        local border   = mat:Layer("Stroke")
+        -- Only show the portrait while partially or fully visible
+        if portrait then
+            portrait.texture = self.t > 0 and self.pendingTex or ""
+            portrait.enabled = self.t > 0 and self.pendingTex ~= ""
         end
-    end
-
-    -- Sync frame visibility to match the slot
-    if self.frameEntity then
-        local frameRect = GetComponent(self.frameEntity, "Rectangle")
-        if frameRect then
-            -- frameRect.textureName = self.t > 0 and "Textures/Ui/portrait_frame.png" or ""
+        if border then
+            border:Set("uColor", self.t > 0 and (self.visible and BORDER_OCCUPIED or BORDER_IDLE) or "#00000000")
         end
     end
 end

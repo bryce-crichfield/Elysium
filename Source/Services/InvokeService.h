@@ -10,7 +10,7 @@
 #include "Core/Serial.h"
 #include "Interfaces/IInvokeService.h"
 #include "Core/ServiceLocator.h"
-#include "Network/Network.h"
+#include "Core/Network.h"
 
 namespace Elysium::Services {
 

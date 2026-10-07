@@ -1,0 +1,11 @@
+<!-- 3D stairs: walkable, so GroundSystem stands units on the steps. Turn them with Transform rotation. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <NameComponent name="Stairs"/>
+            <LayerComponent name="entity"/>
+            <ModelComponent model="Models/Stairs.glb" scale="35" yaw="45" walkable="true"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

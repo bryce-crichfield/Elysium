@@ -204,7 +204,7 @@ def build_env(templates_dir: Path) -> Environment:
 # Maps target name → (template filename, default output path relative to repo root)
 TARGETS = {
     'python': ('py.j2',  'Tools/elysium/elysium/generated.py'),
-    'cpp':    ('cpp.j2', 'Source/Network/Generated.h'),
+    'cpp':    ('cpp.j2', 'Source/Core/Generated.h'),
 }
 
 
@@ -253,7 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar='FILE',
         type=Path,
         default=None,
-        help='Output path for generated C++ header. Default: Source/Network/Generated.h',
+        help='Output path for generated C++ header. Default: Source/Core/Generated.h',
     )
 
     parser.add_argument(

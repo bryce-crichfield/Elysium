@@ -4,6 +4,7 @@
 #include "Interfaces/IScriptService.h"
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include "Core/Entity.h"
 #include "Core/Event.h"
 #include "Core/Path.h"
@@ -28,6 +29,7 @@ public:
     bool UpdateEntity(Entity entity, Path scriptPath, float deltaTime) override;
     void OnEntityEvent(Entity entity, Path scriptPath, Event& event) override;
 
+    std::vector<std::string> GetScenePreloads(Path scriptPath) override;
     bool InitializeScene(Path scriptPath) override;
     bool UpdateScene(Path scriptPath, float deltaTime) override;
     bool RenderScene(Path scriptPath) override;
@@ -35,7 +37,8 @@ public:
 
     void ReloadScript(Path scriptPath) override;
 
-    void InspectEntityScript(Entity entity, Path scriptPath) override;
+    std::optional<std::vector<ScriptField>> GetScriptFields(Entity entity, Path scriptPath) override;
+    bool SetScriptField(Entity entity, Path scriptPath, const std::string& name, const ScriptValue& value) override;
 
     sol::state& GetLua() { return lua; }
 
@@ -57,10 +60,18 @@ private:
     // Key: Script Path -> Instance table
     std::unordered_map<Path, sol::table> sceneScriptInstances;
 
+    // Scene hooks already reported missing, so the warning is once per script rather than once
+    // per frame. Key: "<script path>:<hook>".
+    std::unordered_set<std::string> warnedMissingHooks_;
+    // Warns the first time `hook` is missing on a scene script; returns false so callers can
+    // `return WarnMissingSceneHook(...)` in place of a silent `return false`.
+    bool WarnMissingSceneHook(const Path& scriptPath, const char* hook);
+
     void InitLuaContext();
     void BindEntityAPI();
     void BindInputConstants();
     void BindComponents();
+    void BindNetwork();
 
     // Loads the script if not already loaded, returns the table
     sol::table GetOrLoadScript(Path path);

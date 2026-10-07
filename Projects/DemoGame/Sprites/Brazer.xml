@@ -1,0 +1,6 @@
+<Sprite name="Brazer" originX="0.50480318" originY="0.74815881">
+    <Sequences>
+        <Sequence name="default" indicies="0:*"/>
+    </Sequences>
+    <Sheet name="Brazer" path="Textures/Brazer/Brazer.png" rows="1" columns="1"/>
+</Sprite>

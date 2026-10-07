@@ -1,0 +1,64 @@
+<Scene>
+    <SceneScript path="Scripts/SettingsScene.lua"/>
+    <EditorMetadata gridDivisor="1" gridHeight="32" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="64"/>
+    <Systems>
+        <System type="ScriptSystem"/>
+        <System type="TransformSystem"/>
+        <System type="RenderSystem"/>
+    </Systems>
+    <SceneConfiguration width="1920" height="1080">
+        <SceneLayer name="background" z="0" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+    </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="0" y="0"/>
+            <CameraComponent/>
+        </Entity>
+        <Entity name="Title">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Title"/>
+            <TextComponent text="Settings" fontSize="72" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="640" y="126"/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="../Prefabs/MenuBackground.xml" id="Background"/>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="AmbientVolume">
+        <Param name="Label" value="Ambient"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="410"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Back">
+        <Param name="Height" value="52"/>
+        <Param name="Width" value="240"/>
+        <Param name="Label" value="Back"/>
+        <Override entity="0" component="TransformComponent" field="x" value="520"/>
+        <Override entity="0" component="TransformComponent" field="y" value="620"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="DialogueVolume">
+        <Param name="Label" value="Dialogue"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="480"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="EffectsVolume">
+        <Param name="Label" value="Effects"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="340"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="MasterVolume">
+        <Param name="Label" value="Master volume"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="200"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Checkbox.xml" id="Msaa">
+        <Param name="Label" value="Antialiasing (MSAA)"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="540"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Slider.xml" id="MusicVolume">
+        <Param name="Label" value="Music"/>
+        <Override entity="0" component="TransformComponent" field="x" value="420"/>
+        <Override entity="0" component="TransformComponent" field="y" value="270"/>
+    </PrefabInstance>
+</Scene>

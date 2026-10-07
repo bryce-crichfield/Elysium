@@ -1,0 +1,108 @@
+<Scene>
+    <SceneScript path="Scripts/BattleScene.lua"/>
+    <Preload>
+        <Asset path="Models"/>
+        <Asset path="Models/Characters/Knight"/>
+        <Asset path="Models/Characters/Archer"/>
+        <Asset path="Models/Characters/Vampire"/>
+        <Asset path="Models/Characters/Hulk"/>
+        <Asset path="Animations/Knight"/>
+        <Asset path="Animations/Archer"/>
+        <Asset path="Animations/Hulk"/>
+        <Asset path="Animations/Vampire"/>
+        <Asset path="Sounds"/>
+        <Asset path="Textures/Cards"/>
+        <Asset path="Textures/Ui"/>
+    </Preload>
+    <EditorMetadata gridDivisor="1" gridHeight="64" gridLattice="Isometric" gridShow="false" gridSnap="false" gridWidth="128"/>
+    <Systems>
+        <System type="ScriptSystem"/>
+        <System type="SpriteSystem"/>
+        <System type="AnimationSystem"/>
+        <System type="TransformSystem"/>
+        <System type="NavMeshSystem" cellSize="8.000000" debugDraw="false" stepHeight="20.000000"/>
+        <System type="RenderSystem"/>
+    </Systems>
+    <SceneConfiguration width="1920" height="1080">
+        <SceneLayer name="background" z="0" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="entity" z="2" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" lightAmbient="#323667FF" sunColor="#FFEBD7FF" sunIntensity="0.85000002" sunYaw="40" sunPitch="66" rimLight="0.69999999" shadows="true" shadowBias="12" fogOfWar="0.60000002" fogColor="#06060CFF"/>
+        <SceneLayer name="overlay" z="3" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="fx" z="4" space="World3D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1" ground="true"/>
+        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+        <SceneLayer name="uiTop" z="11" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+    </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="0" y="0"/>
+            <CameraComponent/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="../Prefabs/Banner.xml" id="Banner"/>
+    <PrefabInstance src="../Prefabs/Button.xml" id="EndTurn">
+        <Param name="Height" value="44"/>
+        <Param name="Width" value="170"/>
+        <Param name="Font Size" value="24"/>
+        <Param name="Label" value="End Turn"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
+        <Override entity="0" component="TransformComponent" field="y" value="664"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame1">
+        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
+        <Override entity="0" component="TransformComponent" field="y" value="12"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame2">
+        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
+        <Override entity="0" component="TransformComponent" field="y" value="112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame3">
+        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
+        <Override entity="0" component="TransformComponent" field="y" value="212"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="EnemyFrame4">
+        <Override entity="0" component="TransformComponent" field="x" value="1032"/>
+        <Override entity="0" component="TransformComponent" field="y" value="312"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Forecast.xml" id="Forecast">
+        <Override entity="0" component="TransformComponent" field="y" value="16.065247"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Hand.xml" id="Hand"/>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame1">
+        <Override entity="0" component="TransformComponent" field="x" value="12"/>
+        <Override entity="0" component="TransformComponent" field="y" value="12"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame2">
+        <Override entity="0" component="TransformComponent" field="x" value="12"/>
+        <Override entity="0" component="TransformComponent" field="y" value="112"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/HeroFrame.xml" id="HeroFrame3">
+        <Override entity="0" component="TransformComponent" field="x" value="12"/>
+        <Override entity="0" component="TransformComponent" field="y" value="212"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/MenuBackground.xml" id="Background"/>
+    <PrefabInstance src="../Prefabs/TurnLabel.xml" id="TurnLabel"/>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Wait">
+        <Param name="Height" value="44"/>
+        <Param name="Width" value="170"/>
+        <Param name="Font Size" value="24"/>
+        <Param name="Label" value="Wait"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
+        <Override entity="0" component="TransformComponent" field="y" value="612"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Attack">
+        <Param name="Height" value="44"/>
+        <Param name="Width" value="170"/>
+        <Param name="Font Size" value="24"/>
+        <Param name="Label" value="Attack"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
+        <Override entity="0" component="TransformComponent" field="y" value="560"/>
+    </PrefabInstance>
+    <PrefabInstance src="../Prefabs/Button.xml" id="Move">
+        <Param name="Height" value="44"/>
+        <Param name="Width" value="170"/>
+        <Param name="Font Size" value="24"/>
+        <Param name="Label" value="Move"/>
+        <Override entity="0" component="TransformComponent" field="x" value="1094"/>
+        <Override entity="0" component="TransformComponent" field="y" value="508"/>
+    </PrefabInstance>
+</Scene>

@@ -11,13 +11,14 @@
 #include "System.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Xml.h"
-#include "Components/CameraComponent.h"
-#include "Components/FollowComponent.h"
-#include "Components/ParentComponent.h"
-#include "Components/LayerComponent.h"
-#include "Components/TransformComponent.h"
-#include "Components/RectangleComponent.h"
-#include "Components/TileComponent.h"
+#include "Core/PrefabInstance.h"
+#include "Core/Components/PrefabInstanceComponent.h"
+#include "Core/Components/CameraComponent.h"
+#include "Core/Components/FollowComponent.h"
+#include "Core/Components/ParentComponent.h"
+#include "Core/Components/LayerComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Components/RectangleComponent.h"
 #include "tinyxml2.h"
 
 using namespace tinyxml2;
@@ -28,10 +29,8 @@ std::string LayerSpaceToString(SceneLayerSpace space) {
     switch (space) {
         case SceneLayerSpace::Screen2D:
             return "Screen2D";
-        case SceneLayerSpace::World2D:
-            return "World2D";
         default:
-            return "World2D";
+            return "World3D";
     }
 }
 
@@ -64,6 +63,19 @@ void SaveLayers(XMLBuilder& builder, const Scene& scene) {
             .SetAttribute("isComposited", layer.isComposited)
             .SetAttribute("isVisible", layer.isVisible)
             .SetAttribute("opacity", layer.opacity);
+        if (layer.ground) layerBuilder.SetAttribute("ground", true);
+        if (layer.IsLit()) {
+            layerBuilder.SetAttribute("lightAmbient", ColorToHex(layer.lightAmbient).c_str())
+                .SetAttribute("sunColor", ColorToHex(layer.sunColor).c_str())
+                .SetAttribute("sunIntensity", layer.sunIntensity)
+                .SetAttribute("sunYaw", layer.sunYaw)
+                .SetAttribute("sunPitch", layer.sunPitch)
+                .SetAttribute("rimLight", layer.rimLight)
+                .SetAttribute("shadows", layer.shadows)
+                .SetAttribute("shadowBias", layer.shadowBias)
+                .SetAttribute("fogOfWar", layer.fogOfWar)
+                .SetAttribute("fogColor", ColorToHex(layer.fogColor).c_str());
+        }
         // Only write ambient if it has a non-zero value
         if (layer.ambient.r != 0 || layer.ambient.g != 0 || layer.ambient.b != 0 || layer.ambient.a != 0) {
             layerBuilder.SetAttribute("ambient", ColorToHex(layer.ambient).c_str());
@@ -71,106 +83,20 @@ void SaveLayers(XMLBuilder& builder, const Scene& scene) {
     }
 }
 
-void SaveTilemap(XMLBuilder& builder, World* world) {
-    struct TileEntry {
-        int tileX = 0, tileY = 0;
-        std::string tileName;
-        std::string variantName;
-        std::string layerName;
-    };
-
-    std::vector<TileEntry> tiles;
-    float tileWidth = 64.0f, tileHeight = 32.0f;
-    bool isIsometric = false;
-
-    world->Query<TileComponent, TransformComponent, LayerComponent>(
-        [&](Entity, TileComponent& tile, TransformComponent& transform, LayerComponent& layer) {
-            tileWidth    = tile.tileWidth;
-            tileHeight   = tile.tileHeight;
-            isIsometric  = tile.isIsometric;
-
-            int tx, ty;
-            if (isIsometric) {
-                float sum  = 2.0f * transform.localY / tileHeight;
-                float diff = 2.0f * transform.localX / tileWidth;
-                tx = (int)std::round((sum + diff) / 2.0f);
-                ty = (int)std::round((sum - diff) / 2.0f);
-            } else {
-                tx = (int)std::round(transform.localX / tileWidth);
-                ty = (int)std::round(transform.localY / tileHeight);
-            }
-
-            tiles.push_back({tx, ty, tile.tileName, tile.variantName, layer.name});
-        });
-
-    if (tiles.empty()) return;
-
-    int gridW = 0, gridH = 0;
-    for (const auto& t : tiles) {
-        gridW = std::max(gridW, t.tileX + 1);
-        gridH = std::max(gridH, t.tileY + 1);
-    }
-
-    // Build unique tile definitions ordered by first appearance
-    using TileKey = std::tuple<std::string, std::string, std::string>;
-    std::map<TileKey, int> tileDefMap;
-    int nextId = 0;
-    for (const auto& t : tiles) {
-        TileKey key{t.tileName, t.variantName, t.layerName};
-        if (tileDefMap.find(key) == tileDefMap.end()) {
-            tileDefMap[key] = nextId++;
-        }
-    }
-
-    // Build tilemask grid
-    std::vector<int> tilemask(gridW * gridH, 0);
-    for (const auto& t : tiles) {
-        TileKey key{t.tileName, t.variantName, t.layerName};
-        tilemask[t.tileY * gridW + t.tileX] = tileDefMap[key];
-    }
-
-    auto tilemapBuilder = builder.AddElement("Tilemap")
-        .SetAttribute("width", gridW)
-        .SetAttribute("height", gridH)
-        .SetAttribute("isIsometric", isIsometric)
-        .SetAttribute("tileWidth", (int)tileWidth)
-        .SetAttribute("tileHeight", (int)tileHeight);
-
-    auto tileDefsBuilder = tilemapBuilder.AddElement("TileDefinitions");
-    for (const auto& [key, id] : tileDefMap) {
-        const auto& [tileName, variantName, layerName] = key;
-        tileDefsBuilder.AddElement("TileDefinition")
-            .SetAttribute("id", id)
-            .SetAttribute("tile", tileName.c_str())
-            .SetAttribute("variant", variantName.c_str())
-            .SetAttribute("layer", layerName.c_str());
-    }
-
-    std::ostringstream maskStream;
-    for (int y = 0; y < gridH; ++y) {
-        if (y > 0) maskStream << "\n\t\t\t";
-        for (int x = 0; x < gridW; ++x) {
-            if (x > 0) maskStream << " ";
-            maskStream << tilemask[y * gridW + x];
-        }
-    }
-    tilemapBuilder.AddElement("Tilemask").SetText(maskStream.str().c_str());
-}
-
 void SaveEntities(XMLBuilder& builder, World* world) {
     auto entitiesBuilder = builder.AddElement("Entities");
 
     const auto& savers = ComponentRegistry::Instance().GetXmlSavers();
 
-    const auto& entities = world->GetLivingEntities();
-    for (Entity entity : entities) {
+    // Hierarchy order, so each parent's children reload in their sibling order.
+    for (Entity entity : world->GetHierarchyOrder()) {
+        // Prefab placements are written by PrefabInstances::Save as <PrefabInstance> blocks.
+        if (world->HasComponent<PrefabInstanceComponent>(entity)) continue;
+
         std::string entityName = world->GetEntityName(entity);
 
-        // Skip layer entities and tile entities as they're saved separately
-        if ((entityName.length() >= 6 && entityName.substr(0, 6) == "Layer_") ||
-            world->HasComponent<TileComponent>(entity)) {
-            continue;
-        }
+        // Skip layer entities, as they're saved separately
+        if (entityName.length() >= 6 && entityName.substr(0, 6) == "Layer_") continue;
 
         auto entityBuilder = entitiesBuilder.AddElement("Entity")
                                  .SetAttribute("name", entityName.c_str());
@@ -200,8 +126,15 @@ void SaveSystems(XMLBuilder& builder, const Scene& scene) {
     for (const auto& system : systems) {
         const std::string& systemName = system->GetName();
         if (systemName.empty()) continue;  // Skip systems not created through the registry
-        systemsBuilder.AddElement("System")
-            .SetAttribute("type", systemName.c_str());
+        auto systemBuilder = systemsBuilder.AddElement("System");
+        systemBuilder.SetAttribute("type", systemName.c_str());
+        // Only parameters changed from their defaults, so scene files stay terse.
+        const SystemParameters defaults = system->GetDefaultParameters();
+        for (const auto& [name, value] : system->GetParameters()) {
+            auto it = defaults.find(name);
+            if (it != defaults.end() && it->second == value) continue;
+            systemBuilder.SetAttribute(name.c_str(), value.ToString().c_str());
+        }
     }
 }
 
@@ -219,10 +152,22 @@ bool SaveScene(Scene& scene, const std::string& path) {
             .SetAttribute("path", scene.GetSceneScript().c_str());
     }
 
+    if (!scene.GetPreloads().empty()) {
+        auto preload = builder.AddElement("Preload");
+        for (const auto& asset : scene.GetPreloads()) {
+            preload.AddElement("Asset").SetAttribute("path", asset.c_str());
+        }
+    }
+
+    if (!scene.GetEditorMetadata().empty()) {
+        auto metadata = builder.AddElement("EditorMetadata");
+        for (const auto& [key, value] : scene.GetEditorMetadata()) metadata.SetAttribute(key.c_str(), value.c_str());
+    }
+
     SaveSystems(builder, scene);
     SaveLayers(builder, scene);
-    SaveTilemap(builder, world);
     SaveEntities(builder, world);
+    PrefabInstances::Save(builder, world, scene.GetServices(), &scene);
 
     if (!SaveXml(path, doc)) {
         LOG_ERROR("Scene", "Failed to save scene file.");

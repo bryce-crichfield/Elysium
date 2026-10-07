@@ -1,0 +1,88 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Card"/>
+            <RectangleComponent width="140" height="200" cornerRadius="0.079999998"/>
+            <ScriptComponent>
+                <Script name="Scripts/Components/Card.lua"/>
+            </ScriptComponent>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true"/>
+            </MaterialComponent>
+            <NameComponent name="Art"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="120" height="78" cornerRadius="0.079999998"/>
+            <TransformComponent x="9.4262829" y="16.501282"/>
+        </Entity>
+        <Entity id="12">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="30" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="10.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
+                    <Uniform name="uIntensity" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Texture" enabled="true" texture="Textures/Ui/card_frame.png"/>
+            </MaterialComponent>
+            <NameComponent name="Frame"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="140" height="200" cornerRadius="0.079999998"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Title"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Card" fontSize="20" r="255" g="225" b="160" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="67.956146" y="100.14916"/>
+        </Entity>
+        <Entity id="3">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Body"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="16" r="225" g="225" b="232" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="70" y="138"/>
+        </Entity>
+        <Entity id="9">
+            <LayerComponent name="ui"/>
+            <NameComponent name="BlueCost"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="-" fontSize="22" r="255" g="255" b="255" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="18.687828" y="18.763874"/>
+        </Entity>
+        <Entity id="10">
+            <LayerComponent name="ui" visible="false"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Ui/card_back.png"/>
+            </MaterialComponent>
+            <NameComponent name="Back"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="140" height="200" cornerRadius="0.079999998"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="13">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="150" enabled="true">
+                <Layer material="Burst" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.300000 0.750000 1.000000 1.000000"/>
+                    <Uniform name="uProgress" type="float" value="1.000000"/>
+                    <Uniform name="uDistance" type="float" value="130.000000"/>
+                    <Uniform name="uSparks" type="float" value="48.000000"/>
+                    <Uniform name="uSize" type="float" value="6.000000"/>
+                    <Uniform name="uFlash" type="float" value="1.000000"/>
+                    <Uniform name="uSeed" type="float" value="0.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Burst"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="140" height="200" cornerRadius="0.079999998"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

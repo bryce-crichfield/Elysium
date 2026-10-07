@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Services/AssetService.h"
+#include "Services/AudioService.h"
 #include "Services/InvokeService.h"
 #include "Services/LogService.h"
 #include "Services/MessageService.h"
@@ -8,4 +9,3 @@
 #include "Services/SceneService.h"
 #include "Services/ScriptService.h"
 #include "Services/TaskService.h"
-#include "Services/EditorService.h"

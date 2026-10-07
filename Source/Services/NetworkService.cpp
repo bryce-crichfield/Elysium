@@ -23,7 +23,7 @@
 #include "Services/NetworkService.h"
 
 #include <tracy/Tracy.hpp>
-#include "Network/Generated.h"
+#include "Core/Generated.h"
 
 namespace Elysium::Services {
 
@@ -187,6 +187,7 @@ bool NetworkService::Stop() {
 
         if (config_.mode == NetworkMode::Client && serverPeer_) {
             enet_peer_disconnect(serverPeer_, 0);
+            enet_host_flush(host_);  // send the disconnect now, so the server hears it before the host goes
             serverPeer_ = nullptr;
         }
 
@@ -205,9 +206,7 @@ bool NetworkService::Stop() {
 }
 
 void NetworkService::NetworkThread() {
-#ifdef TRACY_ENABLE
-    tracy::SetThreadName("Network Thread");
-#endif
+    ProfileThread("Network");
     ENetEvent event;
 
     while (!shouldStop_) {

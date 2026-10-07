@@ -1,0 +1,63 @@
+<!-- A labeled 0..1 slider for Screen2D menus (Scripts/Components/Slider.lua). The scene binds its
+     value by the placement id: Widgets.Bind(id, get, set). The root is the track. -->
+<Prefab>
+    <Parameters>
+        <Parameter name="Label" entity="2" component="TextComponent" field="text"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="30" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="0.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
+                    <Uniform name="uGlowRadius" type="float" value="8.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.000000 0.000000 0.000000 0.920000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.250000"/>
+                    <Uniform name="uAngle" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Meter" enabled="true">
+                    <Uniform name="uEdgeGlow" type="float" value="-0.300000"/>
+                    <Uniform name="uFillColor" type="vec4" value="1.000000 0.824000 0.431000 1.000000"/>
+                    <Uniform name="uTrackColor" type="vec4" value="0.000000 0.000000 0.000000 0.000000"/>
+                    <Uniform name="uProgress" type="float" value="0.500000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Slider"/>
+            <RectangleComponent width="440" height="10" cornerRadius="0.5"/>
+            <ScriptComponent>
+                <Script name="Scripts/Components/Slider.lua"/>
+            </ScriptComponent>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.922000 0.922000 0.941000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Knob"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="14" height="30" cornerRadius="0.4"/>
+            <TransformComponent x="213" y="-10"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Label"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Value" fontSize="24" r="160" g="160" b="175" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="40" y="-26"/>
+        </Entity>
+        <Entity id="3">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Value"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="50%" fontSize="24" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="490" y="5"/>
+        </Entity>
+    </Entities>
+</Prefab>

@@ -1,0 +1,15 @@
+<!-- Small prop: collider blocks movement (carved from the navmesh with agentRadius); occluder fades when someone stands behind. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <NameComponent name="Pillar"/>
+            <TransformComponent x="0" y="0"/>
+            <LayerComponent name="entity" hideInFog="true"/>
+            <RectangleComponent width="32" height="56" cornerRadius="0" originX="0.5" originY="0.8570"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Texture" enabled="true" texture="Textures/Prefabs/pillar.png"/>
+            </MaterialComponent>
+            <ColliderComponent points="0,-6 12,0 0,6 -12,0"/>
+        </Entity>
+    </Entities>
+</Prefab>

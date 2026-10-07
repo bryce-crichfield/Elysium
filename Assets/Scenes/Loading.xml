@@ -1,0 +1,26 @@
+<!-- The engine's default loading scene: shown while a scene's <Preload> assets load, for any
+     project without a Scenes/Loading.xml of its own (or another <LoadingScene> in Project.xml).
+     To make one, copy this into the project's Scenes/ and give it a SceneScript; the script
+     reads SceneLoading() for the scene, the asset loading and the progress. -->
+<Scene>
+    <Systems>
+        <System type="TransformSystem"/>
+        <System type="RenderSystem"/>
+    </Systems>
+    <SceneConfiguration width="1280" height="720">
+        <SceneLayer name="ui" z="10" space="Screen2D" layerBlend="Normal" compositeBlend="Normal" isComposited="false" isVisible="true" opacity="1"/>
+    </SceneConfiguration>
+    <Entities>
+        <Entity name="CAMERA">
+            <NameComponent name="CAMERA"/>
+            <TransformComponent x="0" y="0"/>
+            <CameraComponent/>
+        </Entity>
+        <Entity name="Label">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Label"/>
+            <TextComponent text="Loading..." fontSize="40" r="220" g="220" b="230" a="255"/>
+            <TransformComponent x="640" y="360"/>
+        </Entity>
+    </Entities>
+</Scene>

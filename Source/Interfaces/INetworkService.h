@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include "Network/Network.h"
+#include "Core/Network.h"
 #include "Interfaces/IService.h"
 
 struct _ENetPeer;

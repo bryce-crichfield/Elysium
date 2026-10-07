@@ -1,0 +1,17 @@
+<!-- The battle's turn and phase, in the bottom-left corner. BattleScene.lua fills the text in. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <NameComponent name="TurnLabel"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Turn"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Turn 1  -  Player phase" fontSize="26" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="110" y="696"/>
+        </Entity>
+    </Entities>
+</Prefab>

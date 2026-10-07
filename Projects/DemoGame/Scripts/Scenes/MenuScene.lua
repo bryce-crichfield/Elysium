@@ -3,7 +3,7 @@
 local MenuScene = {}
 
 local BUTTONS = {
-    { name = "PlayButton",    action = function() SceneReplace("ExploreScene") end },
+    { name = "PlayButton",    action = function() SceneReplace("PrefabScene") end },
     { name = "OptionsButton", action = nil },  -- placeholder
     { name = "QuitButton",    action = nil },  -- placeholder
 }
@@ -60,9 +60,10 @@ function MenuScene:OnEvent(event)
                 btn.hovered = over
                 local colors = HOVER_COLORS[btn.name]
                 if colors then
-                    local rect = GetComponent(btn.entity, "Rectangle")
-                    if rect then
-                        rect.background = over and colors.hover or colors.default
+                    local mat  = GetComponent(btn.entity, "Material")
+                    local fill = mat and mat:Layer("Flat")
+                    if fill then
+                        fill:Set("uColor", over and colors.hover or colors.default)
                     end
                 end
             end

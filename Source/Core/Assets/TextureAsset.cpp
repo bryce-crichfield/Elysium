@@ -3,6 +3,8 @@
 #include "Core/RaylibConvert.h"
 #include "Services/LogService.h"
 
+#include "rlgl.h"
+
 namespace Elysium {
 
 struct TextureAsset::Native {
@@ -38,6 +40,12 @@ bool TextureAsset::Finalize() {
         LOG_ERRORF("TextureAsset", "Failed to finalize texture: %s", GetPath().c_str());
         return false;
     }
+
+    // Mipmapped, trilinear minification: UI art and portraits are authored large and drawn
+    // small, which point sampling turns to noise. Magnification stays nearest so pixel art
+    // drawn up close keeps its edges.
+    ::GenTextureMipmaps(&texture);
+    rlTextureParameters(texture.id, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_FILTER_MIP_LINEAR);
 
     texture_ = FromRaylib(texture);
     SetLoaded(true);

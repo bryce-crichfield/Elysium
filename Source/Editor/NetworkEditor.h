@@ -1,24 +1,33 @@
 #pragma once
 
 #include <string>
-#include "Core/Editor.h"
+#include "Editor/Editor.h"
 #include "Core/Future.h"
-#include "Network/Network.h"
-#include "Network/Generated.h"
+#include "Core/Network.h"
+#include "Core/Generated.h"
 
 namespace Elysium::Services {
-class NetworkService;
+class INetworkService;
 }
 
 namespace Elysium {
 
 class NetworkEditor : public Editor {
    public:
-    explicit NetworkEditor(ServiceLocator& services);
+    static constexpr const char* Title = "Network";
+
+    explicit NetworkEditor(EditorApplication& editor);
 
     void Draw() override;
+    // Opened from the View menu as a modal dialog rather than living in the dock layout.
+    bool IsDocked() const override { return false; }
 
    private:
+    void DrawStatus(Services::INetworkService& service);
+    void DrawConnect(Services::INetworkService& service);
+    void DrawStats(Services::INetworkService& service);
+    void DrawPing();
+
     char addressBuffer_[128] = "127.0.0.1";
     int port_ = 7777;
 

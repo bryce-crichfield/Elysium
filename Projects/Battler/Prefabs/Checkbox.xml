@@ -1,0 +1,57 @@
+<Prefab>
+    <Parameters>
+        <Parameter name="Label" entity="2" component="TextComponent" field="text"/>
+    </Parameters>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="30" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="0.000000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
+                    <Uniform name="uGlowRadius" type="float" value="8.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Gradient" enabled="true">
+                    <Uniform name="uColorA" type="vec4" value="0.000000 0.000000 0.000000 0.920000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.120000 0.080000 0.030000 0.250000"/>
+                    <Uniform name="uAngle" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="2.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Checkbox"/>
+            <RectangleComponent width="32" height="32" cornerRadius="0.15000001"/>
+            <ScriptComponent>
+                <Script name="Scripts/Components/Checkbox.lua"/>
+            </ScriptComponent>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="5" enabled="true">
+                <Layer material="Flat" enabled="false">
+                    <Uniform name="uColor" type="vec4" value="1.000000 0.824000 0.431000 1.000000"/>
+                </Layer>
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="6.100000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.751866 0.050000"/>
+                    <Uniform name="uGlowRadius" type="float" value="0.750000"/>
+                    <Uniform name="uInteriorFade" type="float" value="9.300000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Check"/>
+            <ParentComponent target="0"/>
+            <RectangleComponent width="18" height="18" cornerRadius="0.15000001"/>
+            <TransformComponent x="7" y="7"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Label"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Option" fontSize="28" r="235" g="235" b="240" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="48" y="16"/>
+        </Entity>
+    </Entities>
+</Prefab>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/MathTypes.h"
+#include "Core/Math/MathTypes.h"
 
 // Keyboard/mouse key-code space + polling surface. Key/MouseButton values match
 // GLFW's numbering (which raylib itself reuses), so the backend swap to GLFW needs

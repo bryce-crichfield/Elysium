@@ -1,0 +1,25 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="entity" hideInFog="true"/>
+            <LightComponent color="#FF9A4AFF" intensity="2.5" radius="320" height="24" flicker="0.60000002" vision="false"/>
+            <NameComponent name="Torch"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <CircleComponent radius="5"/>
+            <LayerComponent name="entity"/>
+            <MaterialComponent padding="194" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.326493 0.050000"/>
+                    <Uniform name="uIntensity" type="float" value="1.800000"/>
+                    <Uniform name="uGlowRadius" type="float" value="5.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="15.150000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Flame"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

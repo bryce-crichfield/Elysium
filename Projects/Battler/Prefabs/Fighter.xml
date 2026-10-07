@@ -1,0 +1,11 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <AnimationComponent clip="Animations/Idle.anim"/>
+            <LayerComponent name="entity"/>
+            <ModelComponent model="Models/Knight.mesh" scale="25"/>
+            <NameComponent name="Fighter"/>
+            <TransformComponent x="0" y="0" scaleX="0.89999998" scaleY="0.89999998"/>
+        </Entity>
+    </Entities>
+</Prefab>

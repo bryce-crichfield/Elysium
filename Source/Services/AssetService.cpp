@@ -1,8 +1,8 @@
 #include "Services/AssetService.h"
 #include <algorithm>
+#include <chrono>
 #include "Core/Assets/SpriteAsset.h"
 #include "Core/Assets/TextureAsset.h"
-#include "Core/Assets/TileAsset.h"
 #include "Core/Common.h"
 #include "Interfaces/ITaskService.h"
 #include "Services/LogService.h"
@@ -36,10 +36,12 @@ void AssetService::Shutdown() {
 void AssetService::Update(float deltaTime) {
     Profile;
 
-    // Finalize a batch once every background load's continuation has landed.
-    if (needsFinalization_ && outstandingLoads_ == 0) {
-        FinalizeAssets();
+    // Finalize whatever has landed, every frame. Waiting for every outstanding load first let one
+    // slow load (a long music decode) hold back everything else: a scene's floors arrived late
+    // enough that the battle started on an empty navmesh.
+    if (needsFinalization_) {
         needsFinalization_ = false;
+        FinalizeAssets();  // sets it again if it ran out of time with assets left
     }
 
     // Fire caller-facing Then() continuations for loads that have resolved, and drop
@@ -85,6 +87,28 @@ Future<IAsset*> AssetService::LoadAssetRaw(Path path, std::function<std::unique_
     });
 
     return caller;
+}
+
+IAsset* AssetService::LoadAssetNowRaw(Path path, std::function<std::unique_ptr<IAsset>(Path)> factory, bool reload) {
+    auto existing = assetsByPath_.find(path);
+    if (existing != assetsByPath_.end()) {
+        if (!reload && existing->second->IsLoaded()) return existing->second.get();
+        existing->second->Unload();
+        assetsByPath_.erase(existing);
+    }
+
+    std::unique_ptr<IAsset> asset(LoadAssetData(factory, path));
+    if (!asset) return nullptr;
+    if (asset->NeedsFinalize() && !asset->IsLoaded() && !asset->Finalize()) {
+        LOG_WARNINGF("AssetService", "Finalize failed for asset: %s", path.c_str());
+        return nullptr;
+    }
+
+    IAsset* stored = asset.get();
+    assetsByPath_[path] = std::move(asset);
+    LOG_DEBUGF("AssetService", "Loaded asset now: %s", path.c_str());
+    NotifyWaiters(path, stored);  // anyone waiting on an async load of the same path
+    return stored;
 }
 
 Future<IAsset*> AssetService::ReloadAsset(IAsset* asset) {
@@ -143,21 +167,20 @@ void AssetService::FinishLoad(Path path, IAsset* raw) {
 
     std::unique_ptr<IAsset> owned(raw);
 
-    // Sprites/tiles reference a sheet texture by path — kick off that load too.
+    // LoadAssetNow got there first while this was in flight: keep that copy, since
+    // callers may already hold pointers into it.
+    if (auto it = assetsByPath_.find(path); it != assetsByPath_.end() && it->second->IsLoaded()) {
+        owned->Unload();
+        NotifyWaiters(path, it->second.get());
+        return;
+    }
+
+    // Sprites reference a sheet texture by path — kick off that load too.
     if (auto* spriteAsset = dynamic_cast<SpriteAsset*>(owned.get())) {
         for (auto& [sheetName, sheet] : spriteAsset->GetData().sheets) {
-            Path sheetPath("Sprites/" + sheet.path);
+            Path sheetPath(sheet.path);
             if (!IsAssetLoaded(sheetPath)) {
                 LOG_DEBUGF("AssetService", "Loading sheet texture: %s", sheetPath.c_str());
-                LoadAsset<Texture>(sheetPath);
-            }
-        }
-    } else if (auto* tileAsset = dynamic_cast<TileAsset*>(owned.get())) {
-        const Tile& tile = tileAsset->GetData();
-        if (!tile.sheet.path.empty()) {
-            Path sheetPath("Tiles/" + tile.sheet.path);
-            if (!IsAssetLoaded(sheetPath)) {
-                LOG_DEBUGF("AssetService", "Loading tile sheet texture: %s", sheetPath.c_str());
                 LoadAsset<Texture>(sheetPath);
             }
         }
@@ -184,11 +207,18 @@ void AssetService::NotifyWaiters(const Path& path, IAsset* result) {
 }
 
 void AssetService::FinalizeAssets() {
-    LOG_INFO("AssetService", "Finalizing assets on main thread");
+    // GPU uploads take main-thread time: stop once a frame's worth is spent (at least one
+    // asset each frame) and pick up the rest next frame, so a loading screen keeps drawing.
+    constexpr auto kBudget = std::chrono::milliseconds(8);
+    const auto start = std::chrono::steady_clock::now();
 
     std::vector<Path> failed;
     for (auto& [path, asset] : assetsByPath_) {
         if (!asset->NeedsFinalize() || asset->IsLoaded()) continue;
+        if (std::chrono::steady_clock::now() - start > kBudget) {
+            needsFinalization_ = true;
+            break;
+        }
 
         if (asset->Finalize()) {
             NotifyWaiters(path, asset.get());
@@ -202,8 +232,6 @@ void AssetService::FinalizeAssets() {
     for (const auto& path : failed) {
         assetsByPath_.erase(path);  // leave the path retryable
     }
-
-    LOG_INFO("AssetService", "Asset finalization complete");
 }
 
 }  // namespace Elysium::Services

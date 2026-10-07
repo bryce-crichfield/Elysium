@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Editor theme. Pick one from View > Theme; the file is re-read each time, so edits show up
+  on re-selecting it. Anything left out falls back to the built-in defaults (this theme),
+  so a theme only needs the values it changes.
+
+  Colors are #RRGGBB or #RRGGBBAA. AccentSoft, CameraBounds, Selection and the Handle*
+  colors are derived from the others unless set here.
+-->
+<Theme>
+  <Palette>
+    <Color name="Crust"        value="#131519"/>
+    <Color name="Base"         value="#1B1E23"/>
+    <Color name="Mantle"       value="#23272E"/>
+    <Color name="ViewportBackground" value="#23272E"/>
+    <Color name="Surface0"     value="#2F353E"/>
+    <Color name="Surface1"     value="#3C434E"/>
+    <Color name="Surface2"     value="#4A5361"/>
+    <Color name="Border"       value="#3A414B"/>
+    <Color name="Text"         value="#E8ECF1"/>
+    <Color name="TextMuted"    value="#9BA4B1"/>
+    <Color name="TextDisabled" value="#68707C"/>
+    <Color name="TextOnAccent" value="#131519"/>
+    <Color name="Accent"       value="#5B9BD5"/>
+    <Color name="AccentHover"  value="#74ADE0"/>
+    <Color name="AccentActive" value="#4A88C2"/>
+    <Color name="Success"      value="#7CC68D"/>
+    <Color name="Warning"      value="#E8C170"/>
+    <Color name="Error"        value="#E57A7A"/>
+    <Color name="Debug"        value="#86B3D1"/>
+    <Color name="AxisX"        value="#E06C6C"/>
+    <Color name="AxisY"        value="#7CC68D"/>
+  </Palette>
+  <Metrics>
+    <Metric name="WindowPadding" x="10" y="10"/>
+    <Metric name="FramePadding"  x="8"  y="5"/>
+    <Metric name="ItemSpacing"   x="8"  y="6"/>
+    <Metric name="FrameRounding" value="4"/>
+    <Metric name="WindowRounding" value="6"/>
+    <Metric name="LabelColumnWidth" value="130"/>
+  </Metrics>
+  <Font file="Fonts/FiraCode-Regular.ttf" size="15"/>
+  <EditorFont file="Fonts/FiraCode-Regular.ttf"/>
+</Theme>

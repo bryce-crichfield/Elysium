@@ -1,0 +1,14 @@
+<Sprite name="Archer" originX="0.5" originY="0.6875">
+    <Sequences>
+        <Sequence name="east" indicies="3:*"/>
+        <Sequence name="southeast" indicies="2:*"/>
+        <Sequence name="south" indicies="1:*"/>
+        <Sequence name="southwest" indicies="0:*"/>
+        <Sequence name="west" indicies="7:*"/>
+        <Sequence name="northwest" indicies="6:*"/>
+        <Sequence name="north" indicies="5:*"/>
+        <Sequence name="northeast" indicies="4:*"/>
+    </Sequences>
+    <Sheet name="Idle" path="Textures/Sprites/Archer/Archer_idle_bored.png" rows="8" columns="16"/>
+    <Sheet name="Run" path="Textures/Sprites/Archer/Archer_run.png" rows="8" columns="9"/>
+</Sprite>

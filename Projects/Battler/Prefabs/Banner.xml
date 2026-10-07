@@ -1,0 +1,38 @@
+<!-- The battle's full-width announcement across the middle of the screen: phase changes, the
+     result, and the wait while the battlefield loads. Text is the headline, Sub the line under
+     it. BattleScene.lua shows it and fades it (the fill, the Fire edge and both texts) in and out. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="30" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uIntensity" type="float" value="0.600000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="1.000000 0.560000 0.100000"/>
+                    <Uniform name="uGlowRadius" type="float" value="8.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                </Layer>
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.031000 0.031000 0.055000 0.800000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Banner"/>
+            <RectangleComponent width="1280" height="100" cornerRadius="0"/>
+            <TransformComponent x="0" y="310"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Text"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="Player phase" fontSize="48" r="255" g="215" b="120" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="640" y="36"/>
+        </Entity>
+        <Entity id="2">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Sub"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="24" r="220" g="220" b="230" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="640" y="76"/>
+        </Entity>
+    </Entities>
+</Prefab>

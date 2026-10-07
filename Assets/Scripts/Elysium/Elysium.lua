@@ -151,9 +151,29 @@ function IsMouseButtonDown(button) end
 ---@return boolean
 function IsMouseButtonPressed(button) end
 
+---@param button integer
+---@return boolean
+function IsMouseButtonReleased(button) end
+
 --- Returns current mouse position in world coordinates.
 ---@return Vector2
 function GetMousePosition() end
+
+--- The game screen's size, in the pixels Screen2D ("ui") layers, GetMousePosition and
+--- ViewProject use. It's the project's configured screen size (Config/ApplicationConfig.xml
+--- <Screen>), extended along whichever axis the window has room to spare: a wider window gives
+--- a wider screen at the same height. It changes when the window does, so lay out against it
+--- each frame rather than once.
+---@return number width
+---@return number height
+function GetScreenSize() end
+
+--- The size Screen2D layouts are authored for: the project's configured screen size
+--- (Config/ApplicationConfig.xml <Screen>). GetScreenSize is never smaller; the difference is
+--- how far a widget anchored to the right or bottom edge moves from where it was placed.
+---@return number width
+---@return number height
+function GetLayoutSize() end
 
 --- Transform world coordinates to screen coordinates. 
 --- @requires "CAMERA" 
@@ -172,6 +192,103 @@ function ScreenToWorld(screenPos) end
 --- Replace the current scene.
 ---@param sceneName string
 function SceneReplace(sceneName) end
+
+---@class SceneLoading
+---@field scene string     the scene being opened
+---@field asset string     a preload still loading ("" before they start)
+---@field loaded integer   preloads in
+---@field total integer
+---@field progress number  loaded / total, 0 to 1
+
+-- The scene change the loading scene (Project.xml <LoadingScene>) is up for, or nil when
+-- nothing is loading. It waits on the scene's <Preload> list and its script's Preload().
+---@return SceneLoading?
+function SceneLoading() end
+
+-- Network =====================================================================
+
+---@class NetEvent
+---@field type "connected"|"disconnected"|"stopped"|"message"
+---@field data? string  The payload, for "message"
+
+--- Start hosting on `port` (default 7777). Restarts the network if it was running.
+---@param port? integer
+---@return boolean
+function NetHost(port) end
+
+--- Connect to a host. Restarts the network if it was running.
+---@param address string
+---@param port? integer
+---@return boolean
+function NetJoin(address, port) end
+
+function NetStop() end
+
+---@return "none"|"server"|"client"
+function NetMode() end
+
+---@return integer
+function NetPeers() end
+
+--- Send a string reliably: a client to the server, the server to every client.
+---@param data string
+function NetSend(data) end
+
+--- Everything the network did since the last call, in order. The queue is shared by every script.
+---@return NetEvent[]
+function NetPoll() end
+
+-- Graphics ====================================================================
+
+--- Turn antialiasing (MSAA on World3D models) on or off for every scene.
+---@param enabled boolean
+function SetMsaaEnabled(enabled) end
+
+---@return boolean
+function IsMsaaEnabled() end
+
+-- Audio =======================================================================
+
+--- Play a sound asset (project-relative, e.g. "Sounds/Hit.wav"; .wav .mp3 .ogg .flac),
+--- loading it first if needed, on a mixer channel. Returns an id for StopSound.
+---@param asset string
+---@param volume? number 0..1, default 1
+---@param loop? boolean default false
+---@param channel? integer a CHANNEL_* constant, default CHANNEL_MASTER
+---@return integer
+function PlaySound(asset, volume, loop, channel) end
+
+--- Stop a playing sound early (a loop). Ids that already finished are ignored.
+---@param id integer
+function StopSound(id) end
+
+--- Stop every sound.
+function StopAllSounds() end
+
+--- Whether a sound is still playing: false once it finished or was stopped (switching between
+--- Play and the editor stops every sound).
+---@param id integer
+---@return boolean
+function IsSoundPlaying(id) end
+
+-- Mixer channels. Every channel mixes into Master, whose volume scales them all.
+CHANNEL_MASTER = 0
+CHANNEL_MUSIC = 1
+CHANNEL_EFFECTS = 2
+CHANNEL_AMBIENT = 3
+CHANNEL_DIALOGUE = 4
+
+--- Set a channel's volume, 0..1.
+---@param channel integer
+---@param volume number
+function SetChannelVolume(channel, volume) end
+
+---@param channel integer
+---@return number
+function GetChannelVolume(channel) end
+
+--- Close the game after this frame.
+function Quit() end
 
 -- Utility =====================================================================
 
@@ -297,6 +414,7 @@ MOUSE_MIDDLE = 2
 ---@field OnEvent? fun(self: EntityScript, entity: Entity, event: EventData)
 
 ---@class SceneScript
+---@field Preload? fun(self: SceneScript): string[]  more assets to load before the scene opens (files or folders, like <Preload>); runs before the scene exists
 ---@field Initialize? fun(self: SceneScript)
 ---@field Update? fun(self: SceneScript, dt: number)
 ---@field OnEvent? fun(self: SceneScript, event: EventData)

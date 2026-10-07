@@ -1,6 +1,8 @@
 #pragma once
 
+#include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "Core/Path.h"
@@ -15,6 +17,17 @@ class World;
 
 namespace Elysium::Services {
 
+// A plain value on a script instance: a number, bool or string. Lua numbers read as float.
+using ScriptValue = std::variant<float, int, bool, std::string>;
+
+// One public field (not starting with '_') of an entity's script instance. `value` is unset for
+// what has no plain value (functions, tables); `kind` then names it.
+struct ScriptField {
+    std::string name;
+    std::optional<ScriptValue> value;
+    std::string kind;
+};
+
 class IScriptService : public IService {
    public:
 
@@ -22,6 +35,9 @@ class IScriptService : public IService {
 
     virtual std::vector<Entity> FilterEntities(const std::string& filterFunctionBody) = 0;
 
+    // The assets a loaded scene script's Preload() names, to load before its scene opens
+    // (none if it has no Preload). Runs before the scene exists: no world, no entities.
+    virtual std::vector<std::string> GetScenePreloads(Path scriptPath) = 0;
     virtual bool InitializeScene(Path scriptPath) = 0;
     virtual bool UpdateScene(Path scriptPath, float deltaTime) = 0;
     virtual bool RenderScene(Path scriptPath) = 0;
@@ -33,7 +49,10 @@ class IScriptService : public IService {
 
     virtual void ReloadScript(Path scriptPath) = 0;
 
-    virtual void InspectEntityScript(Entity entity, Path scriptPath) = 0;
+    // The fields of `entity`'s instance of `scriptPath`, or nothing when it has no instance.
+    virtual std::optional<std::vector<ScriptField>> GetScriptFields(Entity entity, Path scriptPath) = 0;
+    // Sets (or adds) one field on that instance. False when there is no instance.
+    virtual bool SetScriptField(Entity entity, Path scriptPath, const std::string& name, const ScriptValue& value) = 0;
 
     virtual void SetActiveWorld(World* w) = 0;
 

@@ -1,26 +1,22 @@
 #pragma once
 
-#include <memory>
 #include "Core/Audio.h"
 #include "Core/Asset.h"
 
 namespace Elysium {
 
+// A sound file decoded whole into memory, in the mixer's format (Core/Audio.h). Nothing to
+// upload, so it's ready as soon as the background Load finishes.
 class SoundAsset : public AssetBase<SoundAsset> {
    public:
     using AssetBase::AssetBase;
-    ~SoundAsset() override;
 
-    bool Load() override;      // background thread: reads raw wave bytes
-    bool Finalize() override;  // main thread: uploads to the audio device
-    bool NeedsFinalize() const override { return true; }
+    bool Load() override;
     void Unload() override;
 
     Sound& GetData() { return sound_; }
 
    private:
-    struct Native;  // holds the raylib Wave (Load->Finalize) and Sound handle
-    std::unique_ptr<Native> native_;
     Sound sound_{};
 };
 

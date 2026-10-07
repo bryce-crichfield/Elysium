@@ -20,10 +20,44 @@ file(GLOB_RECURSE SOURCE_FILES
 )
 
 # Add vendor libraries
+# raylib's audio module (miniaudio + its own dr_wav/stb_vorbis copies) is off: audio is ours
+# (AudioService on PortAudio, decoding in Core/Audio), and the decoders would clash at link time.
+set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
+set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 add_subdirectory(Vendor/raylib)
+# glTF models embed JPEG textures; raylib's config.h leaves JPEG off.
+target_compile_definitions(raylib PRIVATE SUPPORT_FILEFORMAT_JPG=1)
 add_subdirectory(Vendor/tinyxml2)
 add_subdirectory(Vendor/SQLiteCpp)
 add_subdirectory(Vendor/enet)
+
+# Audio: PortAudio for the device (Windows + Linux), dr_libs + stb_vorbis for decoding files.
+# Fetched into Build/_deps on configure, pinned to exact commits.
+include(FetchContent)
+set(PA_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(PA_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(PA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(PA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(PA_USE_ASIO OFF CACHE BOOL "" FORCE)
+set(PA_USE_WDMKS OFF CACHE BOOL "" FORCE)            # kernel streaming: needs headers MinGW lacks
+set(PA_USE_WDMKS_DEVICE_INFO OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(portaudio
+    GIT_REPOSITORY https://github.com/PortAudio/portaudio.git
+    GIT_TAG 147dd722548358763a8b649b3e4b41dfffbcfbb6  # v19.7.0
+)
+FetchContent_Declare(dr_libs
+    GIT_REPOSITORY https://github.com/mackron/dr_libs.git
+    GIT_TAG dfe8377631000664666519fdb83da193fd8037f4
+)
+FetchContent_Declare(stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20
+)
+# dr_libs and stb have no CMakeLists, so these just download them. PortAudio 19.7.0 asks for
+# CMake 3.1, which CMake 4 refuses outright; this lets it configure under 3.5 policies.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+FetchContent_MakeAvailable(portaudio dr_libs stb)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # sol2
 set(SOL2_TESTS OFF CACHE BOOL "" FORCE)
@@ -63,6 +97,12 @@ target_include_directories(colortextedit PUBLIC
 )
 target_link_libraries(colortextedit PUBLIC imgui)
 
+# ImGuizmo: only the transform gizmo is used, so the other widgets aren't built
+set(IMGUIZMO_DIR ${CMAKE_SOURCE_DIR}/Vendor/ImGuizmo)
+add_library(imguizmo STATIC ${IMGUIZMO_DIR}/src/ImGuizmo.cpp)
+target_include_directories(imguizmo PUBLIC ${IMGUIZMO_DIR}/src)
+target_link_libraries(imguizmo PUBLIC imgui)
+
 # rlImGui library, since it's header only it's a bit more complicated
 set(RLIMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/rlImGui)
 add_library(rlimgui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
@@ -93,11 +133,13 @@ target_link_libraries(${PROJECT_NAME}
     rlimgui
     imgui
     colortextedit
+    imguizmo
     tinyxml2
     SQLiteCpp
     enet
     lua
     sol2::sol2
+    portaudio_static
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
@@ -122,9 +164,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Source/Core
     ${CMAKE_SOURCE_DIR}/Source/Utilities
     ${CMAKE_SOURCE_DIR}/Source/Services
-    ${CMAKE_SOURCE_DIR}/Source/Systems
+    ${CMAKE_SOURCE_DIR}/Source/Core/Systems
     ${CMAKE_SOURCE_DIR}/Source/Scenes
-    ${CMAKE_SOURCE_DIR}/Source/Network
     ${CMAKE_SOURCE_DIR}/Source/Messages
     ${CMAKE_SOURCE_DIR}/Source/Editor
     ${CMAKE_SOURCE_DIR}/Vendor/raylib/src
@@ -138,6 +179,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Vendor/sol2/include
     ${CMAKE_SOURCE_DIR}/Vendor/ImGuiColorTextEdit
     ${CMAKE_SOURCE_DIR}/Vendor/tracy/public
+    ${portaudio_SOURCE_DIR}/include
+    ${dr_libs_SOURCE_DIR}
+    ${stb_SOURCE_DIR}
 )
 
 # Assets always resolve relative to the runtime output directory, in both

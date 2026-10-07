@@ -39,6 +39,9 @@ class LogService : public ILogService {
     // Core state
     bool initialized_;
     std::atomic<bool> shouldStop_;
+    // Set once the writer thread is running and owns console output; until then LogMessage
+    // prints inline.
+    std::atomic<bool> writerOwnsStdout_{false};
 
     // Log storage and threading
     std::vector<LogEntry> logBuffer_;
@@ -56,8 +59,16 @@ class LogService : public ILogService {
 
     // Core methods
     void WriterThreadFunction();
+    void DrainToSinks(std::queue<LogEntry>& batch);
     void WriteLogToFile(const LogEntry& entry);
-    void WriteLogToStdout(const LogEntry& entry);
+    // Appends entry to `out` as one coloured console line. Batched by the writer thread and
+    // written with a single fwrite per drain: a console write is a slow syscall (tens of ms
+    // through a Windows console host), so doing one per log line on the calling thread stalls
+    // whichever thread logged -- including every asset worker.
+    void AppendStdoutLine(const LogEntry& entry, std::string& out) const;
+    // Fallback for messages logged before Initialize() starts the writer thread, so early
+    // config and startup errors still reach the console.
+    void WriteLogToStdoutNow(const LogEntry& entry) const;
 
     // Utilities
     const char* GetLogLevelName(LogLevel level) const;

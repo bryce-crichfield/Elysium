@@ -87,4 +87,29 @@ const char* Path::c_str() const {
     return cachedFullPath_.c_str();
 }
 
+Path Path::FromFullPath(const std::string& fullPath) {
+    const std::string& root = AssetsRootMutable();
+    std::string relative = RelativeTo(fullPath, root);
+    if (relative == fullPath && fullPath.rfind(root, 0) == 0) relative = fullPath.substr(root.size());
+    return Path(std::filesystem::path(relative).lexically_normal().generic_string());
+}
+
+std::string DirectoryOf(const std::string& path) {
+    auto sep = path.find_last_of("/\\");
+    return sep == std::string::npos ? "" : path.substr(0, sep + 1);
+}
+
+std::string RelativeTo(const std::string& path, const std::string& baseDir) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path relative = fs::relative(fs::path(path), fs::path(baseDir.empty() ? "." : baseDir), ec);
+    return ec || relative.empty() ? path : relative.generic_string();
+}
+
+bool SamePath(const std::string& a, const std::string& b) {
+    std::error_code ea, eb;
+    auto ca = std::filesystem::weakly_canonical(a, ea), cb = std::filesystem::weakly_canonical(b, eb);
+    return !ea && !eb ? ca == cb : a == b;
+}
+
 }  // namespace Elysium

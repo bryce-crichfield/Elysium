@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "Core/Editor.h"
+#include "Editor/Editor.h"
 
 namespace Elysium::Services {
 class ILogService;
@@ -14,30 +14,33 @@ struct LogEntry;
 
 namespace Elysium {
 
+// The log console: a toolbar (search, level toggles, topic filter, copy) over the
+// scrolling, selectable log.
 class LogEditor : public Editor {
    public:
-    explicit LogEditor(ServiceLocator& services);
+    static constexpr const char* Title = "Console";
+
+    explicit LogEditor(EditorApplication& editor);
 
     void Draw() override;
 
    private:
-    void DrawHeader(Services::ILogService& service);
-    void DrawFilterPanel(Services::ILogService& service);
-    void DrawLevelFilters();
-    void DrawTopicFilters(Services::ILogService& service);
+    void DrawToolbar(Services::ILogService& service);
+    void DrawLevelToggles();
+    void DrawTopicFilter(Services::ILogService& service);
     void DrawLogEntries(Services::ILogService& service);
     void HandleLogSelection(int logIndex, const std::vector<int>& visibleIndices);
     void DrawLogContextMenu(Services::ILogService& service, int logIndex, const Services::LogEntry& entry,
                             const std::string& fullLogText);
+    void CopySelection(Services::ILogService& service) const;
 
     bool ShouldDisplayEntry(const Services::LogEntry& entry) const;
-    unsigned int GetImGuiColor(Services::LogLevel level) const;
+    static ImVec4 LevelColor(Services::LogLevel level);
 
     // Filter state
     std::unordered_map<std::string, bool> topicFilters_;
     std::unordered_map<Services::LogLevel, bool> levelFilters_;
-    bool showFilterPanel_ = false;
-    std::string searchFilter_;
+    char searchBuffer_[256] = "";
 
     // Selection state
     std::unordered_set<int> selectedLogIndices_;

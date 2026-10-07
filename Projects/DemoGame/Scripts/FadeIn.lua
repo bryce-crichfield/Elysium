@@ -1,7 +1,7 @@
 ---@type EntityScript
 ---
 --- Fades the entity in from fully transparent to its authored alpha.
---- Works on TextComponent and RectangleComponent (background + border), or both.
+--- Works on TextComponent and on every MaterialComponent layer with a uColor, or both.
 --- Stagger is automatic: elements with higher Y values start slightly later.
 local FadeIn = {}
 
@@ -30,17 +30,27 @@ function FadeIn:Initialize(entity)
         text.color = c
     end
 
-    -- Capture and zero the alpha on Rectangle (background and border separately)
-    local rect = GetComponent(entity, "Rectangle")
-    if rect then
-        local bg = rect.background
-        local bd = rect.border
-        self.bgAlpha = bg.a
-        self.bdAlpha = bd.a
-        bg.a = 0
-        bd.a = 0
-        rect.background = bg
-        rect.border     = bd
+    -- Capture and zero the alpha of every material layer's color
+    local mat = GetComponent(entity, "Material")
+    if mat then
+        self.layerAlphas = {}
+        for i = 1, mat.layerCount do
+            local c = mat:LayerAt(i):Get("uColor")
+            if c then self.layerAlphas[i] = c.a end
+        end
+        self:SetLayerAlpha(mat, 0)
+    end
+end
+
+-- Sets each captured layer's color alpha to its authored alpha scaled by `k` (0..1).
+function FadeIn:SetLayerAlpha(mat, k)
+    for i, alpha in pairs(self.layerAlphas) do
+        local layer = mat:LayerAt(i)
+        local c = layer and layer:Get("uColor")
+        if c then
+            c.a = math.floor(alpha * k)
+            layer:Set("uColor", c)
+        end
     end
 end
 
@@ -52,17 +62,14 @@ function FadeIn:Update(entity, dt)
     if t < 0.0 then return end
 
     local text = GetComponent(entity, "Text")
-    local rect = GetComponent(entity, "Rectangle")
+    local mat  = GetComponent(entity, "Material")
 
     if t >= 1.0 then
         -- Snap to authored values
         if text and self.textAlpha then
             local c = text.color; c.a = self.textAlpha; text.color = c
         end
-        if rect and self.bgAlpha then
-            local bg = rect.background; bg.a = self.bgAlpha; rect.background = bg
-            local bd = rect.border;     bd.a = self.bdAlpha; rect.border     = bd
-        end
+        if mat and self.layerAlphas then self:SetLayerAlpha(mat, 1) end
         self.done = true
         return
     end
@@ -75,14 +82,7 @@ function FadeIn:Update(entity, dt)
         text.color = c
     end
 
-    if rect and self.bgAlpha then
-        local bg = rect.background
-        local bd = rect.border
-        bg.a = math.floor(lerp(0, self.bgAlpha, e))
-        bd.a = math.floor(lerp(0, self.bdAlpha, e))
-        rect.background = bg
-        rect.border     = bd
-    end
+    if mat and self.layerAlphas then self:SetLayerAlpha(mat, e) end
 end
 
 return FadeIn

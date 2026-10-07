@@ -8,7 +8,7 @@
 #include "Core/ServiceLocator.h"
 
 #include "Interfaces/INetworkService.h"
-#include "Network/Network.h"
+#include "Core/Network.h"
 
 // Forward declare ENet types to avoid pulling enet.h into the header
 struct _ENetHost;

@@ -1,0 +1,17 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LineComponent x1="-100" y1="0" x2="100" y2="0" thickness="3"/>
+            <MaterialComponent padding="480" enabled="true">
+                <Layer material="Glow" enabled="true">
+                    <Uniform name="uRadius" type="float" value="9.500000"/>
+                    <Uniform name="uIntensity" type="float" value="1.050000"/>
+                    <Uniform name="uPulse" type="float" value="0.450000"/>
+                    <Uniform name="uColor" type="vec4" value="0.123928 0.467515 0.772388 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Root"/>
+            <TransformComponent x="-0.80612659" y="-1.0965309"/>
+        </Entity>
+    </Entities>
+</Prefab>

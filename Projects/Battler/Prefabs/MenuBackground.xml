@@ -1,0 +1,22 @@
+<!-- The menus' full-screen backdrop (main menu, settings, lobby): a dark fill under a slow
+     Nebula, on the scene's "background" layer. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="background"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.039000 0.039000 0.063000 1.000000"/>
+                </Layer>
+                <Layer material="Nebula" enabled="true">
+                    <Uniform name="uRimColor" type="vec4" value="0.000000 0.000000 0.000000 1.000000"/>
+                    <Uniform name="uColorA" type="vec4" value="0.164179 0.115902 0.017153 1.000000"/>
+                    <Uniform name="uColorB" type="vec4" value="0.000000 0.000000 0.000000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Background"/>
+            <RectangleComponent width="1280" height="720" cornerRadius="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+    </Entities>
+</Prefab>

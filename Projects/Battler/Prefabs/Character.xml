@@ -1,0 +1,44 @@
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <AnimationComponent clip="Animations/Hulk/Hulk_Idle.anim"/>
+            <HealthComponent max="100"/>
+            <LayerComponent name="entity"/>
+            <ModelComponent model="Models/Characters/Hulk/Hulk.mesh" scale="50"/>
+            <NameComponent name="Character"/>
+            <RevealComponent height="32"/>
+            <ScriptComponent>
+                <Script name="Scripts/Components/Unit.lua"/>
+            </ScriptComponent>
+            <TeamComponent team="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="1">
+            <CircleComponent radius="24"/>
+            <LayerComponent name="entity" flat="true"/>
+            <MaterialComponent padding="48" enabled="true">
+                <Layer material="Fire" enabled="true">
+                    <Uniform name="uGlowColor" type="vec3" value="0.270000 0.630000 1.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.200000"/>
+                    <Uniform name="uGlowRadius" type="float" value="6.000000"/>
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Ring"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="0"/>
+        </Entity>
+        <Entity id="2">
+            <LightComponent color="#FFD2A0FF" intensity="1.2" radius="360" height="200" flicker="0" vision="true"/>
+            <NameComponent name="Light"/>
+            <ParentComponent target="0"/>
+            <TransformComponent x="0" y="0" z="0"/>
+        </Entity>
+    </Entities>
+    <PrefabInstance src="HeroHud.xml" id="HeroHud">
+        <Override entity="0" component="TransformComponent" field="scaleX" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="scaleY" value="0.25"/>
+        <Override entity="0" component="TransformComponent" field="y" value="-108.582"/>
+    </PrefabInstance>
+</Prefab>

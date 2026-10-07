@@ -3,7 +3,9 @@
 #include "Services/ScriptService.h"
 #include "Core/Common.h"
 #include "Core/Script.h"
+#include "Interfaces/IApplicationService.h"
 #include "Interfaces/IAssetService.h"
+#include "Interfaces/IAudioService.h"
 #include "Interfaces/ISceneService.h"
 #include "Services/LogService.h"
 #include "Services/SceneService.h"
@@ -12,16 +14,26 @@
 #include "Core/Component.h"
 #include "Core/ComponentRegistry.h"
 #include "Core/Path.h"
+#include "Core/Prefab.h"
 #include "Core/Input.h"
-#include "imgui.h"
+#include "Core/Graphics.h"
 #include <memory>
 #include <limits>
 #include <cmath>
-#include "Components/CameraComponent.h"
-#include "Components/TransformComponent.h"
-#include "Systems/CollisionSystem.h"
-#include "Systems/MovementSystem.h"
-#include "Systems/RenderSystem.h"
+#include "Core/Components/CameraComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Core/Systems/CollisionSystem.h"
+#include "Core/Systems/MovementSystem.h"
+#include "Core/Systems/NavMeshSystem.h"
+#include "Core/Systems/RenderSystem.h"
+#include "Core/RenderContext.h"
+#include <algorithm>
+#include <optional>
+#include <tuple>
+#include <deque>
+#include "Core/Network.h"
+#include "Interfaces/IMessageService.h"
+#include "Interfaces/INetworkService.h"
 
 
 namespace Elysium::Services {
@@ -30,6 +42,15 @@ namespace Elysium::Services {
 // same reason s_activeWorld exists — this mirrors that existing pattern
 // instead of introducing a new one.
 static ServiceLocator* s_services = nullptr;
+
+// What the network did since a script last called NetPoll: connects, disconnects and
+// ScriptMessage payloads, in arrival order. Lives here rather than in a scene so it
+// survives scene changes (a lobby hands its connection to the battle).
+struct NetScriptEvent {
+    std::string type;  // "connected" | "disconnected" | "stopped" | "message"
+    std::string data;
+};
+static std::deque<NetScriptEvent> s_netInbox;
 
 ScriptService::ScriptService(ServiceLocator& registry) {
     s_services = &registry;
@@ -43,10 +64,80 @@ void ScriptService::Initialize() {
     BindComponents();
     BindEntityAPI();
     BindInputConstants();
+    BindNetwork();
     LOG_INFO("ScriptService", "Lua VM Initialized with sol2 and component usertypes");
 }
 
+void ScriptService::BindNetwork() {
+    auto& messages = s_services->Get<IMessageService>();
+    messages.Subscribe<NetworkDataMessage>(this, [](const NetworkDataMessage& msg) {
+        if (msg.data.size() < PacketHeader::SIZE) return;
+        if (msg.data[0] != static_cast<uint8_t>(PacketType::ScriptMessage)) return;
+        s_netInbox.push_back({"message", std::string(msg.data.begin() + PacketHeader::SIZE, msg.data.end())});
+    });
+    messages.Subscribe<NetworkConnectedMessage>(this, [](const NetworkConnectedMessage&) {
+        s_netInbox.push_back({"connected", {}});
+    });
+    messages.Subscribe<NetworkDisconnectedMessage>(this, [](const NetworkDisconnectedMessage&) {
+        s_netInbox.push_back({"disconnected", {}});
+    });
+    messages.Subscribe<NetworkStoppedMessage>(this, [](const NetworkStoppedMessage&) {
+        s_netInbox.push_back({"stopped", {}});
+    });
+
+    auto start = [](NetworkMode mode, const std::string& address, int port) {
+        auto& net = s_services->Get<INetworkService>();
+        if (net.IsRunning()) net.Stop();
+        s_netInbox.clear();
+        NetworkConfig config;
+        config.mode = mode;
+        config.address = address;
+        config.port = static_cast<uint16_t>(port);
+        return net.Start(config);
+    };
+    lua.set_function("NetHost", [start](sol::optional<int> port) {
+        return start(NetworkMode::Server, "", port.value_or(7777));
+    });
+    lua.set_function("NetJoin", [start](const std::string& address, sol::optional<int> port) {
+        return start(NetworkMode::Client, address, port.value_or(7777));
+    });
+    lua.set_function("NetStop", []() {
+        s_services->Get<INetworkService>().Stop();
+    });
+    lua.set_function("NetMode", []() -> std::string {
+        auto& net = s_services->Get<INetworkService>();
+        if (!net.IsRunning()) return "none";
+        return net.GetMode() == NetworkMode::Server ? "server" : "client";
+    });
+    lua.set_function("NetPeers", []() {
+        return static_cast<int>(s_services->Get<INetworkService>().GetConnectedPeers());
+    });
+    // A client sends to the server; the server sends to every client.
+    lua.set_function("NetSend", [](const std::string& data) {
+        auto& net = s_services->Get<INetworkService>();
+        if (!net.IsRunning()) return;
+        PacketWriter writer;
+        writer.BeginPacket(PacketType::ScriptMessage).WriteBytes(data.data(), data.size());
+        SerialBuffer packet = writer.Build();
+        if (net.GetMode() == NetworkMode::Client) net.SendToServer(packet.Data(), packet.Size());
+        else net.BroadcastToClients(packet.Data(), packet.Size());
+    });
+    lua.set_function("NetPoll", [this]() {
+        sol::table events = lua.create_table();
+        int i = 1;
+        for (auto& e : s_netInbox) {
+            sol::table t = lua.create_table();
+            t["type"] = e.type;
+            if (e.type == "message") t["data"] = e.data;
+            events[i++] = t;
+        }
+        s_netInbox.clear();
+        return events;
+    });
+}
+
 void ScriptService::Shutdown() {
+    s_services->Get<IMessageService>().UnsubscribeAll(this);
     LOG_INFO("ScriptService", "Lua VM Shutdown");
 }
 
@@ -107,7 +198,7 @@ std::vector<Entity> ScriptService::FilterEntities(const std::string& filterFunct
 }
 
 void ScriptService::InitLuaContext() {
-    lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::table, sol::lib::string, sol::lib::math, sol::lib::debug);
+    lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::table, sol::lib::string, sol::lib::math, sol::lib::coroutine, sol::lib::debug);
 
     // Configure package.path so require("Scripts/Foo") resolves Lua modules two ways:
     // first against the current project's own asset root (game scripts), falling
@@ -139,64 +230,57 @@ static Elysium::Systems::RenderSystem* GetCurrentRenderSystem() {
     return scene ? scene->GetSystem<Elysium::Systems::RenderSystem>() : nullptr;
 }
 
-static Vector2 WorldToScreen(const Vector2& worldPos) {
+// The first visible camera's view (orbit included), or nothing.
+static std::optional<Elysium::Systems::CameraView> ActiveCameraView() {
     auto* world = GetActiveWorld();
-    if (!world) return worldPos;
-
-    Vector2 cameraPos = {0, 0};
-    float zoom = 1.0f;  
-    Vector2 viewportCenter = {0, 0};
-    bool foundCamera = false;
-
+    if (!world) return std::nullopt;
+    std::optional<Elysium::Systems::CameraView> view;
     world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
-        if (!foundCamera && cameraComp.isVisible) {
-            if (world->HasComponent<TransformComponent>(camEnt)) {
-                auto& transform = world->GetComponent<TransformComponent>(camEnt);
-                cameraPos = { transform.worldX, transform.worldY };
-            }
-            zoom = cameraComp.zoom;
-            viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
-            foundCamera = true;
+        if (view || !cameraComp.isVisible) return;
+        Vector2 position = {0, 0};
+        if (world->HasComponent<TransformComponent>(camEnt)) {
+            auto& transform = world->GetComponent<TransformComponent>(camEnt);
+            position = {transform.worldX, transform.worldY};
         }
+        Elysium::Systems::CameraView v{position, cameraComp.zoom != 0.0f ? cameraComp.zoom : 1.0f, cameraComp.viewport};
+        v.yaw = cameraComp.yaw;
+        v.pitch = std::clamp(cameraComp.pitch, 5.0f, 89.0f);
+        v.perspective = cameraComp.fov > 0.0f;
+        v.fov = cameraComp.fov;
+        Elysium::Systems::RenderProjector::FitScreen(v, s_services->Get<ISceneService>().GetScreenFit());
+        view = v;
     });
+    return view;
+}
 
-    if (foundCamera) {
-        return {
-            ((worldPos.x - cameraPos.x) * zoom) + viewportCenter.x,
-            ((worldPos.y - cameraPos.y) * zoom) + viewportCenter.y
-        };
-    }
-    return worldPos;
+// Scripts speak game screen pixels; the camera's view, framebuffer pixels.
+static Vector2 WorldToScreen(const Vector2& worldPos) {
+    using Elysium::Systems::RenderProjector;
+    auto view = ActiveCameraView();
+    return view ? RenderProjector::FramebufferToScreen(RenderProjector::WorldToFramebuffer(worldPos, *view), *view) : worldPos;
 }
 
 static Vector2 ScreenToWorld(Vector2 screenPos) {
-    auto* world = GetActiveWorld();
-    if (!world) return screenPos;
+    using Elysium::Systems::RenderProjector;
+    auto view = ActiveCameraView();
+    return view ? RenderProjector::FramebufferToWorld(RenderProjector::ScreenToFramebuffer(screenPos, *view), *view) : screenPos;
+}
 
-    Vector2 cameraPos = {0, 0};
-    float zoom = 1.0f;
-    Vector2 viewportCenter = {0, 0};
-    bool foundCamera = false;
+// Where ground layers draw the 3D point (x, y) at height z: the ground-plane point on the same
+// view ray. The default camera's is (x, y - z cos 30).
+static Vector2 ViewLift(float x, float y, float z) {
+    auto view = ActiveCameraView();
+    if (!view || view->IsDefaultOrientation()) return {x, y - z * Elysium::World3D::kPitchCos};
+    const Elysium::World3D::View v = Elysium::Systems::RenderProjector::View3D(*view);
+    return v.FramebufferToGround(v.WorldToFramebuffer(x, y, z));
+}
 
-    world->Query<CameraComponent>([&](Entity camEnt, auto& cameraComp) {
-        if (!foundCamera && cameraComp.isVisible) {
-            if (world->HasComponent<TransformComponent>(camEnt)) {
-                auto& transform = world->GetComponent<TransformComponent>(camEnt);
-                cameraPos = { transform.worldX, transform.worldY };
-            }
-            zoom = cameraComp.zoom;
-            viewportCenter = { cameraComp.viewport.width * 0.5f, cameraComp.viewport.height * 0.5f };
-            foundCamera = true;
-        }
-    });
-
-    if (foundCamera) {
-        return {
-            ((screenPos.x - viewportCenter.x) / zoom) + cameraPos.x,
-            ((screenPos.y - viewportCenter.y) / zoom) + cameraPos.y
-        };
-    }
-    return screenPos;
+// The screen pixel of the 3D point (x, y) at height z.
+static Vector2 ViewProject(float x, float y, float z) {
+    auto view = ActiveCameraView();
+    if (!view) return {x, y - z * Elysium::World3D::kPitchCos};
+    using Elysium::Systems::RenderProjector;
+    return RenderProjector::FramebufferToScreen(RenderProjector::View3D(*view).WorldToFramebuffer(x, y, z), *view);
 }
 
 void ScriptService::BindComponents() {
@@ -248,6 +332,17 @@ void ScriptService::BindEntityAPI() {
         return world ? world->CreateEntity() : 0;
     });
 
+    // GetChildren(entity) -> { child, ... }: its direct children, in order.
+    lua.set_function("GetChildren", [](Entity entity, sol::this_state s) -> sol::table {
+        sol::state_view lua(s);
+        sol::table result = lua.create_table();
+        auto* world = GetActiveWorld();
+        if (!world) return result;
+        int index = 1;
+        for (Entity child : world->GetChildren(entity)) result[index++] = child;
+        return result;
+    });
+
     lua.set_function("DestroyEntity", [](Entity entity) {
         auto* world = GetActiveWorld();
         if (world) world->DestroyEntity(entity);
@@ -256,6 +351,27 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("CloneEntity", [](Entity entity) {
         auto* world = GetActiveWorld();
         return world ? world->CloneEntity(entity) : 0;
+    });
+
+    // SpawnPrefab(path [, x, y, z]): spawns a project-relative prefab, its root placed at
+    // (x, y, z). Returns the root entity, or nil.
+    lua.set_function("SpawnPrefab", [this](const std::string& path, sol::optional<float> x, sol::optional<float> y,
+                                           sol::optional<float> z) -> sol::object {
+        auto* world = GetActiveWorld();
+        if (!world) return sol::nil;
+        const Prefab* prefab = Prefab::Get(*s_services, Path(path).GetFullPath());
+        if (!prefab) return sol::nil;
+        static int spawnCount = 0;
+        PrefabSpawnResult result = prefab->Spawn(world, "Spawn" + std::to_string(++spawnCount), *s_services);
+        if (result.spawned.empty()) return sol::nil;
+        const Entity root = result.ids.count(0) ? result.ids.at(0) : result.spawned.front();
+        if (world->HasComponent<TransformComponent>(root)) {
+            auto& t = world->GetComponent<TransformComponent>(root);
+            t.localX = x.value_or(t.localX);
+            t.localY = y.value_or(t.localY);
+            t.localZ = z.value_or(t.localZ);
+        }
+        return sol::make_object(lua, root);
     });
 
     // Random
@@ -276,16 +392,47 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("ScenePop", []() {
         s_services->Get<ISceneService>().Pop();
     });
+    // The scene change the loading scene is up for: { scene, asset, loaded, total, progress },
+    // or nil when nothing is loading.
+    lua.set_function("SceneLoading", [](sol::this_state ts) -> sol::object {
+        const auto state = s_services->Get<ISceneService>().GetLoadingState();
+        if (!state) return sol::nil;
+        sol::state_view view(ts);
+        sol::table t = view.create_table();
+        t["scene"] = state->scene;
+        t["asset"] = state->asset;
+        t["loaded"] = state->loaded;
+        t["total"] = state->total;
+        t["progress"] = state->Progress();
+        return t;
+    });
 
     // Input Polling
     lua.set_function("IsKeyDown", [](int key) { return Input::IsKeyDown(static_cast<Key>(key)); });
     lua.set_function("IsKeyPressed", [](int key) { return Input::IsKeyPressed(static_cast<Key>(key)); });
     lua.set_function("IsMouseButtonDown", [](int button) { return Input::IsMouseButtonDown(static_cast<MouseButton>(button)); });
     lua.set_function("IsMouseButtonPressed", [](int button) { return Input::IsMouseButtonPressed(static_cast<MouseButton>(button)); });
+    lua.set_function("IsMouseButtonReleased", [](int button) { return Input::IsMouseButtonReleased(static_cast<MouseButton>(button)); });
+    lua.set_function("GetMouseWheelMove", []() { return Input::GetMouseWheelMove(); });
     lua.set_function("GetMousePosition", [this]() {
         Vector2 m = this->_mousePosition; // Cached by SceneService from Input polling each frame
         return m;
         // return ScreenToWorld(m);
+    });
+
+    // GetScreenSize() -> width, height: the game screen in its pixels, the space Screen2D
+    // layers, GetMousePosition and ViewProject use. The configured size, extended along
+    // whichever axis the window has room to spare, so it changes with the window.
+    lua.set_function("GetScreenSize", []() {
+        const auto& fit = s_services->Get<ISceneService>().GetScreenFit();
+        return std::make_tuple(fit.screen.x, fit.screen.y);
+    });
+
+    // GetLayoutSize() -> width, height: the configured screen size (Config <Screen>), the size
+    // scenes and prefabs lay Screen2D layers out for. GetScreenSize is never smaller.
+    lua.set_function("GetLayoutSize", []() {
+        const auto& fit = s_services->Get<ISceneService>().GetScreenFit();
+        return std::make_tuple(fit.layout.x, fit.layout.y);
     });
 
     lua.set_function("WorldToScreen", [](const Vector2& worldPos) {
@@ -296,6 +443,17 @@ void ScriptService::BindEntityAPI() {
     lua.set_function("ScreenToWorld", [](const Vector2& screenPos) {
         Vector2 worldPos = ScreenToWorld(screenPos);
         return worldPos;
+    });
+    // ViewLift(x, y, z) -> x, y: where ground layers ("overlay", "fx") draw the point (x, y) at
+    // height z under the current camera, so overlays at a height line up as it turns.
+    lua.set_function("ViewLift", [](float x, float y, float z) {
+        const Vector2 p = ViewLift(x, y, z);
+        return std::make_tuple(p.x, p.y);
+    });
+    // ViewProject(x, y, z) -> x, y: the screen pixel of that point, for Screen2D ("ui") drawing.
+    lua.set_function("ViewProject", [](float x, float y, float z) {
+        const Vector2 p = ViewProject(x, y, z);
+        return std::make_tuple(p.x, p.y);
     });
 
     // GetComponent
@@ -353,13 +511,18 @@ void ScriptService::BindEntityAPI() {
         }
     });
 
-    // GetEntityByName
-    lua.set_function("GetEntityByName", [](const std::string& name) -> Entity {
+    // GetEntityByName: nil when there is no such entity.
+    //
+    // It used to return 0 for "not found", but ids start at 0, so the first entity a scene loads
+    // was indistinguishable from failure -- a scene whose camera was authored first lost all
+    // camera control. nil is also the safer sentinel in Lua, where 0 is truthy, so `if e then`
+    // guards silently passed on a miss.
+    lua.set_function("GetEntityByName", [this](const std::string& name) -> sol::object {
         auto* world = GetActiveWorld();
-        if (!world) return 0;
-        Entity entity;
-        if (world->GetEntityByName(name, &entity)) return entity;
-        return 0;
+        if (!world) return sol::nil;
+        Entity entity = INVALID_ENTITY;
+        if (!world->GetEntityByName(name, &entity)) return sol::nil;
+        return sol::make_object(lua, entity);
     });
 
     // FindEntitiesWithComponent - returns table of entities with given component
@@ -441,6 +604,144 @@ void ScriptService::BindEntityAPI() {
         movementSystem->IssueMoveCommand(entity, {x, y});
     });
 
+    // Navmesh queries — the scene-level walkability layer (NavMeshSystem).
+    lua.set_function("NavIsWalkable", [](float x, float y) -> bool {
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
+        if (!scene) return false;
+        auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>();
+        return nav && nav->IsWalkable({x, y});
+    });
+    lua.set_function("NavSetDebugDraw", [](bool enabled) {
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
+        if (!scene) return;
+        if (auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>()) nav->SetParameter("debugDraw", Value{enabled});
+    });
+    auto topNav = []() -> Elysium::Systems::NavMeshSystem* {
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
+        return scene ? scene->GetSystem<Elysium::Systems::NavMeshSystem>() : nullptr;
+    };
+    // NavFloorHeight(x, y [, z]): the walkable floor's height there (nearest `z`), or nil.
+    lua.set_function("NavFloorHeight", [this, topNav](float x, float y, sol::optional<float> z) -> sol::object {
+        auto* nav = topNav();
+        if (!nav) return sol::nil;
+        if (auto h = nav->FloorHeight({x, y}, z.value_or(0.0f))) return sol::make_object(lua, *h);
+        return sol::nil;
+    });
+    // NavSlide(x, y, z, dx, dy) -> x, y, z: a unit at (x, y, z) stepped by (dx, dy) on the
+    // ground, stopped or slid along walls by the navmesh; z is the floor's height there.
+    lua.set_function("NavSlide", [topNav](float x, float y, float z, float dx, float dy) {
+        auto* nav = topNav();
+        const Vector3 p = nav ? nav->Slide({x, y, z}, {dx, dy}) : Vector3{x + dx, y + dy, z};
+        return std::make_tuple(p.x, p.y, p.z);
+    });
+    // NavCanWalk(x1, y1, x2, y2 [, z]): whether a unit at height z walks straight from 1 to 2.
+    lua.set_function("NavCanWalk", [topNav](float x1, float y1, float x2, float y2, sol::optional<float> z) -> bool {
+        auto* nav = topNav();
+        return nav && nav->HasLineOfSight({x1, y1}, {x2, y2}, z.value_or(0.0f));
+    });
+    // NavPick(x, y): the walkable floor drawn at picture point (x, y), as {x, y, z}, or nil.
+    lua.set_function("NavPick", [this, topNav](float x, float y) -> sol::object {
+        auto* nav = topNav();
+        if (!nav) return sol::nil;
+        // The view ray through the ground point (x, y): what the camera sees there.
+        std::optional<Vector3> p;
+        if (auto view = ActiveCameraView(); view && !view->IsDefaultOrientation()) {
+            const auto v = Elysium::Systems::RenderProjector::View3D(*view);
+            p = nav->PickFloor(v.RayAt(v.WorldToFramebuffer(x, y, 0.0f)));
+        } else {
+            p = nav->PickFloor({x, y});
+        }
+        if (!p) return sol::nil;
+        sol::table t = lua.create_table();
+        t["x"] = p->x; t["y"] = p->y; t["z"] = p->z;
+        return t;
+    });
+    // NavFindPath(x1, y1, x2, y2 [, z1]): waypoints {x, y, z}; empty if there's no way.
+    lua.set_function("NavFindPath", [this](float x1, float y1, float x2, float y2, sol::optional<float> z1) -> sol::table {
+        sol::table result = lua.create_table();
+        auto* scene = s_services->Get<ISceneService>().GetTopScene();
+        if (!scene) return result;
+        auto* nav = scene->GetSystem<Elysium::Systems::NavMeshSystem>();
+        if (!nav) return result;
+        int i = 1;
+        for (const auto& p : nav->FindPath({x1, y1}, {x2, y2}, z1.value_or(0.0f))) {
+            sol::table pt = lua.create_table();
+            pt["x"] = p.x; pt["y"] = p.y; pt["z"] = p.z;
+            result[i++] = pt;
+        }
+        return result;
+    });
+
+    // NavReach(x, y, z, budget [, blockers]): everywhere a unit at (x, y, z) walks within
+    // `budget` ground units, kept out of `blockers` ({ {x, y, r}, ... }). Returns a reach map:
+    //   reach:Cost(x, y, z)   -> the walking cost to that ground point, or nil
+    //   reach:PathTo(x, y, z) -> waypoints {x, y, z} to it (start excluded), empty if unreached
+    //   reach:Runs()          -> { {x0, x1, y, z, cost}, ... } row runs of reached ground, to draw
+    using Reach = Elysium::Systems::NavMeshSystem::Reach;
+    auto reachType = lua.new_usertype<Reach>("NavReachMap", sol::no_constructor);
+    reachType["budget"] = sol::readonly(&Reach::budget);
+    reachType["Cost"] = [topNav](const Reach& r, float x, float y, sol::optional<float> z) -> sol::optional<float> {
+        auto* nav = topNav();
+        if (!nav) return sol::nullopt;
+        if (auto c = nav->ReachCost(r, {x, y}, z.value_or(0.0f))) return *c;
+        return sol::nullopt;
+    };
+    reachType["PathTo"] = [this, topNav](const Reach& r, float x, float y, sol::optional<float> z) -> sol::table {
+        sol::table result = lua.create_table();
+        auto* nav = topNav();
+        if (!nav) return result;
+        int i = 1;
+        for (const auto& p : nav->ReachPath(r, {x, y}, z.value_or(0.0f))) {
+            sol::table pt = lua.create_table();
+            pt["x"] = p.x; pt["y"] = p.y; pt["z"] = p.z;
+            result[i++] = pt;
+        }
+        return result;
+    };
+    reachType["Runs"] = [this, topNav](const Reach& r) -> sol::table {
+        sol::table result = lua.create_table();
+        auto* nav = topNav();
+        if (!nav) return result;
+        int i = 1;
+        for (const auto& run : nav->ReachRuns(r)) {
+            sol::table t = lua.create_table();
+            t["x0"] = run.x0; t["x1"] = run.x1; t["y"] = run.y; t["z"] = run.z; t["cost"] = run.cost;
+            result[i++] = t;
+        }
+        return result;
+    };
+    lua.set_function("NavReach", [topNav](float x, float y, float z, float budget, sol::optional<sol::table> blockers)
+                                     -> std::shared_ptr<Reach> {
+        auto* nav = topNav();
+        if (!nav) return nullptr;
+        std::vector<Vector3> circles;
+        if (blockers) {
+            for (auto& [_, v] : *blockers) {
+                if (!v.is<sol::table>()) continue;
+                sol::table b = v.as<sol::table>();
+                circles.push_back({b.get_or("x", 0.0f), b.get_or("y", 0.0f), b.get_or("r", 0.0f)});
+            }
+        }
+        auto reach = std::make_shared<Reach>(nav->ComputeReach({x, y}, z, budget, circles));
+        if (reach->start < 0) return nullptr;
+        return reach;
+    });
+    // NavCanSee(x1, y1, z1, x2, y2, z2): whether the sight line between the two points (z is
+    // the eye height, not the floor's) is clear of terrain and static colliders.
+    lua.set_function("NavCanSee", [topNav](float x1, float y1, float z1, float x2, float y2, float z2) -> bool {
+        auto* nav = topNav();
+        return !nav || nav->CanSee({x1, y1, z1}, {x2, y2, z2});
+    });
+    // NavGroundDistance(x1, y1, x2, y2): distance on the ground (the metric NavReach budgets use).
+    lua.set_function("NavGroundDistance", [topNav](float x1, float y1, float x2, float y2) -> float {
+        auto* nav = topNav();
+        if (!nav) {
+            const float dx = x2 - x1, dy = (y2 - y1) * 2.0f;
+            return std::sqrt(dx * dx + dy * dy);
+        }
+        return nav->GroundDistance({x1, y1}, {x2, y2});
+    });
+
     lua.set_function("GetCollisions", [this](Entity entity) -> sol::table {
         sol::table result = lua.create_table();
 
@@ -504,11 +805,59 @@ void ScriptService::BindEntityAPI() {
         rs->IssueDrawCommand(std::move(cmd));
     });
 
-    lua.set_function("DrawText", [tableToColor](const std::string& text, float x, float y, int fontSize, sol::table color, const std::string& layer) {
+    // DrawText(text, x, y, size, color, layer [, font]): font names a file in Assets/Fonts.
+    lua.set_function("DrawText", [tableToColor](const std::string& text, float x, float y, int fontSize, sol::table color, const std::string& layer, sol::optional<std::string> font) {
         if (auto* rs = GetCurrentRenderSystem()) {
-            rs->IssueDrawCommand(Elysium::Systems::DrawTextCmd{layer, text, x, y, fontSize, tableToColor(color)});
+            rs->IssueDrawCommand(Elysium::Systems::DrawTextCmd{layer, text, x, y, fontSize, tableToColor(color), font.value_or("")});
         }
     });
+    // MeasureText(text, size [, font]): the drawn width, for centering.
+    lua.set_function("MeasureText", [](const std::string& text, int fontSize, sol::optional<std::string> font) {
+        return Elysium::RenderContext::MeasureText(text.c_str(), fontSize, font.value_or(""));
+    });
+
+    // SetMsaaEnabled(on) / IsMsaaEnabled(): the antialiasing setting, for every scene.
+    lua.set_function("SetMsaaEnabled", [](bool enabled) { Elysium::Systems::RenderCompositor::SetMsaaEnabled(enabled); });
+    lua.set_function("IsMsaaEnabled", []() { return Elysium::Systems::RenderCompositor::IsMsaaEnabled(); });
+
+    // PlaySound(asset [, volume [, loop [, channel]]]) -> id: plays "Sounds/Hit.wav"
+    // (project-relative) on a CHANNEL_* (default CHANNEL_MASTER), loading it first if it has to.
+    // StopSound(id) ends one early (a loop), StopAllSounds() all.
+    lua.set_function("PlaySound", [](const std::string& asset, sol::optional<float> volume, sol::optional<bool> loop,
+                                     sol::optional<int> channel) {
+        return s_services->Get<IAudioService>().Play(Path(asset), volume.value_or(1.0f), loop.value_or(false),
+                                                     (ChannelId)channel.value_or(AudioChannel::Master));
+    });
+    lua.set_function("StopSound", [](SoundId id) { s_services->Get<IAudioService>().Stop(id); });
+    lua.set_function("StopAllSounds", []() { s_services->Get<IAudioService>().StopAll(); });
+    // IsSoundPlaying(id): false once it finished or was stopped (also by StopAllSounds, or the
+    // engine stopping everything when switching between Play and the editor).
+    lua.set_function("IsSoundPlaying", [](SoundId id) {
+        return s_services->Get<IAudioService>().GetPlayback(id).has_value();
+    });
+    // SetChannelVolume(channel, 0..1) / GetChannelVolume(channel): a mixer channel's volume;
+    // CHANNEL_MASTER's scales everything.
+    lua["CHANNEL_MASTER"] = (int)AudioChannel::Master;
+    lua["CHANNEL_MUSIC"] = (int)AudioChannel::Music;
+    lua["CHANNEL_EFFECTS"] = (int)AudioChannel::Effects;
+    lua["CHANNEL_AMBIENT"] = (int)AudioChannel::Ambient;
+    lua["CHANNEL_DIALOGUE"] = (int)AudioChannel::Dialogue;
+    lua.set_function("SetChannelVolume", [](int channel, float volume) {
+        s_services->Get<IAudioService>().SetChannelVolume((ChannelId)channel, volume);
+    });
+    lua.set_function("GetChannelVolume", [](int channel) {
+        return s_services->Get<IAudioService>().GetChannelVolume((ChannelId)channel);
+    });
+
+    // LoadTexture(path): starts loading a texture (project-relative) so a material layer can
+    // be pointed at it (layer.texture = path); a no-op once it's loaded or loading.
+    lua.set_function("LoadTexture", [](const std::string& path) {
+        auto& assets = s_services->Get<IAssetService>();
+        if (!assets.GetAsset(Path(path))) assets.LoadAsset<Texture>(Path(path));
+    });
+
+    // Quit(): closes the game after this frame.
+    lua.set_function("Quit", []() { s_services->Get<IApplicationService>().RequestClose(); });
 
     lua.set_function("FillRect", [tableToColor](float x, float y, float width, float height, sol::table color, const std::string& layer) {
         if (auto* rs = GetCurrentRenderSystem()) {
@@ -634,7 +983,13 @@ bool ScriptService::UpdateEntity(Entity entity, Path scriptName, float deltaTime
 
     sol::function updateFunc = instance["Update"];
     if (updateFunc.valid()) {
+        // Lua collects garbage in steps run by whichever call allocates, so a slow update may be
+        // the collector's: the zone carries the bytes it freed, the plot the heap over time.
+        [[maybe_unused]] const size_t heapBefore = lua.memory_used();
         auto result = updateFunc(instance, entity, deltaTime);
+        [[maybe_unused]] const size_t heapAfter = lua.memory_used();
+        ProfileZoneValue(heapAfter < heapBefore ? heapBefore - heapAfter : 0);
+        ProfileValue("Lua heap KB", heapAfter / 1024);
         if (!result.valid()) {
             sol::error err = result;
             LOG_ERRORF("ScriptService", "Error in %s:update: %s", scriptName.c_str(), err.what());
@@ -716,6 +1071,38 @@ sol::table ScriptService::GetSceneInstance(Path scriptPath, bool create) {
     return instance;
 }
 
+bool ScriptService::WarnMissingSceneHook(const Path& scriptPath, const char* hook) {
+    // Once per script/hook: these are called every frame, so an unconditional warning would bury
+    // the log. Silence here is what hid a scene script that was loading and initializing but
+    // never ticking.
+    if (warnedMissingHooks_.insert(std::string(scriptPath.c_str()) + ":" + hook).second) {
+        LOG_WARNINGF("ScriptService", "Scene script %s has no %s", scriptPath.c_str(), hook);
+    }
+    return false;
+}
+
+std::vector<std::string> ScriptService::GetScenePreloads(Path scriptPath) {
+    std::vector<std::string> paths;
+    // The script's own table (no instance yet): Preload runs before its scene exists.
+    sol::table proto = GetOrLoadScript(scriptPath);
+    if (!proto.valid()) return paths;
+    sol::function preload = proto["Preload"];
+    if (!preload.valid()) return paths;
+
+    auto result = preload(proto);
+    if (!result.valid()) {
+        sol::error err = result;
+        LOG_ERRORF("ScriptService", "Error in scene %s:Preload: %s", scriptPath.c_str(), err.what());
+        return paths;
+    }
+    sol::object list = result;
+    if (!list.is<sol::table>()) return paths;
+    for (const auto& [key, value] : list.as<sol::table>()) {
+        if (value.is<std::string>()) paths.push_back(value.as<std::string>());
+    }
+    return paths;
+}
+
 bool ScriptService::InitializeScene(Path scriptPath) {
     ProfileN("ScriptService InitializeScene");
     ProfileText(scriptPath.c_str());
@@ -723,14 +1110,19 @@ bool ScriptService::InitializeScene(Path scriptPath) {
     if (!instance.valid()) return false;
 
     sol::function initFunc = instance["Initialize"];
-    if (initFunc.valid()) {
-        auto result = initFunc(instance);
-        if (!result.valid()) {
-            sol::error err = result;
-            LOG_ERRORF("ScriptService", "Error in scene %s:Initialize: %s", scriptPath.c_str(), err.what());
-            return false;
-        }
+    if (!initFunc.valid()) {
+        // A scene script with no Initialize is legal but almost always a mistake (a chunk that
+        // returned the wrong table, or a typo'd method name), and it used to succeed silently.
+        WarnMissingSceneHook(scriptPath, "Initialize");
+        return true;
     }
+    auto result = initFunc(instance);
+    if (!result.valid()) {
+        sol::error err = result;
+        LOG_ERRORF("ScriptService", "Error in scene %s:Initialize: %s", scriptPath.c_str(), err.what());
+        return false;
+    }
+    LOG_INFOF("ScriptService", "Scene script %s initialized", scriptPath.c_str());
     return true;
 }
 
@@ -738,10 +1130,11 @@ bool ScriptService::UpdateScene(Path scriptPath, float deltaTime) {
     ProfileN("ScriptService UpdateScene");
     ProfileText(scriptPath.c_str());
     sol::table instance = GetSceneInstance(scriptPath, false);
-    if (!instance.valid()) return false;
+    if (!instance.valid()) return WarnMissingSceneHook(scriptPath, "instance (not initialized)");
 
     sol::function updateFunc = instance["Update"];
-    if (updateFunc.valid()) {
+    if (!updateFunc.valid()) return WarnMissingSceneHook(scriptPath, "Update");
+    {
         auto result = updateFunc(instance, deltaTime);
         if (!result.valid()) {
             sol::error err = result;
@@ -756,10 +1149,11 @@ bool ScriptService::RenderScene(Path scriptPath) {
     ProfileN("ScriptService RenderScene");
     ProfileText(scriptPath.c_str());
     sol::table instance = GetSceneInstance(scriptPath, false);
-    if (!instance.valid()) return false;
+    if (!instance.valid()) return WarnMissingSceneHook(scriptPath, "instance (not initialized)");
 
     sol::function renderFunc = instance["Render"];
-    if (renderFunc.valid()) {
+    if (!renderFunc.valid()) return WarnMissingSceneHook(scriptPath, "Render");
+    {
         auto result = renderFunc(instance);
         if (!result.valid()) {
             sol::error err = result;
@@ -838,134 +1232,46 @@ void ScriptService::ReloadScript(Path scriptPath) {
     LOG_INFOF("ScriptService", "Unloaded script: %s", scriptPath.c_str());
 }
 
-void ScriptService::InspectEntityScript(Entity entity, Path scriptPath) {
-    auto entityIt = entityScriptInstances.find(entity);
-    if (entityIt == entityScriptInstances.end()) {
-        ImGui::TextDisabled("No script instance.");
-        return;
+namespace {
+    // `entity`'s instance table of `scriptPath`, if it has one.
+    std::optional<sol::table> FindInstance(
+        std::unordered_map<Entity, std::unordered_map<Path, sol::table>>& instances, Entity entity, const Path& scriptPath) {
+        auto entityIt = instances.find(entity);
+        if (entityIt == instances.end()) return std::nullopt;
+        auto scriptIt = entityIt->second.find(scriptPath);
+        if (scriptIt == entityIt->second.end()) return std::nullopt;
+        return scriptIt->second;
     }
+}
 
-    auto scriptIt = entityIt->second.find(scriptPath);
-    if (scriptIt == entityIt->second.end()) {
-        ImGui::TextDisabled("No script instance.");
-        return;
+std::optional<std::vector<ScriptField>> ScriptService::GetScriptFields(Entity entity, Path scriptPath) {
+    auto instance = FindInstance(entityScriptInstances, entity, scriptPath);
+    if (!instance) return std::nullopt;
+
+    std::vector<ScriptField> fields;
+    for (auto& [key, val] : *instance) {
+        if (!key.is<std::string>()) continue;
+        std::string name = key.as<std::string>();
+        if (name.empty() || name[0] == '_') continue;
+
+        ScriptField field{name, std::nullopt, ""};
+        if (val.is<sol::function>()) field.kind = "function";
+        else if (val.is<sol::table>()) field.kind = "table";
+        else if (val.is<float>() || val.is<double>()) field.value = val.as<float>();
+        else if (val.is<int>()) field.value = val.as<int>();
+        else if (val.is<bool>()) field.value = val.as<bool>();
+        else if (val.is<std::string>()) field.value = val.as<std::string>();
+        else field.kind = "unknown type";
+        fields.push_back(std::move(field));
     }
+    return fields;
+}
 
-    sol::table instance = scriptIt->second;
-
-    // Track which fields we've seen to detect new ones
-    static std::unordered_map<Entity, std::unordered_set<std::string>> seenFields;
-    auto& seen = seenFields[entity];
-
-    for (auto& kv : instance) {
-        sol::object key = kv.first;
-        sol::object val = kv.second;
-
-        if (!key.is<std::string>())
-            continue;
-        std::string keyStr = key.as<std::string>();
-        if (keyStr.empty() || keyStr[0] == '_')
-            continue;
-
-        seen.insert(keyStr);
-
-        // Skip functions and tables for now
-        if (val.is<sol::function>() || val.is<sol::table>()) {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s:", keyStr.c_str());
-            ImGui::SameLine();
-            ImGui::TextDisabled(val.is<sol::function>() ? "(function)" : "(table)");
-            continue;
-        }
-
-        ImGui::PushID(keyStr.c_str());
-
-        // Editable fields
-        if (val.is<float>() || val.is<double>()) {
-            float value = val.as<float>();
-            ImGui::SetNextItemWidth(150);
-            if (ImGui::DragFloat(keyStr.c_str(), &value, 0.1f)) {
-                instance[keyStr] = value;
-            }
-        } else if (val.is<int>()) {
-            int value = val.as<int>();
-            ImGui::SetNextItemWidth(150);
-            if (ImGui::DragInt(keyStr.c_str(), &value)) {
-                instance[keyStr] = value;
-            }
-        } else if (val.is<bool>()) {
-            bool value = val.as<bool>();
-            if (ImGui::Checkbox(keyStr.c_str(), &value)) {
-                instance[keyStr] = value;
-            }
-        } else if (val.is<std::string>()) {
-            std::string value = val.as<std::string>();
-            char buffer[256];
-            strncpy(buffer, value.c_str(), sizeof(buffer) - 1);
-            buffer[sizeof(buffer) - 1] = '\0';
-
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::InputText(keyStr.c_str(), buffer, sizeof(buffer))) {
-                instance[keyStr] = std::string(buffer);
-            }
-        } else {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s:", keyStr.c_str());
-            ImGui::SameLine();
-            ImGui::TextDisabled("(unknown type)");
-        }
-
-        ImGui::PopID();
-    }
-
-    // Optional: Add button to add new fields
-    ImGui::Separator();
-    if (ImGui::Button("+ Add Field")) {
-        ImGui::OpenPopup("AddFieldPopup");
-    }
-
-    if (ImGui::BeginPopup("AddFieldPopup")) {
-        static char fieldName[64] = "";
-        static int fieldType = 0;  // 0=float, 1=int, 2=bool, 3=string
-        static char fieldValue[256] = "";
-
-        ImGui::InputText("Name", fieldName, sizeof(fieldName));
-        ImGui::Combo("Type", &fieldType, "Float\0Int\0Bool\0String\0");
-
-        if (fieldType != 2) {  // Not bool
-            ImGui::InputText("Value", fieldValue, sizeof(fieldValue));
-        } else {
-            static bool boolValue = false;
-            ImGui::Checkbox("Value", &boolValue);
-            strcpy(fieldValue, boolValue ? "true" : "false");
-        }
-
-        if (ImGui::Button("Add")) {
-            if (strlen(fieldName) > 0) {
-                switch (fieldType) {
-                    case 0:
-                        instance[fieldName] = (float)atof(fieldValue);
-                        break;
-                    case 1:
-                        instance[fieldName] = atoi(fieldValue);
-                        break;
-                    case 2:
-                        instance[fieldName] = (strcmp(fieldValue, "true") == 0);
-                        break;
-                    case 3:
-                        instance[fieldName] = std::string(fieldValue);
-                        break;
-                }
-                fieldName[0] = '\0';
-                fieldValue[0] = '\0';
-                ImGui::CloseCurrentPopup();
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
+bool ScriptService::SetScriptField(Entity entity, Path scriptPath, const std::string& name, const ScriptValue& value) {
+    auto instance = FindInstance(entityScriptInstances, entity, scriptPath);
+    if (!instance) return false;
+    std::visit([&](const auto& v) { (*instance)[name] = v; }, value);
+    return true;
 }
 
 } // namespace Elysium::Services

@@ -1,0 +1,28 @@
+<!-- What the pending order would do (damage, a spell's hits, a move's cost), bottom centre of
+     the battle. BattleScene.lua sets the Text and hides it when there's nothing to forecast. -->
+<Prefab>
+    <Entities>
+        <Entity id="0">
+            <LayerComponent name="ui"/>
+            <MaterialComponent padding="0" enabled="true">
+                <Layer material="Flat" enabled="true">
+                    <Uniform name="uColor" type="vec4" value="0.055000 0.055000 0.086000 0.824000"/>
+                </Layer>
+                <Layer material="Stroke" enabled="true">
+                    <Uniform name="uWidth" type="float" value="1.500000"/>
+                    <Uniform name="uColor" type="vec4" value="0.600000 0.500000 0.280000 1.000000"/>
+                </Layer>
+            </MaterialComponent>
+            <NameComponent name="Forecast"/>
+            <RectangleComponent width="360" height="36" cornerRadius="0.3"/>
+            <TransformComponent x="460" y="664"/>
+        </Entity>
+        <Entity id="1">
+            <LayerComponent name="ui"/>
+            <NameComponent name="Text"/>
+            <ParentComponent target="0"/>
+            <TextComponent text="" fontSize="22" r="255" g="210" b="110" a="255" font="Fonts/EnchantedLand-Regular.ttf"/>
+            <TransformComponent x="180" y="18"/>
+        </Entity>
+    </Entities>
+</Prefab>

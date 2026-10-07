@@ -6,7 +6,6 @@
 #include <iomanip>
 #include <sstream>
 #include "Core/Common.h"
-#include "imgui.h"
 #include "raylib.h"
 
 namespace Elysium::Services {
@@ -63,6 +62,7 @@ void LogService::Initialize(const std::string& logFilePath) {
 
     shouldStop_ = false;
     writerThread_ = std::thread(&LogService::WriterThreadFunction, this);
+    writerOwnsStdout_ = true;
 
     initialized_ = true;
 }
@@ -75,6 +75,7 @@ void LogService::Shutdown() {
     if (writerThread_.joinable()) {
         writerThread_.join();
     }
+    writerOwnsStdout_ = false;  // nothing drains any more; later logs print inline
 
     if (logFile_.is_open()) {
         logFile_.close();
@@ -136,7 +137,7 @@ void LogService::LogMessage(int logLevel, const std::string& message) {
 
     LogEntry entry(level, topic, cleanMessage);
 
-    WriteLogToStdout(entry);
+    if (!writerOwnsStdout_) WriteLogToStdoutNow(entry);
 
     {
         std::lock_guard<std::mutex> lock(logMutex_);
@@ -148,7 +149,7 @@ void LogService::LogMessage(int logLevel, const std::string& message) {
 void LogService::LogMessage(LogLevel level, const std::string& topic, const std::string& message) {
     LogEntry entry(level, topic, message);
 
-    WriteLogToStdout(entry);
+    if (!writerOwnsStdout_) WriteLogToStdoutNow(entry);
 
     {
         std::lock_guard<std::mutex> lock(logMutex_);
@@ -158,6 +159,7 @@ void LogService::LogMessage(LogLevel level, const std::string& topic, const std:
 }
 
 void LogService::WriterThreadFunction() {
+    ProfileThread("Log Writer");
     std::queue<LogEntry> localQueue;
 
     while (!shouldStop_) {
@@ -168,11 +170,7 @@ void LogService::WriterThreadFunction() {
             }
         }
 
-        while (!localQueue.empty()) {
-            WriteLogToFile(localQueue.front());
-            localQueue.pop();
-        }
-
+        DrainToSinks(localQueue);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
@@ -180,10 +178,24 @@ void LogService::WriterThreadFunction() {
         std::lock_guard<std::mutex> lock(logMutex_);
         localQueue.swap(pendingLogs_);
     }
+    DrainToSinks(localQueue);
+}
 
-    while (!localQueue.empty()) {
-        WriteLogToFile(localQueue.front());
-        localQueue.pop();
+// One file write and one console write per batch, rather than one of each per line.
+void LogService::DrainToSinks(std::queue<LogEntry>& batch) {
+    if (batch.empty()) return;
+
+    std::string console;
+    while (!batch.empty()) {
+        const LogEntry& entry = batch.front();
+        WriteLogToFile(entry);
+        AppendStdoutLine(entry, console);
+        batch.pop();
+    }
+    if (logFile_.is_open()) logFile_.flush();
+    if (!console.empty()) {
+        fwrite(console.data(), 1, console.size(), stdout);
+        fflush(stdout);
     }
 }
 
@@ -194,16 +206,28 @@ void LogService::WriteLogToFile(const LogEntry& entry) {
     std::string timeStr = FormatTimestamp(entry.timestamp);
     std::string levelStr = GetLogLevelName(entry.level);
 
-    logFile_ << "[" << timeStr << "] [" << levelStr << "] [" << entry.topic << "] " << entry.message << std::endl;
-    logFile_.flush();
+    // A bare newline rather than std::endl, and no flush here: std::endl flushes, and the
+    // explicit flush() after it made two syscalls per line. WriterThreadFunction flushes once
+    // per drain instead, so at most 100ms of log is unflushed if the process dies.
+    logFile_ << "[" << timeStr << "] [" << levelStr << "] [" << entry.topic << "] " << entry.message << '\n';
 }
 
-void LogService::WriteLogToStdout(const LogEntry& entry) {
-    const char* levelColor = GetLogLevelColor(entry.level);
-    const char* levelName = GetLogLevelName(entry.level);
-    const char* resetColor = "\033[0m";
+void LogService::AppendStdoutLine(const LogEntry& entry, std::string& out) const {
+    out += GetLogLevelColor(entry.level);
+    out += '[';
+    out += GetLogLevelName(entry.level);
+    out += "] [";
+    out += entry.topic;
+    out += "] ";
+    out += entry.message;
+    out += "\033[0m";
+    out += '\n';
+}
 
-    printf("%s[%s] [%s] %s%s\n", levelColor, levelName, entry.topic.c_str(), entry.message.c_str(), resetColor);
+void LogService::WriteLogToStdoutNow(const LogEntry& entry) const {
+    std::string line;
+    AppendStdoutLine(entry, line);
+    fwrite(line.data(), 1, line.size(), stdout);
 }
 
 std::string LogService::FormatTimestamp(const std::chrono::system_clock::time_point& timestamp) const {

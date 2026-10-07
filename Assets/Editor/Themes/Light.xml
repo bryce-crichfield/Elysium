@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Light editor theme. Metrics and font come from the defaults; see Dark.xml for the format. -->
+<Theme>
+  <Palette>
+    <Color name="Crust"         value="#DCE0E6"/>
+    <Color name="Base"          value="#F4F5F7"/>
+    <Color name="Mantle"        value="#E9ECF0"/>
+    <Color name="ViewportBackground" value="#C4C9D1"/>
+    <Color name="Surface0"      value="#E1E5EA"/>
+    <Color name="Surface1"      value="#D3D9E0"/>
+    <Color name="Surface2"      value="#C3CAD4"/>
+    <Color name="Border"        value="#C8CED6"/>
+    <Color name="Text"          value="#1F2329"/>
+    <Color name="TextMuted"     value="#5A6370"/>
+    <Color name="TextDisabled"  value="#9199A5"/>
+    <Color name="TextOnAccent"  value="#FFFFFF"/>
+    <Color name="Accent"        value="#2F6FB5"/>
+    <Color name="AccentHover"   value="#3F80C6"/>
+    <Color name="AccentActive"  value="#255E9C"/>
+    <Color name="Success"       value="#2E8B4A"/>
+    <Color name="Warning"       value="#B7801F"/>
+    <Color name="Error"         value="#C94545"/>
+    <Color name="Debug"         value="#3F7FA8"/>
+    <Color name="AxisX"         value="#D04545"/>
+    <Color name="AxisY"         value="#2E9B4F"/>
+  </Palette>
+</Theme>

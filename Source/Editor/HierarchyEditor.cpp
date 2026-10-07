@@ -1,0 +1,657 @@
+#include "HierarchyEditor.h"
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
+#include <unordered_map>
+#include "Core/Common.h"
+#include "Core/Path.h"
+#include "Core/World.h"
+#include "Core/Entity.h"
+#include "Core/PrefabInstance.h"
+#include "Editor/Widgets/AssetField.h"
+#include "Editor/PrefabEditing.h"
+#include "Core/Components/PrefabInstanceComponent.h"
+#include "Core/Components/TransformComponent.h"
+#include "Editor/Style/AssetStyle.h"
+#include "Editor/Widgets/Widgets.h"
+#include "Editor/EditorApplication.h"
+#include "Interfaces/IScriptService.h"
+
+namespace Elysium {
+
+using namespace Services;
+
+namespace {
+constexpr const char* kEntityDragPayload = "ENTITY_DRAG";
+
+// The entity dropped on the current drag target this frame, if any.
+Entity AcceptEntityDrop(ImGuiDragDropFlags flags = 0) {
+    const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kEntityDragPayload, flags);
+    return payload ? *(const Entity*)payload->Data : INVALID_ENTITY;
+}
+
+// Ctrl toggles a row in or out of the selection; Shift takes the range from the last clicked
+// row to this one. They used to both mean "extend", which made a range impossible to express.
+bool TogglePick() { return ImGui::GetIO().KeyCtrl; }
+bool RangePick() { return ImGui::GetIO().KeyShift; }
+
+constexpr const char* kSingleRootTip = "A prefab has a single root: create entities under it";
+}  // namespace
+
+HierarchyEditor::HierarchyEditor(EditorApplication& editor) : Editor(editor, Title) {}
+
+void HierarchyEditor::Draw() {
+    Profile;
+
+    auto& editor = editor_;
+
+    if (BeginWindow()) {
+        // Only scenes and prefabs have entities; other tabs leave this panel dark.
+        if (const EditorDocument* doc = editor.GetActiveDocumentInfo(); doc && !doc->HasWorld()) {
+            UnavailableState((std::string(StyleOf(doc->kind).label) + "s have no entities").c_str());
+        } else if (!editor.GetWorld()) {
+            EmptyState("No world loaded");
+        } else {
+            DrawToolbar(editor);
+            if (showLuaFilter_) DrawLuaFilter();
+
+            ImGui::BeginChild("Entities", ImVec2(0, 0), ImGuiChildFlags_None);
+            // A name search flattens the tree: matches can sit under collapsed parents.
+            if (showHierarchyView_ && searchBuffer_[0] == '\0')
+                DrawHierarchyTree(editor);
+            else
+                DrawEntityList(editor);
+
+            // Clicking empty space deselects; right-clicking it offers entity creation.
+            if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                editor.ClearSelection();
+                selectionAnchor_ = INVALID_ENTITY;  // nothing to range from once the slate is clean
+            }
+            if (ImGui::BeginPopupContextWindow("HierarchyContextMenu",
+                                               ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+                DrawCreateEntityMenu(editor);
+                ImGui::EndPopup();
+            }
+            // Delete / Ctrl+D act on the selection while the Hierarchy has focus.
+            if (ImGui::IsWindowFocused() && !ImGui::GetIO().WantTextInput && !editor.GetSelectedEntities().empty()) {
+                const Entity primary = editor.GetSelectedEntities().back();
+                if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+                    const std::vector<Entity> selection = editor.GetSelectedEntities();
+                    pendingAction_ = [&editor, selection] {
+                        editor.BeginTransaction("Delete Entities");
+                        for (Entity e : selection) editor.DeleteEntity(e);
+                        editor.EndTransaction();
+                    };
+                } else if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false)) {
+                    pendingAction_ = [&editor, primary] { editor.DuplicateEntity(primary); };
+                }
+            }
+            ImGui::EndChild();
+            // A prefab dropped on empty space is placed at the top level.
+            if (ImGui::BeginDragDropTarget()) {
+                if (auto path = AcceptAssetDrop(AssetKind::Prefab)) {
+                    pendingAction_ = [&editor, fullPath = Path(*path).GetFullPath()] { editor.InstantiatePrefab(fullPath); };
+                }
+                ImGui::EndDragDropTarget();
+            }
+            openRequest_.reset();
+
+            if (pendingAction_) {
+                pendingAction_();
+                pendingAction_ = nullptr;
+            }
+            DrawCreatePrefabDialog(editor);
+        }
+    }
+    EndWindow();
+}
+
+void HierarchyEditor::DrawToolbar(EditorApplication& editor) {
+    const char* viewIcon = showHierarchyView_ ? ICON_FA_LIST : ICON_FA_SITEMAP;
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    const float buttonsWidth = ButtonWidth(ICON_FA_PLUS) + ButtonWidth(viewIcon) +
+                               ButtonWidth(ICON_FA_BOXES_STACKED) + ButtonWidth(ICON_FA_FILTER) +
+                               spacing * 4.0f + ExpandCollapseWidth();
+
+    SearchField("##Search", searchBuffer_, sizeof(searchBuffer_), -buttonsWidth);
+
+    ImGui::SameLine();
+    const bool canCreateRoot = editor.CanBeRoot(INVALID_ENTITY);
+    ImGui::BeginDisabled(!canCreateRoot);
+    if (IconButton(ICON_FA_PLUS, "Create entity")) editor.CreateEntity();
+    ImGui::EndDisabled();
+    if (!canCreateRoot) ItemTooltip(kSingleRootTip);
+    ImGui::SameLine();
+    if (IconButton(viewIcon, showHierarchyView_ ? "Show as flat list" : "Show as hierarchy")) {
+        showHierarchyView_ = !showHierarchyView_;
+    }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!showHierarchyView_);
+    if (ToggleIconButton(ICON_FA_BOXES_STACKED, groupPlacements_,
+                         "Group repeated prefab placements (tiles, walls) into one row")) {
+        groupPlacements_ = !groupPlacements_;
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (luaFilterActive_) ImGui::PushStyleColor(ImGuiCol_Text, Palette().Accent);
+    if (IconButton(ICON_FA_FILTER, "Lua filter")) showLuaFilter_ = !showLuaFilter_;
+    if (luaFilterActive_) ImGui::PopStyleColor();
+
+    // Only the tree has anything to expand; a search or the list view is flat.
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!showHierarchyView_ || searchBuffer_[0] != '\0');
+    ExpandCollapseButtons(openRequest_);
+    ImGui::EndDisabled();
+}
+
+void HierarchyEditor::DrawLuaFilter() {
+    ImGui::InputTextMultiline("##LuaFilter", luaFilterBuffer_, sizeof(luaFilterBuffer_),
+                              ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 5), ImGuiInputTextFlags_AllowTabInput);
+    ItemTooltip("Expects: function(entity) -> bool");
+
+    const float half = SharedButtonWidth(2);
+    if (PrimaryButton("Apply", ImVec2(half, 0))) {
+        filteredEntities_ = services_.Get<IScriptService>().FilterEntities(luaFilterBuffer_);
+        luaFilterActive_ = true;
+    }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!luaFilterActive_);
+    if (ImGui::Button("Clear", ImVec2(half, 0))) {
+        filteredEntities_.clear();
+        luaFilterActive_ = false;
+    }
+    ImGui::EndDisabled();
+    ImGui::Separator();
+}
+
+void HierarchyEditor::DeferOpenPrefab(EditorApplication& editor, const World& world, Entity entity) {
+    // Opening switches tabs, and so the world, which must wait until drawing is done.
+    const std::string fullPath = world.GetComponent<PrefabInstanceComponent>(entity).FullPath();
+    pendingAction_ = [&editor, fullPath] { editor.OpenPrefab(fullPath); };
+}
+
+void HierarchyEditor::BeginCreatePrefab(EditorApplication& editor, Entity entity) {
+    namespace fs = std::filesystem;
+    World* world = editor.GetWorld();
+    prefabDialog_.source = entity;
+    prefabDialog_.open = true;
+
+    // Default name: the entity's name as a file name ("Knight 1" -> "Knight_1").
+    std::string name = world->GetEntityName(entity);
+    name = name.substr(name.rfind("::") == std::string::npos ? 0 : name.rfind("::") + 2);
+    for (char& ch : name) {
+        if (!std::isalnum((unsigned char)ch) && ch != '_' && ch != '-') ch = '_';
+    }
+    snprintf(prefabDialog_.name, sizeof(prefabDialog_.name), "%s", name.empty() ? "NewPrefab" : name.c_str());
+
+    // Every project folder is a candidate; default to Prefabs.
+    prefabDialog_.folders.clear();
+    std::error_code ec;
+    const fs::path root(Path::GetAssetsRoot());
+    for (auto it = fs::recursive_directory_iterator(root, ec); !ec && it != fs::recursive_directory_iterator(); it.increment(ec)) {
+        const std::string leaf = it->path().filename().string();
+        if (!leaf.empty() && leaf[0] == '.') {
+            it.disable_recursion_pending();
+            continue;
+        }
+        if (it->is_directory(ec)) prefabDialog_.folders.push_back(fs::relative(it->path(), root, ec).generic_string());
+    }
+    std::sort(prefabDialog_.folders.begin(), prefabDialog_.folders.end());
+    const bool hasPrefabs = std::find(prefabDialog_.folders.begin(), prefabDialog_.folders.end(), "Prefabs") != prefabDialog_.folders.end();
+    prefabDialog_.folder = hasPrefabs ? "Prefabs" : "";
+}
+
+void HierarchyEditor::DrawCreatePrefabDialog(EditorApplication& editor) {
+    constexpr const char* kTitle = "Pack Prefab";
+    if (prefabDialog_.open) {
+        ImGui::OpenPopup(kTitle);
+        prefabDialog_.open = false;
+    }
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(Theme().DialogWidth, 0.0f), ImGuiCond_Appearing);
+    if (!ImGui::BeginPopupModal(kTitle, nullptr, ImGuiWindowFlags_NoSavedSettings)) return;
+
+    World* world = editor.GetWorld();
+    if (!world || !world->IsAlive(prefabDialog_.source)) {
+        ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+        return;
+    }
+
+    ImGui::TextDisabled("From %s and its children", EntityLabel(world->GetEntityName(prefabDialog_.source), prefabDialog_.source).c_str());
+    ImGui::Spacing();
+
+    PropertyLabel("Name");
+    if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
+    const bool submitted = ImGui::InputText("##name", prefabDialog_.name, sizeof(prefabDialog_.name), ImGuiInputTextFlags_EnterReturnsTrue);
+    PropertyLabel("Folder");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::BeginCombo("##folder", prefabDialog_.folder.empty() ? "(project root)" : prefabDialog_.folder.c_str())) {
+        for (size_t i = 0; i <= prefabDialog_.folders.size(); ++i) {
+            const std::string folder = i == 0 ? "" : prefabDialog_.folders[i - 1];
+            const bool selected = folder == prefabDialog_.folder;
+            if (ImGui::Selectable(i == 0 ? "(project root)" : folder.c_str(), selected)) prefabDialog_.folder = folder;
+            if (selected) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    // Validate: a plain file name that doesn't clash with an existing file.
+    const std::string name = prefabDialog_.name;
+    const std::string relativePath = (prefabDialog_.folder.empty() ? "" : prefabDialog_.folder + "/") + name + ".xml";
+    const std::string fullPath = Path::GetAssetsRoot() + relativePath;
+    const char* problem = nullptr;
+    if (name.empty()) problem = "Enter a name";
+    else if (name.find_first_of("/\\:*?\"<>|") != std::string::npos) problem = "Name can't contain path characters";
+    else if (std::filesystem::exists(fullPath)) problem = "A file with that name already exists";
+
+    ImGui::Spacing();
+    if (problem) ColoredText(Palette().Error, problem);
+    else ImGui::TextDisabled("%s", relativePath.c_str());
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    AlignRight(ButtonWidth("Create") + ButtonWidth("Cancel") + spacing);
+    ImGui::BeginDisabled(problem != nullptr);
+    const bool create = PrimaryButton("Create") || (submitted && !problem);
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    const bool cancel = ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape);
+
+    if (create && !problem) {
+        const Entity source = prefabDialog_.source;
+        // Opening the prefab switches tabs, so do it after this frame's drawing.
+        pendingAction_ = [&editor, source, fullPath] { editor.CreatePrefabFromEntity(source, fullPath); };
+    }
+    if (create || cancel) {
+        prefabDialog_.source = INVALID_ENTITY;
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
+bool HierarchyEditor::PassesFilters(const EditorApplication& editor, const World& world, Entity entity) const {
+    if (luaFilterActive_ &&
+        std::find(filteredEntities_.begin(), filteredEntities_.end(), entity) == filteredEntities_.end())
+        return false;
+    // The Viewport's layer drawer scopes the Hierarchy: focusing a layer shows only it, and a
+    // hidden (or non-soloed) layer's entities drop out of the list too, so what the tree lists
+    // matches what the viewport draws. GetEntityLayer resolves to the scene's default layer for
+    // entities without a LayerComponent, so every entity is on exactly one layer here.
+    const std::string layer = editor.GetEntityLayer(entity);
+    if (!layer.empty()) {
+        const std::string& focused = editor.GetActiveLayer();
+        if (!focused.empty() && layer != focused) return false;
+        if (editor.IsLayerHidden(layer)) return false;
+    }
+    return MatchesSearch(EntityLabel(world.GetEntityName(entity), entity), searchBuffer_);
+}
+
+// An entity's name, and for a placed prefab the prefab it came from: "Unit1 [Unit]".
+static std::string HierarchyLabel(const World& world, Entity entity) {
+    std::string label = EntityLabel(world.GetEntityName(entity), entity);
+    if (PrefabInstances::IsRoot(world, entity)) {
+        label += " [" + std::filesystem::path(world.GetComponent<PrefabInstanceComponent>(entity).src).stem().string() + "]";
+    }
+    return label;
+}
+
+void HierarchyEditor::RecordRow(Entity entity) {
+    visibleRows_.push_back(entity);
+}
+
+void HierarchyEditor::HandleRowClick(EditorApplication& editor, Entity entity) {
+    // A range is resolved after drawing, so only remember the intent here. Without an anchor
+    // there is nothing to range from, and shift behaves like a plain click.
+    if (RangePick() && selectionAnchor_ != INVALID_ENTITY && selectionAnchor_ != entity) {
+        pendingRangeTo_ = entity;
+        pendingRangeAdditive_ = TogglePick();
+        return;
+    }
+
+    editor.SelectEntity(entity, TogglePick());
+    // The anchor follows the last plain or ctrl-click, so a shift-click always measures from the
+    // row you last touched -- and it stays put across repeated shift-clicks, which is what lets
+    // you resize a range by shift-clicking again instead of starting it over.
+    selectionAnchor_ = entity;
+}
+
+void HierarchyEditor::ApplyPendingRange(EditorApplication& editor) {
+    const Entity to = pendingRangeTo_;
+    pendingRangeTo_ = INVALID_ENTITY;
+    if (to == INVALID_ENTITY) return;
+
+    auto from = std::find(visibleRows_.begin(), visibleRows_.end(), selectionAnchor_);
+    auto until = std::find(visibleRows_.begin(), visibleRows_.end(), to);
+    // An anchor that has been filtered out of the list, or collapsed out of sight, can't bound a
+    // range. Select the clicked row alone and make it the new anchor rather than guessing.
+    if (from == visibleRows_.end() || until == visibleRows_.end()) {
+        editor.SelectEntity(to, pendingRangeAdditive_);
+        selectionAnchor_ = to;
+        return;
+    }
+    if (from > until) std::swap(from, until);
+
+    if (!pendingRangeAdditive_) editor.ClearSelection();
+    for (auto it = from; it <= until; ++it) {
+        if (!editor.IsSelected(*it)) editor.SelectEntity(*it, true);
+    }
+}
+
+void HierarchyEditor::DrawEntityList(EditorApplication& editor) {
+    auto* world = editor.GetWorld();
+    visibleRows_.clear();
+
+    if (!ImGui::BeginTable("Entities", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_PadOuterX)) return;
+    ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, Theme().IdColumnWidth);
+
+    for (Entity entity : world->GetLivingEntities()) {
+        if (PrefabInstances::IsInternal(*world, entity) || !PassesFilters(editor, *world, entity)) continue;
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        RecordRow(entity);
+        ImGui::PushID((int)entity);
+        // Same icon and color as the tree: a placement is a green box wherever it appears. The flat
+        // list used to draw a bare name, so searching made prefabs indistinguishable from entities.
+        const bool isPrefab = PrefabInstances::IsRoot(*world, entity);
+        const std::string label = std::string(isPrefab ? ICON_FA_BOX : ICON_FA_CUBE) + "  " + HierarchyLabel(*world, entity);
+        if (isPrefab) ImGui::PushStyleColor(ImGuiCol_Text, Palette().AssetPrefab);
+        if (ImGui::Selectable(label.c_str(), editor.IsSelected(entity), ImGuiSelectableFlags_SpanAllColumns)) {
+            HandleRowClick(editor, entity);
+        }
+        if (isPrefab) ImGui::PopStyleColor();
+        if (isPrefab) ItemTooltip(("Prefab: " + world->GetComponent<PrefabInstanceComponent>(entity).src).c_str());
+        DrawEntityContextMenu(editor, entity);
+        ImGui::PopID();
+
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextDisabled("%zu", entity);
+    }
+    ImGui::EndTable();
+    ApplyPendingRange(editor);
+}
+
+void HierarchyEditor::DrawCreateEntityMenu(EditorApplication& editor) {
+    if (ImGui::MenuItem(ICON_FA_PLUS "  Create Entity", nullptr, false, editor.CanBeRoot(INVALID_ENTITY))) {
+        editor.CreateEntity();
+    }
+    if (!editor.CanBeRoot(INVALID_ENTITY)) ItemTooltip(kSingleRootTip);
+}
+
+void HierarchyEditor::DrawEntityContextMenu(EditorApplication& editor, Entity entity) {
+    auto* world = editor.GetWorld();
+
+    if (!ImGui::BeginPopupContextItem("EntityContextMenu")) return;
+
+    ImGui::TextDisabled("%s", EntityLabel(world->GetEntityName(entity), entity).c_str());
+    ImGui::Separator();
+
+    // Deferred: the tree/list is mid-iteration over the world's entities.
+    if (PrefabInstances::IsRoot(*world, entity)) {
+        if (ImGui::MenuItem(ICON_FA_PEN_TO_SQUARE "  Open Prefab")) DeferOpenPrefab(editor, *world, entity);
+        if (ImGui::MenuItem(ICON_FA_BOX_OPEN "  Unpack Prefab")) {
+            pendingAction_ = [world, entity] { PrefabEditing::Unpack(world, entity); };
+        }
+        ItemTooltip("Turn this placement into plain entities that no longer follow the prefab");
+        ImGui::Separator();
+    } else {
+        if (ImGui::MenuItem(ICON_FA_BOX "  Pack Prefab...")) BeginCreatePrefab(editor, entity);
+        ItemTooltip("Save this entity and its children as a new prefab, placed here in their stead");
+        ImGui::Separator();
+    }
+    if (ImGui::MenuItem(ICON_FA_PLUS "  Create Child")) {
+        pendingAction_ = [&editor, entity] { editor.CreateEntity(entity); };
+    }
+    const bool isRoot = world->GetParent(entity) == INVALID_ENTITY;
+    if (ImGui::MenuItem(ICON_FA_COPY "  Duplicate", "Ctrl+D", false, !isRoot || editor.CanBeRoot(INVALID_ENTITY))) {
+        pendingAction_ = [&editor, entity] { editor.DuplicateEntity(entity); };
+    }
+    Entity parent = world->GetParent(entity);
+    if (parent != INVALID_ENTITY && editor.CanBeRoot(entity) && ImGui::MenuItem(ICON_FA_ARROW_UP "  Detach from Parent")) {
+        pendingAction_ = [&editor, entity] { editor.Reparent(entity, INVALID_ENTITY); };
+    }
+    ImGui::Separator();
+    ImGui::PushStyleColor(ImGuiCol_Text, Palette().Error);
+    if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete", "Del")) {
+        pendingAction_ = [&editor, entity] { editor.DeleteEntity(entity); };
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::EndPopup();
+}
+
+void HierarchyEditor::DrawInsertionZone(EditorApplication& editor, Entity parent, Entity beforeSibling) {
+    auto* world = editor.GetWorld();
+
+    // Two-level PushID gives each zone a unique scope without string allocation.
+    ImGui::PushID((int)parent);
+    ImGui::PushID(beforeSibling == INVALID_ENTITY ? -1 : (int)beforeSibling);
+
+    const float zoneH = Theme().DropZoneHeight;
+    ImVec2 origin = ImGui::GetCursorScreenPos();
+    float zoneW = ImGui::GetContentRegionAvail().x;
+
+    ImGui::InvisibleButton("##zone", ImVec2(zoneW > 0 ? zoneW : 1.0f, zoneH));
+
+    if (ImGui::BeginDragDropTarget()) {
+        // Visual insertion line while hovering.
+        ImGui::GetWindowDrawList()->AddLine(
+            ImVec2(origin.x, origin.y + zoneH * 0.5f),
+            ImVec2(origin.x + zoneW, origin.y + zoneH * 0.5f),
+            Palette().ToU32(Palette().Accent), Theme().DropLineWidth);
+
+        const Entity dragged = AcceptEntityDrop(ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+        // Dropping onto itself or into its own subtree would create a cycle.
+        // In a prefab only the existing root may sit at root level.
+        const bool valid = dragged != INVALID_ENTITY && dragged != parent &&
+                           (parent == INVALID_ENTITY ? editor.CanBeRoot(dragged) : !world->IsAncestorOf(dragged, parent));
+        if (valid) {
+            pendingAction_ = [&editor, parent, beforeSibling, dragged] {
+                editor.BeginTransaction("Move Entity");
+                // Root level (parent INVALID_ENTITY) detaches; otherwise it re-homes and lands
+                // at the end, and the reorder below moves it up to the drop position.
+                editor.Reparent(dragged, parent);
+                if (beforeSibling != INVALID_ENTITY) editor.ReorderBefore(dragged, beforeSibling);
+                editor.EndTransaction();
+            };
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    ImGui::PopID();
+    ImGui::PopID();
+}
+
+void HierarchyEditor::DrawHierarchyNode(EditorApplication& editor, Entity entity) {
+    auto* world = editor.GetWorld();
+    RecordRow(entity);
+
+    // Copy children now — insertion zones can mutate childrenMap_ mid-frame.
+    // A placed prefab is a black box: its own entities are hidden, only entities parented
+    // to it from outside the instance show as children.
+    std::vector<Entity> children;
+    for (Entity child : world->GetChildren(entity)) {
+        if (!PrefabInstances::IsInternal(*world, child)) children.push_back(child);
+    }
+    bool hasChildren = !children.empty();
+    const bool isPrefab = PrefabInstances::IsRoot(*world, entity);
+
+    const std::string label = HierarchyLabel(*world, entity);
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick |
+                               ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DrawLinesToNodes;
+    if (!hasChildren)
+        flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+    if (editor.IsSelected(entity))
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    ImGui::PushID((int)entity);
+    if (hasChildren) ApplyOpenRequest(openRequest_);
+    const char* icon = isPrefab ? ICON_FA_BOX : hasChildren ? ICON_FA_LAYER_GROUP : ICON_FA_CUBE;
+    if (isPrefab) ImGui::PushStyleColor(ImGuiCol_Text, Palette().AssetPrefab);
+    bool open = ImGui::TreeNodeEx("##node", flags, "%s  %s", icon, label.c_str());
+    if (isPrefab) ImGui::PopStyleColor();
+    if (isPrefab) ItemTooltip(("Prefab: " + world->GetComponent<PrefabInstanceComponent>(entity).src).c_str());
+
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+        HandleRowClick(editor, entity);
+    if (isPrefab && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        DeferOpenPrefab(editor, *world, entity);
+
+    // Drag source: let this node be dragged.
+    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+        ImGui::SetDragDropPayload(kEntityDragPayload, &entity, sizeof(Entity));
+        ImGui::Text(ICON_FA_CUBE "  %s", label.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // Drop target on the node itself: make dragged entity a child of this one.
+    if (ImGui::BeginDragDropTarget()) {
+        const Entity dragged = AcceptEntityDrop();
+        if (dragged != INVALID_ENTITY && dragged != entity && world->GetParent(dragged) != entity &&
+            !world->IsAncestorOf(dragged, entity)) {
+            pendingAction_ = [&editor, entity, dragged] { editor.Reparent(dragged, entity); };
+        }
+        // A prefab dropped on an entity is placed as its child, at its origin.
+        if (auto path = AcceptAssetDrop(AssetKind::Prefab)) {
+            pendingAction_ = [&editor, world, entity, fullPath = Path(*path).GetFullPath()] {
+                const Entity placed = editor.InstantiatePrefab(fullPath);
+                if (placed == INVALID_ENTITY || !world->IsAlive(entity)) return;
+                editor.Reparent(placed, entity);
+                if (world->HasComponent<TransformComponent>(placed)) {
+                    auto& transform = world->GetComponent<TransformComponent>(placed);
+                    transform.localX = transform.localY = 0.0f;
+                }
+            };
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    DrawEntityContextMenu(editor, entity);
+
+    // Children draw inside this node's ID scope; TreePop must match the TreeNodeEx push
+    // before the PopID, or ImGui's tree stack desyncs.
+    if (hasChildren && open) {
+        for (Entity child : children) {
+            DrawInsertionZone(editor, entity, child);
+            DrawHierarchyNode(editor, child);
+        }
+        DrawInsertionZone(editor, entity, INVALID_ENTITY);
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+}
+
+std::vector<HierarchyEditor::RootRow> HierarchyEditor::BuildRootRows(EditorApplication& editor) const {
+    auto* world = editor.GetWorld();
+
+    std::vector<RootRow> rows;
+    // Row index per (layer, prefab) so a placement joins the group its first sibling opened,
+    // while the rows themselves stay in world order.
+    std::unordered_map<std::string, size_t> rowByKey;
+
+    for (Entity entity : world->GetLivingEntities()) {
+        if (world->GetParent(entity) != INVALID_ENTITY || !PassesFilters(editor, *world, entity)) continue;
+
+        // Only placements group, and only ones with nothing parented to them from outside: a
+        // placement someone has hung children on is a thing in its own right, not one of a crowd.
+        const bool groupable = groupPlacements_ && PrefabInstances::IsRoot(*world, entity) &&
+                               world->GetChildren(entity).empty();
+        if (!groupable) {
+            rows.push_back(RootRow{{}, {}, {entity}});
+            continue;
+        }
+
+        const std::string layer = editor.GetEntityLayer(entity);
+        const std::string src = world->GetComponent<PrefabInstanceComponent>(entity).src;
+        const std::string key = layer + "|" + src;
+
+        auto [it, inserted] = rowByKey.try_emplace(key, rows.size());
+        if (inserted) {
+            rows.push_back(RootRow{std::filesystem::path(src).stem().string(), layer, {entity}});
+        } else {
+            rows[it->second].members.push_back(entity);
+        }
+    }
+    return rows;
+}
+
+void HierarchyEditor::DrawGroupNode(EditorApplication& editor, const RootRow& row) {
+    const bool anySelected = std::any_of(row.members.begin(), row.members.end(),
+                                         [&](Entity e) { return editor.IsSelected(e); });
+
+    ImGui::PushID(row.label.c_str());
+    ImGui::PushID(row.layer.c_str());
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick |
+                               ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (anySelected) flags |= ImGuiTreeNodeFlags_Selected;
+
+    ImGui::PushStyleColor(ImGuiCol_Text, Palette().AssetPrefab);
+    const bool open = ImGui::TreeNodeEx("##group", flags, ICON_FA_BOXES_STACKED "  %s  x%zu", row.label.c_str(),
+                                        row.members.size());
+    ImGui::PopStyleColor();
+    ItemTooltip((row.label + " on " + (row.layer.empty() ? "no layer" : row.layer) +
+                 " - click to select all of them, expand to reach one")
+                    .c_str());
+
+    // A collapsed group is one row standing for all its members, so a range that crosses it takes
+    // the whole block. Open, its members are rows of their own and record themselves.
+    if (!open) {
+        for (Entity member : row.members) RecordRow(member);
+    }
+
+    // Selecting the group selects every placement in it, which is what turns "retint every wall"
+    // into one Inspector edit instead of fourteen.
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+        if (RangePick() && selectionAnchor_ != INVALID_ENTITY) {
+            // Range to the far end of the block, so the whole group is included either way.
+            HandleRowClick(editor, row.members.back());
+        } else if (!TogglePick()) {
+            editor.ClearSelection();
+            for (Entity member : row.members) editor.SelectEntity(member, true);
+            selectionAnchor_ = row.members.front();
+        } else {
+            // Ctrl-click toggles the group as a unit: one that is already fully selected comes back
+            // out, which is the only way to drop it again without rebuilding the whole selection.
+            const bool all = std::all_of(row.members.begin(), row.members.end(),
+                                         [&](Entity e) { return editor.IsSelected(e); });
+            for (Entity member : row.members) {
+                if (all == editor.IsSelected(member)) editor.SelectEntity(member, true);
+            }
+            selectionAnchor_ = row.members.front();
+        }
+    }
+
+    if (open) {
+        for (Entity member : row.members) DrawHierarchyNode(editor, member);
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+    ImGui::PopID();
+}
+
+void HierarchyEditor::DrawHierarchyTree(EditorApplication& editor) {
+    // A snapshot, so insertion-zone drops don't invalidate iteration.
+    const std::vector<RootRow> rows = BuildRootRows(editor);
+    visibleRows_.clear();
+
+    for (const RootRow& row : rows) {
+        // Insertion zone before each row: drop here to reorder at root level or unparent. A
+        // group anchors on its first member, so dropping above it still lands in the right place.
+        DrawInsertionZone(editor, INVALID_ENTITY, row.members.front());
+
+        if (row.members.size() > 1) DrawGroupNode(editor, row);
+        else DrawHierarchyNode(editor, row.members.front());
+    }
+    // Zone after the last row.
+    DrawInsertionZone(editor, INVALID_ENTITY, INVALID_ENTITY);
+    ApplyPendingRange(editor);
+}
+
+}  // namespace Elysium

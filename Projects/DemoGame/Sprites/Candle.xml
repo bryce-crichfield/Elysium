@@ -1,0 +1,6 @@
+<Sprite name="Candle" originX="0.5" originY="0.5">
+    <Sequences>
+        <Sequence name="default" indicies="0:*"/>
+    </Sequences>
+    <Sheet name="sprite" path="Textures/sprite.png" rows="1" columns="1"/>
+</Sprite>
