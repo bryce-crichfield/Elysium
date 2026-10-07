@@ -272,8 +272,8 @@ class EditorApplication {
     std::vector<Entity> selectedEntities_;
     EditorCamera editorCamera_;
     bool openedEntryScene_ = false;
-    // Layers/systems for prefab documents when no scene document is open (the entry scene).
-    std::shared_ptr<Scene> fallbackHost_;
+    // Scenes on disk loaded only to lend prefab documents their layers/systems, by path.
+    std::unordered_map<std::string, std::shared_ptr<Scene>> diskHosts_;
 
     // Per-document editing state. Keyed by the document's file path so it survives tab
     // switches, and dropped with the document. None of it is persisted.
@@ -321,8 +321,11 @@ class EditorApplication {
     EditorDocument* ActiveDocument() const;
     int FindDocument(const std::string& fullPath) const;
     void AddDocument(std::unique_ptr<EditorDocument> doc);
-    // The scene prefab documents take their layers and systems from.
-    const Scene* HostScene();
+    // The scene prefab documents take their layers and systems from: the first defining every
+    // one of `layers`, trying open scenes, then the entry scene, then the rest on disk. Without
+    // a match, the first of those.
+    const Scene* HostScene(const std::unordered_set<std::string>& layers = {});
+    const Scene* DiskHost(const std::string& fullPath);
     // The active prefab document's root entity, if it has one.
     Entity PrefabRoot() const;
     bool SavePrefabDocument(EditorDocument& doc);

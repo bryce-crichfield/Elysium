@@ -338,18 +338,47 @@ void EditorApplication::AddDocument(std::unique_ptr<EditorDocument> doc) {
     SetActiveDocument((int)documents_.size() - 1);
 }
 
-const Scene* EditorApplication::HostScene() {
+const Scene* EditorApplication::HostScene(const std::unordered_set<std::string>& layers) {
+    auto hasLayers = [&](const Scene* scene) {
+        return std::all_of(layers.begin(), layers.end(), [&](const std::string& name) {
+            const auto& own = scene->GetLayers();
+            return std::any_of(own.begin(), own.end(), [&](const SceneLayer& l) { return l.name == name; });
+        });
+    };
+    const Scene* first = nullptr;
+    auto consider = [&](const Scene* scene) {
+        if (!scene) return false;
+        if (!first) first = scene;
+        return hasLayers(scene);
+    };
+
     for (const auto& doc : documents_) {
-        if (doc->IsScene()) return doc->scene.get();
+        if (doc->IsScene() && consider(doc->scene.get())) return doc->scene.get();
     }
-    // No scene open: borrow from the entry scene, loaded once just for its setup.
-    if (!fallbackHost_) {
-        auto& scenes = registry_.Get<ISceneService>();
-        if (scenes.GetEntryScene().empty()) return nullptr;
-        fallbackHost_ = std::make_shared<Scene>(registry_);
-        LoadScene(*fallbackHost_, ScenePath(scenes.GetEntryScene()));
+    const std::string& entry = registry_.Get<ISceneService>().GetEntryScene();
+    const std::string entryPath = entry.empty() ? std::string() : ScenePath(entry);
+    if (!entryPath.empty() && consider(DiskHost(entryPath))) return DiskHost(entryPath);
+
+    std::vector<std::string> paths;
+    std::error_code ec;
+    for (const auto& file : std::filesystem::directory_iterator(Path("Scenes").GetFullPath(), ec)) {
+        if (file.path().extension() == ".xml") paths.push_back(file.path().string());
     }
-    return fallbackHost_.get();
+    std::sort(paths.begin(), paths.end());
+    for (const auto& path : paths) {
+        if (std::filesystem::equivalent(path, entryPath, ec)) continue;
+        if (consider(DiskHost(path))) return DiskHost(path);
+    }
+    return first;
+}
+
+const Scene* EditorApplication::DiskHost(const std::string& fullPath) {
+    auto [it, inserted] = diskHosts_.try_emplace(fullPath);
+    if (inserted) {
+        auto scene = std::make_shared<Scene>(registry_);
+        if (LoadScene(*scene, fullPath)) it->second = std::move(scene);
+    }
+    return it->second.get();
 }
 
 void EditorApplication::OpenScene(const std::string& sceneName) { OpenSceneFile(ScenePath(sceneName)); }
@@ -453,10 +482,22 @@ void EditorApplication::OpenPrefab(const std::string& fullPath) {
     doc->parameters = prefab->GetParameters();
     doc->scene = std::make_shared<Scene>(registry_);
 
+    PrefabSpawnResult spawned = prefab->Spawn(doc->scene->GetWorld(), "", registry_);
+    for (const auto& [localId, entity] : spawned.ids) doc->localIds[entity] = localId;
+    std::unordered_set<std::string> layers;
+    doc->scene->GetWorld()->Query<LayerComponent>([&](Entity, LayerComponent& layer) { layers.insert(layer.name); });
+
     // Borrow a scene's layers and systems, so the prefab's entities find their layers and are
     // drawn in the right space. But a preview, not the scene's look: each layer is drawn plain,
     // without its lighting, fog, compositing or blending.
-    if (const Scene* host = HostScene()) {
+    if (const Scene* host = HostScene(layers)) {
+        for (const auto& name : layers) {
+            const auto& own = host->GetLayers();
+            if (std::none_of(own.begin(), own.end(), [&](const SceneLayer& l) { return l.name == name; })) {
+                LOG_WARNINGF("Editor", "No scene defines every layer of %s; '%s' is missing, so its entities won't draw right.",
+                             fullPath.c_str(), name.c_str());
+            }
+        }
         doc->scene->CopySetupFrom(*host, false);
         for (SceneLayer& layer : doc->scene->GetLayers()) {
             layer.isVisible = true;
@@ -470,9 +511,6 @@ void EditorApplication::OpenPrefab(const std::string& fullPath) {
     } else {
         LOG_WARNING("Editor", "No scene to borrow layers/systems from; the prefab won't render.");
     }
-
-    PrefabSpawnResult spawned = prefab->Spawn(doc->scene->GetWorld(), "", registry_);
-    for (const auto& [localId, entity] : spawned.ids) doc->localIds[entity] = localId;
     AddDocument(std::move(doc));
 }
 
@@ -968,9 +1006,8 @@ bool EditorApplication::SavePrefabDocument(EditorDocument& doc) {
         if (other.get() != &doc) snapshot(other->scene.get());
     }
 
-    const Scene* host = HostScene();
     const bool ok = PrefabEditing::SaveFile(doc.scene->GetWorld(), doc.fullPath, doc.localIds, doc.parameters, registry_,
-                                            host ? host : doc.scene.get());
+                                            doc.scene.get());
     LOG_INFOF("Editor", "%s prefab %s", ok ? "Saved" : "Failed to save", doc.fullPath.c_str());
     if (!ok) return false;
 
@@ -1063,9 +1100,8 @@ bool EditorApplication::SaveActiveDocumentAs(const std::string& fullPath) {
         ok = SaveScene(*doc->scene, fullPath);
     } else {
         std::unordered_map<Entity, int> localIds = doc->localIds;  // the original keeps its own
-        const Scene* host = HostScene();
         ok = PrefabEditing::SaveFile(doc->scene->GetWorld(), fullPath, localIds, doc->parameters, registry_,
-                                     host ? host : doc->scene.get());
+                                     doc->scene.get());
     }
     LOG_INFOF("Editor", "%s %s", ok ? "Saved" : "Failed to save", fullPath.c_str());
     if (ok) ReplaceActiveDocument(fullPath);
