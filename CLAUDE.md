@@ -1,42 +1,42 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Elysium is a C++20 engine for isometric 3D games: ECS core, raylib behind a mirror-type seam, Lua via sol2, XML scenes/prefabs/assets, an ImGui in-engine editor, ENet networking. One executable (`Elysium`) runs a Project (`Projects/<Name>/Project.xml`) as a game, or with `--Editor` as its editor. The active game is **`Projects/Battler`** (a turn-based tactics POC: Town ↔ Battle encounters); `DemoGame` and `HelloWorld` are older samples.
 
-## What this is
+## How we work
 
-Elysium is a C++20 game engine for isometric 3D games (ECS core, raylib-backed rendering/audio/input, Lua scripting via sol2, XML-driven scenes/assets/prefabs, an ImGui in-engine editor, and an ENet-based client/server networking layer). It builds as a single executable (`Elysium`) that runs either as a game or, with `--Editor`, as the editor for a "Project" (a `Projects/<Name>/Project.xml` + `Assets`/`Scenes`/`Scripts` tree — see `Projects/DemoGame`, `Projects/HelloWorld`).
+The user prompts, reviews and merges. These rules hold unless the user says otherwise in the moment.
+
+- **Do the task asked, then stop.** If the user says they'll do something themselves, explain how; don't do it. Ask before widening scope (new systems, refactors you noticed on the way).
+- **Report honestly.** Say what was built and verified, and what wasn't (Lua and XML changes can't be checked without running the game; say so). Don't claim something works because it compiles.
+- **Shelved work stays shelved.** Enemy intent telegraphing was tried and reverted; don't reintroduce it unprompted.
+
+### Verify before reporting done
+
+- A Stop hook (`.claude/hooks/build-check.sh`) builds incrementally whenever a turn ends with `Source/` or `CMakeLists.txt` changed since the last good build, and hands the errors back if it fails. Fix them rather than reporting done; after three failed attempts it lets the turn end, so say plainly that the build is broken. Never `--Clean` without asking; a clean rebuild is slow.
+- Don't launch the game or editor; it's interactive and the user playtests. End with a short **"To test"** list: the scene to open and what to click or watch.
+- Lua (`Projects/*/Scripts`) has no checker here. Re-read the edited functions for nil access, misspelled fields and stale callers before reporting.
+- The network tests (`pytest Tests/Network/network_tests.py`) need a running server; only run them when touching networking, and ask first.
+
+### Git
+
+- Don't commit, push or open PRs on your own. The user runs `/ship` (`.claude/commands/ship.md`) when work is ready; it branches off `main`, commits the task's files, pushes and opens a PR.
+- A guard hook (`.claude/hooks/git-guard.py`) refuses commits or pushes on `main`, force pushes, `reset --hard`, `git add -A`/`.`, amends, merges and rebases. If it blocks something, tell the user; don't work around it.
 
 ## Build / run / test
 
-Windows dev environment uses MSYS2/MinGW + Ninja via CMake, driven through `elysium.ps1` (Linux/Mac: `elysium.sh`, same flags lowercase):
+MSYS2/MinGW + Ninja via CMake, driven by `elysium.ps1` (`elysium.sh` on Linux/Mac, flags lowercase):
 
 ```powershell
-.\elysium.ps1 --Setup                  # one-time: installs MSYS2 + toolchain, inits submodules
-.\elysium.ps1 --Clean --Build          # wipe Build/ and Binary/, then rebuild
-.\elysium.ps1 --Build                  # incremental build (cmake configure + ninja build)
-.\elysium.ps1 --Build --Mode=Release --Tracy   # optimized (-O2, RelWithDebInfo) build with the profiler; default is Debug
-.\elysium.ps1 --Run --Project=Projects\DemoGame            # run the game
-.\elysium.ps1 --Run --Project=Projects\DemoGame --Editor   # run the in-engine editor
+.\elysium.ps1 --Build                                # incremental Debug build
+.\elysium.ps1 --Clean --Build                        # wipe Build/ and Binary/, rebuild
+.\elysium.ps1 --Build --Mode=Release --Tracy         # -O2 build with the profiler
+.\elysium.ps1 --Run --Project=Projects\Battler [--Editor]
 ```
 
-Operations run in the order Clean → Build → Run regardless of flag order. `--Build` always configures with `-DTRACY_ENABLE=OFF` (Tracy's worker threads currently corrupt the stack under this static-linked MinGW build — see the comment in `elysium.ps1`; don't flip it on without re-checking that) and links `-static -static-libgcc -static-libstdc++`.
-
-Build outputs: `Build/` (CMake/Ninja intermediates, incl. `compile_commands.json` for tooling), `Binary/` (the runtime dir — `Elysium.exe` plus a copied `Assets/` tree; always run from here, asset paths resolve relative to it).
-
-Source files are picked up by `file(GLOB_RECURSE Source/*.cpp)` in `CMakeLists.txt` — **new `.cpp` files under `Source/` need no CMake edit**, but you do need to re-run `--Build` (which re-configures) after adding one, since Ninja won't discover it from a stale `build.ninja`.
-
-### Tests
-
-`Tests/` holds Python-based integration tests for the networking protocol (ENet client against a running `Elysium.exe` server), run with `pytest` from repo root (`Tests/conftest.py` adds `Tools/elysium` to `sys.path` for the generated protocol bindings):
-
-```
-pytest Tests/Network/network_tests.py
-pytest Tests/Network/network_tests.py -k test_ping_round_trip
-```
-
-The server (`Elysium.exe`) must be running and listening (default port 7777 per the tests) for these to pass — they are not self-hosting.
-
-There is no C++ unit test suite; correctness is currently verified by running the engine/editor against `Projects/DemoGame` and by the network integration tests above.
+- Operations run Clean → Build → Run regardless of flag order. `--Build` forces `-DTRACY_ENABLE=OFF` (Tracy's threads corrupt the stack in this static MinGW build; don't flip it without re-checking).
+- `Build/` holds intermediates and `compile_commands.json`; `Binary/` is the runtime dir (`Elysium.exe` + copied assets) and asset paths resolve from it.
+- New `.cpp` files under `Source/` are globbed (no CMake edit), but need a `--Build` to re-configure before Ninja sees them.
+- There is no C++ unit test suite. `Tests/Network` holds pytest integration tests against a running server (port 7777).
 
 ### Network protocol codegen
 
@@ -58,55 +58,14 @@ python Tools/eidc/eidc.py Tools/eidc/Invoke.xml
 - **Never block the main thread on assets.** Assets load async through `IAssetService`; anything a scene needs goes in its preloads. A component whose asset isn't in yet no-ops instead of failing.
 - **Match the surrounding code.** Same idioms, naming and comment density as the file you're in.
 
+
 ## Architecture
 
-### Service locator + interface split
+[ARCHITECTURE.md](ARCHITECTURE.md) is the tour of the engine: services, ECS, scenes/prefabs/assets, rendering, the 3D world, the editor, scripting, networking. Read the relevant section before changing a subsystem you haven't touched this session.
 
-Almost every cross-cutting subsystem (`Services/*Service.cpp`) is registered into a single `Elysium::ServiceLocator` (`Source/Core/ServiceLocator.h`) against an abstract interface in `Source/Interfaces/I*Service.h`. Services stay out of `Core/` on purpose: they're swappable implementations Core reaches only through the interfaces. Code depends on the interface (`Services::ISceneService`, `Services::IAssetService`, etc.) via `serviceLocator.Get<IFoo>()`, never on the concrete class. `Application` (`Source/Core/Application.h/.cpp`) owns the locator and drives `Initialize()`/`Update()`/`Shutdown()` across all registered services each frame.
+Traps worth knowing even without the tour:
 
-### ECS core
-
-- `World` (`Source/Core/World.h`) owns entities/components; components are plain structs registered via `ComponentRegistry::Instance().Register<T>()` (see the `REGISTER_COMPONENT` macro at the bottom of `Source/Core/ComponentRegistry.h`), one static registration call per component `.cpp`.
-- A component only needs to satisfy the concepts it wants to opt into (`Source/Core/Component.h`, `Xml.h`, `Script.h` define them): `XmlLoadable`/`XmlSavable` (load/save to scene XML), `Scriptable`/`LuaSettable` (exposed to Lua). `ComponentRegistry::Register<T>()` uses `if constexpr` against each concept, so adding a new component is additive — implement only the static methods (`LoadXml`, `SaveXml`, `BindLua`, `SetFromLua`, `Name()`) you actually need.
-- **Typed fields** (`Core/Reflection.h`): a component lists its fields once in `static FieldList Fields()` (`Field("Label", &T::member, "xmlAttr")`, with `.Range()`/`.Speed()`/`.Asset(kind)`/`.Section()`). Without its own `Inspect`, that list *is* its inspector; prefab parameters get their type (and widget) from the field they drive. A field's key is its XML attribute, which is how parameters/overrides address it; a field with no key is runtime state, shown read-only. Prefer `Fields()` over a hand-written `Inspect`; keep `Inspect` only for dependent pickers (e.g. Sprite's sheet/sequence), where it can still call `InspectFields`. XML load/save stays hand-written per component.
-- Math and geometry live in `Source/Core/Math/`: the `MathTypes.h` mirror types, `Polygon`/`Segment`, and `World3D` (the iso projection, model bounds/triangles/ray tests).
-- `System` (`Source/Core/System.h`) is the per-frame update/draw unit (the engine's own live in `Source/Core/Systems/`), constructed with a `Context{ services, scene, world }`. Systems declare typed tunables via `DefaultParameters()`/`SystemParameters` (a `map<string, Value>`), settable from scene XML `<System type="..." key="value"/>` attributes and from the editor's Systems tab. Override `RunsWhenPaused()` for systems (like `TransformSystem`) that must keep running while the scene is paused for editor gizmo/drag interactions, without resuming gameplay simulation.
-- `SystemRegistry`/`ComponentRegistry` are both process-wide singletons populated by static initializers at startup (link-time registration) — a new component/system type doesn't need to be wired in anywhere else once it self-registers.
-
-### Scenes, XML, and assets
-
-- **Project layout is by convention**: each asset type has one folder at the project root — `Scenes/`, `Prefabs/`, `Scripts/`, `Sounds/`, `Sprites/` (flat: `Sprites/<Name>.xml`), `Textures/` (images, incl. sprite sheets under `Textures/Sprites/<Name>/`), `Shaders/` — plus `Config/` (hidden from the browser). The editor's Asset Browser (`AssetEditor`) types files by that folder and hides anything else. Asset paths everywhere (incl. a sprite's `<Sheet path>`) are project-relative.
-- Scenes are XML, loaded/saved by `SceneLoader.cpp`/`SceneSaver.cpp` through the same `ComponentRegistry` XML loader/saver table used above.
-- `Xml.h`'s `XMLBuilder` is the standard way to emit XML in `SaveXml` implementations (fluent `AddElement`/`SetAttribute`/`Parent()`).
-- Assets (`Source/Core/Asset.h`, `Source/Core/Assets/*Asset.h/.cpp`) follow a payload/loader split: `AssetBase<Derived>` + `REGISTER_ASSET_TYPE(Payload, AssetType)` maps a payload type (e.g. `Texture`) to the `IAsset` subclass that loads it, so callers ask `IAssetService` for the payload type and never name the loader. `Load()` runs off the main thread; `Finalize()` (GPU/audio-device upload) runs on the main thread afterward for asset types that need it (`NeedsFinalize()`).
-- **Prefabs** (`Source/Core/Prefab.h` documents the format): a prefab file is `<Prefab>` with optional `<Parameters>` (named handles on `entity/component/field`), `<Entities>` (`<Entity id="N">`, intra-prefab parents by numeric id), and nested `<PrefabInstance>`s for composition. Scenes/prefabs place one with `<PrefabInstance src id>` + `<Param>`/`<Override>`; spawned entities carry `PrefabInstanceComponent`, and savers diff them against the prefab's defaults instead of flattening. Overrides only work for components with both `LoadXml` and `SaveXml` (`ComponentRegistry::GetPrefabFieldSupport`). **A placement is opaque**: only its root's placement-owned components (`static constexpr bool PlacementOwned = true`: Name, Transform, Parent) and the prefab's exposed parameters are editable or saved per placement; everything else belongs to the prefab. The Hierarchy's Pack Prefab turns a subtree into a new prefab and a placement of it; Unpack Prefab (`PrefabEditing::Unpack`) turns a placement back into plain entities. A prefab has exactly one root (`<Entity id="0">`, else the first); `Prefab::Spawn` rejects entities competing with it and the editor refuses to create them. Prefabs are assets (`Prefab` payload, `PrefabAsset`), fetched with the synchronous `IAssetService::LoadAssetNow` (via `Prefab::Get`) because scene loading needs them immediately; the editor calls `Prefab::Reload` after writing one. Code is split three ways: `Core/Prefab.h` (the file: parse, parameters, `Spawn`), `Core/PrefabInstance.h` (`PrefabInstances::` load/save/override of placements, used by `SceneLoader`/`SceneSaver`), and `Editor/PrefabEditing.h` (editor-only: instantiate, save prefab documents, snapshot/respawn placements after a prefab changes).
-
-### Rendering: the raylib mirror-type seam
-
-The long-term goal is to drop raylib for pure OpenGL + GLFW; do not fight this direction when touching rendering/input/audio code. The seam is a set of plain "mirror" structs/RAII wrappers in `Source/Core/`, all in `namespace Elysium`, that every engine/component/asset header is expected to speak instead of raylib types directly:
-
-- `Graphics.h` (`Color`, `Colors::`, `BlendMode`, `Texture`, `Font`, `Model`, `Shader`), `Math/MathTypes.h` (`Vector2`/`Vector3`/`Matrix`/`Rectangle`), `Audio.h` (`Sound`, `Music`), `Framebuffer.h` (RAII GL framebuffer wrapper), `Window.h` (RAII window/graphics-context lifecycle), `Input.h` (`Key`/`MouseButton` enums numbered to match GLFW).
-- `RaylibConvert.h` (`ToRaylib()`/`FromRaylib()`) is the only bridge into raylib types and must only ever be `#include`d from a `.cpp`, never from a header.
-- **ODR hazard**: inside `namespace Elysium`, an unqualified `Color`/`Rectangle`/`Vector2`/`Texture` in a header resolves to the `Elysium::` mirror type if `Graphics.h`/`MathTypes.h` happens to be visible, or to raylib's global type otherwise — silently, per translation unit, with different struct layouts. This has caused real memory corruption (a bare `Color` field read at the wrong offset depending on include order). Always write `::Color` / `::Rectangle` for the raylib type in a header, or use `Elysium::Color` explicitly — never leave it bare.
-
-### The 3D world and lighting
-
-The world is 3D (`Core/Math/World3D.h`); there is no 2D world space. A Transform's x, y is a ground position (historically the 2:1 iso picture, so a ground y unit is half an x unit) and z is height; in GL that's `(x, z, 2y)`. A `World3D::View` is the camera: perspective (the game's `CameraComponent`, `fov` > 0, zoom dollies it) or orthographic (the editor's camera, and `fov` 0). Never assume screen = ground + offset: go through the View (`RayAt` for picking, `Project`/`WorldToFramebuffer`, `FramebufferToGround`). Ground layers draw in ground coordinates through `View::GroundProjection()`, where draw-space z is height. A `SceneLayer` is either `World3D` or `Screen2D` (UI, in game-screen pixels). A World3D layer is drawn by `RenderCompositor::Render3D`: its models (`ModelComponent`) with a depth buffer, then everything else (sprites, SDF shapes, text) as upright cards facing the camera at their root's ground position. A World3D layer with `ground="true"` instead lies flat on the ground: selection rings, shadow blobs, move markers, script draws. It goes through the flat immediate/composited path in layer order, without depth, and that's where blend modes, opacity and compositing apply. Old `space="World2D"` / `"World"` files load as World3D + ground.
-
-Light comes from `LightComponent`s, placed in 3D. A standing World3D layer is lit by its `lightAmbient` plus every light in reach, shadowed by the models (each light's cube map in a `ShadowAtlas`), with optional fog of war for what no `vision` light sees (`VisibilitySystem` also hides fogged entities). Ground and screen layers aren't lit. The editor's footer lightbulb draws every layer unlit, on the render sorter's copy only. Models standing between the camera and a `RevealComponent` entity fade to a dither; that is unrelated to lights and fog.
-
-### Editor
-
-`Source/Editor/*Editor.cpp` panels (`HierarchyEditor`, `InspectorEditor`, `AssetEditor`, `ViewportEditor`, `NetworkEditor`, `LogEditor`) each derive `Editor` (`Source/Editor/Editor.h`) and implement `Draw()` (ImGui) plus optional `Initialize()`.
-
-The **Viewport** is the editor's center: every open asset is a tab there, colored and iconed by its `AssetKind` (`Core/AssetKind.h` holds the kinds and the folder convention; `Editor/Style/AssetStyle.h` their colors/icons, which come from the `Palette`). Scenes and prefabs render their world; their toolbar's Settings swaps it for a settings screen washed in the kind's color (`SceneSettings`: layers and systems; `PrefabSettings`: parameters); every other kind is drawn by a `ContentPane` (`Editor/Panes/ContentPane.h`: `CodePane` for scripts/shaders, `TexturePane`, `SpritePane`), which also saves it. The Hierarchy and Inspector go dark for tabs without a world. `EditorApplication::OpenAsset` opens any asset by path. Anywhere the UI references an asset, use `AssetField` (`Editor/Widgets/AssetField.h`): typed by kind (color, icon), a dropdown of every file of that kind on disk, and a drop target for files dragged from the Assets panel. `EditorApplication` (`Editor/EditorApplication.h`) is the editor: it holds the session (documents, selection, undo, clipboard, layer and grid state, the editor camera) and owns `EditorUI` (ImGui, the panels, menus and dock layout). Panels, tools, settings screens, commands and inspectors are handed it (`Editor::editor_`, `ToolContext::editor`, `CommandContext::editor`) and go through it rather than reaching into `SceneService` directly. It is deliberately not a service: it isn't in the `ServiceLocator`, so engine code can't reach it.
-
-**Editor and game never share scene state.** The editor edits *documents* (`EditorDocument` in `Editor/EditorApplication.h`): each open scene or prefab is its own `Scene` loaded from disk into a closeable Viewport tab, never on the game's stack. `SceneService::SetEditorScene` renders/ticks (always paused) the active one. In editor mode the game's stack is frozen and not drawn; there is no play/pause in the editor. Switching to Play (F2) calls `ISceneService::ReloadFromDisk()`, so the game only ever runs saved files. `IsPlaying()` is simply "app is in Play mode". Saving a prefab document respawns its placements in the other open documents. Components (`Core/Components/`) know nothing about the editor. Their Inspector UI lives in `Editor/Inspectors/`: an `InspectorRegistry` maps each component's type (`ComponentRegistry::GetComponentTypes`) to an `Inspector` and its section order, filled by the table in `ComponentInspectors.cpp`. That's a hand-written `Inspect<Name>` function for some components and their typed `Fields()` for the rest. A component missing from the table gets no Inspector section. **It's an in-engine editor: the engine drives it, and only the engine's composition root knows it.** `Core/Application` owns an `EditorApplication`, next to the services rather than among them, and drives it: `Initialize` after the services, `Update`/`Draw` each frame, `OnModeChanged`, `Shutdown`. Nothing else outside `Editor/` includes `Editor/`, uses ImGui, or checks for Editor mode in systems. The editor steers its document scenes through plain setters (`Scene::SetBackgroundColor`, `RenderSystem::SetViewOverride`/`SetHiddenLayerOverride`/`SetUnlitOverride`). Editor layout: `Editor/` holds the `Editor` panels (`*Editor.h/.cpp`, base in `Editor/Editor.h`) plus `EditorApplication`, `EditorUI` and `PrefabEditing`; everything else goes in `Editor/{Commands,Inspectors,Panes,Settings,Style,Tools,Viewport,Widgets}`.
-
-### Scripting
-
-Lua via sol2 (`ScriptComponent`, `ScriptSystem`, `ScriptService`). `ComponentRegistry` auto-generates both static Lua bindings (`Scriptable::BindLua`) and dynamic string-keyed Add/Get/Set/Has/Remove accessors per component, so Lua scripts can address any registered component by name without each one hand-writing glue. `ScriptComponent::LoadXml` must call through `IAssetService::LoadAsset` (not read the file itself) — `ScriptSystem` gates script initialization on that call's return value, so bypassing it silently skips init.
-
-### Networking
-
-Client/server split over ENet (`Source/Core/Network.h/.cpp`, `Source/Services/NetworkService.cpp`). The RPC surface (procedure IDs, request/response structs, serialization) is defined once in `Tools/eidc/Invoke.xml` and codegenerated into `Source/Core/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python, used by the `Tests/Network` integration tests) — see Codegen above.
+- **ODR hazard.** In a header inside `namespace Elysium`, a bare `Color`/`Rectangle`/`Vector2`/`Texture` silently resolves to either the mirror type or raylib's, depending on include order. Write `::Color` or `Elysium::Color`. `RaylibConvert.h` is only ever included from a `.cpp`.
+- **Script loading.** `ScriptComponent::LoadXml` must go through `IAssetService::LoadAsset`; `ScriptSystem` gates init on its return value, so bypassing it silently skips the script.
+- **Editor and game never share scene state.** The editor edits its own document scenes; Play reloads saved files from disk. Nothing outside `Editor/` includes `Editor/` or checks for editor mode.
+- **Generated files.** Never hand-edit `Source/Core/Generated.h` or `generated.py`; edit `Tools/eidc/Invoke.xml` and regenerate.
