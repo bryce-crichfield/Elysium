@@ -1009,180 +1009,33 @@ namespace {
 constexpr int kMaxLights3D = 16;
 constexpr int kShadowUnit3D = 14;  // well past raylib's batch units
 
-const char* kLight3DSource = R"(
-uniform vec3 uAmbient;
-uniform int uLightCount;
-uniform vec3 uLightPos[16];
-uniform vec3 uLightColor[16];
-uniform float uLightRadius[16];
-uniform float uLightVision[16];
-uniform int uShadowCount;       // lights with a row in uShadowAtlas (0: no shadows)
-uniform sampler2D uShadowAtlas;
-uniform float uShadowRows;
-uniform float uShadowTile;
-uniform float uShadowBias;
-uniform vec3 uSunDir;           // toward the sun (GL, unit)
-uniform vec3 uSunColor;         // zero: no sun
-uniform float uRim;
-uniform vec3 uTowardCamera;     // orthographic: the same everywhere
-uniform vec3 uEye;              // perspective: the camera
-uniform float uPerspective;
-uniform float uFog;             // 0 off .. 1 the unseen is hidden
-uniform vec3 uFogColor;
-
-// Must match ShadowAtlas.cpp's face table.
-float ShadowDistance(int light, vec3 v, vec2 offset)
-{
-    vec3 a = abs(v);
-    int face;
-    vec3 forward, up;
-    if (a.x >= a.y && a.x >= a.z) {
-        face = v.x > 0.0 ? 0 : 1; forward = vec3(sign(v.x), 0.0, 0.0); up = vec3(0.0, 1.0, 0.0);
-    } else if (a.y >= a.z) {
-        face = v.y > 0.0 ? 2 : 3; forward = vec3(0.0, sign(v.y), 0.0); up = vec3(0.0, 0.0, 1.0);
-    } else {
-        face = v.z > 0.0 ? 4 : 5; forward = vec3(0.0, 0.0, sign(v.z)); up = vec3(0.0, 1.0, 0.0);
-    }
-    vec3 right = cross(forward, up);
-    vec2 uv = vec2(dot(v, right), dot(v, up)) / dot(v, forward) * 0.5 + 0.5;
-    float inset = 1.0 / uShadowTile;
-    uv = clamp(uv + offset / uShadowTile, vec2(inset), vec2(1.0 - inset));
-    vec2 st = vec2((float(face) + uv.x) / 6.0, (float(light) + uv.y) / uShadowRows);
-    return textureLod(uShadowAtlas, st, 0.0).r;
+// Reads Assets/Shaders/World3D/<name>. Small, engine-owned and read once on first use, like
+// the compile that follows it.
+std::string World3DShaderText(const char* name) {
+    const std::string path = Path(std::string("Shaders/World3D/") + name, PathRoot::Engine).GetFullPath();
+    char* text = ::LoadFileText(path.c_str());
+    if (!text) return {};
+    std::string result(text);
+    ::UnloadFileText(text);
+    return result;
 }
 
-// 0 in shadow .. 1 lit, softened over a few texels.
-float Shadow(int light, vec3 fromLight, float radius)
-{
-    if (light >= uShadowCount) return 1.0;
-    float d = length(fromLight) / radius - 0.004;
-    float lit = 0.0;
-    for (int y = -1; y <= 1; y++)
-        for (int x = -1; x <= 1; x++)
-            lit += d < ShadowDistance(light, fromLight, vec2(x, y) * 1.25) ? 1.0 : 0.0;
-    return lit / 9.0;
+// Light.glsl declares Light3D/Fogged for the fragment shaders that follow it.
+std::string LitFragment(const char* name) {
+    return "#version 330\n" + World3DShaderText("Light.glsl") + World3DShaderText(name);
 }
-
-// The light reaching p (GL) and, in seen, how clearly any vision light sees it. n is the
-// surface's normal, or zero for a card, which takes light from any side.
-vec3 Light3D(vec3 p, vec3 n, out float seen)
-{
-    bool card = dot(n, n) < 0.5;
-    vec3 lifted = p + n * uShadowBias;
-    vec3 total = uAmbient * (card ? 1.0 : 0.75 + 0.25 * n.y);
-    total += uSunColor * (card ? 0.6 : max(dot(n, uSunDir), 0.0));
-    seen = 0.0;
-    for (int i = 0; i < 16; i++) {
-        if (i >= uLightCount) break;
-        vec3 toLight = uLightPos[i] - p;
-        float d = length(toLight);
-        float radius = max(uLightRadius[i], 1.0);
-        if (d >= radius) continue;
-        float facing = card ? 0.6 : max(dot(n, toLight / max(d, 0.001)), 0.0);
-        bool eyes = uLightVision[i] > 0.5 && (card || dot(n, toLight) > 0.0);
-        if (facing <= 0.0 && !eyes) continue;
-        float shadow = Shadow(i, lifted - uLightPos[i], radius);
-        if (eyes) seen = max(seen, shadow * (1.0 - smoothstep(0.8, 1.0, d / radius)));
-        float falloff = 1.0 - d / radius;
-        total += uLightColor[i] * falloff * falloff * facing * shadow;
-    }
-    return total;
-}
-
-vec3 Fogged(vec3 color, float seen) { return mix(color, uFogColor, uFog * (1.0 - seen)); }
-)";
-const char* kModelVertexSource = R"(#version 330
-in vec3 vertexPosition;
-in vec2 vertexTexCoord;
-in vec3 vertexNormal;
-in vec4 vertexColor;
-uniform mat4 mvp;
-uniform mat4 matNormal;
-uniform mat4 matModel;
-out vec2 fragTexCoord;
-out vec3 fragNormal;
-out vec3 fragWorld;
-void main()
-{
-    fragTexCoord = vertexTexCoord;
-    fragWorld = vec3(matModel * vec4(vertexPosition, 1.0));
-    fragNormal = normalize(vec3(matNormal * vec4(vertexNormal, 0.0)));
-    gl_Position = mvp * vec4(vertexPosition, 1.0);
-}
-)";
-
-const char* kModelFragmentHead = R"(#version 330
-in vec2 fragTexCoord;
-in vec3 fragNormal;
-in vec3 fragWorld;
-uniform sampler2D texture0;
-uniform vec4 colDiffuse;
-uniform float uAlpha;
-uniform vec3 uEmissive;
-out vec4 finalColor;
-)";
-
-const char* kModelFragmentMain = R"(
-void main()
-{
-    vec4 albedo = texture(texture0, fragTexCoord) * colDiffuse;
-    if (albedo.a < 0.5) discard;
-    // Faded (uAlpha < 1): screen-door dither, so no sorting against what's behind.
-    const float bayer[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
-    ivec2 cell = ivec2(gl_FragCoord.xy) % 4;
-    if (uAlpha < (bayer[cell.y * 4 + cell.x] + 0.5) / 16.0) discard;
-    vec3 n = normalize(fragNormal);
-    float seen;
-    vec3 light = Light3D(fragWorld, n, seen);
-    // Rim: brightest where the surface turns edge-on to the camera.
-    vec3 view = uPerspective > 0.5 ? normalize(uEye - fragWorld) : normalize(uTowardCamera);
-    float rim = pow(1.0 - max(dot(n, view), 0.0), 3.0);
-    light += uRim * rim * (uAmbient + uSunColor + vec3(0.25));
-    finalColor = vec4(Fogged(albedo.rgb * light, seen) + uEmissive, albedo.a);
-}
-)";
 
 ::Shader& ModelShader() {
-    static const std::string fragment = std::string(kModelFragmentHead) + kLight3DSource + kModelFragmentMain;
-    static ::Shader shader = LoadShaderFromMemory(kModelVertexSource, fragment.c_str());
+    static ::Shader shader = LoadShaderFromMemory(World3DShaderText("Model.vs").c_str(), LitFragment("Model.fs").c_str());
     return shader;
 }
 
 // ModelShader for skinned meshes: each vertex moved by up to four bones' skin matrices
 // (raylib uploads Mesh::boneMatrices to boneMatrices and binds the bone attributes).
 constexpr int kMaxSkinBones = 128;
-const char* kSkinnedVertexSource = R"(#version 330
-in vec3 vertexPosition;
-in vec2 vertexTexCoord;
-in vec3 vertexNormal;
-in vec4 vertexColor;
-in vec4 vertexBoneIds;
-in vec4 vertexBoneWeights;
-uniform mat4 mvp;
-uniform mat4 matNormal;
-uniform mat4 matModel;
-uniform mat4 boneMatrices[128];
-out vec2 fragTexCoord;
-out vec3 fragNormal;
-out vec3 fragWorld;
-void main()
-{
-    mat4 skin = boneMatrices[int(vertexBoneIds.x)] * vertexBoneWeights.x
-              + boneMatrices[int(vertexBoneIds.y)] * vertexBoneWeights.y
-              + boneMatrices[int(vertexBoneIds.z)] * vertexBoneWeights.z
-              + boneMatrices[int(vertexBoneIds.w)] * vertexBoneWeights.w;
-    vec4 position = skin * vec4(vertexPosition, 1.0);
-    vec3 normal = mat3(skin) * vertexNormal;
-    fragTexCoord = vertexTexCoord;
-    fragWorld = vec3(matModel * position);
-    fragNormal = normalize(vec3(matNormal * vec4(normal, 0.0)));
-    gl_Position = mvp * position;
-}
-)";
 
 ::Shader& SkinnedModelShader() {
-    static const std::string fragment = std::string(kModelFragmentHead) + kLight3DSource + kModelFragmentMain;
-    static ::Shader shader = LoadShaderFromMemory(kSkinnedVertexSource, fragment.c_str());
+    static ::Shader shader = LoadShaderFromMemory(World3DShaderText("Skinned.vs").c_str(), LitFragment("Model.fs").c_str());
     return shader;
 }
 
@@ -1196,28 +1049,8 @@ const std::vector<Matrix>* SkinOf(const World& world, Entity entity, const Model
 }
 
 // The batch's default shader, lit at one point (uCardPos, GL) for the whole card.
-const char* kCardFragmentHead = R"(#version 330
-in vec2 fragTexCoord;
-in vec4 fragColor;
-uniform sampler2D texture0;
-uniform vec4 colDiffuse;
-uniform vec3 uCardPos;
-out vec4 finalColor;
-)";
-
-const char* kCardFragmentMain = R"(
-void main()
-{
-    vec4 c = texture(texture0, fragTexCoord) * colDiffuse * fragColor;
-    float seen;
-    vec3 light = Light3D(uCardPos, vec3(0.0), seen);
-    finalColor = vec4(Fogged(c.rgb * light, seen), c.a);
-}
-)";
-
 ::Shader& CardShader() {
-    static const std::string fragment = std::string(kCardFragmentHead) + kLight3DSource + kCardFragmentMain;
-    static ::Shader shader = LoadShaderFromMemory(nullptr, fragment.c_str());
+    static ::Shader shader = LoadShaderFromMemory(nullptr, LitFragment("Card.fs").c_str());
     return shader;
 }
 
