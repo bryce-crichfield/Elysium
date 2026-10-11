@@ -94,10 +94,11 @@ void Scene::OnUpdate(float deltaTime, bool isPlaying) {
         auto& scriptService = services_.Get<Services::IScriptService>();
         scriptService.SetActiveWorld(world_.get());
         if (!isSceneScriptInitialized_) {
-            if (scriptService.InitializeScene(Path(sceneScriptPath_))) {
-                isSceneScriptInitialized_ = true;
-            }
-        } else {
+            isSceneScriptInitialized_ = scriptService.InitializeScene(Path(sceneScriptPath_));
+        }
+        // Also on the frame it initializes: that frame is drawn, so it should show what
+        // Update sets up (the camera, anchored UI) rather than the scene as loaded.
+        if (isSceneScriptInitialized_) {
             scriptService.UpdateScene(Path(sceneScriptPath_), deltaTime);
             scriptService.RenderScene(Path(sceneScriptPath_));
         }

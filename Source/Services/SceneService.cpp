@@ -188,11 +188,11 @@ bool SceneService::StartLoading(const SceneOperation& op) {
 
     // The script names its own preloads (Preload()), so it loads first: now if it isn't in.
     auto& assets = registry_.Get<IAssetService>();
+    std::erase_if(job.files, [&](const std::string& file) { return assets.IsAssetLoaded(Path(file)); });
     if (!job.script.empty()) {
         if (assets.IsAssetLoaded(Path(job.script))) AddScriptPreloads(job);
         else job.scriptLoad = assets.LoadAsset<Script>(Path(job.script));
     }
-    std::erase_if(job.files, [&](const std::string& file) { return assets.IsAssetLoaded(Path(file)); });
     if (job.files.empty() && !job.scriptLoad) return false;  // all in already
 
     // The preloads start once the loading scene is up and its own assets are in (UpdateLoading),
@@ -208,6 +208,8 @@ void SceneService::AddScriptPreloads(LoadingJob& job) {
     for (const auto& entry : registry_.Get<IScriptService>().GetScenePreloads(Path(job.script))) {
         ExpandPreload(entry, job.files);
     }
+    auto& assets = registry_.Get<IAssetService>();
+    std::erase_if(job.files, [&](const std::string& file) { return assets.IsAssetLoaded(Path(file)); });
 }
 
 Scene* SceneService::LoadLoadingScene() {
@@ -241,7 +243,7 @@ bool SceneService::UpdateLoading() {
     auto& assets = registry_.Get<IAssetService>();
     if (!loading_->started) {
         loading_->waited += cachedDeltaTime_;
-        if (assets.IsLoading() && loading_->waited < kMaxWait) return false;
+        if (!loading_->files.empty() && assets.IsLoading() && loading_->waited < kMaxWait) return false;
         for (const auto& file : loading_->files) {
             if (auto future = Preload(assets, file)) loading_->loads.emplace_back(file, std::move(*future));
         }
@@ -451,8 +453,11 @@ void SceneService::Render() {
 
     // Render all scenes to framebuffer (bottom-to-top)
     ::BeginTextureMode(ToRaylib(framebuffer_));
+    // The loading scene is for preloads. Waiting on just the next scene's script keeps the
+    // current scene up; showing it for that would flash it for a frame or two.
+    const bool showLoading = loading_ && (sceneStack_.empty() || (!loading_->scriptLoad && !loading_->files.empty()));
+    Scene* loadingScene = showLoading ? loading_->scene : nullptr;
     // The bottom scene drawn decides what's behind everything.
-    Scene* loadingScene = loading_ ? loading_->scene : nullptr;
     Scene* base = app.GetMode() == AppMode::Editor ? editorScene_
                 : loadingScene                       ? loadingScene
                 : (sceneStack_.empty() ? nullptr : sceneStack_.front());
@@ -461,7 +466,7 @@ void SceneService::Render() {
 
     if (app.GetMode() == AppMode::Editor) {
         if (editorScene_) editorScene_->OnDraw(screenRect);
-    } else if (loading_) {
+    } else if (showLoading) {
         if (loadingScene) loadingScene->OnDraw(screenRect);
     } else {
         // A scene still waiting on its script would show as its XML left it (UI the script
