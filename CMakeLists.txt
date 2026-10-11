@@ -219,3 +219,10 @@ if(WIN32)
         OUTPUT_NAME "Elysium"
     )
 endif()
+
+if(UNIX AND NOT APPLE AND CMAKE_EXE_LINKER_FLAGS MATCHES "(^| )-static( |$)")
+    string(REGEX REPLACE "(^| )-static( |$)" " " _fixed_flags "${CMAKE_EXE_LINKER_FLAGS}")
+    string(STRIP "${_fixed_flags}" _fixed_flags)
+    set(CMAKE_EXE_LINKER_FLAGS "${_fixed_flags}" CACHE STRING "Linker flags for executables" FORCE)
+    message(WARNING "Removed -static from CMAKE_EXE_LINKER_FLAGS (unsupported with OpenGL/ALSA/JACK on Linux)")
+endif()
