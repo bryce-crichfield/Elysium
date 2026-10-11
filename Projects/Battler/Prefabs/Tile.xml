@@ -3,7 +3,7 @@
     <Entities>
         <Entity id="0">
             <LayerComponent name="entity"/>
-            <ModelComponent model="Models/Floor.glb" scale="32" yaw="45" walkable="true" tint="#8A8FB0FF"/>
+            <ModelComponent model="Models/Floor.glb" scale="30.17" yaw="45" walkable="true" tint="#8A8FB0FF"/>
             <NameComponent name="Tile"/>
             <TransformComponent x="0" y="0" z="-7.5999999"/>
         </Entity>
