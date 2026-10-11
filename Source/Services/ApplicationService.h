@@ -23,6 +23,7 @@ class ApplicationService : public IApplicationService {
     float GetTime() const override;
     bool ShouldClose() const override;
     void RequestClose() override;
+    void RequestOpenProject(const std::string& projectXmlPath) override;
     int GetWindowWidth() const override;
     int GetWindowHeight() const override;
 

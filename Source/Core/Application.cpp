@@ -144,11 +144,11 @@ bool Application::Initialize(const std::string& configPath) {
     return true;
 }
 
-void Application::Run() {
+std::optional<std::string> Application::Run() {
     Profile;
     if (!initialized_) {
         LOG_ERROR("Application", "Application not initialized!");
-        return;
+        return std::nullopt;
     }
 
     while (!window_.ShouldClose() && !shouldClose_) {
@@ -166,6 +166,7 @@ void Application::Run() {
         Draw();
     }
     Shutdown();
+    return nextProject_;
 }
 
 void Application::Shutdown() {
@@ -178,10 +179,17 @@ void Application::Shutdown() {
         service->Shutdown();
     }
 
+    // The editor's document scenes hold GPU resources, so they go before the window does.
     if (editor_) editor_->Shutdown();
+    editor_.reset();
     window_ = Window();
 
     initialized_ = false;
+}
+
+void Application::RequestOpenProject(const std::string& projectXmlPath) {
+    nextProject_ = projectXmlPath;
+    shouldClose_ = true;
 }
 
 bool Application::ShouldClose() const {

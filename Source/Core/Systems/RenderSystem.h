@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <optional>
 
 #include "Core/System.h"
@@ -143,6 +144,9 @@ public:
 // an offscreen buffer (blend modes, opacity, ambient).
 class RenderCompositor {
 public:
+    RenderCompositor();
+    ~RenderCompositor();
+
     // A LightComponent, already placed in the 3D world (see WorldTo3D in RenderSystem.cpp)
     // and flickered for this frame. color is premultiplied by intensity.
     struct PointLight {
@@ -216,6 +220,10 @@ private:
     const Framebuffer& EnsureCompositeBuffer(int width, int height);
     const Framebuffer& EnsureEntityBuffer(Entity entity, int width, int height);
 
+    // Render3D's lit shaders, compiled on first use and released with the compositor.
+    struct LitShaders;
+    LitShaders& GetLitShaders();
+
     Framebuffer compositeBuffer_;
     // World3D models draw multisampled, then resolve into msaaResolve_ (color, composited over
     // the scene) and the scene framebuffer's depth (which the cards test against).
@@ -245,6 +253,7 @@ private:
         Vector3 min, max;  // the triangles' bounds
     };
     std::unordered_map<Entity, ModelTriangles> modelTriangles_;
+    std::unique_ptr<LitShaders> litShaders_;
     uint64_t castersVersion_ = 0;  // bumped whenever a caster's triangles change, or one comes or goes
 };
 

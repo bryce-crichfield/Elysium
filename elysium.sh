@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the root path
-ELYSIUM_ROOT="$(dirname "${BASH_SOURCE[0]}")"
+ELYSIUM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 Elysium_Setup() {
     echo "Setting up Elysium environment..."

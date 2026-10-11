@@ -52,6 +52,9 @@ struct NetScriptEvent {
 };
 static std::deque<NetScriptEvent> s_netInbox;
 
+// Active world set by ScriptSystem before executing scripts
+static Elysium::World* s_activeWorld = nullptr;
+
 ScriptService::ScriptService(ServiceLocator& registry) {
     s_services = &registry;
 }
@@ -138,6 +141,9 @@ void ScriptService::BindNetwork() {
 
 void ScriptService::Shutdown() {
     s_services->Get<IMessageService>().UnsubscribeAll(this);
+    // Statics outlive the service; the app can be restarted on another project in-process.
+    s_netInbox.clear();
+    s_activeWorld = nullptr;
     LOG_INFO("ScriptService", "Lua VM Shutdown");
 }
 
@@ -209,9 +215,6 @@ void ScriptService::InitLuaContext() {
     lua["package"]["path"] = projectAssetsPath + "?.lua;" + projectAssetsPath + "?/init.lua;" +
                               engineAssetsPath + "?.lua;" + engineAssetsPath + "?/init.lua";
 }
-
-// Active world set by ScriptSystem before executing scripts
-static Elysium::World* s_activeWorld = nullptr;
 
 void ScriptService::SetActiveWorld(World* w) {
     s_activeWorld = w;

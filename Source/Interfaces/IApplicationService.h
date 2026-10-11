@@ -19,6 +19,8 @@ class IApplicationService : public IService {
     virtual bool ShouldClose() const = 0;
     // Ends the main loop after this frame: the app shuts down and exits.
     virtual void RequestClose() = 0;
+    // Ends the main loop after this frame, then restarts the app on another project.
+    virtual void RequestOpenProject(const std::string& projectXmlPath) = 0;
     virtual int GetWindowWidth() const = 0;
     virtual int GetWindowHeight() const = 0;
 };

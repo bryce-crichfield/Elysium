@@ -28,6 +28,10 @@ bool ApplicationService::ShouldClose() const {
 
 void ApplicationService::RequestClose() { app_.RequestClose(); }
 
+void ApplicationService::RequestOpenProject(const std::string& projectXmlPath) {
+    app_.RequestOpenProject(projectXmlPath);
+}
+
 int ApplicationService::GetWindowWidth() const {
     return app_.GetWindowWidth();
 }

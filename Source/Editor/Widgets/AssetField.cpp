@@ -19,6 +19,7 @@ constexpr double kRescanSeconds = 2.0;
 struct KindScan {
     std::vector<std::string> paths;
     double time = -1e9;
+    std::string root;  // the assets root scanned; switching projects invalidates it
 };
 
 const AssetKindFolder* FolderOf(AssetKind kind) {
@@ -55,8 +56,9 @@ const std::vector<std::string>& DiscoverAssets(AssetKind kind) {
     static std::map<AssetKind, KindScan> scans;
     KindScan& scan = scans[kind];
     const double now = ImGui::GetTime();
-    if (now - scan.time < kRescanSeconds) return scan.paths;
+    if (scan.root == Path::GetAssetsRoot() && now - scan.time < kRescanSeconds && now >= scan.time) return scan.paths;
     scan.time = now;
+    scan.root = Path::GetAssetsRoot();
     scan.paths.clear();
 
     namespace fs = std::filesystem;

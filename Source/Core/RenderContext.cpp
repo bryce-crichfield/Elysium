@@ -142,9 +142,12 @@ void RenderContext::DrawText(const char* text, float x, float y, int fontSize, C
 // path with a folder ("Fonts/EnchantedLand-Regular.ttf") is a project font asset; a bare name
 // is an engine font in Assets/Fonts. One that fails to load is remembered as missing and falls
 // back to the default font.
+// Process-wide because MeasureText is static (scripts lay out text with no context); emptied by
+// ReleaseFonts before the window that owns their textures closes.
+static std::unordered_map<std::string, ::Font> fonts;
+
 static const ::Font* FindFont(const std::string& name) {
     if (name.empty()) return nullptr;
-    static std::unordered_map<std::string, ::Font> fonts;
     auto it = fonts.find(name);
     if (it == fonts.end()) {
         ::Font font{};
@@ -166,6 +169,13 @@ static const ::Font* FindFont(const std::string& name) {
         it = fonts.emplace(name, font).first;
     }
     return it->second.texture.id != 0 ? &it->second : nullptr;
+}
+
+void RenderContext::ReleaseFonts() {
+    for (auto& [name, font] : fonts) {
+        if (font.texture.id != 0) ::UnloadFont(font);
+    }
+    fonts.clear();
 }
 
 static float FontSpacing(int fontSize) { return fontSize / 10.0f; }

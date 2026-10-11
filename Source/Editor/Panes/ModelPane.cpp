@@ -52,11 +52,6 @@ void main()
 }
 )";
 
-::Shader& PreviewShader() {
-    static ::Shader shader = LoadShaderFromMemory(kPreviewVertex, kPreviewFragment);
-    return shader;
-}
-
 // A model preview: the model, shaded, on a slow turntable, framed to its bounds. Drag to turn
 // it by hand. Nothing to edit, so nothing to save.
 class ModelPane : public ContentPane {
@@ -68,6 +63,7 @@ class ModelPane : public ContentPane {
 
     ~ModelPane() override {
         if (target_.id != 0) UnloadRenderTexture(target_);
+        if (shader_.id != 0) UnloadShader(shader_);
     }
 
     void DrawToolbar() override {
@@ -128,7 +124,8 @@ class ModelPane : public ContentPane {
         rlDisableBackfaceCulling();  // imported models aren't always consistently wound (as Render3D)
         {
             // The key light turns with the camera, from over its left shoulder.
-            ::Shader& shader = PreviewShader();
+            if (shader_.id == 0) shader_ = LoadShaderFromMemory(kPreviewVertex, kPreviewFragment);
+            ::Shader& shader = shader_;
             const ::Vector3 toCamera = Vector3Normalize(Vector3Subtract(camera.position, center));
             const ::Vector3 right = Vector3Normalize(Vector3CrossProduct(camera.up, toCamera));
             const ::Vector3 key = Vector3Normalize(Vector3Add(Vector3Add(toCamera, Vector3Scale(right, -0.6f)), {0.0f, 0.8f, 0.0f}));
@@ -164,6 +161,7 @@ class ModelPane : public ContentPane {
     std::string fullPath_;
     Path path_;
     ::RenderTexture2D target_{};
+    ::Shader shader_{};
     float angle_ = 0.6f;
     bool spin_ = true;
 };

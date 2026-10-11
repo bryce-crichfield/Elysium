@@ -74,7 +74,9 @@ void EditorUI::DrawMenuBar(AppMode mode) {
         if (ImGui::MenuItem(ICON_FA_FILE_CIRCLE_PLUS "  New...", "Ctrl+N", false, viewport)) viewport->BeginNew();
         ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_FLOPPY_DISK "  Save", "Ctrl+S", false, viewport && hasDocument)) viewport->SaveActive();
-        if (ImGui::MenuItem("       Save As...", "Ctrl+Shift+S", false, viewport && hasDocument)) viewport->BeginSaveAs();
+        if (ImGui::MenuItem(ICON_FA_FLOPPY_DISK "  Save As...", "Ctrl+Shift+S", false, viewport && hasDocument)) viewport->BeginSaveAs();
+        ImGui::Separator();
+        if (ImGui::MenuItem(ICON_FA_FOLDER_OPEN "  Open Project...")) projectDialog_.Open();
         ImGui::EndMenu();
     }
 
@@ -193,6 +195,10 @@ void EditorUI::Draw(AppMode mode) {
     if (mode == AppMode::Editor) {
         DrawMenuBar(mode);
         BuildDockLayout();
+        // Unsaved edits are dropped, like quitting: the new project starts from what's on disk.
+        if (std::optional<std::string> project = projectDialog_.Draw()) {
+            editor_.GetServices().Get<Services::IApplicationService>().RequestOpenProject(*project);
+        }
     }
 
     for (auto& editor : editors_) {

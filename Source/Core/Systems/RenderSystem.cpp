@@ -1003,7 +1003,7 @@ void RenderCompositor::RenderLayer(RenderContext& ctx, const CameraView& view,
 namespace {
 
 // Models are lit per pixel by the layer's ambient and the point lights (LightComponent); cards
-// by the same lights at one point above their anchor (CardShader). Both test each light's cube
+// by the same lights at one point above their anchor (LitShaders::card). Both test each light's cube
 // shadow map of the models (shadowAtlas3D_, laid out as ShadowAtlas documents) and fog what
 // no vision light sees.
 constexpr int kMaxLights3D = 16;
@@ -1025,19 +1025,9 @@ std::string LitFragment(const char* name) {
     return "#version 330\n" + World3DShaderText("Light.glsl") + World3DShaderText(name);
 }
 
-::Shader& ModelShader() {
-    static ::Shader shader = LoadShaderFromMemory(World3DShaderText("Model.vs").c_str(), LitFragment("Model.fs").c_str());
-    return shader;
-}
-
-// ModelShader for skinned meshes: each vertex moved by up to four bones' skin matrices
+// Bones a skinned mesh can have: LitShaders::skinned moves each vertex by up to four of them
 // (raylib uploads Mesh::boneMatrices to boneMatrices and binds the bone attributes).
 constexpr int kMaxSkinBones = 128;
-
-::Shader& SkinnedModelShader() {
-    static ::Shader shader = LoadShaderFromMemory(World3DShaderText("Skinned.vs").c_str(), LitFragment("Model.fs").c_str());
-    return shader;
-}
 
 // The entity's pose for `model`, if it's skinned and an AnimationComponent has posed it.
 const std::vector<Matrix>* SkinOf(const World& world, Entity entity, const Model& model) {
@@ -1046,12 +1036,6 @@ const std::vector<Matrix>* SkinOf(const World& world, Entity entity, const Model
     const size_t bones = model.skeleton->bones.size();
     if (animation.skin.size() != bones || bones > (size_t)kMaxSkinBones) return nullptr;
     return &animation.skin;
-}
-
-// The batch's default shader, lit at one point (uCardPos, GL) for the whole card.
-::Shader& CardShader() {
-    static ::Shader shader = LoadShaderFromMemory(nullptr, LitFragment("Card.fs").c_str());
-    return shader;
 }
 
 // The model's meshes as GL-space triangles, three vertices each; posed by `skin` (one
@@ -1119,11 +1103,33 @@ Entity CardAnchor(const World& world, Entity entity) {
 
 }  // namespace
 
+struct RenderCompositor::LitShaders {
+    ::Shader model = LoadShaderFromMemory(World3DShaderText("Model.vs").c_str(), LitFragment("Model.fs").c_str());
+    ::Shader skinned = LoadShaderFromMemory(World3DShaderText("Skinned.vs").c_str(), LitFragment("Model.fs").c_str());
+    // The batch's default shader, lit at one point (uCardPos, GL) for the whole card.
+    ::Shader card = LoadShaderFromMemory(nullptr, LitFragment("Card.fs").c_str());
+
+    ~LitShaders() {
+        UnloadShader(model);
+        UnloadShader(skinned);
+        UnloadShader(card);
+    }
+};
+
+RenderCompositor::RenderCompositor() = default;
+RenderCompositor::~RenderCompositor() = default;
+
+RenderCompositor::LitShaders& RenderCompositor::GetLitShaders() {
+    if (!litShaders_) litShaders_ = std::make_unique<LitShaders>();
+    return *litShaders_;
+}
+
 void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
                                 const SceneLayer& layer, std::span<const RenderRecord> records) {
     ProfileN("Render 3D Layer");
     const World& world = ctx.GetWorld();
     auto& assets = ctx.GetServices().Get<Services::IAssetService>();
+    LitShaders& shaders = GetLitShaders();
 
     using World3D::kGroundDepth;
     const World3D::View view3D = RenderProjector::View3D(view);
@@ -1261,7 +1267,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
         const float perspective = view3D.perspective ? 1.0f : 0.0f;
         const ::Vector3 fogColor{layer.fogColor.r / 255.0f, layer.fogColor.g / 255.0f, layer.fogColor.b / 255.0f};
         const int unit = kShadowUnit3D;
-        for (::Shader* shader : {&ModelShader(), &SkinnedModelShader(), &CardShader()}) {
+        for (::Shader* shader : {&shaders.model, &shaders.skinned, &shaders.card}) {
             auto set = [&](const char* name, const void* value, int type) {
                 SetShaderValue(*shader, GetShaderLocation(*shader, name), value, type);
             };
@@ -1309,10 +1315,10 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
     const double fadeNow = ::GetTime();
     const float fadeStep = (float)std::clamp(fadeNow - modelFadeTime_, 0.0, 0.25) / kFadeSeconds;
     modelFadeTime_ = fadeNow;
-    const int alphaLoc = GetShaderLocation(ModelShader(), "uAlpha");
-    const int skinnedAlphaLoc = GetShaderLocation(SkinnedModelShader(), "uAlpha");
-    const int emissiveLoc = GetShaderLocation(ModelShader(), "uEmissive");
-    const int skinnedEmissiveLoc = GetShaderLocation(SkinnedModelShader(), "uEmissive");
+    const int alphaLoc = GetShaderLocation(shaders.model, "uAlpha");
+    const int skinnedAlphaLoc = GetShaderLocation(shaders.skinned, "uAlpha");
+    const int emissiveLoc = GetShaderLocation(shaders.model, "uEmissive");
+    const int skinnedEmissiveLoc = GetShaderLocation(shaders.skinned, "uEmissive");
     std::vector<::Matrix> bones;
 
     // Models now; everything else is collected as cards. An entity's records are contiguous.
@@ -1357,17 +1363,17 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
             auto [fadeIt, fresh] = modelFade_.try_emplace(entity, 1.0f);
             fadeIt->second = std::clamp(fadeIt->second + (occluding ? -fadeStep : fadeStep), kFadedAlpha, 1.0f);
             const float alpha = fadeIt->second;
-            SetShaderValue(ModelShader(), alphaLoc, &alpha, SHADER_UNIFORM_FLOAT);
+            SetShaderValue(shaders.model, alphaLoc, &alpha, SHADER_UNIFORM_FLOAT);
             const float emissive[3] = {component.emissive.r / 255.0f, component.emissive.g / 255.0f, component.emissive.b / 255.0f};
-            SetShaderValue(ModelShader(), emissiveLoc, emissive, SHADER_UNIFORM_VEC3);
-            SetShaderValue(SkinnedModelShader(), skinnedEmissiveLoc, emissive, SHADER_UNIFORM_VEC3);
+            SetShaderValue(shaders.model, emissiveLoc, emissive, SHADER_UNIFORM_VEC3);
+            SetShaderValue(shaders.skinned, skinnedEmissiveLoc, emissive, SHADER_UNIFORM_VEC3);
 
             // Posed: the skinned meshes draw with this entity's bones (the mesh is shared, so
             // they go on a copy of it).
             const std::vector<Matrix>* skin = SkinOf(world, entity, *model);
             bones.clear();
             if (skin) {
-                SetShaderValue(SkinnedModelShader(), skinnedAlphaLoc, &alpha, SHADER_UNIFORM_FLOAT);
+                SetShaderValue(shaders.skinned, skinnedAlphaLoc, &alpha, SHADER_UNIFORM_FLOAT);
                 for (const Matrix& m : *skin) bones.push_back(ToRaylib(m));
             }
 
@@ -1382,7 +1388,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
                     mesh.boneMatrices = bones.data();
                     mesh.boneCount = (int)bones.size();
                 }
-                material.shader = skinned ? SkinnedModelShader() : ModelShader();
+                material.shader = skinned ? shaders.skinned : shaders.model;
                 material.maps[MATERIAL_MAP_DIFFUSE].color = ::Color{
                     (unsigned char)(color.r * component.tint.r / 255), (unsigned char)(color.g * component.tint.g / 255),
                     (unsigned char)(color.b * component.tint.b / 255), (unsigned char)(color.a * component.tint.a / 255)};
@@ -1466,7 +1472,7 @@ void RenderCompositor::Render3D(RenderContext& ctx, const CameraView& view,
         } else if (card.entity != INVALID_ENTITY && IsEnabled<MaterialComponent>(world, card.entity)) {
             RenderMaterialEntity(ctx, card.entity, card.records);  // materials glow on their own
         } else {
-            ::Shader& shader = CardShader();
+            ::Shader& shader = shaders.card;
             // Lit at a point a little above its anchor.
             const ::Vector3 at{card.groundX, (card.height + 24.0f) / World3D::kPitchCos, card.groundY * kGroundDepth};
             rlDrawRenderBatchActive();

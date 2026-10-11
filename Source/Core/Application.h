@@ -3,6 +3,7 @@
 #include "Core/ServiceLocator.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -66,7 +67,8 @@ class Application {
     Application& operator=(const Application&) = delete;
 
     bool Initialize(const std::string& configPath = "Config/ApplicationConfig.xml");
-    void Run();
+    // Returns the Project.xml to reopen the app on, or nothing when it's quitting.
+    std::optional<std::string> Run();
     void Shutdown();
 
     const ApplicationConfig& GetConfig() const { return config_; }
@@ -75,6 +77,7 @@ class Application {
 
     bool ShouldClose() const;
     void RequestClose() { shouldClose_ = true; }
+    void RequestOpenProject(const std::string& projectXmlPath);
 
     void SetMode(AppMode mode);
     AppMode GetMode() const { return mode_; }
@@ -102,6 +105,7 @@ class Application {
 
     bool initialized_ = false;
     bool shouldClose_ = false;
+    std::optional<std::string> nextProject_;
 
     float startTime_ = 0.0f;
 };

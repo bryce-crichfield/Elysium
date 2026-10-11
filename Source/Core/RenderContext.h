@@ -67,6 +67,8 @@ public:
     // extension), loaded on first use. An empty or unknown name is the default font.
     void DrawText(const char* text, float x, float y, int fontSize, Color color, const std::string& font);
     static float MeasureText(const char* text, int fontSize, const std::string& font);
+    // Unloads every font DrawText/MeasureText loaded; they load again on next use.
+    static void ReleaseFonts();
     void DrawTexturePro(const Texture& texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
     // Draws raylib DrawTriangle for each consecutive triple of vertices (3 per triangle).
     void DrawTriangleList(const std::vector<Vector2>& triangleVerts, Color color);

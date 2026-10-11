@@ -62,10 +62,14 @@ FetchContent_Declare(stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
     GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20
 )
+FetchContent_Declare(portable_file_dialogs
+    GIT_REPOSITORY https://github.com/samhocevar/portable-file-dialogs.git
+    GIT_TAG c12ea8c9a727f5320a2b4570aee863bbede2a204
+)
 # dr_libs and stb have no CMakeLists, so these just download them. PortAudio 19.7.0 asks for
 # CMake 3.1, which CMake 4 refuses outright; this lets it configure under 3.5 policies.
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-FetchContent_MakeAvailable(portaudio dr_libs stb)
+FetchContent_MakeAvailable(portaudio dr_libs stb portable_file_dialogs)
 unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # sol2
@@ -193,6 +197,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${portaudio_SOURCE_DIR}/include
     ${dr_libs_SOURCE_DIR}
     ${stb_SOURCE_DIR}
+    ${portable_file_dialogs_SOURCE_DIR}
 )
 
 # Assets always resolve relative to the runtime output directory, in both

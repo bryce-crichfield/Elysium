@@ -1,4 +1,5 @@
 #include "Services/SceneService.h"
+#include "Core/RenderContext.h"
 #include <algorithm>
 #include <filesystem>
 #include <typeinfo>
@@ -623,6 +624,7 @@ void SceneService::Shutdown() {
 
     CancelLoading();
     while (!sceneStack_.empty()) PopAndFree();
+    RenderContext::ReleaseFonts();
 }
 
 }  // namespace Elysium::Services

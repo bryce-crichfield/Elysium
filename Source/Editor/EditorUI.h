@@ -5,6 +5,7 @@
 
 #include "Core/Application.h"
 #include "Editor/Editor.h"
+#include "Editor/Widgets/ProjectDialog.h"
 
 namespace Elysium {
 
@@ -35,6 +36,7 @@ class EditorUI {
     EditorApplication& editor_;
     ApplicationConfig config_;
     std::vector<std::unique_ptr<Editor>> editors_;
+    ProjectDialog projectDialog_;
 
     bool pendingFontReload_ = false;
     bool editorLayoutBuilt_ = false;
