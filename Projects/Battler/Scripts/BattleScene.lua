@@ -31,12 +31,10 @@ local Battle = {}
 
 -- Sound effects (project-relative, under Sounds/).
 local SFX = {
-    ambiance = "Sounds/sfx_battle_ambiance_loop.wav",  -- looped under the whole battle
     select = Sfx.SELECT,                -- a unit picked up (click, Tab, hero frame)
     order = Sfx.ORDER,                  -- a card played on its target
     click = Sfx.CLICK,                  -- a card picked up to play
     cancel = Sfx.CANCEL,                -- backing out a step
-    run = "Sounds/sfx_battle_unit_run.wav",          -- footsteps, looped while a unit walks
     swing = "Sounds/sfx_battle_knight_swing.wav",    -- a melee attack's swing
     hit = "Sounds/sfx_battle_unit_hit.wav",          -- a melee attack landing
     release = "Sounds/sfx_archer_release.mp3",       -- a ranged attack's arrow leaving the bow
@@ -125,7 +123,6 @@ function Battle:Initialize()
     self.inbox = {}               -- the opponent's commands, applied in order by RemotePhase
     self.me, self.them = PLAYER, ENEMY
     self.net = false              -- a versus game (true) or solo against the AI
-    self.ambiance = nil           -- the looping ambiance's sound id, once the battle starts
     self.matches = 0              -- battles fought this visit; with versus, seeds the decks
     self.encounter = Run.Encounter()
     self.roster = self:SpawnRoom(self.encounter.prefab)
@@ -167,7 +164,6 @@ end
 
 -- Once the navmesh is ready: versus if the Lobby left a connection open, else solo.
 function Battle:Begin()
-    if not self.ambiance then self.ambiance = PlaySound(SFX.ambiance, 0.5, true, CHANNEL_AMBIENT) end
     if Net.Active() then
         self:BeginVersus(Net.IsHost())
     else
@@ -180,7 +176,6 @@ end
 -- Back to the main menu, closing any versus connection.
 function Battle:Leave()
     self:StopSteps()
-    if self.ambiance then StopSound(self.ambiance) self.ambiance = nil end
     if Net.Active() then Net.Stop() end
     SceneReplace("MainMenu")
 end
@@ -644,7 +639,6 @@ end
 -- In an adventure, once it's over: back to the Town.
 function Battle:Continue()
     self:StopSteps()
-    if self.ambiance then StopSound(self.ambiance) self.ambiance = nil end
     SceneReplace(self.won and Run.Won() or Run.Lost())
 end
 
@@ -883,16 +877,22 @@ end
 -- --- Actions ------------------------------------------------------------------------------
 
 -- Walks the waypoints at a steady ground speed, the clip and facing following each leg.
--- The footsteps loop of the unit walking, if any. A move cut short (restart, leaving, the
--- opponent dropping) never reaches its own stop, so those stop it here too.
+-- The footsteps loop of the unit walking (its Sound, Prefabs/Character.xml), if any. A move
+-- cut short (restart, the opponent dropping) never reaches its own stop, so those stop it here.
 function Battle:StopSteps()
-    if self.steps then StopSound(self.steps) self.steps = nil end
+    local sound = self.steps and GetComponent(self.steps, "Sound")
+    if sound then sound.playing = false end
+    self.steps = nil
 end
 
 function Battle:MoveAlong(u, path)
     self:Follow(u)
     self:StopSteps()
-    self.steps = PlaySound(SFX.run, 0.6, true, CHANNEL_EFFECTS)
+    local sound = GetComponent(u.entity, "Sound")
+    if sound then
+        sound.playing = true
+        self.steps = u.entity
+    end
     for _, p in ipairs(path) do
         local x0, y0, z0 = u.x, u.y, u.z
         Units.Face(u, p.x, p.y)

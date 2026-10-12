@@ -10,6 +10,7 @@
             <ScriptComponent>
                 <Script name="Scripts/Components/Unit.lua"/>
             </ScriptComponent>
+            <SoundComponent sound="Sounds/sfx_battle_unit_run.wav" volume="0.60000002" loop="true"/>
             <TeamComponent team="0"/>
             <TransformComponent x="0" y="0"/>
         </Entity>
@@ -18,11 +19,11 @@
             <LayerComponent name="entity" flat="true"/>
             <MaterialComponent padding="48" enabled="true">
                 <Layer material="Fire" enabled="true">
-                    <Uniform name="uGlowColor" type="vec3" value="0.270000 0.630000 1.000000"/>
-                    <Uniform name="uIntensity" type="float" value="1.200000"/>
-                    <Uniform name="uGlowRadius" type="float" value="6.000000"/>
-                    <Uniform name="uRise" type="float" value="0.000000"/>
                     <Uniform name="uInteriorFade" type="float" value="0.000000"/>
+                    <Uniform name="uRise" type="float" value="0.000000"/>
+                    <Uniform name="uGlowRadius" type="float" value="6.000000"/>
+                    <Uniform name="uIntensity" type="float" value="1.200000"/>
+                    <Uniform name="uGlowColor" type="vec3" value="0.270000 0.630000 1.000000"/>
                 </Layer>
             </MaterialComponent>
             <NameComponent name="Ring"/>
@@ -33,7 +34,7 @@
             <LightComponent color="#FFD2A0FF" intensity="1.2" radius="360" height="200" flicker="0" vision="true"/>
             <NameComponent name="Light"/>
             <ParentComponent target="0"/>
-            <TransformComponent x="0" y="0" z="0"/>
+            <TransformComponent x="0" y="0"/>
         </Entity>
     </Entities>
     <PrefabInstance src="HeroHud.xml" id="HeroHud">

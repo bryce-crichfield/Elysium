@@ -29,3 +29,4 @@
 #include "Core/Components/LineComponent.h"
 #include "Core/Components/PolygonComponent.h"
 #include "Core/Components/TeamComponent.h"
+#include "Core/Components/SoundComponent.h"

@@ -19,6 +19,7 @@
         <System type="ScriptSystem"/>
         <System type="SpriteSystem"/>
         <System type="AnimationSystem"/>
+        <System type="SoundSystem"/>
         <System type="TransformSystem"/>
         <System type="NavigationSystem" cellSize="8.000000" debugDraw="false" stepHeight="20.000000"/>
         <System type="RenderSystem"/>
@@ -36,6 +37,10 @@
             <NameComponent name="CAMERA"/>
             <TransformComponent x="0" y="0"/>
             <CameraComponent/>
+        </Entity>
+        <Entity name="Ambiance">
+            <NameComponent name="Ambiance"/>
+            <SoundComponent sound="Sounds/sfx_battle_ambiance_loop.wav" volume="0.5" loop="true" channel="3" playing="true"/>
         </Entity>
     </Entities>
     <PrefabInstance src="../Prefabs/Banner.xml" id="Banner"/>

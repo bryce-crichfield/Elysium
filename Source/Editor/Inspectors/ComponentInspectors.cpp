@@ -38,6 +38,8 @@ void RegisterComponentInspectors(InspectorRegistry& registry) {
     registry.Register<RevealComponent>(InspectorOrder::Rendering);
     registry.Register<UiComponent>(InspectorOrder::Rendering, &InspectUi);
 
+    registry.Register<SoundComponent>(InspectorOrder::Audio);
+
     registry.Register<ColliderComponent>(InspectorOrder::Physics);
     registry.Register<FollowComponent>(InspectorOrder::Physics);
     registry.Register<KinematicsComponent>(InspectorOrder::Physics);

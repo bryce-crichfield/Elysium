@@ -28,6 +28,7 @@ enum class InspectorOrder : int {
     Material,
     Shader,
     Rendering,  // camera, UI
+    Audio,
     Physics,    // collision and motion
     Gameplay,
     Scripting,
