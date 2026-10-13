@@ -46,7 +46,7 @@ Elysium_Build() {
     fi
 
     cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja \
-        -DCMAKE_BUILD_TYPE="$build_type" -DTRACY_ENABLE="$tracy_option" -DSQLITECPP_RUN_CPPCHECK=OFF \
+        -DCMAKE_BUILD_TYPE="$build_type" -DTRACY_ENABLE="$tracy_option" \
         -DCMAKE_EXE_LINKER_FLAGS="$link_static" -B Build
 
     if [ $? -eq 0 ]; then

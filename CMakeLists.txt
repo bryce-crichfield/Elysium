@@ -22,7 +22,6 @@ add_subdirectory(Vendor/raylib)
 # glTF models embed JPEG textures; raylib's config.h leaves JPEG off.
 target_compile_definitions(raylib PRIVATE SUPPORT_FILEFORMAT_JPG=1)
 add_subdirectory(Vendor/tinyxml2)
-add_subdirectory(Vendor/SQLiteCpp)
 add_subdirectory(Vendor/enet)
 
 # Recast (navmesh baking) and Detour (navmesh queries): NavigationSystem

@@ -95,7 +95,7 @@ bool AssetField(const char* id, AssetKind kind, std::string& path, const std::fu
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, palette.WithAlpha(edge, 0.30f));
     ImGui::PushStyleColor(ImGuiCol_Border, palette.WithAlpha(edge, 0.55f));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-    const bool open = ImGui::BeginCombo("##field", "", ImGuiComboFlags_CustomPreview | ImGuiComboFlags_HeightLarge);
+    const bool open = ImGui::BeginCombo("##field", "", (ImGuiComboFlags)ImGuiComboFlags_CustomPreview | ImGuiComboFlags_HeightLarge);
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(5);
 

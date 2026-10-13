@@ -10,9 +10,6 @@
 [submodule "Vendor/tinyxml2"]
 	path = Vendor/tinyxml2
 	url = https://github.com/leethomason/tinyxml2.git
-[submodule "Vendor/SQLiteCpp"]
-	path = Vendor/SQLiteCpp
-	url = https://github.com/SRombauts/SQLiteCpp.git
 [submodule "Vendor/tracy"]
 	path = Vendor/tracy
 	url = https://github.com/wolfpld/tracy.git

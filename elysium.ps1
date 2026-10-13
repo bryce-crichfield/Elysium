@@ -85,7 +85,7 @@ function Elysium_Build {
         # links winpthreads dynamically and ships libwinpthread-1.dll beside the exe.
         $tracyOption = if ($Tracy) { "ON" } else { "OFF" }
         $linkStatic = if ($Tracy) { "-static-libgcc -static-libstdc++" } else { "-static -static-libgcc -static-libstdc++" }
-        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_BUILD_TYPE=$buildType" "-DTRACY_ENABLE=$tracyOption" -DSQLITECPP_RUN_CPPCHECK=OFF "-DCMAKE_EXE_LINKER_FLAGS=$linkStatic" -B Build
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_BUILD_TYPE=$buildType" "-DTRACY_ENABLE=$tracyOption" "-DCMAKE_EXE_LINKER_FLAGS=$linkStatic" -B Build
         if ($LASTEXITCODE -eq 0) {
             # --Target builds one layer (ElysiumCore, ElysiumServices, ElysiumEditor) or the Elysium exe.
             if ($Target) { cmake --build Build --target $Target } else { cmake --build Build }
