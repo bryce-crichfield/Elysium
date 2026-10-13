@@ -60,6 +60,12 @@ FetchContent_Declare(doctest
     GIT_REPOSITORY https://github.com/doctest/doctest.git
     GIT_TAG ae7a13539fb71f270b87eb2e874fbac80bc8dda2  # v2.4.11
 )
+# Header only; SOURCE_SUBDIR points at nothing so its own CMakeLists (tests, examples) isn't added.
+FetchContent_Declare(nanobench
+    GIT_REPOSITORY https://github.com/martinus/nanobench.git
+    GIT_TAG a5a50c2b33eea2ff1fcb355cacdface43eb42b25  # v4.3.11
+    SOURCE_SUBDIR none
+)
 FetchContent_Declare(portable_file_dialogs
     GIT_REPOSITORY https://github.com/samhocevar/portable-file-dialogs.git
     GIT_TAG c12ea8c9a727f5320a2b4570aee863bbede2a204
@@ -69,7 +75,7 @@ FetchContent_Declare(portable_file_dialogs
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 set(DOCTEST_WITH_TESTS OFF CACHE BOOL "" FORCE)
 set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(portaudio dr_libs stb portable_file_dialogs doctest)
+FetchContent_MakeAvailable(portaudio dr_libs stb portable_file_dialogs doctest nanobench)
 unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # sol2
@@ -171,6 +177,9 @@ add_subdirectory(Source/Runtime)
 
 # Unit tests (doctest) against Core alone; run with --Test.
 add_subdirectory(Tests/Unit)
+
+# Benchmarks (nanobench) for engine hot paths. Not part of --Test: run Binary/ElysiumBenchmarks.
+add_subdirectory(Tests/Benchmark)
 
 # Assets always resolve relative to the runtime output directory, in both
 # Debug and Release, so there is one asset root regardless of build type.
