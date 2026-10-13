@@ -14,6 +14,16 @@ TEST_CASE("ColorToHex and ParseHexColor round-trip an opaque color") {
     CHECK(parsed.a == 255);
 }
 
+TEST_CASE("ColorToHex and ParseHexColor round-trip a transparent color") {
+    Color color{18, 52, 86, 0};
+    CHECK(ColorToHex(color) == "#12345600");
+    Color parsed = ParseHexColor(ColorToHex(color), Colors::White);
+    CHECK(parsed.r == 18);
+    CHECK(parsed.g == 52);
+    CHECK(parsed.b == 86);
+    CHECK(parsed.a == 0);
+}
+
 TEST_CASE("ParseHexColor reads #RRGGBB as opaque and falls back on bad input") {
     CHECK(ParseHexColor("#FF0000").a == 255);
     CHECK(ParseHexColor("red", Colors::White).r == Colors::White.r);

@@ -6,7 +6,7 @@ namespace Elysium {
 
     // Layout- and value-compatible with raylib's ::Color (8-bit RGBA, 0-255).
     struct Color {
-        unsigned char r, g, b, a;
+        unsigned char r = 0, g = 0, b = 0, a = 255;
     };
 
     // Nested to avoid colliding with raylib's macros of the same names (RED, WHITE, ...).
