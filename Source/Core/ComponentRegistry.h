@@ -79,6 +79,8 @@ namespace Elysium {
             std::function<void(tinyxml2::XMLElement* element, World*, Entity, ServiceLocator&)> apply;
             std::function<void(World*, Entity)> remove;
             std::function<bool(World*, Entity)> has;
+            // The entity's component, for FieldInfo::address; null if absent.
+            std::function<void*(World*, Entity)> get;
         };
 
         // Register a component type
@@ -171,6 +173,9 @@ namespace Elysium {
                     if (w->HasComponent<T>(e)) w->RemoveComponent<T>(e);
                 };
                 ops.has = [](World* w, Entity e) { return w->HasComponent<T>(e); };
+                ops.get = [](World* w, Entity e) -> void* {
+                    return w->HasComponent<T>(e) ? &w->GetComponent<T>(e) : nullptr;
+                };
                 xmlComponentOps_[fieldXmlTag] = std::move(ops);
                 xmlTagByName_[name] = fieldXmlTag;
                 support.applyOverride = [fieldXmlTag](World* w, Entity e, const std::string& field, const std::string& value,

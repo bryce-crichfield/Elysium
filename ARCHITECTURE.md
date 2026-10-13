@@ -51,4 +51,4 @@ Lua via sol2 (`ScriptComponent`, `ScriptSystem`, `ScriptService`). `ComponentReg
 
 ## Networking
 
-Client/server split over ENet (`Source/Core/Network.h/.cpp`, `Source/Services/NetworkService.cpp`). The RPC surface (procedure IDs, request/response structs, serialization) is defined once in `Tools/eidc/Invoke.xml` and codegenerated into `Source/Core/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python, used by the `Tests/Network` integration tests) — see Codegen above.
+Client/server split over ENet (`Source/Core/Network.h/.cpp`, `Source/Services/NetworkService.cpp`). The RPC surface (procedure IDs, request/response structs, serialization) is defined once in `Tools/eidc/Invoke.xml` and codegenerated into `Source/Core/Generated.h` — see Codegen above. `Tests/Unit/InvokeServiceTests.cpp` covers the invoke protocol against a fake network service.

@@ -61,6 +61,10 @@ Elysium_Build() {
     popd > /dev/null
 }
 
+Elysium_Test() {
+    "$ELYSIUM_ROOT/Binary/ElysiumTests" || exit $?
+}
+
 Elysium_Run() {
     local project_path=$1
     local editor_mode=$2
@@ -97,18 +101,19 @@ Elysium_Run() {
 
 # Show help function
 show_help() {
-    echo "Usage: $0 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Target=<name>] [--Run] [--Project=<path>] [--Editor] [--Help]"
+    echo "Usage: $0 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Target=<name>] [--Test] [--Run] [--Project=<path>] [--Editor] [--Help]"
     echo "  --Clean: Clean build artifacts"
     echo "  --Build: Build the project"
     echo "  --Tracy: Build with the Tracy profiler (v0.12.2) enabled"
     echo "  --Mode=Debug|Release: Build type (default Debug); Release is optimized (-O2) with symbols"
     echo "  --Target=<name>: Build only this target: ElysiumCore, ElysiumServices, ElysiumEditor or Elysium (default: everything)"
+    echo "  --Test: Run the unit tests (Binary/ElysiumTests); exits non-zero on failure"
     echo "  --Run: Run the executable"
     echo "  --Project=<path>: Project directory to load, e.g. Projects/DemoGame (required for --Run)"
     echo "  --Editor: Start in editor mode"
     echo "  --Help: Show this help message"
     echo ""
-    echo "Operations are executed in order: Clean -> Build -> Run"
+    echo "Operations are executed in order: Clean -> Build -> Test -> Run"
 }
 
 # Parse command-line arguments
@@ -116,6 +121,7 @@ should_setup=false
 should_clean=false
 should_build=false
 should_run=false
+should_test=false
 tracy_arg=false
 mode_arg="Debug"
 target_arg=""
@@ -136,6 +142,9 @@ for arg in "$@"; do
             ;;
         --run)
             should_run=true
+            ;;
+        --test)
+            should_test=true
             ;;
         --tracy)
             tracy_arg=true
@@ -185,6 +194,10 @@ if [ "$should_build" = true ]; then
     Elysium_Build "$tracy_arg" "$mode_arg" "$target_arg"
 fi
 
+if [ "$should_test" = true ]; then
+    Elysium_Test
+fi
+
 if [ "$should_run" = true ]; then
     Elysium_Run "$project_arg" "$editor_arg"
 fi
@@ -192,5 +205,5 @@ fi
 # If no arguments provided, show help
 if [ $# -eq 0 ]; then
     echo "No arguments provided. Use --Help for usage information."
-    echo "Available options: --Clean, --Build, --Run"
+    echo "Available options: --Clean, --Build, --Test, --Run"
 fi

@@ -99,6 +99,11 @@ function Elysium_Build {
     }
 }
 
+function Elysium_Test {
+    & "$ELYSIUM_ROOT\Binary\ElysiumTests.exe"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 function Elysium_Run {
     param(
         [string]$ProjectPath,
@@ -143,6 +148,7 @@ $shouldSetup = $false
 $shouldClean = $false
 $shouldBuild = $false
 $shouldRun = $false
+$shouldTest = $false
 $tracyArg = $false
 $modeArg = "Debug"
 $targetArg = $null
@@ -155,6 +161,7 @@ foreach ($arg in $args) {
         "^--[Cc]lean$" { $shouldClean = $true }
         "^--[Bb]uild$" { $shouldBuild = $true }
         "^--[Rr]un$" { $shouldRun = $true }
+        "^--[Tt]est$" { $shouldTest = $true }
         "^--[Tt]racy$" { $tracyArg = $true }
         "^--[Mm]ode=([Dd]ebug|[Rr]elease)$" { $modeArg = (Get-Culture).TextInfo.ToTitleCase($matches[1].ToLower()) }
         "^--[Tt]arget=(.+)$" { $targetArg = $matches[1] }
@@ -162,18 +169,19 @@ foreach ($arg in $args) {
         "^--[Ee]ditor$" { $editorArg = $true }
         "^--[Ee]ditor=(.+)$" { $editorArg = ($matches[1] -eq "true") }
         "^--[Hh]elp$" {
-            Write-Host "Usage: .\script.ps1 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Target=<name>] [--Run] [--Project=<path>] [--Editor] [--Help]"
+            Write-Host "Usage: .\script.ps1 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Target=<name>] [--Test] [--Run] [--Project=<path>] [--Editor] [--Help]"
             Write-Host "  --Clean: Clean build artifacts"
             Write-Host "  --Build: Build the project"
             Write-Host "  --Tracy: Build with the Tracy profiler (v0.12.2) enabled"
             Write-Host "  --Mode=Debug|Release: Build type (default Debug); Release is optimized (-O2) with symbols"
             Write-Host "  --Target=<name>: Build only this target: ElysiumCore, ElysiumServices, ElysiumEditor or Elysium (default: everything)"
+            Write-Host "  --Test: Run the unit tests (Binary\ElysiumTests.exe); exits non-zero on failure"
             Write-Host "  --Run: Run the executable"
             Write-Host "  --Project=<path>: Project directory to load, e.g. Projects\DemoGame (required for --Run)"
             Write-Host "  --Editor: Start in editor mode"
             Write-Host "  --Help: Show this help message"
             Write-Host ""
-            Write-Host "Operations are executed in order: Clean -> Build -> Run"
+            Write-Host "Operations are executed in order: Clean -> Build -> Test -> Run"
             exit 0
         }
         default {
@@ -196,6 +204,10 @@ if ($shouldBuild) {
     Elysium_Build -Tracy $tracyArg -Mode $modeArg -Target $targetArg
 }
 
+if ($shouldTest) {
+    Elysium_Test
+}
+
 if ($shouldRun) {
     Elysium_Run -ProjectPath $projectArg -EditorMode $editorArg
 }
@@ -203,5 +215,5 @@ if ($shouldRun) {
 # If no arguments provided, show help
 if ($args.Count -eq 0) {
     Write-Host "No arguments provided. Use --Help for usage information."
-    Write-Host "Available options: --Clean, --Build, --Run"
+    Write-Host "Available options: --Clean, --Build, --Test, --Run"
 }

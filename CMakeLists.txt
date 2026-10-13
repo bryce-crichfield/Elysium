@@ -56,6 +56,10 @@ FetchContent_Declare(stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
     GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20
 )
+FetchContent_Declare(doctest
+    GIT_REPOSITORY https://github.com/doctest/doctest.git
+    GIT_TAG ae7a13539fb71f270b87eb2e874fbac80bc8dda2  # v2.4.11
+)
 FetchContent_Declare(portable_file_dialogs
     GIT_REPOSITORY https://github.com/samhocevar/portable-file-dialogs.git
     GIT_TAG c12ea8c9a727f5320a2b4570aee863bbede2a204
@@ -63,7 +67,9 @@ FetchContent_Declare(portable_file_dialogs
 # dr_libs and stb have no CMakeLists, so these just download them. PortAudio 19.7.0 asks for
 # CMake 3.1, which CMake 4 refuses outright; this lets it configure under 3.5 policies.
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-FetchContent_MakeAvailable(portaudio dr_libs stb portable_file_dialogs)
+set(DOCTEST_WITH_TESTS OFF CACHE BOOL "" FORCE)
+set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(portaudio dr_libs stb portable_file_dialogs doctest)
 unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # sol2
@@ -162,6 +168,9 @@ add_subdirectory(Source/Core)
 add_subdirectory(Source/Services)
 add_subdirectory(Source/Editor)
 add_subdirectory(Source/Runtime)
+
+# Unit tests (doctest) against Core alone; run with --Test.
+add_subdirectory(Tests/Unit)
 
 # Assets always resolve relative to the runtime output directory, in both
 # Debug and Release, so there is one asset root regardless of build type.

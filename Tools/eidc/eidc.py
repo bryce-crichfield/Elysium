@@ -203,7 +203,6 @@ def build_env(templates_dir: Path) -> Environment:
 
 # Maps target name → (template filename, default output path relative to repo root)
 TARGETS = {
-    'python': ('py.j2',  'Tools/elysium/elysium/generated.py'),
     'cpp':    ('cpp.j2', 'Source/Core/Generated.h'),
 }
 
@@ -213,7 +212,7 @@ TARGETS = {
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='generate_protocol',
-        description='Generate C++ and Python bindings from an Elysium invoke.xml descriptor.',
+        description='Generate C++ bindings from an Elysium invoke.xml descriptor.',
     )
 
     parser.add_argument(
@@ -238,14 +237,6 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path(__file__).parent / 'templates',
         help='Path to Jinja2 templates directory. Default: tools/templates/',
-    )
-
-    parser.add_argument(
-        '--out-python',
-        metavar='FILE',
-        type=Path,
-        default=None,
-        help='Output path for generated Python file. Default: elysium/generated.py',
     )
 
     parser.add_argument(
@@ -304,7 +295,6 @@ def main():
     # Resolve output paths — CLI overrides take priority, then defaults
     repo_root = Path(__file__).parent.parent.parent
     out_paths = {
-        'python': args.out_python or repo_root / TARGETS['python'][1],
         'cpp':    args.out_cpp    or repo_root / TARGETS['cpp'][1],
     }
 

@@ -10,12 +10,20 @@ The user prompts, reviews and merges. These rules hold unless the user says othe
 - **Report honestly.** Say what was built and verified, and what wasn't (Lua and XML changes can't be checked without running the game; say so). Don't claim something works because it compiles.
 - **Shelved work stays shelved.** Enemy intent telegraphing was tried and reverted; don't reintroduce it unprompted.
 
+### Tests first
+
+We work test-first. Before writing a feature or fix, decide what tests prove it, write them, and watch them fail. Then make them pass. A change to testable engine code without tests is incomplete.
+
+- **Test** anything that is data in, data out: serialization (XML load/save round trips, file formats), parsing, math and geometry, registries, component and system logic that can run on a `World` without a window, and Lua bindings run in a headless `sol::state`.
+- **Don't test** the editor (`Source/Editor`), the games (`Projects/*`), or anything you can only check by simulating a sequence of user actions (input, UI flows, rendering output). Those stay manual, so they go in the "To test" list.
+- When fixing a bug in testable code, first add a test that reproduces it.
+- Tests live in `Tests/Unit/*.cpp` (doctest) and link `ElysiumCore` and `ElysiumServices`, never the editor. Services the code under test calls are replaced by small fakes in `Tests/Unit/Fakes/` (no sockets, threads or disk); see `InvokeServiceTests.cpp` for a service tested against a fake network. Run `.\elysium.ps1 --Build --Test` before reporting done, and report the result.
+
 ### Verify before reporting done
 
 - A Stop hook (`.claude/hooks/build-check.sh`) builds incrementally whenever a turn ends with `Source/` or `CMakeLists.txt` changed since the last good build, and hands the errors back if it fails. Fix them rather than reporting done; after three failed attempts it lets the turn end, so say plainly that the build is broken. Never `--Clean` without asking; a clean rebuild is slow.
 - Don't launch the game or editor; it's interactive and the user playtests. End with a short **"To test"** list: the scene to open and what to click or watch.
 - Lua (`Projects/*/Scripts`) has no checker here. Re-read the edited functions for nil access, misspelled fields and stale callers before reporting.
-- The network tests (`pytest Tests/Network/network_tests.py`) need a running server; only run them when touching networking, and ask first.
 
 ### Git
 
@@ -31,17 +39,18 @@ MSYS2/MinGW + Ninja via CMake, driven by `elysium.ps1` (`elysium.sh` on Linux/Ma
 .\elysium.ps1 --Clean --Build                        # wipe Build/ and Binary/, rebuild
 .\elysium.ps1 --Build --Mode=Release --Tracy         # -O2 build with the profiler
 .\elysium.ps1 --Run --Project=Projects\Battler [--Editor]
+.\elysium.ps1 --Build --Test                         # build, then run the unit tests
 ```
 
 - Operations run Clean → Build → Run regardless of flag order. `--Build` forces `-DTRACY_ENABLE=OFF` (Tracy's threads corrupt the stack in this static MinGW build; don't flip it without re-checking).
 - `Build/` holds intermediates and `compile_commands.json`; `Binary/` is the runtime dir (`Elysium.exe` + copied assets) and asset paths resolve from it.
 - The engine builds as layers, each with its own `CMakeLists.txt`: `Source/Core` → `ElysiumCore`, `Services` → `ElysiumServices`, `Editor` → `ElysiumEditor` (OBJECT libraries), `Runtime` → the `Elysium` exe. A new vendor dependency goes in the layer that uses it; `--Target=<name>` builds just one.
 - New `.cpp` files are globbed per layer (no CMake edit), but need a `--Build` to re-configure before Ninja sees them.
-- There is no C++ unit test suite. `Tests/Network` holds pytest integration tests against a running server (port 7777).
+- `Tests/Unit` holds C++ unit tests (doctest), built as `ElysiumTests` against `ElysiumCore` + `ElysiumServices` and run with `--Test`. Add a `*.cpp` there; it's globbed.
 
 ### Network protocol codegen
 
-`Source/Core/Generated.h` (C++) and `Tools/elysium/elysium/generated.py` (Python) are both generated from `Tools/eidc/Invoke.xml` by `Tools/eidc/eidc.py` — **never hand-edit either generated file**; edit the IDL and regenerate. Codegen is manual (not part of the build), and the IDL is parked in `Tools/` until networking is reworked so games can define their own protocol:
+`Source/Core/Generated.h` is generated from `Tools/eidc/Invoke.xml` by `Tools/eidc/eidc.py` — **never hand-edit it**; edit the IDL and regenerate. Codegen is manual (not part of the build), and the IDL is parked in `Tools/` until networking is reworked so games can define their own protocol:
 
 ```
 python Tools/eidc/eidc.py Tools/eidc/Invoke.xml
@@ -69,4 +78,4 @@ Traps worth knowing even without the tour:
 - **ODR hazard.** In a header inside `namespace Elysium`, a bare `Color`/`Rectangle`/`Vector2`/`Texture` silently resolves to either the mirror type or raylib's, depending on include order. Write `::Color` or `Elysium::Color`. `RaylibConvert.h` is only ever included from a `.cpp`.
 - **Script loading.** `ScriptComponent::LoadXml` must go through `IAssetService::LoadAsset`; `ScriptSystem` gates init on its return value, so bypassing it silently skips the script.
 - **Editor and game never share scene state.** The editor edits its own document scenes; Play reloads saved files from disk. Nothing outside `Editor/` includes `Editor/` or checks for editor mode.
-- **Generated files.** Never hand-edit `Source/Core/Generated.h` or `generated.py`; edit `Tools/eidc/Invoke.xml` and regenerate.
+- **Generated files.** Never hand-edit `Source/Core/Generated.h`; edit `Tools/eidc/Invoke.xml` and regenerate.
