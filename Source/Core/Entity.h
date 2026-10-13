@@ -1,13 +1,16 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <bitset>
 #include <memory>
 #include <queue>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <typeindex>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include "Core/Event.h"
 
@@ -63,11 +66,24 @@ class TypedComponentArray : public ComponentArray {
     const std::unordered_map<Entity, size_t>& GetEntityToIndex() const;
 };
 
+// A small integer per component type, assigned on first use and shared by every World. It indexes
+// a World's component arrays and is the type's bit in entity masks, so finding a type's storage is
+// an array read rather than a hash of its name. Ids only agree within one binary: a DLL with its
+// own copy of this counter would number types differently.
+inline size_t NextComponentId() {
+    static std::atomic<size_t> next{0};
+    return next++;
+}
+
+template <typename T>
+size_t ComponentId() {
+    static const size_t id = NextComponentId();
+    return id;
+}
+
 class ComponentManager {
    private:
-    std::unordered_map<std::type_index, std::shared_ptr<ComponentArray>> componentArrays;
-    std::unordered_map<std::type_index, size_t> componentTypes;
-    size_t nextComponentType = 0;
+    std::vector<std::shared_ptr<ComponentArray>> componentArrays;  // indexed by ComponentId<T>()
 
    public:
     template <typename T>
@@ -97,11 +113,12 @@ class ComponentManager {
     template <typename T>
     std::unordered_map<Entity, size_t>& GetEntityToIndexMap();
 
+    // A plain pointer: callers on hot paths (World::Query) resolve it once and reuse it.
     template <typename T>
-    std::shared_ptr<TypedComponentArray<T>> GetComponentArray();
+    TypedComponentArray<T>* GetComponentArray();
 
     template <typename T>
-    std::shared_ptr<const TypedComponentArray<T>> GetComponentArray() const;
+    const TypedComponentArray<T>* GetComponentArray() const;
 };
 
 class EntityManager {
@@ -297,33 +314,34 @@ const std::unordered_map<Entity, size_t>& TypedComponentArray<T>::GetEntityToInd
 }
 
 template <typename T>
-std::shared_ptr<TypedComponentArray<T>> ComponentManager::GetComponentArray() {
-    std::type_index typeName = std::type_index(typeid(T));
-    return std::static_pointer_cast<TypedComponentArray<T>>(componentArrays[typeName]);
+TypedComponentArray<T>* ComponentManager::GetComponentArray() {
+    return const_cast<TypedComponentArray<T>*>(std::as_const(*this).template GetComponentArray<T>());
 }
 
 template <typename T>
-std::shared_ptr<const TypedComponentArray<T>> ComponentManager::GetComponentArray() const {
-    std::type_index typeName = std::type_index(typeid(T));
-    auto it = componentArrays.find(typeName);
-    if (it == componentArrays.end()) {
+const TypedComponentArray<T>* ComponentManager::GetComponentArray() const {
+    const size_t id = ComponentId<T>();
+    if (id >= componentArrays.size() || !componentArrays[id]) {
         throw std::runtime_error("Component type not registered");
     }
-    return std::static_pointer_cast<const TypedComponentArray<T>>(it->second);
+    return static_cast<const TypedComponentArray<T>*>(componentArrays[id].get());
 }
 
 template <typename T>
 void ComponentManager::RegisterComponent() {
-    std::type_index typeName = std::type_index(typeid(T));
-    componentTypes[typeName] = nextComponentType;
-    componentArrays[typeName] = std::make_shared<TypedComponentArray<T>>();
-    ++nextComponentType;
+    const size_t id = ComponentId<T>();
+    if (id >= MAX_COMPONENTS) {
+        throw std::runtime_error("More component types than MAX_COMPONENTS");
+    }
+    if (componentArrays.size() <= id) componentArrays.resize(id + 1);
+    // Registering twice keeps the existing array: World registers some types itself and the
+    // ComponentRegistry registers them again.
+    if (!componentArrays[id]) componentArrays[id] = std::make_shared<TypedComponentArray<T>>();
 }
 
 template <typename T>
 size_t ComponentManager::GetComponentType() const {
-    std::type_index typeName = std::type_index(typeid(T));
-    return componentTypes.at(typeName);
+    return ComponentId<T>();
 }
 
 template <typename T>
@@ -386,7 +404,7 @@ T& World::GetComponent(Entity entity) {
 
 template <typename T>
 const T& World::GetComponent(Entity entity) const {
-    auto componentArray = componentManager->GetComponentArray<T>();
+    const TypedComponentArray<T>* componentArray = componentManager->GetComponentArray<T>();
     auto it = componentArray->GetEntityToIndex().find(entity);
     if (it == componentArray->GetEntityToIndex().end()) {
         throw std::runtime_error("Cannot get component.  Entity does not have this component");
@@ -429,13 +447,16 @@ void World::Query(Func&& func) {
     ComponentMask mask;
     (mask.set(GetComponentType<ComponentTypes>()), ...);
 
+    // Resolved once here rather than per entity.
+    std::tuple<TypedComponentArray<ComponentTypes>*...> arrays{componentManager->GetComponentArray<ComponentTypes>()...};
+
     // Only iterate through living entities instead of all possible entities
     const auto& livingEntities = entityManager->GetLivingEntities();
     for (Entity entity : livingEntities) {
         if ((entityManager->GetComponentMask(entity) & mask) == mask) {
             // Unpack components as references and pass to lambda
             // First parameter is entity, then components
-            func(entity, GetComponent<ComponentTypes>(entity)...);
+            func(entity, std::get<TypedComponentArray<ComponentTypes>*>(arrays)->GetData(entity)...);
         }
     }
 }

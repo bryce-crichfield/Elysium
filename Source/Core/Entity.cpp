@@ -9,16 +9,14 @@
 
 namespace Elysium {
 void ComponentManager::EntityDestroyed(Entity entity) {
-    for (auto const& pair : componentArrays) {
-        auto const& component = pair.second;
-        component->EntityDestroyed(entity);
+    for (auto const& component : componentArrays) {
+        if (component) component->EntityDestroyed(entity);
     }
 }
 
 void ComponentManager::CloneAllComponents(Entity source, Entity dest) {
-    for (auto const& pair : componentArrays) {
-        auto const& component = pair.second;
-        component->CloneComponent(source, dest);
+    for (auto const& component : componentArrays) {
+        if (component) component->CloneComponent(source, dest);
     }
 }
 
