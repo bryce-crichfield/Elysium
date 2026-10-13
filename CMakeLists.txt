@@ -13,12 +13,6 @@ set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/Build)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/Binary)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/Binary)
 
-# Find all source files in Source directory
-file(GLOB_RECURSE SOURCE_FILES
-    "${CMAKE_SOURCE_DIR}/Source/*.cpp"
-    "${CMAKE_SOURCE_DIR}/Source/*.c"
-)
-
 # Add vendor libraries
 # raylib's audio module (miniaudio + its own dr_wav/stb_vorbis copies) is off: audio is ours
 # (AudioService on PortAudio, decoding in Core/Audio), and the decoders would clash at link time.
@@ -127,78 +121,47 @@ target_include_directories(rlimgui PUBLIC
 )
 target_link_libraries(rlimgui PUBLIC raylib imgui)
 
-# Create executable
-add_executable(${PROJECT_NAME} ${SOURCE_FILES})
-
 # Tracy profiler
 option(TRACY_ENABLE "Enable Tracy profiler" OFF)
 if(TRACY_ENABLE)
     set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
     set(TRACY_NO_SYSTEM_TRACING ON CACHE BOOL "Disable ETW for MinGW compatibility" FORCE)
     add_subdirectory(Vendor/tracy)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE TRACY_ENABLE)
     message(STATUS "Tracy profiler enabled")
 endif()
 
-# Link libraries
-target_link_libraries(${PROJECT_NAME}
-    raylib
-    rlimgui
-    imgui
-    colortextedit
-    imguizmo
-    tinyxml2
-    SQLiteCpp
-    enet
-    RecastNavigation::Recast
-    RecastNavigation::Detour
-    lua
-    sol2::sol2
-    portaudio_static
-)
-
-target_compile_definitions(${PROJECT_NAME} PRIVATE 
-    SOL_NO_CHECK_NUMBER_PRECISION=1    
-)
-
-# Add Tracy if enabled
-if(TRACY_ENABLE)
-    target_link_libraries(${PROJECT_NAME} Tracy::TracyClient)
+if(UNIX AND NOT APPLE AND CMAKE_EXE_LINKER_FLAGS MATCHES "(^| )-static( |$)")
+    string(REGEX REPLACE "(^| )-static( |$)" " " _fixed_flags "${CMAKE_EXE_LINKER_FLAGS}")
+    string(STRIP "${_fixed_flags}" _fixed_flags)
+    set(CMAKE_EXE_LINKER_FLAGS "${_fixed_flags}" CACHE STRING "Linker flags for executables" FORCE)
+    message(WARNING "Removed -static from CMAKE_EXE_LINKER_FLAGS (unsupported with OpenGL/ALSA/JACK on Linux)")
 endif()
 
-if(MINGW)
-    target_compile_options(${PROJECT_NAME} PRIVATE 
-        -Wa,-mbig-obj  # Handle large object files
-    )
-endif()
-
-
-# Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE
+# Settings every Elysium target shares. Includes are written from Source/ ("Core/Scene.h"),
+# and Common.h's profiler macros need Tracy's headers whether or not it's enabled.
+add_library(ElysiumBuild INTERFACE)
+target_include_directories(ElysiumBuild INTERFACE
     ${CMAKE_SOURCE_DIR}/Source
-    ${CMAKE_SOURCE_DIR}/Source/Core
-    ${CMAKE_SOURCE_DIR}/Source/Utilities
-    ${CMAKE_SOURCE_DIR}/Source/Services
-    ${CMAKE_SOURCE_DIR}/Source/Core/Systems
-    ${CMAKE_SOURCE_DIR}/Source/Scenes
-    ${CMAKE_SOURCE_DIR}/Source/Messages
-    ${CMAKE_SOURCE_DIR}/Source/Editor
-    ${CMAKE_SOURCE_DIR}/Vendor/raylib/src
-    ${CMAKE_SOURCE_DIR}/Vendor/rlImGui
-    ${CMAKE_SOURCE_DIR}/Vendor/imgui
-    ${CMAKE_SOURCE_DIR}/Vendor/imgui/backends
-    ${CMAKE_SOURCE_DIR}/Vendor/tinyxml2
-    ${CMAKE_SOURCE_DIR}/Vendor/SQLiteCpp/include
-    ${CMAKE_SOURCE_DIR}/Vendor/enet/include
-    ${CMAKE_SOURCE_DIR}/Vendor/lua
-    ${CMAKE_SOURCE_DIR}/Vendor/sol2/include
-    ${CMAKE_SOURCE_DIR}/Vendor/ImGuiColorTextEdit
     ${CMAKE_SOURCE_DIR}/Vendor/tracy/public
-    ${portaudio_SOURCE_DIR}/include
-    ${dr_libs_SOURCE_DIR}
-    ${stb_SOURCE_DIR}
-    ${portable_file_dialogs_SOURCE_DIR}
 )
+target_compile_definitions(ElysiumBuild INTERFACE
+    SOL_NO_CHECK_NUMBER_PRECISION=1
+    ASSETS_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/"
+)
+if(TRACY_ENABLE)
+    target_compile_definitions(ElysiumBuild INTERFACE TRACY_ENABLE)
+    target_link_libraries(ElysiumBuild INTERFACE Tracy::TracyClient)
+endif()
+if(MINGW)
+    target_compile_options(ElysiumBuild INTERFACE -Wa,-mbig-obj)  # Handle large object files
+endif()
+
+# The engine's layers, each with its own vendor dependencies. Core reaches services only through
+# Interfaces/; Services and Editor build on Core; Runtime is the executable that wires them up.
+add_subdirectory(Source/Core)
+add_subdirectory(Source/Services)
+add_subdirectory(Source/Editor)
+add_subdirectory(Source/Runtime)
 
 # Assets always resolve relative to the runtime output directory, in both
 # Debug and Release, so there is one asset root regardless of build type.
@@ -212,22 +175,4 @@ add_custom_target(copy_assets
 )
 
 add_dependencies(${PROJECT_NAME} copy_assets)
-
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    ASSETS_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/"
-)
 message(STATUS "Assets will be copied to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/")
-
-# Platform-specific settings
-if(WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        OUTPUT_NAME "Elysium"
-    )
-endif()
-
-if(UNIX AND NOT APPLE AND CMAKE_EXE_LINKER_FLAGS MATCHES "(^| )-static( |$)")
-    string(REGEX REPLACE "(^| )-static( |$)" " " _fixed_flags "${CMAKE_EXE_LINKER_FLAGS}")
-    string(STRIP "${_fixed_flags}" _fixed_flags)
-    set(CMAKE_EXE_LINKER_FLAGS "${_fixed_flags}" CACHE STRING "Linker flags for executables" FORCE)
-    message(WARNING "Removed -static from CMAKE_EXE_LINKER_FLAGS (unsupported with OpenGL/ALSA/JACK on Linux)")
-endif()

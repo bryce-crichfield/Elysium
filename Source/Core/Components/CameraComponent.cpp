@@ -5,7 +5,7 @@
 #include "Interfaces/IApplicationService.h"
 
 namespace Elysium {
-    // Matches ApplicationConfig's own defaults (Core/Application.h) — a config-derived
+    // Matches ApplicationConfig's own defaults (Interfaces/IApplicationService.h) — a config-derived
     // viewport is applied in LoadXml once a ServiceLocator is available; this is just
     // the fallback for components default-constructed outside XML loading (e.g. Lua).
     CameraComponent::CameraComponent()

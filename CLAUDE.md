@@ -35,7 +35,8 @@ MSYS2/MinGW + Ninja via CMake, driven by `elysium.ps1` (`elysium.sh` on Linux/Ma
 
 - Operations run Clean → Build → Run regardless of flag order. `--Build` forces `-DTRACY_ENABLE=OFF` (Tracy's threads corrupt the stack in this static MinGW build; don't flip it without re-checking).
 - `Build/` holds intermediates and `compile_commands.json`; `Binary/` is the runtime dir (`Elysium.exe` + copied assets) and asset paths resolve from it.
-- New `.cpp` files under `Source/` are globbed (no CMake edit), but need a `--Build` to re-configure before Ninja sees them.
+- The engine builds as layers, each with its own `CMakeLists.txt`: `Source/Core` → `ElysiumCore`, `Services` → `ElysiumServices`, `Editor` → `ElysiumEditor` (OBJECT libraries), `Runtime` → the `Elysium` exe. A new vendor dependency goes in the layer that uses it; `--Target=<name>` builds just one.
+- New `.cpp` files are globbed per layer (no CMake edit), but need a `--Build` to re-configure before Ninja sees them.
 - There is no C++ unit test suite. `Tests/Network` holds pytest integration tests against a running server (port 7777).
 
 ### Network protocol codegen

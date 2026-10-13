@@ -1,6 +1,6 @@
 #include "Core/Assets/SpriteAsset.h"
 #include "Core/Asset.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 
 namespace Elysium {
 

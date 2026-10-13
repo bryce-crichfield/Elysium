@@ -1,6 +1,6 @@
 #pragma once
 #include "Core/Component.h"
-#include "Sprite.h"
+#include "Core/Sprite.h"
 #include <string>
 
 namespace Elysium {

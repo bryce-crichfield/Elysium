@@ -12,7 +12,6 @@
 
 #include "Interfaces/IAssetService.h"
 #include "Interfaces/ISceneService.h"
-#include "Services/AssetService.h"
 
 namespace Elysium::Systems {
 

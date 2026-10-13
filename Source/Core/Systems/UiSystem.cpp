@@ -1,7 +1,7 @@
 #include "Core/Systems/UiSystem.h"
 #include "Core/Components.h"
 #include "Core/SystemRegistry.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 
 namespace Elysium::Systems {
 

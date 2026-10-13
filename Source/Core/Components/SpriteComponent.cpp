@@ -3,8 +3,7 @@
 #include "Core/Sprite.h"
 #include "Core/Xml.h"
 #include "Interfaces/IAssetService.h"
-#include "Services/AssetService.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 #include <set>
 
 namespace Elysium {

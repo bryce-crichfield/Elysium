@@ -1,5 +1,5 @@
 #include "Core/Assets/AnimationAsset.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 
 namespace Elysium {
 

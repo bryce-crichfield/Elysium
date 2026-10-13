@@ -6,7 +6,6 @@
 #include <optional>
 #include <unordered_map>
 #include <ImGuizmo.h>
-#include "Core/Application.h"
 #include "Interfaces/IApplicationService.h"
 #include "Editor/EditorApplication.h"
 #include "Interfaces/ISceneService.h"

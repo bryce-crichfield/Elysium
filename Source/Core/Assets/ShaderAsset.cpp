@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include "Core/Asset.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 
 namespace Elysium {
 

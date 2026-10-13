@@ -3,7 +3,7 @@
 #include <memory>
 #include <vector>
 
-#include "Core/Application.h"
+#include "Interfaces/IApplicationService.h"
 #include "Editor/Editor.h"
 #include "Editor/Widgets/ProjectDialog.h"
 

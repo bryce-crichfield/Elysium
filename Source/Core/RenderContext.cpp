@@ -2,7 +2,7 @@
 #include "Core/Path.h"
 #include "Core/RaylibConvert.h"
 #include "Core/Shader.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 #include "rlgl.h"
 #include <cmath>
 #include <filesystem>

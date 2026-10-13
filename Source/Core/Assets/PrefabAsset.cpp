@@ -1,5 +1,5 @@
 #include "Core/Assets/PrefabAsset.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 
 namespace Elysium {
 

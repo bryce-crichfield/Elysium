@@ -1,16 +1,16 @@
-#include "Application.h"
+#include "Runtime/Application.h"
 #include <chrono>
 #include <thread>
-#include "Common.h"
+#include "Core/Common.h"
 #include "Core/Path.h"
 #include "Interfaces/IAudioService.h"
 #include "Interfaces/ILogService.h"
 #include "Interfaces/ISceneService.h"
-#include "Services/ApplicationService.h"
+#include "Runtime/ApplicationService.h"
 #include "Services/Services.h"
 #include "Core/Input.h"
-#include "Editor/EditorApplication.h"
 #include "tinyxml2.h"
+#include "Editor/EditorApplication.h"
 
 using namespace tinyxml2;
 

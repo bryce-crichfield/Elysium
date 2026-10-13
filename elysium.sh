@@ -18,6 +18,7 @@ Elysium_Clean() {
 Elysium_Build() {
     local tracy=$1
     local mode=$2
+    local target=$3
     # Release is CMake's RelWithDebInfo: -O2, with symbols kept so Tracy and gdb still read it.
     local build_type="Debug"
     if [ "$mode" = "Release" ]; then
@@ -49,7 +50,12 @@ Elysium_Build() {
         -DCMAKE_EXE_LINKER_FLAGS="$link_static" -B Build
 
     if [ $? -eq 0 ]; then
-        cmake --build Build
+        # --Target builds one layer (ElysiumCore, ElysiumServices, ElysiumEditor) or the Elysium exe.
+        if [ -n "$target" ]; then
+            cmake --build Build --target "$target"
+        else
+            cmake --build Build
+        fi
     fi
 
     popd > /dev/null
@@ -91,11 +97,12 @@ Elysium_Run() {
 
 # Show help function
 show_help() {
-    echo "Usage: $0 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Run] [--Project=<path>] [--Editor] [--Help]"
+    echo "Usage: $0 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Target=<name>] [--Run] [--Project=<path>] [--Editor] [--Help]"
     echo "  --Clean: Clean build artifacts"
     echo "  --Build: Build the project"
     echo "  --Tracy: Build with the Tracy profiler (v0.12.2) enabled"
     echo "  --Mode=Debug|Release: Build type (default Debug); Release is optimized (-O2) with symbols"
+    echo "  --Target=<name>: Build only this target: ElysiumCore, ElysiumServices, ElysiumEditor or Elysium (default: everything)"
     echo "  --Run: Run the executable"
     echo "  --Project=<path>: Project directory to load, e.g. Projects/DemoGame (required for --Run)"
     echo "  --Editor: Start in editor mode"
@@ -111,6 +118,7 @@ should_build=false
 should_run=false
 tracy_arg=false
 mode_arg="Debug"
+target_arg=""
 project_arg=""
 editor_arg=false
 
@@ -137,6 +145,9 @@ for arg in "$@"; do
             ;;
         --mode=release)
             mode_arg="Release"
+            ;;
+        --target=*)
+            target_arg="${arg#*=}"
             ;;
         --project=*)
             project_arg="${arg#*=}"
@@ -171,7 +182,7 @@ if [ "$should_clean" = true ]; then
 fi
 
 if [ "$should_build" = true ]; then
-    Elysium_Build "$tracy_arg" "$mode_arg"
+    Elysium_Build "$tracy_arg" "$mode_arg" "$target_arg"
 fi
 
 if [ "$should_run" = true ]; then

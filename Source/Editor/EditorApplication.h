@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "Core/Application.h"
+#include "Interfaces/IApplicationService.h"
 #include "Core/AssetKind.h"
 #include "Core/Entity.h"
 #include "Core/Event.h"

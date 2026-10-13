@@ -4,7 +4,6 @@
 #include <sstream>
 #include <string>
 #include <tuple>
-#include "Application.h"
 #include "Entity.h"
 #include "Scene.h"
 #include "Core/Log.h"

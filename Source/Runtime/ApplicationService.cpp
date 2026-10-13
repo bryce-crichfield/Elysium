@@ -1,5 +1,5 @@
-#include "Services/ApplicationService.h"
-#include "Core/Application.h"
+#include "Runtime/ApplicationService.h"
+#include "Runtime/Application.h"
 
 namespace Elysium::Services {
 

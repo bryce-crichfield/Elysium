@@ -1,6 +1,6 @@
 #include "Core/Assets/ScriptAsset.h"
 #include "Core/Asset.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 #include "raylib.h"
 
 namespace Elysium {

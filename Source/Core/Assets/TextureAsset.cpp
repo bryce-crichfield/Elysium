@@ -1,7 +1,7 @@
 #include "Core/Assets/TextureAsset.h"
 #include "Core/Asset.h"
 #include "Core/RaylibConvert.h"
-#include "Services/LogService.h"
+#include "Core/Log.h"
 
 #include "rlgl.h"
 

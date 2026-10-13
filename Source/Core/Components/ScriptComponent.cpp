@@ -2,9 +2,7 @@
 #include "Core/ComponentRegistry.h"
 #include "Core/Script.h"
 #include "Interfaces/IAssetService.h"
-#include "Services/AssetService.h"
 #include "Interfaces/IScriptService.h"
-#include "Services/ScriptService.h"
 
 namespace Elysium {
     void ScriptComponent::SaveXml(const ScriptComponent& c, XMLBuilder& builder) {
