@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Elysium</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0c0c12; }
+    /* No CSS size: raylib sets the canvas's size to the tab's and keeps it there on resize. */
+    canvas { display: block; outline: none; }
+    #status {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #c8c8d8; font: 16px system-ui, sans-serif; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+  <div id="status">Loading…</div>
+  <script>
+    var statusElement = document.getElementById('status');
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      setStatus: function (text) {
+        statusElement.textContent = text;
+        statusElement.style.display = text ? 'flex' : 'none';
+      },
+      onRuntimeInitialized: function () { Module.canvas.focus(); }
+    };
+    window.addEventListener('error', function () { Module.setStatus('Something went wrong; see the console.'); });
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

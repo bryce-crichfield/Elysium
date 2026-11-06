@@ -51,6 +51,30 @@ function Elysium_Setup {
     
     Write-Host "Elysium environment setup completed!"
 }
+# Emscripten, the compiler for the Web build, installed into Tools/emsdk at a pinned version.
+$EMSDK_ROOT = "$ELYSIUM_ROOT\Tools\emsdk"
+$EMSDK_VERSION = "4.0.10"
+
+function Elysium_SetupWeb {
+    Write-Host "Setting up Emscripten $EMSDK_VERSION..."
+    if (-not (Test-Path -Path $EMSDK_ROOT)) {
+        git clone https://github.com/emscripten-core/emsdk.git $EMSDK_ROOT
+    }
+    & "$EMSDK_ROOT\emsdk.bat" install $EMSDK_VERSION
+    if ($LASTEXITCODE -ne 0) { throw "emsdk install failed" }
+    & "$EMSDK_ROOT\emsdk.bat" activate $EMSDK_VERSION
+    if ($LASTEXITCODE -ne 0) { throw "emsdk activate failed" }
+    Write-Host "Emscripten setup completed!"
+}
+
+# Puts emcc, emcmake and emrun (and the node and python they need) on this session's PATH.
+function Use-Emsdk {
+    if (-not (Test-Path -Path "$EMSDK_ROOT\emsdk_env.ps1")) {
+        throw "Emscripten isn't installed. Run: .\elysium.ps1 --Setup --Platform=Web"
+    }
+    . "$EMSDK_ROOT\emsdk_env.ps1" | Out-Null
+}
+
 function Elysium_Clean {
     Write-Host "Cleaning build artifacts..."
     if (Test-Path "$ELYSIUM_ROOT\Build") {
@@ -93,6 +117,35 @@ function Elysium_Build {
                 Copy-Item "C:\msys64\mingw64\bin\libwinpthread-1.dll" "$ELYSIUM_ROOT\Binary" -Force
             }
         }
+    }
+    finally {
+        Set-Location $currentLocation
+    }
+}
+
+# The Web build: Build/Web and Binary/Web (Elysium.html/.js/.wasm/.data). The project is packed
+# into the page at build time, so it's chosen here rather than at --Run.
+function Elysium_BuildWeb {
+    param([string]$Mode, [string]$Target, [string]$ProjectPath)
+    $buildType = if ($Mode -eq "Release") { "Release" } else { "Debug" }
+    Write-Host "Building Elysium for Web ($Mode)..."
+    $currentLocation = Get-Location
+
+    try {
+        Set-Location "$ELYSIUM_ROOT"
+        Use-Emsdk
+        $env:PATH = "$env:PATH;C:\msys64\mingw64\bin"  # ninja; emsdk's own tools stay first
+
+        $configure = @("-G", "Ninja", "-DCMAKE_MAKE_PROGRAM=ninja", "-DCMAKE_BUILD_TYPE=$buildType", "-B", "Build/Web")
+        if ($ProjectPath) {
+            $webProject = $ProjectPath.TrimEnd('\', '/').Replace('\', '/')
+            $configure += "-DELYSIUM_WEB_PROJECT=$webProject"
+        }
+        emcmake cmake @configure
+        if ($LASTEXITCODE -eq 0) {
+            if ($Target) { cmake --build Build/Web --target $Target } else { cmake --build Build/Web }
+        }
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     finally {
         Set-Location $currentLocation
@@ -143,6 +196,15 @@ function Elysium_Run {
     }
 }
 
+# Serves Binary/Web on localhost and opens the page in the default browser.
+function Elysium_RunWeb {
+    if (-not (Test-Path -Path "$ELYSIUM_ROOT\Binary\Web\Elysium.html")) {
+        throw "No Web build. Run: .\elysium.ps1 --Build --Platform=Web"
+    }
+    Use-Emsdk
+    emrun --no_emrun_detect "$ELYSIUM_ROOT\Binary\Web\Elysium.html"
+}
+
 # Parse command-line arguments
 $shouldSetup = $false
 $shouldClean = $false
@@ -154,6 +216,7 @@ $modeArg = "Debug"
 $targetArg = $null
 $projectArg = $null
 $editorArg = $false
+$platformArg = "Desktop"
 
 foreach ($arg in $args) {
     switch -Regex ($arg) {
@@ -166,10 +229,11 @@ foreach ($arg in $args) {
         "^--[Mm]ode=([Dd]ebug|[Rr]elease)$" { $modeArg = (Get-Culture).TextInfo.ToTitleCase($matches[1].ToLower()) }
         "^--[Tt]arget=(.+)$" { $targetArg = $matches[1] }
         "^--[Pp]roject=(.+)$" { $projectArg = $matches[1] }
+        "^--[Pp]latform=([Dd]esktop|[Ww]eb)$" { $platformArg = (Get-Culture).TextInfo.ToTitleCase($matches[1].ToLower()) }
         "^--[Ee]ditor$" { $editorArg = $true }
         "^--[Ee]ditor=(.+)$" { $editorArg = ($matches[1] -eq "true") }
         "^--[Hh]elp$" {
-            Write-Host "Usage: .\script.ps1 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Target=<name>] [--Test] [--Run] [--Project=<path>] [--Editor] [--Help]"
+            Write-Host "Usage: .\script.ps1 [--Clean] [--Build] [--Tracy] [--Mode=Debug|Release] [--Target=<name>] [--Test] [--Run] [--Project=<path>] [--Editor] [--Platform=Desktop|Web] [--Help]"
             Write-Host "  --Clean: Clean build artifacts"
             Write-Host "  --Build: Build the project"
             Write-Host "  --Tracy: Build with the Tracy profiler (v0.12.2) enabled"
@@ -179,6 +243,9 @@ foreach ($arg in $args) {
             Write-Host "  --Run: Run the executable"
             Write-Host "  --Project=<path>: Project directory to load, e.g. Projects\DemoGame (required for --Run)"
             Write-Host "  --Editor: Start in editor mode"
+            Write-Host "  --Platform=Desktop|Web: What --Setup, --Build and --Run work on (default Desktop)."
+            Write-Host "      Web: --Setup installs Emscripten, --Build makes Binary\Web\Elysium.html with --Project"
+            Write-Host "      packed in (default Projects\Battler), --Run serves it and opens the browser"
             Write-Host "  --Help: Show this help message"
             Write-Host ""
             Write-Host "Operations are executed in order: Clean -> Build -> Test -> Run"
@@ -193,7 +260,7 @@ foreach ($arg in $args) {
 
 # Execute operations in the correct order
 if ($shouldSetup) {
-    Elysium_Setup
+    if ($platformArg -eq "Web") { Elysium_SetupWeb } else { Elysium_Setup }
 }
 
 if ($shouldClean) {
@@ -201,7 +268,11 @@ if ($shouldClean) {
 }
 
 if ($shouldBuild) {
-    Elysium_Build -Tracy $tracyArg -Mode $modeArg -Target $targetArg
+    if ($platformArg -eq "Web") {
+        Elysium_BuildWeb -Mode $modeArg -Target $targetArg -ProjectPath $projectArg
+    } else {
+        Elysium_Build -Tracy $tracyArg -Mode $modeArg -Target $targetArg
+    }
 }
 
 if ($shouldTest) {
@@ -209,7 +280,7 @@ if ($shouldTest) {
 }
 
 if ($shouldRun) {
-    Elysium_Run -ProjectPath $projectArg -EditorMode $editorArg
+    if ($platformArg -eq "Web") { Elysium_RunWeb } else { Elysium_Run -ProjectPath $projectArg -EditorMode $editorArg }
 }
 
 # If no arguments provided, show help

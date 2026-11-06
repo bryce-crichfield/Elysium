@@ -73,4 +73,10 @@ class Shader {
     std::vector<ShaderUniform> uniforms_;
 };
 
+// Shaders are written as desktop GLSL 330. The browser's WebGL2 takes GLSL ES 3.00, which is
+// the same language behind a different version line and with default precisions required.
+std::string ToGlslEs(const std::string& source);
+// The source as this platform's GL takes it: ToGlslEs on Web, unchanged elsewhere.
+std::string ToPlatformGlsl(const std::string& source);
+
 }  // namespace Elysium

@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <vector>
 #include "Interfaces/IApplicationService.h"
+#include "Interfaces/IEditor.h"
 #include "Core/AssetKind.h"
 #include "Core/Entity.h"
 #include "Core/Event.h"
@@ -111,16 +112,16 @@ struct GridSettings {
 // It holds the editing session (the open documents, each scene or prefab its own Scene and
 // never the game's; selection; undo; clipboard; layer and grid state; the editor camera) and
 // owns its UI, EditorUI (ImGui, the panels, menus and dock layout).
-class EditorApplication {
+class EditorApplication : public IEditor {
    public:
     explicit EditorApplication(ServiceLocator& services);
-    ~EditorApplication();
+    ~EditorApplication() override;
 
-    void Initialize(const ApplicationConfig& config);
-    void Update(float deltaTime);
-    void Draw(AppMode mode);
-    void OnModeChanged(AppMode mode);
-    void Shutdown();
+    void Initialize(const ApplicationConfig& config) override;
+    void Update(float deltaTime) override;
+    void Draw(AppMode mode) override;
+    void OnModeChanged(AppMode mode) override;
+    void Shutdown() override;
 
     // The engine's services, for editor code that needs the scenes, assets or scripts.
     ServiceLocator& GetServices() { return registry_; }

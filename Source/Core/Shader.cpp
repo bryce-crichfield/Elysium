@@ -49,6 +49,33 @@ struct Shader::Native {
     ~Native() { if (shader.id != 0) ::UnloadShader(shader); }
 };
 
+std::string ToGlslEs(const std::string& source) {
+    std::string result =
+        "#version 300 es\n"
+        "precision highp float;\n"
+        "precision highp int;\n";
+    result.reserve(result.size() + source.size());
+
+    size_t start = 0;
+    while (start < source.size()) {
+        size_t end = source.find('\n', start);
+        end = (end == std::string::npos) ? source.size() : end + 1;
+        const size_t text = source.find_first_not_of(" \t", start);
+        const bool isVersion = text < end && source.compare(text, 8, "#version") == 0;
+        if (!isVersion) result.append(source, start, end - start);
+        start = end;
+    }
+    return result;
+}
+
+std::string ToPlatformGlsl(const std::string& source) {
+#ifdef __EMSCRIPTEN__
+    return ToGlslEs(source);
+#else
+    return source;
+#endif
+}
+
 Shader::Shader() = default;
 Shader::~Shader() = default;
 Shader::Shader(Shader&&) noexcept = default;
@@ -64,8 +91,9 @@ const void* Shader::NativeHandle() const {
 
 Shader Shader::FromSource(const std::string& vertexSource, const std::string& fragmentSource,
                            std::string* error) {
-    const char* vs = vertexSource.empty() ? nullptr : vertexSource.c_str();
-    ::Shader compiled = ::LoadShaderFromMemory(vs, fragmentSource.c_str());
+    const std::string vertex = ToPlatformGlsl(vertexSource);
+    const std::string fragment = ToPlatformGlsl(fragmentSource);
+    ::Shader compiled = ::LoadShaderFromMemory(vertexSource.empty() ? nullptr : vertex.c_str(), fragment.c_str());
 
     Shader result;
     if (compiled.id == 0) {

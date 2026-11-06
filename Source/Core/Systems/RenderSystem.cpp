@@ -1022,7 +1022,7 @@ std::string World3DShaderText(const char* name) {
 
 // Light.glsl declares Light3D/Fogged for the fragment shaders that follow it.
 std::string LitFragment(const char* name) {
-    return "#version 330\n" + World3DShaderText("Light.glsl") + World3DShaderText(name);
+    return ToPlatformGlsl("#version 330\n" + World3DShaderText("Light.glsl") + World3DShaderText(name));
 }
 
 // Bones a skinned mesh can have: LitShaders::skinned moves each vertex by up to four of them
@@ -1104,8 +1104,10 @@ Entity CardAnchor(const World& world, Entity entity) {
 }  // namespace
 
 struct RenderCompositor::LitShaders {
-    ::Shader model = LoadShaderFromMemory(World3DShaderText("Model.vs").c_str(), LitFragment("Model.fs").c_str());
-    ::Shader skinned = LoadShaderFromMemory(World3DShaderText("Skinned.vs").c_str(), LitFragment("Model.fs").c_str());
+    ::Shader model = LoadShaderFromMemory(ToPlatformGlsl(World3DShaderText("Model.vs")).c_str(),
+                                          LitFragment("Model.fs").c_str());
+    ::Shader skinned = LoadShaderFromMemory(ToPlatformGlsl(World3DShaderText("Skinned.vs")).c_str(),
+                                            LitFragment("Model.fs").c_str());
     // The batch's default shader, lit at one point (uCardPos, GL) for the whole card.
     ::Shader card = LoadShaderFromMemory(nullptr, LitFragment("Card.fs").c_str());
 

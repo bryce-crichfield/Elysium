@@ -8,7 +8,7 @@ namespace Elysium {
 
 class FontAsset : public AssetBase<FontAsset> {
    public:
-    using AssetBase::AssetBase;
+    explicit FontAsset(Path path);  // out of line: native_'s type is only complete in the .cpp
     ~FontAsset() override;
 
     bool Load() override;

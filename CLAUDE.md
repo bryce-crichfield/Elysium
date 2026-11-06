@@ -40,7 +40,12 @@ MSYS2/MinGW + Ninja via CMake, driven by `elysium.ps1` (`elysium.sh` on Linux/Ma
 .\elysium.ps1 --Build --Mode=Release --Tracy         # -O2 build with the profiler
 .\elysium.ps1 --Run --Project=Projects\Battler [--Editor]
 .\elysium.ps1 --Build --Test                         # build, then run the unit tests
+.\elysium.ps1 --Setup --Platform=Web                 # install Emscripten into Tools/emsdk (once)
+.\elysium.ps1 --Build --Platform=Web [--Project=Projects\Battler]  # Build/Web -> Binary/Web/Elysium.html
+.\elysium.ps1 --Run --Platform=Web                   # serve Binary/Web with emrun, open the browser
 ```
+
+- **Web build.** `Source/Runtime` has a main per platform (`DesktopMain.cpp`, `WebMain.cpp`); each one picks the services, and only desktop attaches the editor. The browser gets threadless or stub services from `Source/Services/Web/` (they also build on desktop, so the tests cover them). The project is baked into `Elysium.data` at build time and the engine's file reads hit Emscripten's in-memory filesystem. Shaders stay GLSL 330 and are rewritten by `ToGlslEs` on Web (WebGL2).
 
 - Operations run Clean → Build → Run regardless of flag order. `--Build` forces `-DTRACY_ENABLE=OFF` (Tracy's threads corrupt the stack in this static MinGW build; don't flip it without re-checking).
 - `Build/` holds intermediates and `compile_commands.json`; `Binary/` is the runtime dir (`Elysium.exe` + copied assets) and asset paths resolve from it.

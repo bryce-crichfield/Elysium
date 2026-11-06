@@ -12,12 +12,19 @@ uniform mat4 boneMatrices[128];
 out vec2 fragTexCoord;
 out vec3 fragNormal;
 out vec3 fragWorld;
+// raylib uploads boneMatrices transposed on desktop GL, but WebGL can't transpose on upload, so
+// under GL_ES they arrive as raylib stores them and are transposed here.
+#ifdef GL_ES
+#define BONE(i) transpose(boneMatrices[i])
+#else
+#define BONE(i) boneMatrices[i]
+#endif
 void main()
 {
-    mat4 skin = boneMatrices[int(vertexBoneIds.x)] * vertexBoneWeights.x
-              + boneMatrices[int(vertexBoneIds.y)] * vertexBoneWeights.y
-              + boneMatrices[int(vertexBoneIds.z)] * vertexBoneWeights.z
-              + boneMatrices[int(vertexBoneIds.w)] * vertexBoneWeights.w;
+    mat4 skin = BONE(int(vertexBoneIds.x)) * vertexBoneWeights.x
+              + BONE(int(vertexBoneIds.y)) * vertexBoneWeights.y
+              + BONE(int(vertexBoneIds.z)) * vertexBoneWeights.z
+              + BONE(int(vertexBoneIds.w)) * vertexBoneWeights.w;
     vec4 position = skin * vec4(vertexPosition, 1.0);
     vec3 normal = mat3(skin) * vertexNormal;
     fragTexCoord = vertexTexCoord;

@@ -17,7 +17,7 @@ namespace Elysium {
 //    AnimationComponent. Its textures are files beside it, named by the .mesh.
 class ModelAsset : public AssetBase<ModelAsset> {
    public:
-    using AssetBase::AssetBase;
+    explicit ModelAsset(Path path);  // out of line: native_'s type is only complete in the .cpp
     ~ModelAsset() override;
 
     bool Load() override;

@@ -12,6 +12,7 @@ struct TextureAsset::Native {
     bool hasImage = false;
 };
 
+TextureAsset::TextureAsset(Path path) : AssetBase(std::move(path)) {}
 TextureAsset::~TextureAsset() = default;
 
 bool TextureAsset::Load() {

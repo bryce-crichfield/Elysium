@@ -9,20 +9,40 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/Build)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/Binary)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/Binary)
+# EMSCRIPTEN is set by Emscripten's toolchain (emcmake): the Web build. It runs the game only;
+# the editor, PortAudio, ENet, Tracy and the tests are desktop-only.
+if(EMSCRIPTEN)
+    set(ELYSIUM_BINARY_DIR ${CMAKE_SOURCE_DIR}/Binary/Web)
+    set(ELYSIUM_BUILD_DIR ${CMAKE_SOURCE_DIR}/Build/Web)
+    # sol2 and the engine throw and catch; Emscripten builds without exceptions unless asked.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions")
+else()
+    set(ELYSIUM_BINARY_DIR ${CMAKE_SOURCE_DIR}/Binary)
+    set(ELYSIUM_BUILD_DIR ${CMAKE_SOURCE_DIR}/Build)
+endif()
+
+set(CMAKE_BINARY_DIR ${ELYSIUM_BUILD_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ELYSIUM_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ELYSIUM_BINARY_DIR})
 
 # Add vendor libraries
 # raylib's audio module (miniaudio + its own dr_wav/stb_vorbis copies) is off: audio is ours
 # (AudioService on PortAudio, decoding in Core/Audio), and the decoders would clash at link time.
 set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
+if(EMSCRIPTEN)
+    # WebGL2, which takes the engine's GLSL 330 shaders once ToGlslEs rewrites their header.
+    set(PLATFORM Web CACHE STRING "" FORCE)
+    set(OPENGL_VERSION "ES 3.0" CACHE STRING "" FORCE)
+endif()
 add_subdirectory(Vendor/raylib)
 # glTF models embed JPEG textures; raylib's config.h leaves JPEG off.
 target_compile_definitions(raylib PRIVATE SUPPORT_FILEFORMAT_JPG=1)
 add_subdirectory(Vendor/tinyxml2)
-add_subdirectory(Vendor/enet)
+if(NOT EMSCRIPTEN)
+    add_subdirectory(Vendor/enet)
+endif()
 
 # Recast (navmesh baking) and Detour (navmesh queries): NavigationSystem
 set(RECASTNAVIGATION_DEMO OFF CACHE BOOL "" FORCE)
@@ -74,7 +94,11 @@ FetchContent_Declare(portable_file_dialogs
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 set(DOCTEST_WITH_TESTS OFF CACHE BOOL "" FORCE)
 set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(portaudio dr_libs stb portable_file_dialogs doctest nanobench)
+if(EMSCRIPTEN)
+    FetchContent_MakeAvailable(dr_libs stb)
+else()
+    FetchContent_MakeAvailable(portaudio dr_libs stb portable_file_dialogs doctest nanobench)
+endif()
 unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # sol2
@@ -89,56 +113,59 @@ list (FILTER LUA_SOURCES EXCLUDE REGEX ".*(lua|luac)\\.c$")
 add_library (lua STATIC ${LUA_SOURCES})
 target_include_directories(lua PUBLIC ${LUA_DIR})
 
-# ImGui library, since it doesn't have a CMakeLists.txt, we have to build it ourselves
-set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/imgui)
-set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_demo.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-)
-add_library(imgui STATIC ${IMGUI_SOURCES})
-target_include_directories(imgui PUBLIC
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
-)
+# Editor-only vendor code (ImGui and friends) and the profiler.
+if(NOT EMSCRIPTEN)
+    # ImGui library, since it doesn't have a CMakeLists.txt, we have to build it ourselves
+    set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/imgui)
+    set(IMGUI_SOURCES
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_demo.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    )
+    add_library(imgui STATIC ${IMGUI_SOURCES})
+    target_include_directories(imgui PUBLIC
+        ${IMGUI_DIR}
+        ${IMGUI_DIR}/backends
+    )
 
-# ImGui Text Editor 
-# ImGuiColorTextEdit
-set(COLORTEXTEDIT_DIR ${CMAKE_SOURCE_DIR}/Vendor/ImGuiColorTextEdit)
-add_library(colortextedit STATIC ${COLORTEXTEDIT_DIR}/TextEditor.cpp)
-target_include_directories(colortextedit PUBLIC
-    ${COLORTEXTEDIT_DIR}
-    ${IMGUI_DIR}
-)
-target_link_libraries(colortextedit PUBLIC imgui)
+    # ImGui Text Editor 
+    # ImGuiColorTextEdit
+    set(COLORTEXTEDIT_DIR ${CMAKE_SOURCE_DIR}/Vendor/ImGuiColorTextEdit)
+    add_library(colortextedit STATIC ${COLORTEXTEDIT_DIR}/TextEditor.cpp)
+    target_include_directories(colortextedit PUBLIC
+        ${COLORTEXTEDIT_DIR}
+        ${IMGUI_DIR}
+    )
+    target_link_libraries(colortextedit PUBLIC imgui)
 
-# ImGuizmo: only the transform gizmo is used, so the other widgets aren't built
-set(IMGUIZMO_DIR ${CMAKE_SOURCE_DIR}/Vendor/ImGuizmo)
-add_library(imguizmo STATIC ${IMGUIZMO_DIR}/src/ImGuizmo.cpp)
-target_include_directories(imguizmo PUBLIC ${IMGUIZMO_DIR}/src)
-target_link_libraries(imguizmo PUBLIC imgui)
+    # ImGuizmo: only the transform gizmo is used, so the other widgets aren't built
+    set(IMGUIZMO_DIR ${CMAKE_SOURCE_DIR}/Vendor/ImGuizmo)
+    add_library(imguizmo STATIC ${IMGUIZMO_DIR}/src/ImGuizmo.cpp)
+    target_include_directories(imguizmo PUBLIC ${IMGUIZMO_DIR}/src)
+    target_link_libraries(imguizmo PUBLIC imgui)
 
-# rlImGui library, since it's header only it's a bit more complicated
-set(RLIMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/rlImGui)
-add_library(rlimgui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
-target_include_directories(rlimgui PUBLIC
-    ${RLIMGUI_DIR}
-    ${CMAKE_SOURCE_DIR}/Vendor/raylib/src
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
-)
-target_link_libraries(rlimgui PUBLIC raylib imgui)
+    # rlImGui library, since it's header only it's a bit more complicated
+    set(RLIMGUI_DIR ${CMAKE_SOURCE_DIR}/Vendor/rlImGui)
+    add_library(rlimgui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
+    target_include_directories(rlimgui PUBLIC
+        ${RLIMGUI_DIR}
+        ${CMAKE_SOURCE_DIR}/Vendor/raylib/src
+        ${IMGUI_DIR}
+        ${IMGUI_DIR}/backends
+    )
+    target_link_libraries(rlimgui PUBLIC raylib imgui)
 
-# Tracy profiler
-option(TRACY_ENABLE "Enable Tracy profiler" OFF)
-if(TRACY_ENABLE)
-    set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
-    set(TRACY_NO_SYSTEM_TRACING ON CACHE BOOL "Disable ETW for MinGW compatibility" FORCE)
-    add_subdirectory(Vendor/tracy)
-    message(STATUS "Tracy profiler enabled")
+    # Tracy profiler
+    option(TRACY_ENABLE "Enable Tracy profiler" OFF)
+    if(TRACY_ENABLE)
+        set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
+        set(TRACY_NO_SYSTEM_TRACING ON CACHE BOOL "Disable ETW for MinGW compatibility" FORCE)
+        add_subdirectory(Vendor/tracy)
+        message(STATUS "Tracy profiler enabled")
+    endif()
 endif()
 
 if(UNIX AND NOT APPLE AND CMAKE_EXE_LINKER_FLAGS MATCHES "(^| )-static( |$)")
@@ -157,8 +184,13 @@ target_include_directories(ElysiumBuild INTERFACE
 )
 target_compile_definitions(ElysiumBuild INTERFACE
     SOL_NO_CHECK_NUMBER_PRECISION=1
-    ASSETS_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/"
 )
+if(EMSCRIPTEN)
+    # Engine assets are preloaded into the page's virtual filesystem at /Assets (Source/Runtime).
+    target_compile_definitions(ElysiumBuild INTERFACE ASSETS_PATH="/Assets/")
+else()
+    target_compile_definitions(ElysiumBuild INTERFACE ASSETS_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets/")
+endif()
 if(TRACY_ENABLE)
     target_compile_definitions(ElysiumBuild INTERFACE TRACY_ENABLE)
     target_link_libraries(ElysiumBuild INTERFACE Tracy::TracyClient)
@@ -171,14 +203,18 @@ endif()
 # Interfaces/; Services and Editor build on Core; Runtime is the executable that wires them up.
 add_subdirectory(Source/Core)
 add_subdirectory(Source/Services)
-add_subdirectory(Source/Editor)
+if(NOT EMSCRIPTEN)
+    add_subdirectory(Source/Editor)
+endif()
 add_subdirectory(Source/Runtime)
 
-# Unit tests (doctest) against Core alone; run with --Test.
-add_subdirectory(Tests/Unit)
+if(NOT EMSCRIPTEN)
+    # Unit tests (doctest) against Core alone; run with --Test.
+    add_subdirectory(Tests/Unit)
 
-# Benchmarks (nanobench) for engine hot paths. Not part of --Test: run Binary/ElysiumBenchmarks.
-add_subdirectory(Tests/Benchmark)
+    # Benchmarks (nanobench) for engine hot paths. Not part of --Test: run Binary/ElysiumBenchmarks.
+    add_subdirectory(Tests/Benchmark)
+endif()
 
 # Assets always resolve relative to the runtime output directory, in both
 # Debug and Release, so there is one asset root regardless of build type.

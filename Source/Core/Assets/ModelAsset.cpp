@@ -185,6 +185,7 @@ std::unique_ptr<ModelAsset::BakedMesh> ModelAsset::ReadGltf(const std::string& p
     return baked;
 }
 
+ModelAsset::ModelAsset(Path path) : AssetBase(std::move(path)) {}
 ModelAsset::~ModelAsset() = default;
 
 bool ModelAsset::Load() {

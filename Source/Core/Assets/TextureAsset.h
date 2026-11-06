@@ -8,7 +8,7 @@ namespace Elysium {
 
 class TextureAsset : public AssetBase<TextureAsset> {
    public:
-    using AssetBase::AssetBase;
+    explicit TextureAsset(Path path);  // out of line: native_'s type is only complete in the .cpp
     ~TextureAsset() override;
 
     bool Load() override;      // background thread: reads raw image bytes

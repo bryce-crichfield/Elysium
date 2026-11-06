@@ -1,16 +1,12 @@
 #include "Runtime/Application.h"
-#include <chrono>
-#include <thread>
 #include "Core/Common.h"
 #include "Core/Path.h"
 #include "Interfaces/IAudioService.h"
 #include "Interfaces/ILogService.h"
 #include "Interfaces/ISceneService.h"
-#include "Runtime/ApplicationService.h"
-#include "Services/Services.h"
 #include "Core/Input.h"
+#include "Core/Log.h"
 #include "tinyxml2.h"
-#include "Editor/EditorApplication.h"
 
 using namespace tinyxml2;
 
@@ -101,27 +97,6 @@ bool Application::Initialize(const std::string& configPath) {
         return true;
     }
 
-    serviceLocator_.Register<Services::ApplicationService, Services::IApplicationService>(
-        std::make_unique<Services::ApplicationService>(serviceLocator_, *this));
-    serviceLocator_.Register<Services::LogService, Services::ILogService>(
-        std::make_unique<Services::LogService>(serviceLocator_));
-    serviceLocator_.Register<Services::MessageService, Services::IMessageService>(
-        std::make_unique<Services::MessageService>(serviceLocator_));
-    serviceLocator_.Register<Services::NetworkService, Services::INetworkService>(
-        std::make_unique<Services::NetworkService>(serviceLocator_));
-    serviceLocator_.Register<Services::InvokeService, Services::IInvokeService>(
-        std::make_unique<Services::InvokeService>(serviceLocator_));
-    serviceLocator_.Register<TaskService, Services::ITaskService>(
-        std::make_unique<TaskService>(serviceLocator_));
-    serviceLocator_.Register<Services::AssetService, Services::IAssetService>(
-        std::make_unique<Services::AssetService>(serviceLocator_));
-    serviceLocator_.Register<Services::AudioService, Services::IAudioService>(
-        std::make_unique<Services::AudioService>(serviceLocator_));
-    serviceLocator_.Register<Services::SceneService, Services::ISceneService>(
-        std::make_unique<Services::SceneService>(serviceLocator_));
-    serviceLocator_.Register<Services::ScriptService, Services::IScriptService>(
-        std::make_unique<Services::ScriptService>(serviceLocator_));
-
     if (!ApplicationConfig::FromXML(configPath, config_)) {
         LOG_ERROR("Application", "Failed to load ApplicationConfig.xml");
         return false;
@@ -136,8 +111,6 @@ bool Application::Initialize(const std::string& configPath) {
         service->Initialize();
     }
 
-    editor_ = std::make_unique<EditorApplication>(serviceLocator_);
-    editor_->Initialize(config_);
 
     initialized_ = true;
     LOG_INFO("Application", "Engine initialization complete");
@@ -151,22 +124,31 @@ std::optional<std::string> Application::Run() {
         return std::nullopt;
     }
 
-    while (!window_.ShouldClose() && !shouldClose_) {
-#ifdef TRACY_ENABLE
-        FrameMark;
-#endif
-
-        ProfileN("Frame");
-
-        float deltaTime = window_.GetDeltaTime();
-
-        ProcessInput();
-        ProcessEvents();
-        Update(deltaTime);
-        Draw();
-    }
+    while (Frame()) {}
     Shutdown();
     return nextProject_;
+}
+
+bool Application::Frame() {
+    if (ShouldClose()) return false;
+
+#ifdef TRACY_ENABLE
+    FrameMark;
+#endif
+    ProfileN("Frame");
+
+    float deltaTime = window_.GetDeltaTime();
+
+    ProcessInput();
+    ProcessEvents();
+    Update(deltaTime);
+    Draw();
+    return true;
+}
+
+void Application::SetEditor(std::unique_ptr<IEditor> editor) {
+    editor_ = std::move(editor);
+    editor_->Initialize(config_);
 }
 
 void Application::Shutdown() {
@@ -234,6 +216,7 @@ void Application::ProcessEvents() {
 
 void Application::SetMode(AppMode mode) {
     if (mode_ == mode) return;
+    if (mode == AppMode::Editor && !editor_) return;
     mode_ = mode;
 
     if (editor_) editor_->OnModeChanged(mode_);

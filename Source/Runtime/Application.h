@@ -8,11 +8,10 @@
 #include <unordered_map>
 #include <vector>
 #include "Interfaces/IApplicationService.h"
+#include "Interfaces/IEditor.h"
 #include "Core/Window.h"
 
 namespace Elysium {
-
-class EditorApplication;
 
 // Application is owned by main.cpp as a plain local object — not a singleton.
 // Nothing else should hold a reference to it; Systems/Components/Editors/
@@ -25,10 +24,18 @@ class Application {
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
 
+    // The services are registered by the caller before this; it initializes them.
     bool Initialize(const std::string& configPath = "Config/ApplicationConfig.xml");
-    // Returns the Project.xml to reopen the app on, or nothing when it's quitting.
+    // Runs frames until the app closes. Returns the Project.xml to reopen the app on, or
+    // nothing when it's quitting.
     std::optional<std::string> Run();
+    // One frame, for hosts that own the loop (the browser). False once the app should close.
+    bool Frame();
     void Shutdown();
+
+    // Set after Initialize, which opens the window the editor draws into. Without one, Editor
+    // mode is never entered.
+    void SetEditor(std::unique_ptr<IEditor> editor);
 
     const ApplicationConfig& GetConfig() const { return config_; }
 
@@ -58,7 +65,7 @@ class Application {
     Window window_;
 
     ServiceLocator serviceLocator_;
-    std::unique_ptr<EditorApplication> editor_;  // the in-engine editor
+    std::unique_ptr<IEditor> editor_;
 
     AppMode mode_ = AppMode::Play;
 

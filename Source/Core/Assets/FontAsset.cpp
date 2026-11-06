@@ -9,6 +9,7 @@ struct FontAsset::Native {
     ::Font font{};
 };
 
+FontAsset::FontAsset(Path path) : AssetBase(std::move(path)) {}
 FontAsset::~FontAsset() = default;
 
 bool FontAsset::Load() {
